@@ -91,12 +91,12 @@ namespace EHsmProvider
 
     void Finalize();
 
-	EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_BLOB_PTR pKeyBlob);
+    EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_BLOB_PTR pKeyBlob);
 
-	EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-			EH_BYTE_PTR pData, EH_ULONG ulDataLen, EH_BYTE_PTR pEncryptedData)
+    EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
+			EH_BYTE_PTR pData, EH_ULONG ulDataLen, EH_BYTE_PTR pEncryptedData);
 
-	EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
+    EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
 			EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen, EH_BYTE_PTR pData);
 }
 
