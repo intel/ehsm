@@ -212,7 +212,6 @@ EH_RV sgx_Decrypt(EH_MECHANISM_PTR  pMechanism,
 			uint32_t iv_len = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulIvLen;
 			uint8_t *aad = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD;
 			uint32_t aad_len = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen;
-			ulEncryptedDataLen
 		    uint8_t *mac = (uint8_t *)(pEncryptedData + ulEncryptedDataLen);
 
 			sgx_key_128bit_t dec_key;
