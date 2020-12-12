@@ -108,13 +108,18 @@ EH_RV sgx_Encrypt(EH_MECHANISM_PTR    pMechanism,
 				  EH_KEY_BLOB_PTR     pKeyBlob,
                   EH_BYTE_PTR         pData,
                   EH_ULONG            ulDataLen,
-                  EH_BYTE_PTR         pEncryptedData)
+                  EH_BYTE_PTR         pEncryptedData,
+				  EH_ULONG_PTR        pulEncryptedDataLen)
 {
 	EH_RV rv = EHR_FUNCTION_FAILED;
 	sgx_status_t status = SGX_ERROR_UNEXPECTED;
 
 	if (!validate_user_check_mechanism_ptr(pMechanism, 1)) {
 		return EHR_DEVICE_MEMORY;
+	}
+
+	if (pEncryptedData ==  NULL || pulEncryptedDataLen == NULL) {
+		return EHR_ARGUMENTS_BAD;
 	}
 
 	switch(pMechanism->mechanism) {
@@ -124,24 +129,30 @@ EH_RV sgx_Encrypt(EH_MECHANISM_PTR    pMechanism,
 			    pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
 				return EHR_ARGUMENTS_BAD;
 			}
-			if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulIvLen) && (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pIv)) {
+            if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
+					(NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
                 return EHR_ARGUMENTS_BAD;
             }
-            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulIvLen) && (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pIv)) {
+            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
+					(nullptr != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
                 return EHR_ARGUMENTS_BAD;
             }
-            if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) && (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                return EHR_ARGUMENTS_BAD;
-            }
-            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) && (nullptr != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                return EHR_ARGUMENTS_BAD;
-            }
+			if (*pulEncryptedDataLen != ulDataLen + EH_AES_GCM_IV_SIZE +
+					EH_AES_GCM_MAC_SIZE) {
+				return EHR_ARGUMENTS_BAD;
+			} 
 
-			uint8_t *iv = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pIv;
-			uint32_t iv_len = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulIvLen;
 			uint8_t *aad = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD;
 			uint32_t aad_len = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen;
-		    uint8_t *mac = (uint8_t *)(pEncryptedData + ulDataLen);
+			uint8_t *iv = (uint8_t *)(pEncryptedData + ulDataLen);
+		    uint8_t *mac = (uint8_t *)(pEncryptedData + ulDataLen +
+					EH_AES_GCM_IV_SIZE);
+
+            status = sgx_read_rand(iv, EH_AES_GCM_IV_SIZE);
+	        if (status != SGX_SUCCESS) {
+				printf("error generating IV\n");
+                return EHR_SGX_FAILED;
+			}
 
 			sgx_key_128bit_t enc_key;
 
@@ -151,8 +162,9 @@ EH_RV sgx_Encrypt(EH_MECHANISM_PTR    pMechanism,
                 return rv;
             }
 
-            status = sgx_rijndael128GCM_encrypt(&enc_key, pData, ulDataLen, pEncryptedData,
-					iv, iv_len, aad, aad_len, reinterpret_cast<uint8_t (*)[16]>(mac));
+            status = sgx_rijndael128GCM_encrypt(&enc_key, pData, ulDataLen,
+					pEncryptedData, iv, EH_AES_GCM_IV_SIZE, aad, aad_len,
+					reinterpret_cast<uint8_t (*)[16]>(mac));
             if (SGX_SUCCESS != status) {
                 printf("error encrypting plain text\n");
                 return EHR_SGX_FAILED;
@@ -173,13 +185,18 @@ EH_RV sgx_Decrypt(EH_MECHANISM_PTR  pMechanism,
 		          EH_KEY_BLOB_PTR   pKeyBlob,
                   EH_BYTE_PTR       pEncryptedData,
                   EH_ULONG          ulEncryptedDataLen,
-                  EH_BYTE_PTR       pData)
+                  EH_BYTE_PTR       pData,
+                  EH_ULONG_PTR      pulDataLen)
 {
 	EH_RV rv = EHR_FUNCTION_FAILED;
 	sgx_status_t status = SGX_ERROR_UNEXPECTED;
 
 	if (!validate_user_check_mechanism_ptr(pMechanism, 1)) {
 		return EHR_DEVICE_MEMORY;
+	}
+
+	if (pData == NULL || pulDataLen == NULL) {
+		return EHR_ARGUMENTS_BAD;
 	}
 
 	switch(pMechanism->mechanism) {
@@ -189,30 +206,23 @@ EH_RV sgx_Decrypt(EH_MECHANISM_PTR  pMechanism,
 			    pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
 				return EHR_ARGUMENTS_BAD;
 			}
-			if (ulEncryptedDataLen < 16)
-			{
-				return EHR_ARGUMENTS_BAD; 
-			} else {
-				ulEncryptedDataLen = ulEncryptedDataLen - 16;
-			}
-			if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulIvLen) && (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pIv)) {
-                return EHR_ARGUMENTS_BAD;
-            }
-            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulIvLen) && (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pIv)) {
-                return EHR_ARGUMENTS_BAD;
-            }
             if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) && (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
                 return EHR_ARGUMENTS_BAD;
             }
             if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) && (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
                 return EHR_ARGUMENTS_BAD;
             }
+			if (ulEncryptedDataLen != *pulDataLen + EH_AES_GCM_IV_SIZE +
+					EH_AES_GCM_MAC_SIZE)
+			{
+				return EHR_ARGUMENTS_BAD; 
+			}
 
-			uint8_t *iv = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pIv;
-			uint32_t iv_len = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulIvLen;
 			uint8_t *aad = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD;
 			uint32_t aad_len = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen;
-		    uint8_t *mac = (uint8_t *)(pEncryptedData + ulEncryptedDataLen);
+			uint8_t *iv = (uint8_t *)(pEncryptedData + *pulDataLen);
+		    uint8_t *mac = (uint8_t *)(pEncryptedData + *pulDataLen +
+					EH_AES_GCM_IV_SIZE );
 
 			sgx_key_128bit_t dec_key;
 
@@ -222,8 +232,10 @@ EH_RV sgx_Decrypt(EH_MECHANISM_PTR  pMechanism,
                 return rv;
             }
 
-            status = sgx_rijndael128GCM_decrypt(&dec_key, pEncryptedData, ulEncryptedDataLen, pData,
-					iv, iv_len, aad, aad_len, reinterpret_cast<uint8_t (*)[16]>(mac));
+            status = sgx_rijndael128GCM_decrypt(&dec_key,
+					pEncryptedData, *pulDataLen, pData,
+					iv, EH_AES_GCM_IV_SIZE, aad, aad_len,
+					reinterpret_cast<uint8_t (*)[16]>(mac));
             if (SGX_SUCCESS != status) {
                 printf("error decrypting encrypted text\n");
                 return EHR_SGX_FAILED;

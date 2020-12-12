@@ -59,11 +59,16 @@ namespace EHsmProvider
         }
     }
 
-	EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_BLOB_PTR pKeyBlob)
+	EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
+			EH_KEY_BLOB_PTR pKeyBlob)
 	{
 		EH_RV rv = EHR_FUNCTION_FAILED;
 		sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
         SgxCrypto::EnclaveHelpers enclaveHelpers;
+
+		if (eOrigin == EHO_EXTERNAL_KEY) {
+			return EHR_ARGUMENTS_BAD;
+		}
 
 		sgxStatus = sgx_GenerateKey(enclaveHelpers.getSgxEnclaveId(),
                                     &rv,
@@ -74,14 +79,27 @@ namespace EHsmProvider
 	}
 
 	EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-			EH_BYTE_PTR pData, EH_ULONG ulDataLen, EH_BYTE_PTR pEncryptedData)
+			EH_BYTE_PTR pData, EH_ULONG ulDataLen,
+			EH_BYTE_PTR pEncryptedData, EH_ULONG_PTR pulEncryptedDataLen)
 	{
 		EH_RV rv = EHR_FUNCTION_FAILED;
 		sgx_status_t sgxStatus = sgx_status_t::SGX_ERROR_UNEXPECTED;
 		SgxCrypto::EnclaveHelpers enclaveHelpers;
 
-		if (pMechanism ==  NULL || pKeyBlob == NULL || pData == NULL || pEncryptedData == NULL)
+		if (pMechanism != NULL && pEncryptedData == NULL &&
+				pulEncryptedDataLen != NULL) {
+			if (pMechanism->mechanism == EHM_AES_GCM_128) {
+				*pulEncryptedDataLen = ulDataLen + EH_AES_GCM_IV_SIZE +
+					EH_AES_GCM_MAC_SIZE;
+				return EHR_OK;
+			}
+		}
+
+		if (pMechanism ==  NULL || pKeyBlob == NULL ||
+				pData == NULL || ulDataLen > EH_ENCRYPT_MAX_SIZE ||
+				pEncryptedData == NULL || pulEncryptedDataLen == NULL) {
 			return EHR_ARGUMENTS_BAD;
+		}
 
 		sgxStatus = sgx_Encrypt(enclaveHelpers.getSgxEnclaveId(),
                                 &rv,
@@ -89,20 +107,35 @@ namespace EHsmProvider
 								pKeyBlob,
                                 pData,
                                 ulDataLen,
-                                pEncryptedData);
+                                pEncryptedData,
+								pulEncryptedDataLen);
 
 		return rv;
 	}
 
 	EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-			EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen, EH_BYTE_PTR pData)
+			EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen,
+			EH_BYTE_PTR pData, EH_ULONG_PTR pulDataLen)
 	{
 		EH_RV rv = EHR_FUNCTION_FAILED;
 		sgx_status_t sgxStatus = sgx_status_t::SGX_ERROR_UNEXPECTED;
 		SgxCrypto::EnclaveHelpers enclaveHelpers;
 
-		if (pMechanism ==  NULL || pKeyBlob == NULL || pData == NULL || pEncryptedData == NULL)
+		if (pMechanism != NULL && pData == NULL &&
+				pulDataLen != NULL) {
+			if (pMechanism->mechanism == EHM_AES_GCM_128) {
+				if (ulEncryptedDataLen > EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE) {
+					*pulDataLen = ulEncryptedDataLen - EH_AES_GCM_IV_SIZE -
+					EH_AES_GCM_MAC_SIZE;
+				    return EHR_OK;
+				}
+			}
+		}
+
+		if (pMechanism ==  NULL || pKeyBlob == NULL || pData == NULL ||
+				pEncryptedData == NULL || pulDataLen == NULL) {
 			return EHR_ARGUMENTS_BAD;
+		}
 
 		sgxStatus = sgx_Decrypt(enclaveHelpers.getSgxEnclaveId(),
                                 &rv,
@@ -110,7 +143,8 @@ namespace EHsmProvider
 								pKeyBlob,
                                 pEncryptedData,
                                 ulEncryptedDataLen,
-                                pData);
+                                pData,
+								pulDataLen);
 
 		return rv;
 	}

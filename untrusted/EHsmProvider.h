@@ -35,8 +35,15 @@
 typedef unsigned long int EH_ULONG;
 typedef unsigned char     EH_BYTE;
 
-typedef EH_BYTE*   EH_BYTE_PTR;
-typedef void*   EH_VOID_PTR;
+typedef EH_BYTE*     EH_BYTE_PTR;
+typedef EH_ULONG*    EH_ULONG_PTR;
+typedef void*        EH_VOID_PTR;
+
+
+enum EH_KEY_ORIGIN {
+	EHO_INTERNAL_KEY,
+	EHO_EXTERNAL_KEY,
+};
 
 /* EH_MECHANISM_TYPE is a value that identifies a key spec
  * type
@@ -57,12 +64,8 @@ typedef struct EH_MECHANISM {
 typedef EH_MECHANISM* EH_MECHANISM_PTR;
 
 typedef struct EH_GCM_PARAMS {
-    EH_BYTE_PTR       pIv;
-    EH_ULONG          ulIvLen;
-    EH_ULONG          ulIvBits;
     EH_BYTE_PTR       pAAD;
     EH_ULONG          ulAADLen;
-  //EH_ULONG          ulTagBits; /*curently assign fixed value 16 for AES GCM*/
 } EH_GCM_PARAMS;
 
 typedef EH_GCM_PARAMS* EH_GCM_PARAMS_PTR;
@@ -73,6 +76,7 @@ typedef struct EH_KEY_BLOB {
 } EH_KEY_BLOB;
 
 typedef EH_KEY_BLOB* EH_KEY_BLOB_PTR;
+
 
 typedef EH_ULONG          EH_RV;
 
@@ -91,13 +95,16 @@ namespace EHsmProvider
 
     void Finalize();
 
-    EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_BLOB_PTR pKeyBlob);
+    EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
+			EH_KEY_BLOB_PTR pKeyBlob);
 
     EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-			EH_BYTE_PTR pData, EH_ULONG ulDataLen, EH_BYTE_PTR pEncryptedData);
+			EH_BYTE_PTR pData, EH_ULONG ulDataLen,
+			EH_BYTE_PTR pEncryptedData, EH_ULONG_PTR pulEncryptedDataLen);
 
     EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-			EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen, EH_BYTE_PTR pData);
+			EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen,
+			EH_BYTE_PTR pData, EH_ULONG_PTR pulDataLen);
 }
 
 #endif

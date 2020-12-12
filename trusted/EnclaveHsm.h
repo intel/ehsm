@@ -34,8 +34,15 @@
 typedef unsigned long int EH_ULONG;
 typedef unsigned char     EH_BYTE;
 
-typedef EH_BYTE*   EH_BYTE_PTR;
-typedef void*   EH_VOID_PTR;
+typedef EH_BYTE*     EH_BYTE_PTR;
+typedef EH_ULONG*    EH_ULONG_PTR;
+typedef void*        EH_VOID_PTR;
+
+
+enum EH_KEY_ORIGIN {
+	EHO_INTERNAL_KEY,
+	EHO_EXTERNAL_KEY,
+};
 
 /* EH_MECHANISM_TYPE is a value that identifies a key spec
  * type
@@ -56,15 +63,15 @@ typedef struct EH_MECHANISM {
 typedef EH_MECHANISM* EH_MECHANISM_PTR;
 
 typedef struct EH_GCM_PARAMS {
-    EH_BYTE_PTR       pIv;
-    EH_ULONG          ulIvLen;
-    EH_ULONG          ulIvBits;
     EH_BYTE_PTR       pAAD;
     EH_ULONG          ulAADLen;
-  //EH_ULONG          ulTagBits; /*curently assign fixed value 16 for AES GCM*/
 } EH_GCM_PARAMS;
 
 typedef EH_GCM_PARAMS* EH_GCM_PARAMS_PTR;
+
+#define EH_AES_GCM_IV_SIZE 12
+#define EH_AES_GCM_MAC_SIZE 16
+
 
 typedef struct EH_KEY_BLOB {
     EH_BYTE_PTR pData;
@@ -83,5 +90,7 @@ typedef EH_ULONG          EH_RV;
 #define EHR_FUNCTION_FAILED                   0x00000006UL
 #define EHR_ARGUMENTS_BAD                     0x00000007UL
 #define EHR_SGX_FAILED                        0x00000008UL
+
+#define EH_ENCRYPT_MAX_SIZE	(6*1024)
 
 #endif
