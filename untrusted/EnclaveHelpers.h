@@ -37,7 +37,7 @@
 #include <sgx_urts.h>
 #include <string>
 
-//#include "p11Enclave_u.h"
+#include "enclave_hsm_u.h"
 
 static const std::string installationPath   = "NONE";
 static const std::string libraryDirectory   = installationPath + "/lib/";
@@ -91,6 +91,9 @@ namespace SgxCrypto
         * @return sgx_status_t   SGX_SUCCESS if enclave unload is successful, error code otherwise.
         */
         sgx_status_t unloadSgxEnclave();
+
+		EH_RV getEncryptLen(EH_MECHANISM_TYPE ulKeyType, EH_ULONG ulDataLen,
+				EH_ULONG_PTR pulEncryptLen);
 
         // Invalid SGX enclave ID value.
         static sgx_enclave_id_t mEnclaveInvalidId;

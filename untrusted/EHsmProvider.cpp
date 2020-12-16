@@ -88,12 +88,9 @@ namespace EHsmProvider
 
 		if (pMechanism != NULL && pEncryptedData == NULL &&
 				pulEncryptedDataLen != NULL) {
-			if (pMechanism->mechanism == EHM_AES_GCM_128) {
-				*pulEncryptedDataLen = ulDataLen + EH_AES_GCM_IV_SIZE +
-					EH_AES_GCM_MAC_SIZE;
-				return EHR_OK;
-			}
-		}
+			 return enclaveHelpers.getEncryptLen(pMechanism->mechanism,
+					 ulDataLen, pulEncryptedDataLen);
+        }
 
 		if (pMechanism ==  NULL || pKeyBlob == NULL ||
 				pData == NULL || ulDataLen > EH_ENCRYPT_MAX_SIZE ||
@@ -145,6 +142,81 @@ namespace EHsmProvider
                                 ulEncryptedDataLen,
                                 pData,
 								pulDataLen);
+
+		return rv;
+	}
+
+    EH_RV GenerateDataKey(EH_MECHANISM_PTR  pMechanism,
+			              EH_KEY_BLOB_PTR   pMasterKeyBlob,
+			              EH_BYTE_PTR       pPlainDataKey,
+						  EH_ULONG          ulPlainDataKeyLen,
+			              EH_BYTE_PTR       pEncryptedDataKey,
+						  EH_ULONG_PTR      pulEncryptedDataKeyLen)
+	{
+		EH_RV rv = EHR_FUNCTION_FAILED;
+		sgx_status_t sgxStatus = sgx_status_t::SGX_ERROR_UNEXPECTED;
+		SgxCrypto::EnclaveHelpers enclaveHelpers;
+
+		if (pMasterKeyBlob != NULL && pEncryptedDataKey == NULL &&
+				pulEncryptedDataKeyLen != NULL) {
+			 return enclaveHelpers.getEncryptLen(pMasterKeyBlob->ulKeyType,
+					 ulPlainDataKeyLen, pulEncryptedDataKeyLen);
+        }
+
+		if (ulPlainDataKeyLen > 1024 || ulPlainDataKeyLen == 0) {
+            return EHR_ARGUMENTS_BAD;
+		}
+
+        if (pMechanism == NULL || pMasterKeyBlob ==  NULL || pPlainDataKey == NULL ||
+				pEncryptedDataKey == NULL || pulEncryptedDataKeyLen == NULL) {
+			return EHR_ARGUMENTS_BAD;
+		}
+
+		sgxStatus = sgx_GenerateDataKey(enclaveHelpers.getSgxEnclaveId(),
+                                        &rv,
+										pMechanism,
+								        pMasterKeyBlob,
+                                        pPlainDataKey,
+                                        ulPlainDataKeyLen,
+                                        pEncryptedDataKey,
+								        pulEncryptedDataKeyLen);
+
+		return rv;
+	}
+
+    EH_RV GenerateDataKeyWithoutPlaintext(EH_MECHANISM_PTR  pMechanism,
+			                              EH_KEY_BLOB_PTR   pMasterKeyBlob,
+			                              EH_ULONG          ulPlainDataKeyLen,
+			                              EH_BYTE_PTR       pEncryptedDataKey,
+										  EH_ULONG_PTR      pulEncryptedDataKeyLen)
+	{
+		EH_RV rv = EHR_FUNCTION_FAILED;
+		sgx_status_t sgxStatus = sgx_status_t::SGX_ERROR_UNEXPECTED;
+		SgxCrypto::EnclaveHelpers enclaveHelpers;
+
+		if (pMasterKeyBlob != NULL && pEncryptedDataKey == NULL &&
+				pulEncryptedDataKeyLen != NULL) {
+			 return enclaveHelpers.getEncryptLen(pMasterKeyBlob->ulKeyType,
+					 ulPlainDataKeyLen, pulEncryptedDataKeyLen);
+        }
+
+		if (ulPlainDataKeyLen > 1024 || ulPlainDataKeyLen == 0) {
+            return EHR_ARGUMENTS_BAD;
+		}
+
+        if (pMechanism == NULL || pMasterKeyBlob ==  NULL || pEncryptedDataKey == NULL ||
+				pulEncryptedDataKeyLen == NULL) {
+			return EHR_ARGUMENTS_BAD;
+		}
+
+		sgxStatus = sgx_GenerateDataKey(enclaveHelpers.getSgxEnclaveId(),
+                                        &rv,
+										pMechanism,
+								        pMasterKeyBlob,
+                                        NULL,
+                                        ulPlainDataKeyLen,
+                                        pEncryptedDataKey,
+								        pulEncryptedDataKeyLen);
 
 		return rv;
 	}

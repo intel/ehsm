@@ -74,8 +74,9 @@ typedef EH_GCM_PARAMS* EH_GCM_PARAMS_PTR;
 
 
 typedef struct EH_KEY_BLOB {
-    EH_BYTE_PTR pData;
-    EH_ULONG ulDataLen;
+	EH_MECHANISM_TYPE ulKeyType;
+    EH_ULONG          ulKeyLen;
+	EH_BYTE_PTR       pKeyData;
 } EH_KEY_BLOB;
 
 typedef EH_KEY_BLOB* EH_KEY_BLOB_PTR;

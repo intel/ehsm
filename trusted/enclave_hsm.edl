@@ -49,15 +49,20 @@ enclave {
 		public EH_RV sgx_Encrypt([isptr, user_check] EH_MECHANISM_PTR  pMechanism,
 					             [isptr, user_check] EH_KEY_BLOB_PTR   pKeyBlob,
                                  [isptr, user_check] EH_BYTE_PTR       pData,
-                                 EH_ULONG                              ulDataLen,
+                                                     EH_ULONG          ulDataLen,
                                  [isptr, user_check] EH_BYTE_PTR       pEncryptedData,
 								 [isptr, user_check] EH_ULONG_PTR      pulEncryptedDataLen);
 		public EH_RV sgx_Decrypt([isptr, user_check] EH_MECHANISM_PTR  pMechanism,
 		                         [isptr, user_check] EH_KEY_BLOB_PTR   pKeyBlob,
                                  [isptr, user_check] EH_BYTE_PTR       pEncryptedData,
-                                 [isptr, user_check] EH_ULONG          ulEncryptedDataLen,
+                                                     EH_ULONG          ulEncryptedDataLen,
                                  [isptr, user_check] EH_BYTE_PTR       pData,
 								 [isptr, user_check] EH_ULONG_PTR      pulDataLen);
-    };
-
+		public EH_RV sgx_GenerateDataKey([isptr, user_check] EH_MECHANISM_PTR  pMechanism,
+		                                 [isptr, user_check] EH_KEY_BLOB_PTR   pMasterKeyBlob,
+                                         [isptr, user_check] EH_BYTE_PTR       pPlainDataKey,
+                                                             EH_ULONG          ulPlainDataKeyLen,
+                                         [isptr, user_check] EH_BYTE_PTR       pEncryptedDataKey,
+                                         [isptr, user_check] EH_ULONG_PTR      pulEncryptedDataKeyLen);
+	};
 };

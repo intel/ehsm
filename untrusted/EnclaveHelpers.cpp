@@ -30,7 +30,6 @@
  */
 
 #include "EnclaveHelpers.h"
-#include "enclave_hsm_u.h"
 
 // Globals with file scope.
 namespace SgxCrypto
@@ -114,6 +113,18 @@ namespace SgxCrypto
 
         return sgxStatus;
     }
+
+	EH_RV EnclaveHelpers::getEncryptLen(EH_MECHANISM_TYPE ulKeyType,
+			EH_ULONG ulDataLen, EH_ULONG_PTR pulEncryptLen)
+	{
+        switch(ulKeyType) {
+            case EHM_AES_GCM_128:
+                *pulEncryptLen = ulDataLen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
+                return EHR_OK;
+            default:
+                return EHR_MECHANISM_INVALID;
+		}
+	}
 }
 
 void ocall_print_string(const char *str)

@@ -71,8 +71,9 @@ typedef struct EH_GCM_PARAMS {
 typedef EH_GCM_PARAMS* EH_GCM_PARAMS_PTR;
 
 typedef struct EH_KEY_BLOB {
-    EH_BYTE_PTR pData;
-    EH_ULONG ulDataLen;
+	EH_MECHANISM_TYPE ulKeyType;
+    EH_ULONG          ulKeyLen;
+	EH_BYTE_PTR       pKeyData;
 } EH_KEY_BLOB;
 
 typedef EH_KEY_BLOB* EH_KEY_BLOB_PTR;
@@ -105,6 +106,19 @@ namespace EHsmProvider
     EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
 			EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen,
 			EH_BYTE_PTR pData, EH_ULONG_PTR pulDataLen);
+
+    EH_RV GenerateDataKey(EH_MECHANISM_PTR  pMechanism,
+			              EH_KEY_BLOB_PTR   pMasterKeyBlob,
+			              EH_BYTE_PTR       pPlainDataKey,
+						  EH_ULONG          ulPlainDataKeyLen,
+			              EH_BYTE_PTR       pEncryptedDataKey,
+						  EH_ULONG_PTR      pulEncryptedDataKeyLen);
+
+    EH_RV GenerateDataKeyWithoutPlaintext(EH_MECHANISM_PTR  pMechanism,
+			                              EH_KEY_BLOB_PTR   pMasterKeyBlob,
+			                              EH_ULONG          ulPlainDataKeyLen,
+			                              EH_BYTE_PTR       pEncryptedDataKey,
+										  EH_ULONG_PTR      pulEncryptedDataKeyLen);
 }
 
 #endif
