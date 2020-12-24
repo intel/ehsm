@@ -90,8 +90,7 @@ typedef EH_ULONG          EH_RV;
 #define EHR_GENERAL_ERROR                     0x00000005UL
 #define EHR_FUNCTION_FAILED                   0x00000006UL
 #define EHR_ARGUMENTS_BAD                     0x00000007UL
-#define EHR_SGX_FAILED                        0x00000008UL
 
-#define EH_ENCRYPT_MAX_SIZE	(6*1024)
+#define EH_ENCRYPT_MAX_SIZE (6*1024)
 
 #endif

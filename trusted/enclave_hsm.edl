@@ -32,7 +32,7 @@
 enclave {
     from "sgx_tkey_exchange.edl" import *;
 
-	include "EnclaveHsm.h"
+    include "EnclaveHsm.h"
 
     include "sgx_key_exchange.h"
     include "sgx_quote.h"
@@ -43,26 +43,23 @@ enclave {
     };
 
     trusted {
+        public sgx_status_t sgx_create_aes_key([out, size=cmk_blob_size] uint8_t *cmk_blob,
+                size_t cmk_blob_size, [out] size_t *req_blob_size);
 
-		public EH_RV sgx_GenerateKey(EH_MECHANISM_TYPE                     ulKeySpec,
-				                     [isptr, user_check] EH_KEY_BLOB_PTR   pKeyBlob);
-		public EH_RV sgx_Encrypt([isptr, user_check] EH_MECHANISM_PTR  pMechanism,
-					             [isptr, user_check] EH_KEY_BLOB_PTR   pKeyBlob,
-                                 [isptr, user_check] EH_BYTE_PTR       pData,
-                                                     EH_ULONG          ulDataLen,
-                                 [isptr, user_check] EH_BYTE_PTR       pEncryptedData,
-								 [isptr, user_check] EH_ULONG_PTR      pulEncryptedDataLen);
-		public EH_RV sgx_Decrypt([isptr, user_check] EH_MECHANISM_PTR  pMechanism,
-		                         [isptr, user_check] EH_KEY_BLOB_PTR   pKeyBlob,
-                                 [isptr, user_check] EH_BYTE_PTR       pEncryptedData,
-                                                     EH_ULONG          ulEncryptedDataLen,
-                                 [isptr, user_check] EH_BYTE_PTR       pData,
-								 [isptr, user_check] EH_ULONG_PTR      pulDataLen);
-		public EH_RV sgx_GenerateDataKey([isptr, user_check] EH_MECHANISM_PTR  pMechanism,
-		                                 [isptr, user_check] EH_KEY_BLOB_PTR   pMasterKeyBlob,
-                                         [isptr, user_check] EH_BYTE_PTR       pPlainDataKey,
-                                                             EH_ULONG          ulPlainDataKeyLen,
-                                         [isptr, user_check] EH_BYTE_PTR       pEncryptedDataKey,
-                                         [isptr, user_check] EH_ULONG_PTR      pulEncryptedDataKeyLen);
-	};
+        public sgx_status_t sgx_aes_encrypt([in, size=aad_len] const uint8_t *aad, size_t aad_len,
+                [in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
+                [in, size=plaintext_len] const uint8_t *plaintext, size_t plaintext_len,
+                [out, size=ciphertext_len] uint8_t *ciphertext, size_t ciphertext_len);
+
+        public sgx_status_t sgx_aes_decrypt([in, size=aad_len] const uint8_t *aad, size_t aad_len,
+                [in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
+                [in, size=ciphertext_len] const uint8_t *ciphertext, size_t ciphertext_len,
+                [out, size=plaintext_len] uint8_t *plaintext, size_t plaintext_len);
+
+        public sgx_status_t sgx_generate_datakey(uint32_t key_spec,
+                [in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
+                [in, size=context_len] const uint8_t *context, size_t context_len,
+                [out, size=plain_key_len] uint8_t *plain_key, size_t plain_key_len,
+                [out, size=encrypted_key_len] uint8_t *encrypted_key, size_t encrypted_key_len);
+    };
 };

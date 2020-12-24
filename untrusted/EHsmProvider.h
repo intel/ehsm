@@ -88,7 +88,6 @@ typedef EH_ULONG          EH_RV;
 #define EHR_GENERAL_ERROR                     0x00000005UL
 #define EHR_FUNCTION_FAILED                   0x00000006UL
 #define EHR_ARGUMENTS_BAD                     0x00000007UL
-#define EHR_SGX_FAILED                        0x00000008UL
 
 namespace EHsmProvider
 {
@@ -97,28 +96,24 @@ namespace EHsmProvider
     void Finalize();
 
     EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
-			EH_KEY_BLOB_PTR pKeyBlob);
+            EH_KEY_BLOB_PTR pKeyBlob);
 
     EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-			EH_BYTE_PTR pData, EH_ULONG ulDataLen,
-			EH_BYTE_PTR pEncryptedData, EH_ULONG_PTR pulEncryptedDataLen);
+            EH_BYTE_PTR pData, EH_ULONG ulDataLen,
+            EH_BYTE_PTR pEncryptedData, EH_ULONG_PTR pulEncryptedDataLen);
 
     EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-			EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen,
-			EH_BYTE_PTR pData, EH_ULONG_PTR pulDataLen);
+            EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen,
+            EH_BYTE_PTR pData, EH_ULONG_PTR pulDataLen);
 
-    EH_RV GenerateDataKey(EH_MECHANISM_PTR  pMechanism,
-			              EH_KEY_BLOB_PTR   pMasterKeyBlob,
-			              EH_BYTE_PTR       pPlainDataKey,
-						  EH_ULONG          ulPlainDataKeyLen,
-			              EH_BYTE_PTR       pEncryptedDataKey,
-						  EH_ULONG_PTR      pulEncryptedDataKeyLen);
+    EH_RV GenerateDataKey(EH_MECHANISM_PTR pMechanism,
+            EH_KEY_BLOB_PTR pMasterKeyBlob,
+            EH_BYTE_PTR pPlainDataKey, EH_ULONG ulPlainDataKeyLen,
+            EH_BYTE_PTR pEncryptedDataKey, EH_ULONG_PTR pulEncryptedDataKeyLen);
 
-    EH_RV GenerateDataKeyWithoutPlaintext(EH_MECHANISM_PTR  pMechanism,
-			                              EH_KEY_BLOB_PTR   pMasterKeyBlob,
-			                              EH_ULONG          ulPlainDataKeyLen,
-			                              EH_BYTE_PTR       pEncryptedDataKey,
-										  EH_ULONG_PTR      pulEncryptedDataKeyLen);
+    EH_RV GenerateDataKeyWithoutPlaintext(EH_MECHANISM_PTR pMechanism,
+            EH_KEY_BLOB_PTR pMasterKeyBlob, EH_ULONG ulPlainDataKeyLen,
+            EH_BYTE_PTR pEncryptedDataKey, EH_ULONG_PTR pulEncryptedDataKeyLen);
 }
 
 #endif

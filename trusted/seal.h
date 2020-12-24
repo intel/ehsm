@@ -31,13 +31,17 @@
 #ifndef _SEAL_H_
 #define _SEAL_H_
 
+#include "sgx_tseal.h"
+
 extern void printf(const char *fmt, ...);
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-EH_RV unseal(uint8_t *sealed_buf_ptr, uint32_t sealed_len, uint8_t *unsealed_buf_ptr, uint32_t unsealed_len);
-EH_RV seal(uint8_t *sealed_buf_ptr, uint32_t sealed_len, uint8_t * unsealed_buf_ptr, uint32_t unsealed_len);
+sgx_status_t unseal(const uint8_t *sealed_buf_ptr, uint32_t sealed_len,
+        uint8_t *unsealed_buf_ptr, uint32_t unsealed_len);
+sgx_status_t seal(uint8_t *sealed_buf_ptr, uint32_t sealed_len,
+        const uint8_t * unsealed_buf_ptr, uint32_t unsealed_len);
 #if defined(__cplusplus)
 }
 #endif
