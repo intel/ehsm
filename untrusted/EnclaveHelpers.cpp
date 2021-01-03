@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -114,17 +114,23 @@ namespace SgxCrypto
         return sgxStatus;
     }
 
-	EH_RV EnclaveHelpers::getEncryptLen(EH_MECHANISM_TYPE ulKeyType,
-			EH_ULONG ulDataLen, EH_ULONG_PTR pulEncryptLen)
-	{
+    EH_RV EnclaveHelpers::getEncryptLen(EH_MECHANISM_TYPE ulKeyType,
+                                        EH_ULONG ulDataLen, EH_ULONG_PTR pulEncryptLen)
+    {
+        if (pulEncryptLen == NULL)
+            return EHR_ARGUMENTS_BAD;
+
         switch(ulKeyType) {
             case EHM_AES_GCM_128:
                 *pulEncryptLen = ulDataLen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
                 return EHR_OK;
+            case EHM_RSA_3072:
+                *pulEncryptLen = RSA_OAEP_3072_MAX_ENCRYPTION_SIZE;
+                return EHR_OK;
             default:
                 return EHR_MECHANISM_INVALID;
-		}
-	}
+        }
+    }
 }
 
 void ocall_print_string(const char *str)

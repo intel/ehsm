@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,13 +39,13 @@ typedef EH_BYTE*     EH_BYTE_PTR;
 typedef EH_ULONG*    EH_ULONG_PTR;
 typedef void*        EH_VOID_PTR;
 
-
 enum EH_KEY_ORIGIN {
-	EHO_INTERNAL_KEY,
-	EHO_EXTERNAL_KEY,
+    EHO_INTERNAL_KEY,
+    EHO_EXTERNAL_KEY,
 };
 
-/* EH_MECHANISM_TYPE is a value that identifies a key spec
+/*
+ * EH_MECHANISM_TYPE is a value that identifies a key spec
  * type
  */
 typedef unsigned long int    EH_MECHANISM_TYPE;
@@ -56,9 +56,9 @@ typedef unsigned long int    EH_MECHANISM_TYPE;
 #define EHM_RSA_3072     0x00000002UL
 
 typedef struct EH_MECHANISM {
-  EH_MECHANISM_TYPE   mechanism;
-  EH_VOID_PTR         pParameter;
-  EH_ULONG            ulParameterLen;  /* in bytes */
+    EH_MECHANISM_TYPE   mechanism;
+    EH_VOID_PTR         pParameter;
+    EH_ULONG            ulParameterLen;  /* in bytes */
 } EH_MECHANISM;
 
 typedef EH_MECHANISM* EH_MECHANISM_PTR;
@@ -71,13 +71,12 @@ typedef struct EH_GCM_PARAMS {
 typedef EH_GCM_PARAMS* EH_GCM_PARAMS_PTR;
 
 typedef struct EH_KEY_BLOB {
-	EH_MECHANISM_TYPE ulKeyType;
+    EH_MECHANISM_TYPE ulKeyType;
     EH_ULONG          ulKeyLen;
-	EH_BYTE_PTR       pKeyData;
+    EH_BYTE_PTR       pKeyData;
 } EH_KEY_BLOB;
 
 typedef EH_KEY_BLOB* EH_KEY_BLOB_PTR;
-
 
 typedef EH_ULONG          EH_RV;
 
@@ -114,6 +113,14 @@ namespace EHsmProvider
     EH_RV GenerateDataKeyWithoutPlaintext(EH_MECHANISM_PTR pMechanism,
             EH_KEY_BLOB_PTR pMasterKeyBlob, EH_ULONG ulPlainDataKeyLen,
             EH_BYTE_PTR pEncryptedDataKey, EH_ULONG_PTR pulEncryptedDataKeyLen);
+
+    EH_RV Sign(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
+               EH_BYTE_PTR pData, EH_ULONG ulDataLen,
+               EH_BYTE_PTR pSignature, EH_ULONG_PTR pulSignatureLen);
+
+    EH_RV Verify(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
+                 EH_BYTE_PTR pData, EH_ULONG ulDataLen,
+                 EH_BYTE_PTR pSignature, EH_ULONG ulSignatureLen, bool* result);
 }
 
 #endif

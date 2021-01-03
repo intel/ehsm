@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,13 +38,13 @@ typedef EH_BYTE*     EH_BYTE_PTR;
 typedef EH_ULONG*    EH_ULONG_PTR;
 typedef void*        EH_VOID_PTR;
 
-
 enum EH_KEY_ORIGIN {
-	EHO_INTERNAL_KEY,
-	EHO_EXTERNAL_KEY,
+    EHO_INTERNAL_KEY,
+    EHO_EXTERNAL_KEY,
 };
 
-/* EH_MECHANISM_TYPE is a value that identifies a key spec
+/*
+ * EH_MECHANISM_TYPE is a value that identifies a key spec
  * type
  */
 typedef unsigned long int    EH_MECHANISM_TYPE;
@@ -55,9 +55,9 @@ typedef unsigned long int    EH_MECHANISM_TYPE;
 #define EHM_RSA_3072     0x00000002UL
 
 typedef struct EH_MECHANISM {
-  EH_MECHANISM_TYPE   mechanism;
-  EH_VOID_PTR         pParameter;
-  EH_ULONG            ulParameterLen;  /* in bytes */
+    EH_MECHANISM_TYPE   mechanism;
+    EH_VOID_PTR         pParameter;
+    EH_ULONG            ulParameterLen;  /* in bytes */
 } EH_MECHANISM;
 
 typedef EH_MECHANISM* EH_MECHANISM_PTR;
@@ -69,14 +69,13 @@ typedef struct EH_GCM_PARAMS {
 
 typedef EH_GCM_PARAMS* EH_GCM_PARAMS_PTR;
 
-#define EH_AES_GCM_IV_SIZE 12
+#define EH_AES_GCM_IV_SIZE  12
 #define EH_AES_GCM_MAC_SIZE 16
 
-
 typedef struct EH_KEY_BLOB {
-	EH_MECHANISM_TYPE ulKeyType;
+    EH_MECHANISM_TYPE ulKeyType;
     EH_ULONG          ulKeyLen;
-	EH_BYTE_PTR       pKeyData;
+    EH_BYTE_PTR       pKeyData;
 } EH_KEY_BLOB;
 
 typedef EH_KEY_BLOB* EH_KEY_BLOB_PTR;
@@ -92,5 +91,9 @@ typedef EH_ULONG          EH_RV;
 #define EHR_ARGUMENTS_BAD                     0x00000007UL
 
 #define EH_ENCRYPT_MAX_SIZE (6*1024)
+
+#define RSA_OAEP_3072_MAX_ENCRYPTION_SIZE 318
+#define RSA_OAEP_3072_CIPHER_LENGTH       384
+#define RSA_OAEP_3072_SIGNATURE_SIZE      384
 
 #endif

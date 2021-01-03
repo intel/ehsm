@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,7 +40,7 @@ namespace EHsmProvider
 
         if (!enclaveHelpers.isSgxEnclaveLoaded())
         {
-			if (SGX_SUCCESS != enclaveHelpers.loadSgxEnclave())
+            if (SGX_SUCCESS != enclaveHelpers.loadSgxEnclave())
             {
                 return EHR_DEVICE_ERROR;
             }
@@ -88,6 +88,14 @@ namespace EHsmProvider
                                              NULL);
                 }
                 break;
+            case EHM_RSA_3072:
+                if (pKeyBlob->pKeyData == NULL)
+                    ret  = sgx_create_rsa_key(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                                              pKeyBlob->pKeyData, pKeyBlob->ulKeyLen, &(pKeyBlob->ulKeyLen));
+                else
+                    ret  = sgx_create_rsa_key(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                                              pKeyBlob->pKeyData, pKeyBlob->ulKeyLen, NULL);
+                break;
             default:
                 return EHR_MECHANISM_INVALID;
         }
@@ -112,7 +120,8 @@ namespace EHsmProvider
                     ulDataLen, pulEncryptedDataLen);
         }
 
-        if (pMechanism ==  NULL || pKeyBlob == NULL || pData == NULL ||
+        if (pMechanism ==  NULL || pKeyBlob == NULL ||
+                pData == NULL || ulDataLen == 0 ||
                 pEncryptedData == NULL || pulEncryptedDataLen == NULL ||
                 pMechanism->mechanism != pKeyBlob->ulKeyType) {
             return EHR_ARGUMENTS_BAD;
@@ -122,7 +131,7 @@ namespace EHsmProvider
             case EHM_AES_GCM_128:
                 // todo: refine later
                 if (ulDataLen > EH_ENCRYPT_MAX_SIZE) {
-                    return EHR_ARGUMENTS_BAD; 
+                    return EHR_ARGUMENTS_BAD;
                 }
 
                 if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
@@ -150,6 +159,16 @@ namespace EHsmProvider
                                       pEncryptedData,
                                       *pulEncryptedDataLen);
                 break;
+            case EHM_RSA_3072:
+                if (ulDataLen > RSA_OAEP_3072_MAX_ENCRYPTION_SIZE) {
+                    printf("Error data len(%lu) for rsa encryption, max is 318.\n", ulDataLen);
+                    return EHR_ARGUMENTS_BAD;
+                }
+
+                ret = sgx_rsa_encrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                                      pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
+                                      pData, ulDataLen, pEncryptedData, *pulEncryptedDataLen);
+                break;
             default:
                 return EHR_MECHANISM_INVALID;
         }
@@ -168,7 +187,10 @@ namespace EHsmProvider
         sgx_status_t ret = SGX_ERROR_UNEXPECTED;
         SgxCrypto::EnclaveHelpers enclaveHelpers;
 
-        if (pMechanism != NULL && pData == NULL && pulDataLen != NULL) {
+        if (pMechanism == NULL)
+            return EHR_ARGUMENTS_BAD;
+
+        if (pData == NULL && pulDataLen != NULL) {
             if (pMechanism->mechanism == EHM_AES_GCM_128) {
                 if (ulEncryptedDataLen > EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE) {
                     *pulDataLen = ulEncryptedDataLen - EH_AES_GCM_IV_SIZE -
@@ -178,14 +200,16 @@ namespace EHsmProvider
             }
         }
 
-        if (pMechanism ==  NULL || pKeyBlob == NULL || pData == NULL ||
-                pEncryptedData == NULL || pulDataLen == NULL ||
+        if (pKeyBlob == NULL || pEncryptedData == NULL || pulDataLen == NULL ||
                 pMechanism->mechanism != pKeyBlob->ulKeyType) {
             return EHR_ARGUMENTS_BAD;
         }
 
         switch(pMechanism->mechanism) {
             case EHM_AES_GCM_128:
+                if (pData == NULL)
+                    return EHR_ARGUMENTS_BAD;
+
                 if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
                     return EHR_ARGUMENTS_BAD;
                 }
@@ -210,6 +234,113 @@ namespace EHsmProvider
                                       ulEncryptedDataLen,
                                       pData,
                                       *pulDataLen);
+                break;
+            case EHM_RSA_3072:
+                if (ulEncryptedDataLen > RSA_OAEP_3072_CIPHER_LENGTH) {
+                    printf("Error data len(%lu) for rsa decryption, max is 384.\n", ulEncryptedDataLen);
+                    return EHR_ARGUMENTS_BAD;
+                }
+
+                if (pData != NULL) {
+                    ret = sgx_rsa_decrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                                          pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
+                                          pEncryptedData, ulEncryptedDataLen,
+                                          pData, *pulDataLen, NULL);
+                }
+                else {
+                    uint32_t req_plaintext_len = 0;
+                    ret = sgx_rsa_decrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                                          pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
+                                          pEncryptedData, ulEncryptedDataLen,
+                                          pData, *pulDataLen, &req_plaintext_len);
+                    *pulDataLen = req_plaintext_len;
+                }
+                break;
+            default:
+                return EHR_MECHANISM_INVALID;
+        }
+
+        if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+            return EHR_FUNCTION_FAILED;
+        else
+            return EHR_OK;
+    }
+
+    EH_RV Sign(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
+               EH_BYTE_PTR pData, EH_ULONG ulDataLen,
+               EH_BYTE_PTR pSignature, EH_ULONG_PTR pulSignatureLen)
+    {
+        sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+        sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+        SgxCrypto::EnclaveHelpers enclaveHelpers;
+
+        if (pMechanism == NULL)
+            return EHR_ARGUMENTS_BAD;
+
+        if (pulSignatureLen != NULL && pSignature == NULL) {
+            if (pMechanism->mechanism == EHM_RSA_3072)
+                *pulSignatureLen = RSA_OAEP_3072_SIGNATURE_SIZE;
+            else
+                return EHR_MECHANISM_INVALID;
+            return EHR_OK;
+        }
+
+        if (pKeyBlob == NULL || pData == NULL || ulDataLen == 0 ||
+            pSignature == NULL || pulSignatureLen == NULL) {
+            return EHR_ARGUMENTS_BAD;
+        }
+
+        switch (pMechanism->mechanism) {
+            case EHM_RSA_3072:
+                if (ulDataLen > 256) {
+                    printf("rsa 3072 sign requires a <=256B digest.\n");
+                    return EHR_ARGUMENTS_BAD;
+                }
+                if (*pulSignatureLen != RSA_OAEP_3072_SIGNATURE_SIZE) {
+                    printf("rsa 3072 sign requires a 384B signature.\n");
+                    return EHR_ARGUMENTS_BAD;
+                }
+                ret = sgx_rsa_sign(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                                   pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
+                                   pData, ulDataLen, pSignature, *pulSignatureLen);
+                break;
+            default:
+                return EHR_MECHANISM_INVALID;
+        }
+
+        if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+            return EHR_FUNCTION_FAILED;
+        else
+            return EHR_OK;
+    }
+
+
+    EH_RV Verify(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
+                 EH_BYTE_PTR pData, EH_ULONG ulDataLen,
+                 EH_BYTE_PTR pSignature, EH_ULONG ulSignatureLen, bool* result)
+    {
+        sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+        sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+        SgxCrypto::EnclaveHelpers enclaveHelpers;
+
+        if (pMechanism ==  NULL || pKeyBlob == NULL || pData == NULL || ulDataLen == 0 ||
+            pSignature == NULL || ulSignatureLen == 0 || result == NULL) {
+            return EHR_ARGUMENTS_BAD;
+        }
+
+        switch (pMechanism->mechanism) {
+            case EHM_RSA_3072:
+                if (ulDataLen > 256) {
+                    printf("rsa 3072 verify requires a <=256B digest.\n");
+                    return EHR_ARGUMENTS_BAD;
+                }
+                if (ulSignatureLen != RSA_OAEP_3072_SIGNATURE_SIZE) {
+                    printf("rsa 3072 verify requires a 384B signature.\n");
+                    return EHR_ARGUMENTS_BAD;
+                }
+                ret = sgx_rsa_verify(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                                     pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
+                                     pData, ulDataLen, pSignature, ulSignatureLen, result);
                 break;
             default:
                 return EHR_MECHANISM_INVALID;
