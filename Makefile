@@ -35,6 +35,10 @@ SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= SIM
 SGX_ARCH ?= x64
 
+Enclave_Path ?= /usr/local/lib/
+Enclave_Name := libSgxHsmEnclave.so
+Signed_Enclave_Name := libSgxHsmEnclave.signed.so
+
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
 else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
@@ -77,10 +81,11 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
-Untrusted_Cpp_Files := untrusted/EHsmProvider.cpp untrusted/EnclaveHelpers.cpp
-Untrusted_Include_Paths := -I$(SGX_SDK)/include -Itrusted
+Untrusted_Cpp_Files := $(wildcard untrusted/*.cpp)
+Untrusted_Include_Paths := -I$(SGX_SDK)/include -Iinclude -Iuntrusted
 
-Untrusted_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(Untrusted_Include_Paths)
+Untrusted_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(Untrusted_Include_Paths) \
+                     -DENCLAVE_PATH=\"$(Enclave_Path)\" -DENCLAVE_NAME=\"$(Signed_Enclave_Name)\"
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
@@ -119,7 +124,7 @@ endif
 Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := $(wildcard trusted/*.cpp)
-Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
+Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -Iinclude -Itrusted
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths)
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
@@ -137,13 +142,11 @@ Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefau
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \
-	-Wl,--version-script=trusted/enclave_hsm.lds 
+	-Wl,--version-script=trusted/enclave_config/enclave_hsm.lds
 
 Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 
-Enclave_Name := libSgxHsmEnclave.so
-Signed_Enclave_Name := libSgxHsmEnclave.signed.so
-Enclave_Config_File := trusted/enclave_hsm.config.xml
+Enclave_Config_File := trusted/enclave_config/enclave_hsm.config.xml
 
 ifeq ($(SGX_MODE), HW)
 ifneq ($(SGX_DEBUG), 1)
@@ -205,13 +208,13 @@ $(Enclave_Name): trusted/enclave_hsm_t.o $(Enclave_Cpp_Objects)
 	@echo "LINK =>  $@"
 
 $(Signed_Enclave_Name): $(Enclave_Name)
-	@$(SGX_ENCLAVE_SIGNER) sign -key trusted/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
+	@$(SGX_ENCLAVE_SIGNER) sign -key trusted/enclave_config/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 
 release: all
 	@mkdir -p release
 	@cp $(Signed_Enclave_Name) release
-	@cp untrusted/EHsmProvider.h release
+	@cp untrusted/ehsm_provider.h release
 	@cp lib*.so release
 
 .PHONY: clean

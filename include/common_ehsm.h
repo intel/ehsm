@@ -28,8 +28,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef ENCLAVE_HSM_H
-#define ENCLAVE_HSM_H
+#ifndef COMMON_EHSM_H
+#define COMMON_EHSM_H
 
 typedef unsigned long int EH_ULONG;
 typedef unsigned char     EH_BYTE;

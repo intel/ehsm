@@ -29,7 +29,7 @@
  *
  */
 
-#include "EnclaveHelpers.h"
+#include "enclave_helpers.h"
 #include "enclave_hsm_u.h"
 
 namespace EHsmProvider

@@ -39,10 +39,6 @@
 
 #include "enclave_hsm_u.h"
 
-static const std::string installationPath   = "NONE";
-static const std::string libraryDirectory   = installationPath + "/lib/";
-static const std::string defaultLibraryPath = "/usr/local/lib/";
-
 // Globals with file scope.
 namespace SgxCrypto
 {
@@ -92,8 +88,8 @@ namespace SgxCrypto
         */
         sgx_status_t unloadSgxEnclave();
 
-		EH_RV getEncryptLen(EH_MECHANISM_TYPE ulKeyType, EH_ULONG ulDataLen,
-				EH_ULONG_PTR pulEncryptLen);
+        EH_RV getEncryptLen(EH_MECHANISM_TYPE ulKeyType, EH_ULONG ulDataLen,
+                            EH_ULONG_PTR pulEncryptLen);
 
         // Invalid SGX enclave ID value.
         static sgx_enclave_id_t mEnclaveInvalidId;

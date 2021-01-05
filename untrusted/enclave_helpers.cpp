@@ -29,7 +29,7 @@
  *
  */
 
-#include "EnclaveHelpers.h"
+#include "enclave_helpers.h"
 
 // Globals with file scope.
 namespace SgxCrypto
@@ -37,7 +37,6 @@ namespace SgxCrypto
     sgx_enclave_id_t    EnclaveHelpers::mEnclaveInvalidId       = 0;
     volatile long       EnclaveHelpers::mSgxEnclaveLoadedCount  = 0;
     sgx_enclave_id_t    EnclaveHelpers::mSgxEnclaveId           = 0;
-    std::string         enclaveFileName                         = (("NONE" == installationPath)? defaultLibraryPath : libraryDirectory) + "libSgxHsmEnclave.signed.so";
 
     EnclaveHelpers::EnclaveHelpers()
     {
@@ -55,6 +54,9 @@ namespace SgxCrypto
             __sync_add_and_fetch(&mSgxEnclaveLoadedCount, 1);
             return SGX_SUCCESS;
         }
+
+        std::string enclaveFileName = ENCLAVE_PATH;
+        enclaveFileName = enclaveFileName + ENCLAVE_NAME;
 
         sgxStatus = sgx_create_enclave(enclaveFileName.data(),
                                        SGX_DEBUG_FLAG,

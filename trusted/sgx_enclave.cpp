@@ -29,7 +29,7 @@
  *
  */
 
-#include "EnclaveHsm.h"
+#include "common_ehsm.h"
 #include "seal.h"
 #include "enclave_hsm_t.h"
 
