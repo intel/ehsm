@@ -30,8 +30,8 @@
  */
 
 #include "common_ehsm.h"
-#include "seal.h"
 #include "enclave_hsm_t.h"
+#include "sgx_tseal.h"
 
 #include <string>
 #include <stdio.h>
@@ -50,13 +50,12 @@ void printf(const char *fmt, ...)
     ocall_print_string(buf);
 }
 
-sgx_status_t sgx_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size,
-        size_t *req_blob_size)
+sgx_status_t sgx_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     uint32_t real_blob_len = sgx_calc_sealed_data_size(0, SGX_AES_KEY_SIZE);
 
-    if (real_blob_len == 0xFFFFFFFF)
+    if (real_blob_len == UINT32_MAX)
         return SGX_ERROR_UNEXPECTED;
 
     if (req_blob_size != NULL) {
@@ -67,7 +66,7 @@ sgx_status_t sgx_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size,
     if (cmk_blob == NULL || cmk_blob_size != real_blob_len)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    uint8_t* tmp = (uint8_t *) malloc(SGX_AES_KEY_SIZE);
+    uint8_t* tmp = (uint8_t *)malloc(SGX_AES_KEY_SIZE);
     if (tmp == NULL)
         return SGX_ERROR_OUT_OF_MEMORY;
 
@@ -77,7 +76,7 @@ sgx_status_t sgx_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size,
         return ret;
     }
 
-    ret = seal(cmk_blob, cmk_blob_size, tmp, SGX_AES_KEY_SIZE);
+    ret = sgx_seal_data(0, NULL, SGX_AES_KEY_SIZE, tmp, cmk_blob_size, (sgx_sealed_data_t *)cmk_blob);
 
     memset_s(tmp, SGX_AES_KEY_SIZE, 0, SGX_AES_KEY_SIZE);
 
@@ -86,26 +85,42 @@ sgx_status_t sgx_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size,
     return ret;
 }
 
+/*
+ * struct cipherblob {
+ *    OUT uint8_t ciphertext[SGX_AES_KEY_SIZE];
+ *    OUT uint8_t iv[EH_AES_GCM_IV_SIZE];   // 12B
+ *    OUT uint8_t mac[EH_AES_GCM_MAC_SIZE]; // 16B
+ * }
+ */
 sgx_status_t sgx_aes_encrypt(const uint8_t *aad, size_t aad_len,
                              const uint8_t *cmk_blob, size_t cmk_blob_size,
                              const uint8_t *plaintext, size_t plaintext_len,
-                             uint8_t *ciphertext, size_t ciphertext_len)
+                             uint8_t *cipherblob, size_t cipherblob_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk_blob == NULL ||
-            cmk_blob_size < sgx_calc_sealed_data_size(0, SGX_AES_KEY_SIZE))
+    if (cmk_blob == NULL)
         return SGX_ERROR_INVALID_PARAMETER;
+
+    uint32_t real_cmk_blob_size = sgx_calc_sealed_data_size(0, SGX_AES_KEY_SIZE);
+    if (UINT32_MAX == real_cmk_blob_size || cmk_blob_size < real_cmk_blob_size)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    uint32_t enc_key_size = sgx_get_encrypt_txt_len((sgx_sealed_data_t *)cmk_blob);
+    if (enc_key_size == UINT32_MAX || enc_key_size != sizeof(sgx_key_128bit_t)) {
+        printf("enc_key_size:%d is not expected: %d.\n", enc_key_size, sizeof(sgx_key_128bit_t));
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     if (plaintext == NULL || plaintext_len > EH_ENCRYPT_MAX_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (ciphertext == NULL ||
-            ciphertext_len < plaintext_len + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
+    if (cipherblob == NULL ||
+            cipherblob_len < plaintext_len + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    uint8_t *iv = (uint8_t *)(ciphertext + plaintext_len);
-    uint8_t *mac = (uint8_t *)(ciphertext + plaintext_len + EH_AES_GCM_IV_SIZE);
+    uint8_t *iv = (uint8_t *)(cipherblob + plaintext_len);
+    uint8_t *mac = (uint8_t *)(cipherblob + plaintext_len + EH_AES_GCM_IV_SIZE);
 
     ret = sgx_read_rand(iv, EH_AES_GCM_IV_SIZE);
     if (ret != SGX_SUCCESS) {
@@ -114,15 +129,14 @@ sgx_status_t sgx_aes_encrypt(const uint8_t *aad, size_t aad_len,
     }
 
     sgx_key_128bit_t enc_key;
-
-    ret = unseal(cmk_blob, cmk_blob_size, (uint8_t *) &enc_key, sizeof(sgx_key_128bit_t));
+    ret = sgx_unseal_data((sgx_sealed_data_t *)cmk_blob, NULL, 0, (uint8_t *)&enc_key, &enc_key_size);
     if (ret != SGX_SUCCESS) {
         printf("error unsealing key 0x%lx\n", ret);
         return ret;
     }
 
     ret = sgx_rijndael128GCM_encrypt(&enc_key, plaintext, plaintext_len,
-            ciphertext, iv, EH_AES_GCM_IV_SIZE, aad, aad_len,
+            cipherblob, iv, EH_AES_GCM_IV_SIZE, aad, aad_len,
             reinterpret_cast<uint8_t (*)[16]>(mac));
     if (SGX_SUCCESS != ret) {
         printf("error encrypting plain text\n");
@@ -135,34 +149,42 @@ sgx_status_t sgx_aes_encrypt(const uint8_t *aad, size_t aad_len,
 
 sgx_status_t sgx_aes_decrypt(const uint8_t *aad, size_t aad_len,
                              const uint8_t *cmk_blob, size_t cmk_blob_size,
-                             const uint8_t *ciphertext, size_t ciphertext_len,
+                             const uint8_t *cipherblob, size_t cipherblob_len,
                              uint8_t *plaintext, size_t plaintext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk_blob == NULL ||
-            cmk_blob_size < sgx_calc_sealed_data_size(0, SGX_AES_KEY_SIZE))
+    if (cmk_blob == NULL)
         return SGX_ERROR_INVALID_PARAMETER;
+
+    uint32_t real_cmk_blob_size = sgx_calc_sealed_data_size(0, SGX_AES_KEY_SIZE);
+    if (UINT32_MAX == real_cmk_blob_size || cmk_blob_size < real_cmk_blob_size)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    uint32_t dec_key_size = sgx_get_encrypt_txt_len((sgx_sealed_data_t *)cmk_blob);
+    if (dec_key_size == UINT32_MAX || dec_key_size != sizeof(sgx_key_128bit_t)) {
+        printf("dec_key_size size:%d is not expected: %d.\n", dec_key_size, sizeof(sgx_key_128bit_t));
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     if (plaintext == NULL || plaintext_len > EH_ENCRYPT_MAX_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (ciphertext == NULL ||
-            ciphertext_len < plaintext_len + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
+    if (cipherblob == NULL ||
+            cipherblob_len < plaintext_len + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    uint8_t *iv = (uint8_t *)(ciphertext + plaintext_len);
-    uint8_t *mac = (uint8_t *)(ciphertext + plaintext_len + EH_AES_GCM_IV_SIZE );
+    uint8_t *iv = (uint8_t *)(cipherblob + plaintext_len);
+    uint8_t *mac = (uint8_t *)(cipherblob + plaintext_len + EH_AES_GCM_IV_SIZE );
 
     sgx_key_128bit_t dec_key;
-
-    ret = unseal(cmk_blob, cmk_blob_size, (uint8_t *) &dec_key, sizeof(sgx_key_128bit_t));
+    ret = sgx_unseal_data((sgx_sealed_data_t *)cmk_blob, NULL, 0, (uint8_t *)&dec_key, &dec_key_size);
     if (ret != SGX_SUCCESS) {
-        printf("error unsealing key");
+        printf("error(%d) unsealing key.\n", ret);
         return ret;
     }
 
-    ret = sgx_rijndael128GCM_decrypt(&dec_key, ciphertext, plaintext_len, plaintext,
+    ret = sgx_rijndael128GCM_decrypt(&dec_key, cipherblob, plaintext_len, plaintext,
             iv, EH_AES_GCM_IV_SIZE, aad, aad_len,
             reinterpret_cast<uint8_t (*)[16]>(mac));
     if (SGX_SUCCESS != ret) {
@@ -237,7 +259,7 @@ sgx_status_t sgx_create_rsa_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t 
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint32_t real_keyblob_size = sgx_calc_sealed_data_size(0, sizeof(rsa_params_t));
-    if (0xFFFFFFFF == real_keyblob_size)
+    if (UINT32_MAX == real_keyblob_size)
         return SGX_ERROR_UNEXPECTED;
 
     real_keyblob_size += sizeof(sgx_rsa3072_public_key_t);
@@ -276,9 +298,9 @@ sgx_status_t sgx_create_rsa_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t 
     memcpy_s(pub_verify_key.exp, sizeof(pub_verify_key.exp), rsa_key.e, sizeof(rsa_key.e));
     memcpy_s(cmk_blob, sizeof(sgx_rsa3072_public_key_t), &pub_verify_key, sizeof(sgx_rsa3072_public_key_t));
 
-    ret = seal((uint8_t *)cmk_blob + sizeof(sgx_rsa3072_public_key_t),
-               real_keyblob_size - sizeof(sgx_rsa3072_public_key_t),
-               (uint8_t*)&rsa_key, sizeof(rsa_params_t));
+    ret = sgx_seal_data(0, NULL, sizeof(rsa_params_t), (uint8_t*)&rsa_key,
+                        real_keyblob_size - sizeof(sgx_rsa3072_public_key_t),
+                        (sgx_sealed_data_t *)((uint8_t*)cmk_blob + sizeof(sgx_rsa3072_public_key_t)));
     if (ret != SGX_SUCCESS) {
         printf("create rsa_key failed to seal cmk.\n");
     }
@@ -293,7 +315,7 @@ sgx_status_t sgx_rsa_sign(const uint8_t *cmk_blob, size_t cmk_blob_size, const u
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint32_t sealed_rsa_len = sgx_calc_sealed_data_size(0, sizeof(rsa_params_t));
-    if (0xFFFFFFFF == sealed_rsa_len) {
+    if (UINT32_MAX == sealed_rsa_len) {
         printf("ecall rsa_sign failed to calculate sealed data size.\n");
         return SGX_ERROR_UNEXPECTED;
     }
@@ -315,17 +337,15 @@ sgx_status_t sgx_rsa_sign(const uint8_t *cmk_blob, size_t cmk_blob_size, const u
 
     const sgx_sealed_data_t *rsa_key_blob = (sgx_sealed_data_t *)(cmk_blob + sizeof(sgx_rsa3072_public_key_t));
     uint32_t rsa_key_len = sgx_get_encrypt_txt_len(rsa_key_blob);
-    if (rsa_key_len != sizeof(rsa_params_t)) {
+    if (rsa_key_len == UINT32_MAX || rsa_key_len != sizeof(rsa_params_t)) {
         printf("ecall rsa_sign rsa key size:%d is not expected: %d.\n", rsa_key_len, sizeof(rsa_params_t));
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
     rsa_params_t rsa_key = {0};
-    ret = unseal((const uint8_t*)rsa_key_blob,
-                 cmk_blob_size - sizeof(sgx_rsa3072_public_key_t),
-                 (uint8_t*)&rsa_key, sizeof(rsa_params_t));
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_sign unseal failed.\n");
+    ret= sgx_unseal_data((sgx_sealed_data_t *)rsa_key_blob, NULL, NULL, (uint8_t*)&rsa_key, &rsa_key_len);
+    if (SGX_SUCCESS != ret) {
+        printf("ecall rsa_sign unseal rsa_key failed: %d.\n", ret);
         return ret;
     }
 
@@ -350,7 +370,7 @@ sgx_status_t sgx_rsa_verify(const uint8_t *cmk_blob, size_t cmk_blob_size, const
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint32_t sealed_rsa_len = sgx_calc_sealed_data_size(0, sizeof(rsa_params_t));
-    if (0xFFFFFFFF == sealed_rsa_len) {
+    if (UINT32_MAX == sealed_rsa_len) {
         printf("ecall rsa_verify failed to calculate sealed data size.\n");
         return SGX_ERROR_UNEXPECTED;
     }
@@ -398,7 +418,7 @@ sgx_status_t sgx_rsa_encrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, cons
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint32_t sealed_rsa_len = sgx_calc_sealed_data_size(0, sizeof(rsa_params_t));
-    if (0xFFFFFFFF == sealed_rsa_len) {
+    if (UINT32_MAX == sealed_rsa_len) {
         printf("ecall rsa_encrypt failed to calculate sealed data size.\n");
         return SGX_ERROR_UNEXPECTED;
     }
@@ -467,7 +487,7 @@ sgx_status_t sgx_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, cons
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint32_t sealed_rsa_len = sgx_calc_sealed_data_size(0, sizeof(rsa_params_t));
-    if (0xFFFFFFFF == sealed_rsa_len) {
+    if (UINT32_MAX == sealed_rsa_len) {
         printf("ecall rsa_decrypt failed to calculate sealed data size.\n");
         return SGX_ERROR_UNEXPECTED;
     }
@@ -485,17 +505,15 @@ sgx_status_t sgx_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, cons
 
     const sgx_sealed_data_t *rsa_key_blob = (sgx_sealed_data_t *)(cmk_blob + sizeof(sgx_rsa3072_public_key_t));
     uint32_t rsa_key_len = sgx_get_encrypt_txt_len(rsa_key_blob);
-    if (rsa_key_len != sizeof(rsa_params_t)) {
+    if (rsa_key_len == UINT32_MAX || rsa_key_len != sizeof(rsa_params_t)) {
         printf("ecall rsa_decrypt rsa key size:%d is not expected: %d.\n", rsa_key_len, sizeof(rsa_params_t));
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
     rsa_params_t rsa_key = {0};
-    ret = unseal((const uint8_t*)rsa_key_blob,
-                 cmk_blob_size - sizeof(sgx_rsa3072_public_key_t),
-                 (uint8_t*)&rsa_key, sizeof(rsa_params_t));
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_decrypt unseal failed.\n");
+    ret= sgx_unseal_data((sgx_sealed_data_t *)rsa_key_blob, NULL, NULL, (uint8_t*)&rsa_key, &rsa_key_len);
+    if (SGX_SUCCESS != ret) {
+        printf("ecall rsa_decrypt unseal rsa_key failed: %d.\n", ret);
         return ret;
     }
 
