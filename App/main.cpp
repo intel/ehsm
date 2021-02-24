@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <Enclave_u.h>
+#include <enclave_u.h>
 
 #include <socket_server.h>
 

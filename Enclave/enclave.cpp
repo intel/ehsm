@@ -29,7 +29,7 @@
  *
  */
 
-#include "Enclave_t.h"
+#include "enclave_t.h"
 #include "sgx_tseal.h"
 
 #include <string>
