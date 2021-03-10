@@ -41,8 +41,19 @@
 #include<error.h>
 #include<socket_server.h>
 
-
 namespace socket_server {
+
+errno_t memcpy_s(
+    void *dest,
+    size_t numberOfElements,
+    const void *src,
+    size_t count)
+{
+    if(numberOfElements<count)
+        return -1;
+    memcpy(dest, src, count);
+    return 0;
+}
 
 static char* hexToCharIP(struct in_addr addrIP)
 {
@@ -69,7 +80,6 @@ static bool RecvAll(int32_t sock, void *data, int32_t data_size)
     {
         bytes_recv = recv(sock, data_ptr, data_size, 0);
         if (bytes_recv == 0) {
-            printf("client may closed...\n");
             return true;
         }
         if (bytes_recv < 0) {
@@ -103,130 +113,174 @@ static bool SendAll(int32_t sock, const void *data, int32_t data_size)
 }
 
 static int32_t SendResponse(int32_t sockfd,
-                uint32_t cmd,
-                uint8_t* out_buf,
-                uint32_t out_buf_size) {
-    socket_ipc_msg_t *out_msg = NULL;
-    uint32_t out_msg_size;
+                ra_samp_response_header_t *resp) {
+    uint32_t resp_size;
     uint32_t ret = NO_ERROR;
 
-    out_msg_size = out_buf_size + sizeof(socket_ipc_msg_t);
-    out_msg = (socket_ipc_msg_t *)malloc(out_msg_size);
-    if (!out_msg) {
-        printf("failed to allocate msg\n");
-        return ERR_NO_MEMORY;
-    }
-    memset(out_msg, 0, out_msg_size);
+    resp_size = resp->size + sizeof(ra_samp_response_header_t);
 
-    out_msg->cmd = cmd;
-    memcpy(out_msg->payload, out_buf, out_buf_size);
-
-    if (!SendAll(sockfd, &out_msg_size, sizeof(out_msg_size))) {
-        printf("send out_msg_size failed\n");
+    if (!SendAll(sockfd, &resp_size, sizeof(resp_size))) {
+        printf("send resp_size failed\n");
         ret = ERR_IO;
         goto out;
     }
-    if (!SendAll(sockfd, out_msg, out_msg_size)) {
+    if (!SendAll(sockfd, resp, resp_size)) {
         printf("send out_msg failed\n");
         ret = ERR_IO;
         goto out;
     }
 
-    printf("send response success, cmd(%d)\n", cmd);
+    printf("send response success with msg type(%d)\n", resp->type);
 out:
-    if (out_msg) {
-        free(out_msg);
-        out_msg = NULL;
+    if (resp) {
+        free(resp);
+        resp = nullptr;
     }
 
     return ret;
 }
 
-static int32_t SendErrorResponse(int32_t sockfd,
-                                uint32_t cmd,
-                                int32_t err) {
-    return SendResponse(sockfd, cmd, reinterpret_cast<uint8_t*>(&err),
-                         sizeof(err));
+int sp_ra_proc_msg0_req(const sample_ra_msg0_t *p_msg0,
+    uint32_t msg0_size,
+    ra_samp_response_header_t **pp_msg0_resp) {
+    ra_samp_response_header_t * p_msg0_resp_full;
+
+    printf("msg0_size=%d\n", msg0_size);
+    char *body = (char*)p_msg0;
+    for (int i=0; i<msg0_size; i++){
+        printf("%c", body[i]);
+    }
+    printf("\n");
+
+    char *testMsg="welcome!";
+    p_msg0_resp_full = (ra_samp_response_header_t *)malloc(
+        sizeof(ra_samp_response_header_t)
+        +strlen(testMsg));
+    if (!p_msg0_resp_full) {
+        printf("failed to allocate memory\n");
+        return ERR_NO_MEMORY;
+    }
+
+    p_msg0_resp_full->type = TYPE_RA_MSG0;
+    p_msg0_resp_full->size = strlen(testMsg)+1;
+    p_msg0_resp_full->status[0] = 0;
+    p_msg0_resp_full->status[1] = 0;
+    memcpy_s(p_msg0_resp_full->body, p_msg0_resp_full->size, testMsg, p_msg0_resp_full->size);
+
+    *pp_msg0_resp = p_msg0_resp_full;
+    return 0;
 }
 
-static int32_t SocketDispatchCmd(
-                        socket_ipc_msg_t *msg,
-                        uint32_t payload_size,
-                        unique_ptr<uint8_t[]>* out,
-                        uint32_t* out_size) {
-    printf("receive the cmd(%d) from client.", msg->cmd);
+int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg0,
+    uint32_t msg1_size,
+    ra_samp_response_header_t **pp_msg0_resp) {
+    printf("TODO: sp_ra_proc_msg1_req\n");
+    return 0;
+}
 
-    switch (msg->cmd) {
-    case KMS_RETRIEVE_DOMAINKEY:
-        printf("Dispatching RETRIEVE_DOMAINKEY, size: %d", payload_size);
-        return 0;
+int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg0,
+    uint32_t msg3_size,
+    ra_samp_response_header_t **pp_msg0_resp) {
+    printf("TODO: sp_ra_proc_msg3_req\n");
+    return 0;
+}
 
-    case KMS_SETUP_TRTUST_CHNNEL:
-        printf("Dispatching SETUP_TRTUST_CHNNEL, size: %d", payload_size);
+int32_t SocketDispatchCmd(
+                    ra_samp_request_header_t *req,
+                    ra_samp_response_header_t **p_resp) {
+    printf("receive the msg type(%d) from client.\n", req->type);
+    int32_t ret;
+
+    switch (req->type) {
+    case TYPE_RA_MSG0:
+        printf("Dispatching TYPE_RA_MSG0, body size: %d\n", req->size);
+        ret = sp_ra_proc_msg0_req((const sample_ra_msg0_t*)((size_t)req
+            + sizeof(ra_samp_request_header_t)),
+            req->size,
+            p_resp);
+        if (0 != ret) {
+            printf("call sp_ra_proc_msg1_req fail\n");
+        }
+        break;
+    case TYPE_RA_MSG1:
+        printf("Dispatching TYPE_RA_MSG1, body size: %d\n", req->size);
+        ret = sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((size_t)req
+            + sizeof(ra_samp_request_header_t)),
+            req->size,
+            p_resp);
+        if (0 != ret) {
+            printf("call sp_ra_proc_msg1_req fail\n");
+        }
+        break;
+    case TYPE_RA_MSG3:
+        printf("Dispatching TYPE_RA_MSG3, body size: %d\n", req->size);
+        ret = sp_ra_proc_msg3_req((const sample_ra_msg3_t*)((size_t)req
+            + sizeof(ra_samp_request_header_t)),
+            req->size,
+            p_resp);
+        if (0 != ret) {
+            printf("call sp_ra_proc_msg1_req fail\n");
+        }
+        break;
+    case TYPE_RA_ATT_RESULT:
+        printf("Dispatching TYPE_RA_ATT_RESULT, body size: %d\n", req->size);
         return 0;
 
     default:
-        printf("Cannot dispatch unknown command %d", msg->cmd);
+        printf("Cannot dispatch unknown msg type %d\n", req->type);
         return ERR_NOT_IMPLEMENTED;
-    }
-}
+    } 
 
+    return ret;
+}
 
 /*
 * This will handle connection for each socket client
 */
 static void* SocketMsgHandler(void *sock_addr)
 {
-    socket_ipc_msg_t *in_msg=NULL;
-    uint32_t in_msg_size;
+    ra_samp_request_header_t *req;
+    ra_samp_response_header_t *resp;
+    uint32_t req_size, resp_size;
+
     int32_t sockfd = *(int32_t*)sock_addr;
     int32_t ret;
 
     /* Receive a message from client */
     while (true) {
-        in_msg_size = 0;
-        if (!RecvAll(sockfd, &in_msg_size, sizeof(in_msg_size))) {
-            printf("failed to get in_msg_size\n");
+        req_size = 0;
+        if (!RecvAll(sockfd, &req_size, sizeof(req_size))) {
+            printf("failed to get req_size\n");
             break;
         }
-        if (in_msg_size <= 0) //no msg need to read
+        if (req_size <= 0) //no msg need to read
             break;
 
-        in_msg = (socket_ipc_msg_t *)malloc(in_msg_size);
-        if (!in_msg) {
-            printf("failed to allocate in_msg\n");
+        req = (ra_samp_request_header_t *)malloc(req_size);
+        if (!req) {
+            printf("failed to allocate req buffer\n");
             break;
         }
-        memset(in_msg, 0, in_msg_size);
-        if (!RecvAll(sockfd, in_msg, in_msg_size)) {
-            printf("failed to get in_msg\n");
+        memset(req, 0, req_size);
+        if (!RecvAll(sockfd, req, req_size)) {
+            printf("failed to get req data\n");
             break;
         }
 
-        unique_ptr<uint8_t[]> out_buf;
-        uint32_t out_buf_size = 0;
-        ret = SocketDispatchCmd(in_msg,
-                in_msg_size-sizeof(socket_ipc_msg_t),
-                &out_buf,
-                &out_buf_size);
+        ret = SocketDispatchCmd(req,&resp);
         if (ret < 0) {
-            printf("failed(%d) to handle msg cmd(%d)\n", ret, in_msg->cmd);
-            SendErrorResponse(sockfd, in_msg->cmd, ret);
+            printf("failed(%d) to handle msg type(%d)\n", ret, req->type);
+            resp->status[0] = SP_INTERNAL_ERROR;
             break;
         }
 
-        SendResponse(sockfd, in_msg->cmd, out_buf.get(), out_buf_size);
+        SendResponse(sockfd, resp);
 
-        if (in_msg) {
-            free(in_msg);
-            in_msg = NULL;
-        }
+        SAFE_FREE(req);
+        SAFE_FREE(resp);
     }
 
-    if (in_msg) {
-        free(in_msg);
-        in_msg = NULL;
-    }
+    SAFE_FREE(req);
 
     return 0;
 }
