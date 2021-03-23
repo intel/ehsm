@@ -93,7 +93,6 @@ App_Include_Paths := \
 	-IInclude \
 	-IApp \
 	-I$(SGX_SDK)/include \
-	
 
 App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -110,13 +109,12 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lsgx_ukey_exchange -Wl,-rpath=$(CURDIR)
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lukey_exchange_patched -Lukey_exchange -Wl,-rpath=$(CURDIR)
 
 
 ifneq ($(SGX_MODE), HW)
     App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
 else
-    #App_Link_Flags += -lsgx_epid -lsgx_quote_ex
     App_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -ldl
 endif
 
@@ -175,7 +173,7 @@ Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
 Enclave_Link_Flags := $(MITIGATION_LDFLAGS) $(Enclave_Security_Link_Flags) \
     -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_TRUSTED_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -lsgx_tkey_exchange -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -ltkey_exchange_patched -Ltkey_exchange -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \
