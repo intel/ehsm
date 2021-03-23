@@ -15,7 +15,7 @@
  *
  */
 #include <stdio.h>
-#include <iostream>
+
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -61,11 +61,11 @@ static bool RecvAll(int32_t sock, void *data, int32_t data_size)
     {
         bytes_recv = recv(sock, data_ptr, data_size, 0);
         if (bytes_recv == 0) {
-            printf("the server side may closed...\n");
+            fprintf(stderr, "the server side may closed...\n");
             return true;
         }
         if (bytes_recv < 0) {
-            printf("failed to read data\n");
+            fprintf(stderr, "failed to read data\n");
             return false;
         }
 
@@ -116,39 +116,39 @@ int32_t SocketClient::SendAndRecvMsg(  const ra_samp_request_header_t *p_req,
 
     /* Send a message to server */
     req_size = sizeof(ra_samp_request_header_t)+p_req->size;
-    printf("req_size=%d\n", req_size);
+    fprintf(stderr, "req_size=%d\n", req_size);
 
     if (!SendAll(_sockFd, &req_size, sizeof(req_size))) {
-        printf("send req_size failed\n");
+        fprintf(stderr, "send req_size failed\n");
         err = ERR_GENERIC;
         goto out;
     }
     if (!SendAll(_sockFd, p_req, req_size)) {
-        printf("send req buffer failed\n");
+        fprintf(stderr, "send req buffer failed\n");
         err = ERR_GENERIC;
         goto out;
     }
 
     /* Receive a message from server */
     if (!RecvAll(_sockFd, &resp_size, sizeof(resp_size))) {
-        printf("failed to get the resp size\n");
+        fprintf(stderr, "failed to get the resp size\n");
         err = ERR_GENERIC;
         goto out;
     }
 
     if (resp_size <= 0) {
-        printf("no msg need to read\n");
+        fprintf(stderr, "no msg need to read\n");
         err = ERR_GENERIC;
         goto out;
     }
     out_msg = (ra_samp_response_header_t *)malloc(resp_size);
     if (!out_msg) {
-        printf("allocate out_msg failed\n");
+        fprintf(stderr, "allocate out_msg failed\n");
         err = ERR_NO_MEMORY;
         goto out;
     }
     if (!RecvAll(_sockFd, out_msg, resp_size)) {
-        printf("failed to get the data\n");
+        fprintf(stderr, "failed to get the data\n");
         err = ERR_GENERIC;
         goto out;
     }
@@ -165,7 +165,7 @@ void SocketClient::Open() {
 
     sockFd = socket(AF_INET, SOCK_STREAM, 0);
     if(sockFd < 0) {
-        printf("create socket failed\n");
+        fprintf(stderr, "create socket failed\n");
         exit(1);
     }
     bzero(&serAddr, sizeof(serAddr));
@@ -175,15 +175,15 @@ void SocketClient::Open() {
 
     do {
         if(connect(sockFd, (struct sockaddr*)&serAddr, sizeof(serAddr)) >= 0) {
-            printf("connect socket server suucess!\n");
+            fprintf(stderr, "connect socket server suucess!\n");
             break;
         }
         else if (retry_count > 0) {
-            printf("connect socket server failed, sleep 0.5s and try again...\n");
+            fprintf(stderr, "connect socket server failed, sleep 0.5s and try again...\n");
             usleep(500000); // 0.5 s
         }
         else {
-            printf("Fail to connect socket server.\n");
+            fprintf(stderr, "Fail to connect socket server.\n");
             return;
         }
     } while (retry_count-- > 0);

@@ -36,6 +36,8 @@
 #include <vector>
 #include <memory>
 
+#include "remote_attestation_result.h"
+
 using namespace std;
 
 namespace socket_client {
@@ -43,9 +45,18 @@ namespace socket_client {
 const uint32_t SOCKET_RECV_BUF_SIZE = 2 * 4096;
 const uint32_t SOCKET_SEND_BUF_SIZE = 4096;
 
-const char server_ip_addr[] = "127.0.0.1";
+const char server_ip_addr[] = "10.239.158.41";
 const uint32_t server_port = 8888;
 
+#define ENCLAVE_PATH "enclave.signed.so"
+
+#ifndef INT_MAX
+#define INT_MAX     0x7fffffff 
+#endif
+
+#ifndef SAFE_FREE
+#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}}
+#endif
 
 typedef struct socket_ipc_msg {
     uint32_t cmd;
