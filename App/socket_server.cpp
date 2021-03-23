@@ -41,19 +41,68 @@
 #include<error.h>
 #include<socket_server.h>
 
+#include "sgx_quote_3.h"
+#include <sgx_uae_launch.h>
+#include "sgx_urts.h"
+#include "sgx_ql_quote.h"
+#include "sgx_dcap_quoteverify.h"
+
+#include "ecp.h"
+#include "sample_libcrypto.h"
+
 namespace socket_server {
 
-errno_t memcpy_s(
-    void *dest,
-    size_t numberOfElements,
-    const void *src,
-    size_t count)
+// This is a context data structure used on SP side
+typedef struct _sp_db_item_t
 {
-    if(numberOfElements<count)
-        return -1;
-    memcpy(dest, src, count);
-    return 0;
-}
+    sample_ec_pub_t             g_a;
+    sample_ec_pub_t             g_b;
+    sample_ec_key_128bit_t      vk_key;// Shared secret key for the REPORT_DATA
+    sample_ec_key_128bit_t      mk_key;// Shared secret key for generating MAC's
+    sample_ec_key_128bit_t      sk_key;// Shared secret key for encryption
+    sample_ec_key_128bit_t      smk_key;// Used only for SIGMA protocol
+    sample_ec_priv_t            b;
+    sample_ps_sec_prop_desc_t   ps_sec_prop;
+}sp_db_item_t;
+static sp_db_item_t g_sp_db;
+
+static bool g_is_sp_registered = false;
+static bool g_return_ecdsa_att_key_id = true;
+static int g_sp_credentials = 0;
+static int g_authentication_token = 0;
+
+uint8_t g_secret[] = {0,1,2,3,4,5,6,7};
+
+
+// This is the private EC key of SP, the corresponding public EC key is
+// hard coded in isv_enclave. It is based on NIST P-256 curve.
+static const sample_ec256_private_t g_sp_priv_key = {
+    {
+        0x90, 0xe7, 0x6c, 0xbb, 0x2d, 0x52, 0xa1, 0xce,
+        0x3b, 0x66, 0xde, 0x11, 0x43, 0x9c, 0x87, 0xec,
+        0x1f, 0x86, 0x6a, 0x3b, 0x65, 0xb6, 0xae, 0xea,
+        0xad, 0x57, 0x34, 0x53, 0xd1, 0x03, 0x8c, 0x01
+    }
+};
+
+// This is the public EC key of SP, this key is hard coded in isv_enclave.
+// It is based on NIST P-256 curve. Not used in the SP code.
+static const sample_ec_pub_t g_sp_pub_key = {
+    {
+        0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
+        0x85, 0xd0, 0x3a, 0x62, 0x37, 0x30, 0xae, 0xad,
+        0x3e, 0x3d, 0xaa, 0xee, 0x9c, 0x60, 0x73, 0x1d,
+        0xb0, 0x5b, 0xe8, 0x62, 0x1c, 0x4b, 0xeb, 0x38
+    },
+    {
+        0xd4, 0x81, 0x40, 0xd9, 0x50, 0xe2, 0x57, 0x7b,
+        0x26, 0xee, 0xb7, 0x41, 0xe7, 0xc6, 0x14, 0xe2,
+        0x24, 0xb7, 0xbd, 0xc9, 0x03, 0xf2, 0x9a, 0x28,
+        0xa8, 0x3c, 0xc8, 0x10, 0x11, 0x14, 0x5e, 0x06
+    }
+};
+
+sample_spid_t g_spid;
 
 static char* hexToCharIP(struct in_addr addrIP)
 {
@@ -121,71 +170,660 @@ static int32_t SendResponse(int32_t sockfd,
 
     if (!SendAll(sockfd, &resp_size, sizeof(resp_size))) {
         printf("send resp_size failed\n");
-        ret = ERR_IO;
-        goto out;
+        return ERR_IO;
     }
     if (!SendAll(sockfd, resp, resp_size)) {
         printf("send out_msg failed\n");
-        ret = ERR_IO;
-        goto out;
+        return ERR_IO;
     }
 
     printf("send response success with msg type(%d)\n", resp->type);
-out:
-    if (resp) {
-        free(resp);
-        resp = nullptr;
-    }
 
     return ret;
+}
+
+static int32_t SendErrResponse(int32_t sockfd, int8_t type, int8_t err) {
+    ra_samp_response_header_t  p_err_resp_full = {0};
+
+    p_err_resp_full.type = type;
+    p_err_resp_full.status[0] = err;
+    return SendResponse(sockfd, &p_err_resp_full);
 }
 
 int sp_ra_proc_msg0_req(const sample_ra_msg0_t *p_msg0,
     uint32_t msg0_size,
     ra_samp_response_header_t **pp_msg0_resp) {
-    ra_samp_response_header_t * p_msg0_resp_full;
+    printf("TODO: sp_ra_proc_msg0_req\n");
+    return ERR_NOT_IMPLEMENTED;
+}
 
-    printf("msg0_size=%d\n", msg0_size);
-    char *body = (char*)p_msg0;
-    for (int i=0; i<msg0_size; i++){
-        printf("%c", body[i]);
+
+// Verify message 1 then generate and return message 2 to isv.
+int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
+						uint32_t msg1_size,
+						ra_samp_response_header_t **pp_msg2)
+{
+    int ret = 0;
+    ra_samp_response_header_t* p_msg2_full = NULL;
+    sample_ra_msg2_t *p_msg2 = NULL;
+    sample_ecc_state_handle_t ecc_state = NULL;
+    sample_status_t sample_ret = SAMPLE_SUCCESS;
+    bool derive_ret = false;
+    
+
+    if(!p_msg1 ||
+       !pp_msg2 ||
+       (msg1_size != sizeof(sample_ra_msg1_t)))
+    {
+        return -1;
     }
-    printf("\n");
+    printf("step 1\n");
 
-    char *testMsg="welcome!";
-    p_msg0_resp_full = (ra_samp_response_header_t *)malloc(
-        sizeof(ra_samp_response_header_t)
-        +strlen(testMsg));
-    if (!p_msg0_resp_full) {
-        printf("failed to allocate memory\n");
-        return ERR_NO_MEMORY;
+    do
+    {
+        // Get the sig_rl from attestation server using GID.
+        // GID is Base-16 encoded of EPID GID in little-endian format.
+        // In the product, the SP and attestation server uses an established channel for
+        // communication.
+        uint8_t* sig_rl;
+        uint32_t sig_rl_size = 0;
+
+        // The product interface uses a REST based message to get the SigRL.
+        //! Refer to the attestation server API for more information on how to communicate to
+        //! the real attestation server.
+        //ret = g_sp_extended_epid_group_id->get_sigrl(p_msg1->gid, &sig_rl_size, &sig_rl);
+        if(0 != ret)
+        {
+            fprintf(stderr, "\nError, ias_get_sigrl [%s].", __FUNCTION__);
+            ret = SP_IAS_FAILED;
+            break;
+        }
+
+        // Need to save the client's public ECDH key to local storage
+        if (memcpy_s(&g_sp_db.g_a, sizeof(g_sp_db.g_a), &p_msg1->g_a,
+                     sizeof(p_msg1->g_a)))
+        {
+            fprintf(stderr, "\nError, cannot do memcpy in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        printf("step 2\n");
+
+        // Generate the Service providers ECDH key pair.
+        sample_ret = sample_ecc256_open_context(&ecc_state);
+        if(SAMPLE_SUCCESS != sample_ret)
+        {
+            fprintf(stderr, "\nError, cannot get ECC context in [%s].",
+                             __FUNCTION__);
+            ret = -1;
+            break;
+        }
+        printf("step 3\n");
+        sample_ec256_public_t pub_key = {{0},{0}};
+        sample_ec256_private_t priv_key = {{0}};
+        sample_ret = sample_ecc256_create_key_pair(&priv_key, &pub_key,
+                                                   ecc_state);
+        if(SAMPLE_SUCCESS != sample_ret)
+        {
+            fprintf(stderr, "\nError, cannot generate key pair in [%s].",
+                    __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        printf("step 4\n");
+
+        // Need to save the SP ECDH key pair to local storage.
+        if(memcpy_s(&g_sp_db.b, sizeof(g_sp_db.b), &priv_key, sizeof(priv_key)) != 0)
+        {
+            fprintf(stderr, "\nError, cannot do memcpy in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+
+        if(memcpy_s(&g_sp_db.g_b, sizeof(g_sp_db.g_b), &pub_key, sizeof(pub_key)) != 0)
+        {
+            fprintf(stderr, "\nError, cannot do memcpy in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        printf("step 5\n");
+
+        // Generate the client/SP shared secret
+        sample_ec_dh_shared_t dh_key = {{0}};
+        sample_ret = sample_ecc256_compute_shared_dhkey(&priv_key,
+            (sample_ec256_public_t *)&p_msg1->g_a,
+            (sample_ec256_dh_shared_t *)&dh_key,
+            ecc_state);
+        if(SAMPLE_SUCCESS != sample_ret)
+        {
+            fprintf(stderr, "\nError, compute share key fail in [%s].",
+                    __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        printf("step 6\n");
+
+#ifdef SUPPLIED_KEY_DERIVATION
+
+        // smk is only needed for msg2 generation.
+        derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_SMK_SK,
+            &g_sp_db.smk_key, &g_sp_db.sk_key);
+        if(derive_ret != true)
+        {
+            fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+
+        // The rest of the keys are the shared secrets for future communication.
+        derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_MK_VK,
+            &g_sp_db.mk_key, &g_sp_db.vk_key);
+        if(derive_ret != true)
+        {
+            fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+#else
+        // smk is only needed for msg2 generation.
+        derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_SMK,
+                                &g_sp_db.smk_key);
+        if(derive_ret != true)
+        {
+            fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+
+        // The rest of the keys are the shared secrets for future communication.
+        derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_MK,
+                                &g_sp_db.mk_key);
+        if(derive_ret != true)
+        {
+            fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+
+        derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_SK,
+                                &g_sp_db.sk_key);
+        if(derive_ret != true)
+        {
+            fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+
+        derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_VK,
+                                &g_sp_db.vk_key);
+        if(derive_ret != true)
+        {
+            fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+#endif
+        printf("step 7\n");
+
+        uint32_t msg2_size = (uint32_t)sizeof(sample_ra_msg2_t) + sig_rl_size;
+        p_msg2_full = (ra_samp_response_header_t*)malloc(msg2_size
+                      + sizeof(ra_samp_response_header_t));
+        if(!p_msg2_full)
+        {
+            fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        memset(p_msg2_full, 0, msg2_size + sizeof(ra_samp_response_header_t));
+        p_msg2_full->type = TYPE_RA_MSG2;
+        p_msg2_full->size = msg2_size;
+        // The simulated message2 always passes.  This would need to be set
+        // accordingly in a real service provider implementation.
+        p_msg2_full->status[0] = 0;
+        p_msg2_full->status[1] = 0;
+        p_msg2 = (sample_ra_msg2_t *)p_msg2_full->body;
+
+        // Assemble MSG2
+        if(memcpy_s(&p_msg2->g_b, sizeof(p_msg2->g_b), &g_sp_db.g_b,
+                    sizeof(g_sp_db.g_b)) ||
+           memcpy_s(&p_msg2->spid, sizeof(sample_spid_t),
+                    &g_spid, sizeof(g_spid)))
+        {
+            fprintf(stderr,"\nError, memcpy failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        printf("step 8\n");
+
+        // The service provider is responsible for selecting the proper EPID
+        // signature type and to understand the implications of the choice!
+        p_msg2->quote_type = SAMPLE_QUOTE_LINKABLE_SIGNATURE;
+
+#ifdef SUPPLIED_KEY_DERIVATION
+//isv defined key derivation function id
+#define ISV_KDF_ID 2
+        p_msg2->kdf_id = ISV_KDF_ID;
+#else
+        p_msg2->kdf_id = SAMPLE_AES_CMAC_KDF_ID;
+#endif
+        // Create gb_ga
+        sample_ec_pub_t gb_ga[2];
+        if(memcpy_s(&gb_ga[0], sizeof(gb_ga[0]), &g_sp_db.g_b,
+                    sizeof(g_sp_db.g_b))
+           || memcpy_s(&gb_ga[1], sizeof(gb_ga[1]), &g_sp_db.g_a,
+                       sizeof(g_sp_db.g_a)))
+        {
+            fprintf(stderr,"\nError, memcpy failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        printf("step 9\n");
+
+        // Sign gb_ga
+        sample_ret = sample_ecdsa_sign((uint8_t *)&gb_ga, sizeof(gb_ga),
+                        (sample_ec256_private_t *)&g_sp_priv_key,
+                        (sample_ec256_signature_t *)&p_msg2->sign_gb_ga,
+                        ecc_state);
+        if(SAMPLE_SUCCESS != sample_ret)
+        {
+            fprintf(stderr, "\nError, sign ga_gb fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        printf("step 10\n");
+
+        // Generate the CMACsmk for gb||SPID||TYPE||KDF_ID||Sigsp(gb,ga)
+        uint8_t mac[SAMPLE_EC_MAC_SIZE] = {0};
+        uint32_t cmac_size = offsetof(sample_ra_msg2_t, mac);
+        sample_ret = sample_rijndael128_cmac_msg(&g_sp_db.smk_key,
+            (uint8_t *)&p_msg2->g_b, cmac_size, &mac);
+        if(SAMPLE_SUCCESS != sample_ret)
+        {
+            fprintf(stderr, "\nError, cmac fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        printf("step 11\n");
+        if(memcpy_s(&p_msg2->mac, sizeof(p_msg2->mac), mac, sizeof(mac)))
+        {
+            fprintf(stderr,"\nError, memcpy failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+
+        if(memcpy_s(&p_msg2->sig_rl[0], sig_rl_size, sig_rl, sig_rl_size))
+        {
+            fprintf(stderr,"\nError, memcpy failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        p_msg2->sig_rl_size = sig_rl_size;
+
+    }while(0);
+
+    if(ret)
+    {
+        *pp_msg2 = NULL;
+        SAFE_FREE(p_msg2_full);
+    }
+    else
+    {
+        // Freed by the network simulator in ra_free_network_response_buffer
+        *pp_msg2 = p_msg2_full;
     }
 
-    p_msg0_resp_full->type = TYPE_RA_MSG0;
-    p_msg0_resp_full->size = strlen(testMsg)+1;
-    p_msg0_resp_full->status[0] = 0;
-    p_msg0_resp_full->status[1] = 0;
-    memcpy_s(p_msg0_resp_full->body, p_msg0_resp_full->size, testMsg, p_msg0_resp_full->size);
+    if(ecc_state)
+    {
+        sample_ecc256_close_context(ecc_state);
+    }
 
-    *pp_msg0_resp = p_msg0_resp_full;
-    return 0;
+    return ret;
 }
 
-int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg0,
-    uint32_t msg1_size,
-    ra_samp_response_header_t **pp_msg0_resp) {
-    printf("TODO: sp_ra_proc_msg1_req\n");
-    return 0;
+
+// Process remote attestation message 3
+int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
+                        uint32_t msg3_size,
+                        ra_samp_response_header_t **pp_att_result_msg)
+{
+    int ret = 0;
+    sample_status_t sample_ret = SAMPLE_SUCCESS;
+    const uint8_t *p_msg3_cmaced = NULL;
+    //const sample_quote_t *p_quote = NULL;
+    const sgx_quote3_t *p_quote = NULL;
+    sample_sha_state_handle_t sha_handle = NULL;
+    sample_report_data_t report_data = {0};
+    sample_ra_att_result_msg_t *p_att_result_msg = NULL;
+    ra_samp_response_header_t* p_att_result_msg_full = NULL;
+    uint32_t i;
+
+    sgx_ql_auth_data_t *p_auth_data;
+    sgx_ql_ecdsa_sig_data_t *p_sig_data;
+    sgx_ql_certification_data_t *p_cert_data;
+
+    time_t current_time = 0;
+    uint32_t supplemental_data_size = 0;
+    uint8_t *p_supplemental_data = NULL;
+    sgx_status_t sgx_ret = SGX_SUCCESS;
+    quote3_error_t dcap_ret = SGX_QL_ERROR_UNEXPECTED;
+    sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
+    uint32_t collateral_expiration_status = 1;
+    
+    sgx_ql_qe_report_info_t qve_report_info;
+    unsigned char rand_nonce[16] = "59jslk201fgjmm;";
+
+    uint32_t quote_size=0;
+
+    FILE* OUTPUT = stdout;
+    
+    if((!p_msg3) ||
+       (msg3_size < sizeof(sample_ra_msg3_t)) ||
+       (!pp_att_result_msg))
+    {
+        return SP_INTERNAL_ERROR;
+    }
+    fprintf(stderr,"%s, step1\n", __FUNCTION__);
+
+    do
+    {
+        // Compare g_a in message 3 with local g_a.
+        ret = memcmp(&g_sp_db.g_a, &p_msg3->g_a, sizeof(sample_ec_pub_t));
+        if(ret)
+        {
+            fprintf(stderr, "\nError, g_a is not same [%s].", __FUNCTION__);
+            ret = SP_PROTOCOL_ERROR;
+            break;
+        }
+        //Make sure that msg3_size is bigger than sample_mac_t.
+        uint32_t mac_size = msg3_size - (uint32_t)sizeof(sample_mac_t);
+        p_msg3_cmaced = reinterpret_cast<const uint8_t*>(p_msg3);
+        p_msg3_cmaced += sizeof(sample_mac_t);
+        fprintf(stderr,"%s, step2\n", __FUNCTION__);
+
+        // Verify the message mac using SMK
+        sample_cmac_128bit_tag_t mac = {0};
+        sample_ret = sample_rijndael128_cmac_msg(&g_sp_db.smk_key,
+                                           p_msg3_cmaced,
+                                           mac_size,
+                                           &mac);
+        if(SAMPLE_SUCCESS != sample_ret)
+        {
+            fprintf(stderr, "\nError, cmac fail in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        fprintf(stderr,"%s, step3\n", __FUNCTION__);
+        // In real implementation, should use a time safe version of memcmp here,
+        // in order to avoid side channel attack.
+        ret = memcmp(&p_msg3->mac, mac, sizeof(mac));
+        if(ret)
+        {
+            fprintf(stderr, "\nError, verify cmac fail [%s].", __FUNCTION__);
+            ret = SP_INTEGRITY_FAILED;
+            break;
+        }
+
+        fprintf(stderr,"%s, step4\n", __FUNCTION__);
+
+        if(memcpy_s(&g_sp_db.ps_sec_prop, sizeof(g_sp_db.ps_sec_prop),
+            &p_msg3->ps_sec_prop, sizeof(p_msg3->ps_sec_prop)))
+        {
+            fprintf(stderr,"\nError, memcpy failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+
+        //p_quote = (const sample_quote_t*)p_msg3->quote;
+        p_quote = (sgx_quote3_t*)p_msg3->quote;
+        quote_size = msg3_size - (uint32_t)sizeof(sample_mac_t)- (uint32_t)sizeof(sample_ec_pub_t)-(uint32_t)sizeof(sample_ps_sec_prop_desc_t);
+    p_sig_data = (sgx_ql_ecdsa_sig_data_t *)p_quote->signature_data;
+    p_auth_data = (sgx_ql_auth_data_t*)p_sig_data->auth_certification_data;
+    p_cert_data = (sgx_ql_certification_data_t *)((uint8_t *)p_auth_data + sizeof(*p_auth_data) + p_auth_data->size);
+
+    printf("cert_key_type = 0x%x\n", p_cert_data->cert_key_type);
+    
+        fprintf(stderr,"%s, step5\n", __FUNCTION__);
+
+        // Check the quote version if needed. Only check the Quote.version field if the enclave
+        // identity fields have changed or the size of the quote has changed.  The version may
+        // change without affecting the legacy fields or size of the quote structure.
+        //if(p_quote->version < ACCEPTED_QUOTE_VERSION)
+        //{
+        //    fprintf(stderr,"\nError, quote version is too old.", __FUNCTION__);
+        //    ret = SP_QUOTE_VERSION_ERROR;
+        //    break;
+        //}
+
+        // Verify the report_data in the Quote matches the expected value.
+        // The first 32 bytes of report_data are SHA256 HASH of {ga|gb|vk}.
+        // The second 32 bytes of report_data are set to zero.
+        sample_ret = sample_sha256_init(&sha_handle);
+        if(sample_ret != SAMPLE_SUCCESS)
+        {
+            fprintf(stderr,"\nError, init hash failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        sample_ret = sample_sha256_update((uint8_t *)&(g_sp_db.g_a),
+                                     sizeof(g_sp_db.g_a), sha_handle);
+        if(sample_ret != SAMPLE_SUCCESS)
+        {
+            fprintf(stderr,"\nError, udpate hash failed in [%s].",
+                    __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        sample_ret = sample_sha256_update((uint8_t *)&(g_sp_db.g_b),
+                                     sizeof(g_sp_db.g_b), sha_handle);
+        if(sample_ret != SAMPLE_SUCCESS)
+        {
+            fprintf(stderr,"\nError, udpate hash failed in [%s].",
+                    __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        sample_ret = sample_sha256_update((uint8_t *)&(g_sp_db.vk_key),
+                                     sizeof(g_sp_db.vk_key), sha_handle);
+        if(sample_ret != SAMPLE_SUCCESS)
+        {
+            fprintf(stderr,"\nError, udpate hash failed in [%s].",
+                    __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        sample_ret = sample_sha256_get_hash(sha_handle,
+                                      (sample_sha256_hash_t *)&report_data);
+        if(sample_ret != SAMPLE_SUCCESS)
+        {
+            fprintf(stderr,"\nError, Get hash failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        fprintf(stderr,"%s, step6\n", __FUNCTION__);
+        ret = memcmp((uint8_t *)&report_data,
+                     &(p_quote->report_body.report_data),
+                     sizeof(report_data));
+        if(ret)
+        {
+            fprintf(stderr, "\nError, verify hash fail [%s].", __FUNCTION__);
+            ret = SP_INTEGRITY_FAILED;
+            break;
+        }
+        fprintf(stderr,"%s, step7\n", __FUNCTION__);
+
+
+        //call DCAP quote verify library to get supplemental data size
+        //
+        dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
+        if (dcap_ret == SGX_QL_SUCCESS && supplemental_data_size == sizeof(sgx_ql_qv_supplemental_t)) {
+            printf("\tInfo: sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
+            p_supplemental_data = (uint8_t*)malloc(supplemental_data_size);
+        }
+        else {
+            printf("\tError: sgx_qv_get_quote_supplemental_data_size failed: 0x%04x\n", dcap_ret);
+            supplemental_data_size = 0;
+        }
+
+        //set current time. This is only for sample purposes, in production mode a trusted time should be used.
+        //
+        current_time = time(NULL);
+
+        //set nonce
+        memcpy(qve_report_info.nonce.rand, rand_nonce, sizeof(rand_nonce));
+     
+        //call DCAP quote verify library for quote verification
+        //here you can choose 'trusted' or 'untrusted' quote verification by specifying parameter '&qve_report_info'
+        //if '&qve_report_info' is NOT NULL, this API will call Intel QvE to verify quote
+        //if '&qve_report_info' is NULL, this API will call 'untrusted quote verify lib' to verify quote, this mode doesn't rely on SGX capable system, but the results can not be cryptographically authenticated
+        dcap_ret = sgx_qv_verify_quote(
+            (uint8_t*)p_quote, quote_size,
+            NULL,
+            current_time,
+            &collateral_expiration_status,
+            &quote_verification_result,
+            NULL,
+            supplemental_data_size,
+            p_supplemental_data);
+        if (dcap_ret == SGX_QL_SUCCESS) {
+            printf("\tInfo: App: sgx_qv_verify_quote successfully returned.\n");
+        }
+        else {
+            printf("\tError: App: sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
+        }
+
+        printf("\tInfo: App: Verification quote_verification_result=%#x, SGX_QL_QV_RESULT_OK=%#x, SGX_QL_QV_RESULT_UNSPECIFIED=%#x\n", quote_verification_result, SGX_QL_QV_RESULT_OK, SGX_QL_QV_RESULT_UNSPECIFIED);
+        //check verification result
+        //
+        switch (quote_verification_result)
+        {
+        case SGX_QL_QV_RESULT_OK:
+            printf("\tInfo: App: Verification completed successfully.\n");
+            ret = 0;
+            break;
+        case SGX_QL_QV_RESULT_CONFIG_NEEDED:
+        case SGX_QL_QV_RESULT_OUT_OF_DATE:
+        case SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED:
+        case SGX_QL_QV_RESULT_SW_HARDENING_NEEDED:
+        case SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED:
+            printf("\tWarning: App: Verification completed with Non-terminal result: %x\n", quote_verification_result);
+            ret = 1;
+            break;
+        case SGX_QL_QV_RESULT_INVALID_SIGNATURE:
+        case SGX_QL_QV_RESULT_REVOKED:
+        case SGX_QL_QV_RESULT_UNSPECIFIED:
+        default:
+            printf("\tError: App: Verification completed with Terminal result: %x\n", quote_verification_result);
+            ret = -1;
+            break;
+        }
+
+       
+
+#if 0
+        // Verify Enclave policy (an attestation server may provide an API for this if we
+        // registered an Enclave policy)
+
+        // Verify quote with attestation server.
+        // In the product, an attestation server could use a REST message and JSON formatting to request
+        // attestation Quote verification.  The sample only simulates this interface.
+        //! Please refer to the attestation server API for more details on this interface.
+        ias_att_report_t attestation_report;
+        memset(&attestation_report, 0, sizeof(attestation_report));
+        ret = g_sp_extended_epid_group_id->verify_attestation_evidence(p_quote, NULL,
+                                              &attestation_report);
+        if(0 != ret)
+        {
+            ret = SP_IAS_FAILED;
+            break;
+        }
+        if(IAS_QUOTE_OK != attestation_report.status)
+        {
+            p_att_result_msg_full->status[0] = 0xFF;
+        }
+        if(IAS_PSE_OK != attestation_report.pse_status)
+        {
+            p_att_result_msg_full->status[1] = 0xFF;
+        }
+        
+        fprintf(OUTPUT, "\n\n\tAttestation Report:");
+        fprintf(OUTPUT, "\n\tid: 0x%0x.", attestation_report.id);
+        fprintf(OUTPUT, "\n\tstatus: %d.", attestation_report.status);
+        fprintf(OUTPUT, "\n\trevocation_reason: %u.",
+                attestation_report.revocation_reason);
+        // attestation_report.info_blob;
+        fprintf(OUTPUT, "\n\tpse_status: %d.",  attestation_report.pse_status);
+        // Note: This sample always assumes the PIB is sent by attestation server.  In the product
+        // implementation, the attestation server could only send the PIB for certain attestation
+        // report statuses.  A product SP implementation needs to handle cases
+        // where the PIB is zero length.
+#endif
+
+        // Respond the client with the results of the attestation.
+        uint32_t att_result_msg_size = sizeof(sample_ra_att_result_msg_t)+sizeof(g_secret);
+        p_att_result_msg_full =
+            (ra_samp_response_header_t*)malloc(att_result_msg_size
+            + sizeof(ra_samp_response_header_t) );
+        if(!p_att_result_msg_full)
+        {
+            fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        memset(p_att_result_msg_full, 0, att_result_msg_size+sizeof(ra_samp_response_header_t));
+        p_att_result_msg_full->type = TYPE_RA_ATT_RESULT;
+        p_att_result_msg_full->size = att_result_msg_size;
+        fprintf(stderr,"%s, step8\n", __FUNCTION__);
+
+
+        p_att_result_msg = (sample_ra_att_result_msg_t *)p_att_result_msg_full->body;
+
+       
+        memcpy_s(p_att_result_msg->platform_info_blob.nonce.rand,sizeof(rand_nonce), rand_nonce, sizeof(rand_nonce));
+        memcpy_s(&(p_att_result_msg->platform_info_blob.quote_verification_result),sizeof(sgx_ql_qv_result_t), &quote_verification_result, sizeof(sgx_ql_qv_result_t));
+        memcpy_s(&(p_att_result_msg->platform_info_blob.qve_report_info),sizeof(sgx_ql_qe_report_info_t), &qve_report_info, sizeof(sgx_ql_qe_report_info_t));
+        // Generate mac based on the mk key.
+        mac_size = sizeof(ias_platform_info_blob_t);
+        sample_ret = sample_rijndael128_cmac_msg(&g_sp_db.mk_key,
+            (const uint8_t*)&p_att_result_msg->platform_info_blob,
+            mac_size,
+            &p_att_result_msg->mac);
+        if(SAMPLE_SUCCESS != sample_ret)
+        {
+            fprintf(stderr, "\nError, cmac platform_info fail in [%s].\n", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+        }
+
+        // Generate shared secret and encrypt it with SK, if attestation passed.
+        uint8_t aes_gcm_iv[SAMPLE_SP_IV_SIZE] = {0};
+        p_att_result_msg->secret.payload_size = sizeof(g_secret);
+
+        ret = sample_rijndael128GCM_encrypt(&g_sp_db.sk_key,
+                    &g_secret[0],
+                    p_att_result_msg->secret.payload_size,
+                    p_att_result_msg->secret.payload,
+                    &aes_gcm_iv[0],
+                    SAMPLE_SP_IV_SIZE,
+                    NULL,
+                    0,
+                    &p_att_result_msg->secret.payload_tag);
+
+    }while(0);
+
+    if(ret)
+    {
+        *pp_att_result_msg = NULL;
+        SAFE_FREE(p_att_result_msg_full);
+    }
+    else
+    {
+        // Freed by the network simulator in ra_free_network_response_buffer
+        *pp_att_result_msg = p_att_result_msg_full;
+    }
+    return ret;
 }
 
-int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg0,
-    uint32_t msg3_size,
-    ra_samp_response_header_t **pp_msg0_resp) {
-    printf("TODO: sp_ra_proc_msg3_req\n");
-    return 0;
-}
 
-int32_t SocketDispatchCmd(
+int SocketDispatchCmd(
                     ra_samp_request_header_t *req,
                     ra_samp_response_header_t **p_resp) {
     printf("receive the msg type(%d) from client.\n", req->type);
@@ -194,37 +832,28 @@ int32_t SocketDispatchCmd(
     switch (req->type) {
     case TYPE_RA_MSG0:
         printf("Dispatching TYPE_RA_MSG0, body size: %d\n", req->size);
-        ret = sp_ra_proc_msg0_req((const sample_ra_msg0_t*)((size_t)req
+        return sp_ra_proc_msg0_req((const sample_ra_msg0_t*)((size_t)req
             + sizeof(ra_samp_request_header_t)),
             req->size,
             p_resp);
-        if (0 != ret) {
-            printf("call sp_ra_proc_msg1_req fail\n");
-        }
-        break;
+
     case TYPE_RA_MSG1:
         printf("Dispatching TYPE_RA_MSG1, body size: %d\n", req->size);
-        ret = sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((size_t)req
+        return sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((size_t)req
             + sizeof(ra_samp_request_header_t)),
             req->size,
             p_resp);
-        if (0 != ret) {
-            printf("call sp_ra_proc_msg1_req fail\n");
-        }
-        break;
+
     case TYPE_RA_MSG3:
         printf("Dispatching TYPE_RA_MSG3, body size: %d\n", req->size);
-        ret = sp_ra_proc_msg3_req((const sample_ra_msg3_t*)((size_t)req
+        return sp_ra_proc_msg3_req((const sample_ra_msg3_t*)((size_t)req
             + sizeof(ra_samp_request_header_t)),
             req->size,
             p_resp);
-        if (0 != ret) {
-            printf("call sp_ra_proc_msg1_req fail\n");
-        }
-        break;
+
     case TYPE_RA_ATT_RESULT:
         printf("Dispatching TYPE_RA_ATT_RESULT, body size: %d\n", req->size);
-        return 0;
+        return ERR_NOT_IMPLEMENTED;
 
     default:
         printf("Cannot dispatch unknown msg type %d\n", req->type);
@@ -270,8 +899,8 @@ static void* SocketMsgHandler(void *sock_addr)
         ret = SocketDispatchCmd(req,&resp);
         if (ret < 0) {
             printf("failed(%d) to handle msg type(%d)\n", ret, req->type);
-            resp->status[0] = SP_INTERNAL_ERROR;
-            break;
+            SendErrResponse(sockfd, req->type, ret);
+            continue;
         }
 
         SendResponse(sockfd, resp);
@@ -290,6 +919,7 @@ void SocketServer::Initialize() {
     struct sockaddr_in serAddr, cliAddr;
     int32_t listenfd, connfd;
     socklen_t cliAddr_len;
+    int ret = 0;
 
     /* Create socket */
     listenfd = socket(AF_INET, SOCK_STREAM , 0);
@@ -304,8 +934,8 @@ void SocketServer::Initialize() {
     serAddr.sin_port = htons(server_port);
 
     /* Bind the server socket */
-    if (bind(listenfd,(struct sockaddr *)&serAddr , sizeof(serAddr)) < 0) {
-        printf("bind failed\n");
+    if ((ret = bind(listenfd,(struct sockaddr *)&serAddr , sizeof(serAddr))) < 0) {
+        printf("bind failed(%d)\n", ret);
         return;
     }
 

@@ -91,7 +91,8 @@ App_Cpp_Files := $(wildcard App/*.cpp)
 App_Include_Paths := \
 	-IInclude \
 	-IApp \
-	-I$(SGX_SDK)/include
+	-I$(SGX_SDK)/include \
+	-Isample_libcrypto
 
 App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -108,7 +109,12 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lsgx_ukey_exchange
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
+	-lpthread \
+	-lsgx_dcap_quoteverify \
+	-ldl \
+	-lsgx_ukey_exchange \
+	-lsample_libcrypto -Lsample_libcrypto -Wl,-rpath=$(CURDIR)/sample_libcrypto
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
@@ -202,9 +208,9 @@ endif
 endif
 
 .PHONY: all target run
-all: .config_$(Build_Mode)_$(SGX_ARCH) $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name)
-	@$(MAKE) target
-	@mkdir out && mv $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name) .config_$(Build_Mode)_$(SGX_ARCH) out
+all: $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name)
+	@$(MAKE) clean && $(MAKE) target
+	@mkdir out && mv $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name) out
 
 ifeq ($(Build_Mode), HW_RELEASE)
 target:  $(App_Name) $(Enclave_Name)
@@ -237,12 +243,6 @@ ifneq ($(Build_Mode), HW_RELEASE)
 	@$(CURDIR)/$(App_Name)
 	@echo "RUN  =>  $(App_Name) [$(SGX_MODE)|$(SGX_ARCH), OK]"
 endif
-
-.config_$(Build_Mode)_$(SGX_ARCH):
-	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/enclave_u.* $(Enclave_Cpp_Objects) Enclave/enclave_t.*
-	@touch .config_$(Build_Mode)_$(SGX_ARCH)
-
-
 
 ######## App Objects ########
 
@@ -294,5 +294,5 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 .PHONY: clean
 
 clean:
-	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/enclave_u.* $(Enclave_Cpp_Objects) Enclave/enclave_t.*
+	@rm -f $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/enclave_u.* $(Enclave_Cpp_Objects) Enclave/enclave_t.*
 	@rm -rf out

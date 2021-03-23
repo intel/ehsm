@@ -38,7 +38,7 @@
 #include <mbusafecrt.h>
 
 #define SGX_AES_KEY_SIZE 16
-/*
+
 void printf(const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
@@ -48,7 +48,7 @@ void printf(const char *fmt, ...)
     va_end(ap);
     ocall_print_string(buf);
 }
-*/
+
 sgx_status_t sgx_create_domainkey(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
