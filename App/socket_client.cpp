@@ -116,7 +116,6 @@ int32_t SocketClient::SendAndRecvMsg(  const ra_samp_request_header_t *p_req,
 
     /* Send a message to server */
     req_size = sizeof(ra_samp_request_header_t)+p_req->size;
-    fprintf(stderr, "req_size=%d\n", req_size);
 
     if (!SendAll(_sockFd, &req_size, sizeof(req_size))) {
         fprintf(stderr, "send req_size failed\n");
@@ -165,7 +164,7 @@ void SocketClient::Open() {
 
     sockFd = socket(AF_INET, SOCK_STREAM, 0);
     if(sockFd < 0) {
-        fprintf(stderr, "create socket failed\n");
+        fprintf(stderr, "Create socket failed\n");
         exit(1);
     }
     bzero(&serAddr, sizeof(serAddr));
@@ -175,11 +174,11 @@ void SocketClient::Open() {
 
     do {
         if(connect(sockFd, (struct sockaddr*)&serAddr, sizeof(serAddr)) >= 0) {
-            fprintf(stderr, "connect socket server suucess!\n");
+            fprintf(stderr, "Connect socket server suucess!\n");
             break;
         }
         else if (retry_count > 0) {
-            fprintf(stderr, "connect socket server failed, sleep 0.5s and try again...\n");
+            fprintf(stderr, "Connect socket server failed, sleep 0.5s and try again...\n");
             usleep(500000); // 0.5 s
         }
         else {

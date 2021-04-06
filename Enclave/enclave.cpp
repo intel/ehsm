@@ -397,22 +397,12 @@ sgx_status_t put_secret_data(
         {
             break;
         }
-        printf("sk_key:");
-        for (i=0; i<SGX_CMAC_KEY_SIZE; i++) {
-            printf("%d ", sk_key[i]);
-        }
-        printf("\n");
-        
-    printf("Before decrypt g_secret[]:");
-    for (i=0; i<secret_size; i++) {
-        printf("%d ", g_secret[i]);
-    }
-    printf("\n");
+
         uint8_t aes_gcm_iv[12] = {0};
         ret = sgx_rijndael128GCM_decrypt(&sk_key,
                                          p_secret,
                                          secret_size,
-                                         &g_secret[0],
+                                         g_secret,
                                          &aes_gcm_iv[0],
                                          12,
                                          NULL,
@@ -420,31 +410,19 @@ sgx_status_t put_secret_data(
                                          (const sgx_aes_gcm_128bit_tag_t *)
                                             (p_gcm_mac));
 
-    printf("After decrypt g_secret[]:");
-    for (i=0; i<secret_size; i++) {
-        printf("%d ", g_secret[i]);
-    }
-    printf("\n");
-        bool secret_match = true;
-        for(i=0;i<secret_size;i++)
-        {
-            if(g_secret[i] != i)
-            {
-                secret_match = false;
-            }
+        if(ret != SGX_SUCCESS) {
+            printf("Failed to decrypt the secret from server\n");
         }
-
-        if(!secret_match)
-        {
-            ret = SGX_ERROR_UNEXPECTED;
-            printf("match = %d, ret=%d\n", secret_match, ret);
+        printf("Decrypt the serect success\n");
+        for (i=0; i<sizeof(g_secret); i++) {
+            printf("secret[%d]=%2d\n", i,g_secret[i]);
         }
-
         // Once the server has the shared secret, it should be sealed to
         // persistent storage for future use. This will prevents having to
         // perform remote attestation until the secret goes stale. Once the
         // enclave is created again, the secret can be unsealed.
     } while(0);
+
     return ret;
 }
 
