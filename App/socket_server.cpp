@@ -190,14 +190,6 @@ static int32_t SendErrResponse(int32_t sockfd, int8_t type, int8_t err) {
     return SendResponse(sockfd, &p_err_resp_full);
 }
 
-int sp_ra_proc_msg0_req(const sample_ra_msg0_t *p_msg0,
-    uint32_t msg0_size,
-    ra_samp_response_header_t **pp_msg0_resp) {
-    printf("TODO: sp_ra_proc_msg0_req\n");
-    return ERR_NOT_IMPLEMENTED;
-}
-
-
 // Verify message 1 then generate and return message 2 to isv.
 int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 						uint32_t msg1_size,
@@ -211,13 +203,9 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
     bool derive_ret = false;
     
 
-    if(!p_msg1 ||
-       !pp_msg2 ||
-       (msg1_size != sizeof(sample_ra_msg1_t)))
-    {
+    if(!p_msg1 || !pp_msg2 || (msg1_size != sizeof(sample_ra_msg1_t))) {
         return -1;
     }
-    printf("step 1\n");
 
     do
     {
@@ -228,17 +216,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         uint8_t* sig_rl;
         uint32_t sig_rl_size = 0;
 
-        // The product interface uses a REST based message to get the SigRL.
-        //! Refer to the attestation server API for more information on how to communicate to
-        //! the real attestation server.
-        //ret = g_sp_extended_epid_group_id->get_sigrl(p_msg1->gid, &sig_rl_size, &sig_rl);
-        if(0 != ret)
-        {
-            fprintf(stderr, "\nError, ias_get_sigrl [%s].", __FUNCTION__);
-            ret = SP_IAS_FAILED;
-            break;
-        }
-
         // Need to save the client's public ECDH key to local storage
         if (memcpy_s(&g_sp_db.g_a, sizeof(g_sp_db.g_a), &p_msg1->g_a,
                      sizeof(p_msg1->g_a)))
@@ -247,7 +224,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        printf("step 2\n");
 
         // Generate the Service providers ECDH key pair.
         sample_ret = sample_ecc256_open_context(&ecc_state);
@@ -258,7 +234,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = -1;
             break;
         }
-        printf("step 3\n");
+
         sample_ec256_public_t pub_key = {{0},{0}};
         sample_ec256_private_t priv_key = {{0}};
         sample_ret = sample_ecc256_create_key_pair(&priv_key, &pub_key,
@@ -270,7 +246,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        printf("step 4\n");
 
         // Need to save the SP ECDH key pair to local storage.
         if(memcpy_s(&g_sp_db.b, sizeof(g_sp_db.b), &priv_key, sizeof(priv_key)) != 0)
@@ -286,7 +261,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        printf("step 5\n");
 
         // Generate the client/SP shared secret
         sample_ec_dh_shared_t dh_key = {{0}};
@@ -301,7 +275,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        printf("step 6\n");
 
 #ifdef SUPPLIED_KEY_DERIVATION
 
@@ -363,7 +336,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             break;
         }
 #endif
-        printf("step 7\n");
 
         uint32_t msg2_size = (uint32_t)sizeof(sample_ra_msg2_t) + sig_rl_size;
         p_msg2_full = (ra_samp_response_header_t*)malloc(msg2_size
@@ -393,7 +365,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        printf("step 8\n");
 
         // The service provider is responsible for selecting the proper EPID
         // signature type and to understand the implications of the choice!
@@ -417,7 +388,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        printf("step 9\n");
 
         // Sign gb_ga
         sample_ret = sample_ecdsa_sign((uint8_t *)&gb_ga, sizeof(gb_ga),
@@ -430,7 +400,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        printf("step 10\n");
 
         // Generate the CMACsmk for gb||SPID||TYPE||KDF_ID||Sigsp(gb,ga)
         uint8_t mac[SAMPLE_EC_MAC_SIZE] = {0};
@@ -443,7 +412,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        printf("step 11\n");
+
         if(memcpy_s(&p_msg2->mac, sizeof(p_msg2->mac), mac, sizeof(mac)))
         {
             fprintf(stderr,"\nError, memcpy failed in [%s].", __FUNCTION__);
@@ -522,7 +491,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     {
         return SP_INTERNAL_ERROR;
     }
-    fprintf(stderr,"%s, step1\n", __FUNCTION__);
 
     do
     {
@@ -538,7 +506,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         uint32_t mac_size = msg3_size - (uint32_t)sizeof(sample_mac_t);
         p_msg3_cmaced = reinterpret_cast<const uint8_t*>(p_msg3);
         p_msg3_cmaced += sizeof(sample_mac_t);
-        fprintf(stderr,"%s, step2\n", __FUNCTION__);
 
         // Verify the message mac using SMK
         sample_cmac_128bit_tag_t mac = {0};
@@ -552,7 +519,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        fprintf(stderr,"%s, step3\n", __FUNCTION__);
+
         // In real implementation, should use a time safe version of memcmp here,
         // in order to avoid side channel attack.
         ret = memcmp(&p_msg3->mac, mac, sizeof(mac));
@@ -562,8 +529,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             ret = SP_INTEGRITY_FAILED;
             break;
         }
-
-        fprintf(stderr,"%s, step4\n", __FUNCTION__);
 
         if(memcpy_s(&g_sp_db.ps_sec_prop, sizeof(g_sp_db.ps_sec_prop),
             &p_msg3->ps_sec_prop, sizeof(p_msg3->ps_sec_prop)))
@@ -582,8 +547,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
 
     printf("cert_key_type = 0x%x\n", p_cert_data->cert_key_type);
     
-        fprintf(stderr,"%s, step5\n", __FUNCTION__);
-
         // Check the quote version if needed. Only check the Quote.version field if the enclave
         // identity fields have changed or the size of the quote has changed.  The version may
         // change without affecting the legacy fields or size of the quote structure.
@@ -639,7 +602,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        fprintf(stderr,"%s, step6\n", __FUNCTION__);
+
         ret = memcmp((uint8_t *)&report_data,
                      &(p_quote->report_body.report_data),
                      sizeof(report_data));
@@ -649,8 +612,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             ret = SP_INTEGRITY_FAILED;
             break;
         }
-        fprintf(stderr,"%s, step7\n", __FUNCTION__);
-
 
         //call DCAP quote verify library to get supplemental data size
         //
@@ -772,8 +733,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         memset(p_att_result_msg_full, 0, att_result_msg_size+sizeof(ra_samp_response_header_t));
         p_att_result_msg_full->type = TYPE_RA_ATT_RESULT;
         p_att_result_msg_full->size = att_result_msg_size;
-        fprintf(stderr,"%s, step8\n", __FUNCTION__);
-
 
         p_att_result_msg = (sample_ra_att_result_msg_t *)p_att_result_msg_full->body;
 
@@ -798,7 +757,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         p_att_result_msg->secret.payload_size = sizeof(g_secret);
 
         ret = sample_rijndael128GCM_encrypt(&g_sp_db.sk_key,
-                    &g_secret[0],
+                    g_secret,
                     p_att_result_msg->secret.payload_size,
                     p_att_result_msg->secret.payload,
                     &aes_gcm_iv[0],
@@ -832,10 +791,7 @@ int SocketDispatchCmd(
     switch (req->type) {
     case TYPE_RA_MSG0:
         printf("Dispatching TYPE_RA_MSG0, body size: %d\n", req->size);
-        return sp_ra_proc_msg0_req((const sample_ra_msg0_t*)((size_t)req
-            + sizeof(ra_samp_request_header_t)),
-            req->size,
-            p_resp);
+        return ERR_NOT_IMPLEMENTED;
 
     case TYPE_RA_MSG1:
         printf("Dispatching TYPE_RA_MSG1, body size: %d\n", req->size);
