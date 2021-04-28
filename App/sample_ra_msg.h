@@ -37,30 +37,30 @@
 #include "sgx_quote.h"
 #include "sgx_qve_header.h"
 #include "sgx_ql_quote.h"
+#include "sgx_key_exchange.h"
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#define SAMPLE_MAC_SIZE             16  /* Message Authentication Code*/
-                                        /* - 16 bytes*/
-typedef uint8_t                     sample_mac_t[SAMPLE_MAC_SIZE];
 
-#ifndef SAMPLE_FEBITSIZE
-    #define SAMPLE_FEBITSIZE        256
-#endif
-
-#define SAMPLE_NISTP256_KEY_SIZE    (SAMPLE_FEBITSIZE/ 8 /sizeof(uint32_t))
-
-typedef struct sample_ec_sign256_t
+typedef enum _ra_msg_type_t
 {
-    uint32_t x[SAMPLE_NISTP256_KEY_SIZE];
-    uint32_t y[SAMPLE_NISTP256_KEY_SIZE];
-} sample_ec_sign256_t;
+     TYPE_RA_MSG0 = 0,
+     TYPE_RA_MSG1,
+     TYPE_RA_MSG2,
+     TYPE_RA_MSG3,
+     TYPE_RA_ATT_RESULT,
+}ra_msg_type_t;
 
-#pragma pack(push,1)
 
 #define SAMPLE_SP_TAG_SIZE          16
+#define ISVSVN_SIZE 2
+#define PSDA_SVN_SIZE 4
+#define GID_SIZE 4
+#define PSVN_SIZE 18
+
+#pragma pack(push,1)
 
 typedef struct sp_aes_gcm_data_t {
     uint32_t        payload_size;       /*  0: Size of the payload which is*/
@@ -73,30 +73,6 @@ typedef struct sp_aes_gcm_data_t {
                                         /*     followed by the plain text*/
 } sp_aes_gcm_data_t;
 
-
-#define ISVSVN_SIZE 2
-#define PSDA_SVN_SIZE 4
-#define GID_SIZE 4
-#define PSVN_SIZE 18
-
-/* @TODO: Modify at production to use the values specified by an Production*/
-/* attestation server API*/
-typedef struct ias_platform_info_blob_t_bak
-{
-     uint8_t sample_epid_group_status;
-     uint16_t sample_tcb_evaluation_status;
-     uint16_t pse_evaluation_status;
-     uint8_t latest_equivalent_tcb_psvn[PSVN_SIZE];
-     uint8_t latest_pse_isvsvn[ISVSVN_SIZE];
-     uint8_t latest_psda_svn[PSDA_SVN_SIZE];
-     uint8_t performance_rekey_gid[GID_SIZE];
-     sample_ec_sign256_t signature;
-} ias_platform_info_blob_t_bak;
-
-
-//sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
-//sgx_ql_qe_report_info_t qve_report_info;
-
 typedef struct ias_platform_info_blob_t
 {
     sgx_quote_nonce_t nonce;
@@ -107,7 +83,7 @@ typedef struct ias_platform_info_blob_t
 
 typedef struct sample_ra_att_result_msg_t {
     ias_platform_info_blob_t    platform_info_blob;
-    sample_mac_t                mac;    /* mac_smk(attestation_status)*/
+    sgx_mac_t                mac;    /* mac_smk(attestation_status)*/
     sp_aes_gcm_data_t           secret;
 } sample_ra_att_result_msg_t;
 
