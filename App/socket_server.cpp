@@ -52,24 +52,7 @@
 
 namespace socket_server {
 
-// This is a context data structure used on SP side
-typedef struct _sp_db_item_t
-{
-    sample_ec_pub_t             g_a;
-    sample_ec_pub_t             g_b;
-    sample_ec_key_128bit_t      vk_key;// Shared secret key for the REPORT_DATA
-    sample_ec_key_128bit_t      mk_key;// Shared secret key for generating MAC's
-    sample_ec_key_128bit_t      sk_key;// Shared secret key for encryption
-    sample_ec_key_128bit_t      smk_key;// Used only for SIGMA protocol
-    sample_ec_priv_t            b;
-    sample_ps_sec_prop_desc_t   ps_sec_prop;
-}sp_db_item_t;
 static sp_db_item_t g_sp_db;
-
-static bool g_is_sp_registered = false;
-static bool g_return_ecdsa_att_key_id = true;
-static int g_sp_credentials = 0;
-static int g_authentication_token = 0;
 
 uint8_t g_secret[] = {0,1,2,3,4,5,6,7};
 
@@ -201,7 +184,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
     sample_ecc_state_handle_t ecc_state = NULL;
     sample_status_t sample_ret = SAMPLE_SUCCESS;
     bool derive_ret = false;
-    
+    uint8_t chanllenge[32] = "chanllenge";
 
     if(!p_msg1 || !pp_msg2 || (msg1_size != sizeof(sample_ra_msg1_t))) {
         return -1;
@@ -215,6 +198,9 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         // communication.
         uint8_t* sig_rl;
         uint32_t sig_rl_size = 0;
+
+        //clear the g_sp_db database when the attesation session begins.
+        memset(&g_sp_db, 0, sizeof(sp_db_item_t));
 
         // Need to save the client's public ECDH key to local storage
         if (memcpy_s(&g_sp_db.g_a, sizeof(g_sp_db.g_a), &p_msg1->g_a,
@@ -481,9 +467,8 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     sgx_ql_qe_report_info_t qve_report_info;
     unsigned char rand_nonce[16] = "59jslk201fgjmm;";
 
+    bool use_qve = false;
     uint32_t quote_size=0;
-
-    FILE* OUTPUT = stdout;
     
     if((!p_msg3) ||
        (msg3_size < sizeof(sample_ra_msg3_t)) ||
@@ -541,12 +526,12 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         //p_quote = (const sample_quote_t*)p_msg3->quote;
         p_quote = (sgx_quote3_t*)p_msg3->quote;
         quote_size = msg3_size - (uint32_t)sizeof(sample_mac_t)- (uint32_t)sizeof(sample_ec_pub_t)-(uint32_t)sizeof(sample_ps_sec_prop_desc_t);
-    p_sig_data = (sgx_ql_ecdsa_sig_data_t *)p_quote->signature_data;
-    p_auth_data = (sgx_ql_auth_data_t*)p_sig_data->auth_certification_data;
-    p_cert_data = (sgx_ql_certification_data_t *)((uint8_t *)p_auth_data + sizeof(*p_auth_data) + p_auth_data->size);
+        p_sig_data = (sgx_ql_ecdsa_sig_data_t *)p_quote->signature_data;
+        p_auth_data = (sgx_ql_auth_data_t*)p_sig_data->auth_certification_data;
+        p_cert_data = (sgx_ql_certification_data_t *)((uint8_t *)p_auth_data + sizeof(*p_auth_data) + p_auth_data->size);
 
-    printf("cert_key_type = 0x%x\n", p_cert_data->cert_key_type);
-    
+        printf("cert_key_type = 0x%x\n", p_cert_data->cert_key_type);
+
         // Check the quote version if needed. Only check the Quote.version field if the enclave
         // identity fields have changed or the size of the quote has changed.  The version may
         // change without affecting the legacy fields or size of the quote structure.
@@ -606,15 +591,13 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         ret = memcmp((uint8_t *)&report_data,
                      &(p_quote->report_body.report_data),
                      sizeof(report_data));
-        if(ret)
-        {
+        if(ret) {
             fprintf(stderr, "\nError, verify hash fail [%s].", __FUNCTION__);
             ret = SP_INTEGRITY_FAILED;
             break;
         }
 
         //call DCAP quote verify library to get supplemental data size
-        //
         dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
         if (dcap_ret == SGX_QL_SUCCESS && supplemental_data_size == sizeof(sgx_ql_qv_supplemental_t)) {
             printf("\tInfo: sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
@@ -626,12 +609,135 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         }
 
         //set current time. This is only for sample purposes, in production mode a trusted time should be used.
-        //
         current_time = time(NULL);
-
         //set nonce
         memcpy(qve_report_info.nonce.rand, rand_nonce, sizeof(rand_nonce));
-     
+#if 0
+        // Trusted quote verification
+        if (use_qve) {
+            //set nonce
+            //
+            memcpy(qve_report_info.nonce.rand, rand_nonce, sizeof(rand_nonce));
+
+            //get target info of SampleISVEnclave. QvE will target the generated report to this enclave.
+            //
+            sgx_ret = sgx_create_enclave(SAMPLE_ISV_ENCLAVE, SGX_DEBUG_FLAG, &token, &updated, &eid, NULL);
+            if (sgx_ret != SGX_SUCCESS) {
+                printf("\tError: Can't load SampleISVEnclave. 0x%04x\n", sgx_ret);
+                return -1;
+            }
+            sgx_status_t get_target_info_ret;
+            sgx_ret = ecall_get_target_info(eid, &get_target_info_ret, &qve_report_info.app_enclave_target_info);
+            if (sgx_ret != SGX_SUCCESS || get_target_info_ret != SGX_SUCCESS) {
+                printf("\tError in sgx_get_target_info. 0x%04x\n", get_target_info_ret);
+            }
+            else {
+                printf("\tInfo: get target info successfully returned.\n");
+            }
+
+            //call DCAP quote verify library to set QvE loading policy
+            //
+            dcap_ret = sgx_qv_set_enclave_load_policy(SGX_QL_DEFAULT);
+            if (dcap_ret == SGX_QL_SUCCESS) {
+                printf("\tInfo: sgx_qv_set_enclave_load_policy successfully returned.\n");
+            }
+            else {
+                printf("\tError: sgx_qv_set_enclave_load_policy failed: 0x%04x\n", dcap_ret);
+            }
+
+
+            //call DCAP quote verify library to get supplemental data size
+            //
+            dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
+            if (dcap_ret == SGX_QL_SUCCESS) {
+                printf("\tInfo: sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
+                p_supplemental_data = (uint8_t*)malloc(supplemental_data_size);
+            }
+            else {
+                printf("\tError: sgx_qv_get_quote_supplemental_data_size failed: 0x%04x\n", dcap_ret);
+                supplemental_data_size = 0;
+            }
+
+            //set current time. This is only for sample purposes, in production mode a trusted time should be used.
+            //
+            current_time = time(NULL);
+
+
+            //call DCAP quote verify library for quote verification
+            //here you can choose 'trusted' or 'untrusted' quote verification by specifying parameter '&qve_report_info'
+            //if '&qve_report_info' is NOT NULL, this API will call Intel QvE to verify quote
+            //if '&qve_report_info' is NULL, this API will call 'untrusted quote verify lib' to verify quote, this mode doesn't rely on SGX capable system, but the results can not be cryptographically authenticated
+            dcap_ret = sgx_qv_verify_quote(
+                quote.data(), (uint32_t)quote.size(),
+                NULL,
+                current_time,
+                &collateral_expiration_status,
+                &quote_verification_result,
+                &qve_report_info,
+                supplemental_data_size,
+                p_supplemental_data);
+            if (dcap_ret == SGX_QL_SUCCESS) {
+                printf("\tInfo: App: sgx_qv_verify_quote successfully returned.\n");
+            }
+            else {
+                printf("\tError: App: sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
+            }
+
+
+            // Threshold of QvE ISV SVN. The ISV SVN of QvE used to verify quote must be greater or equal to this threshold
+            // e.g. You can get latest QvE ISVSVN in QvE Identity JSON file from
+            // https://api.trustedservices.intel.com/sgx/certification/v2/qve/identity
+            // Make sure you are using trusted & latest QvE ISV SVN as threshold
+            //
+            sgx_isv_svn_t qve_isvsvn_threshold = 3;
+
+            //call sgx_dcap_tvl API in SampleISVEnclave to verify QvE's report and identity
+            //
+            sgx_ret = sgx_tvl_verify_qve_report_and_identity(eid,
+                &verify_qveid_ret,
+                quote.data(),
+                (uint32_t) quote.size(),
+                &qve_report_info,
+                current_time,
+                collateral_expiration_status,
+                quote_verification_result,
+                p_supplemental_data,
+                supplemental_data_size,
+                qve_isvsvn_threshold);
+
+            if (sgx_ret != SGX_SUCCESS || verify_qveid_ret != SGX_QL_SUCCESS) {
+                printf("\tError: Ecall: Verify QvE report and identity failed. 0x%04x\n", verify_qveid_ret);
+            }
+            else {
+                printf("\tInfo: Ecall: Verify QvE report and identity successfully returned.\n");
+            }
+
+            //check verification result
+            //
+            switch (quote_verification_result)
+            {
+            case SGX_QL_QV_RESULT_OK:
+                printf("\tInfo: App: Verification completed successfully.\n");
+                ret = 0;
+                break;
+            case SGX_QL_QV_RESULT_CONFIG_NEEDED:
+            case SGX_QL_QV_RESULT_OUT_OF_DATE:
+            case SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED:
+            case SGX_QL_QV_RESULT_SW_HARDENING_NEEDED:
+            case SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED:
+                printf("\tWarning: App: Verification completed with Non-terminal result: %x\n", quote_verification_result);
+                ret = 1;
+                break;
+            case SGX_QL_QV_RESULT_INVALID_SIGNATURE:
+            case SGX_QL_QV_RESULT_REVOKED:
+            case SGX_QL_QV_RESULT_UNSPECIFIED:
+            default:
+                printf("\tError: App: Verification completed with Terminal result: %x\n", quote_verification_result);
+                ret = -1;
+                break;
+            }
+        }
+#endif
         //call DCAP quote verify library for quote verification
         //here you can choose 'trusted' or 'untrusted' quote verification by specifying parameter '&qve_report_info'
         //if '&qve_report_info' is NOT NULL, this API will call Intel QvE to verify quote
@@ -650,74 +756,19 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         }
         else {
             printf("\tError: App: sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
-        }
-
-        printf("\tInfo: App: Verification quote_verification_result=%#x, SGX_QL_QV_RESULT_OK=%#x, SGX_QL_QV_RESULT_UNSPECIFIED=%#x\n", quote_verification_result, SGX_QL_QV_RESULT_OK, SGX_QL_QV_RESULT_UNSPECIFIED);
-        //check verification result
-        //
-        switch (quote_verification_result)
-        {
-        case SGX_QL_QV_RESULT_OK:
-            printf("\tInfo: App: Verification completed successfully.\n");
-            ret = 0;
-            break;
-        case SGX_QL_QV_RESULT_CONFIG_NEEDED:
-        case SGX_QL_QV_RESULT_OUT_OF_DATE:
-        case SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED:
-        case SGX_QL_QV_RESULT_SW_HARDENING_NEEDED:
-        case SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED:
-            printf("\tWarning: App: Verification completed with Non-terminal result: %x\n", quote_verification_result);
-            ret = 1;
-            break;
-        case SGX_QL_QV_RESULT_INVALID_SIGNATURE:
-        case SGX_QL_QV_RESULT_REVOKED:
-        case SGX_QL_QV_RESULT_UNSPECIFIED:
-        default:
-            printf("\tError: App: Verification completed with Terminal result: %x\n", quote_verification_result);
             ret = -1;
             break;
         }
 
-       
+        printf("\tInfo: App: Verification quote_verification_result=%#x\n", quote_verification_result);
 
-#if 0
-        // Verify Enclave policy (an attestation server may provide an API for this if we
-        // registered an Enclave policy)
-
-        // Verify quote with attestation server.
-        // In the product, an attestation server could use a REST message and JSON formatting to request
-        // attestation Quote verification.  The sample only simulates this interface.
-        //! Please refer to the attestation server API for more details on this interface.
-        ias_att_report_t attestation_report;
-        memset(&attestation_report, 0, sizeof(attestation_report));
-        ret = g_sp_extended_epid_group_id->verify_attestation_evidence(p_quote, NULL,
-                                              &attestation_report);
-        if(0 != ret)
-        {
-            ret = SP_IAS_FAILED;
+        //check verification result
+        if ((quote_verification_result != SGX_QL_QV_RESULT_OK) &&
+            (quote_verification_result != SGX_QL_QV_RESULT_OUT_OF_DATE)) {
+            printf("verify result is not expected (%#x)\n", quote_verification_result);
+            ret = -1;
             break;
         }
-        if(IAS_QUOTE_OK != attestation_report.status)
-        {
-            p_att_result_msg_full->status[0] = 0xFF;
-        }
-        if(IAS_PSE_OK != attestation_report.pse_status)
-        {
-            p_att_result_msg_full->status[1] = 0xFF;
-        }
-        
-        fprintf(OUTPUT, "\n\n\tAttestation Report:");
-        fprintf(OUTPUT, "\n\tid: 0x%0x.", attestation_report.id);
-        fprintf(OUTPUT, "\n\tstatus: %d.", attestation_report.status);
-        fprintf(OUTPUT, "\n\trevocation_reason: %u.",
-                attestation_report.revocation_reason);
-        // attestation_report.info_blob;
-        fprintf(OUTPUT, "\n\tpse_status: %d.",  attestation_report.pse_status);
-        // Note: This sample always assumes the PIB is sent by attestation server.  In the product
-        // implementation, the attestation server could only send the PIB for certain attestation
-        // report statuses.  A product SP implementation needs to handle cases
-        // where the PIB is zero length.
-#endif
 
         // Respond the client with the results of the attestation.
         uint32_t att_result_msg_size = sizeof(sample_ra_att_result_msg_t)+sizeof(g_secret);
@@ -736,7 +787,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
 
         p_att_result_msg = (sample_ra_att_result_msg_t *)p_att_result_msg_full->body;
 
-       
+
         memcpy_s(p_att_result_msg->platform_info_blob.nonce.rand,sizeof(rand_nonce), rand_nonce, sizeof(rand_nonce));
         memcpy_s(&(p_att_result_msg->platform_info_blob.quote_verification_result),sizeof(sgx_ql_qv_result_t), &quote_verification_result, sizeof(sgx_ql_qv_result_t));
         memcpy_s(&(p_att_result_msg->platform_info_blob.qve_report_info),sizeof(sgx_ql_qe_report_info_t), &qve_report_info, sizeof(sgx_ql_qe_report_info_t));
@@ -768,16 +819,16 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
 
     }while(0);
 
-    if(ret)
-    {
+    if(ret) {
         *pp_att_result_msg = NULL;
         SAFE_FREE(p_att_result_msg_full);
     }
-    else
-    {
-        // Freed by the network simulator in ra_free_network_response_buffer
+    else {
         *pp_att_result_msg = p_att_result_msg_full;
     }
+    //clear the g_sp_db database after the attesation session finished.
+    memset(&g_sp_db, 0, sizeof(sp_db_item_t));
+
     return ret;
 }
 

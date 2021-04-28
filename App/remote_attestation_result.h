@@ -42,15 +42,71 @@
 extern "C" {
 #endif
 
-#define SAMPLE_MAC_SIZE             16  /* Message Authentication Code*/
-                                        /* - 16 bytes*/
-typedef uint8_t                     sample_mac_t[SAMPLE_MAC_SIZE];
+/* Enum for all possible message types between the ISV app and
+ * the ISV SP. Requests and responses in the remote attestation
+ * sample.
+ */
+typedef enum _ra_msg_type_t
+{
+     TYPE_RA_MSG0,
+     TYPE_RA_MSG1,
+     TYPE_RA_MSG2,
+     TYPE_RA_MSG3,
+     TYPE_RA_ATT_RESULT,
+}ra_msg_type_t;
+
+typedef enum {
+    SP_OK,
+    SP_UNSUPPORTED_EXTENDED_EPID_GROUP,
+    SP_INTEGRITY_FAILED,
+    SP_QUOTE_VERIFICATION_FAILED,
+    SP_IAS_FAILED,
+    SP_INTERNAL_ERROR,
+    SP_PROTOCOL_ERROR,
+    SP_QUOTE_VERSION_ERROR,
+} sp_ra_msg_status_t;
+
+// These status should align with the definition in IAS API spec(rev 0.6)
+#define ISVSVN_SIZE         2
+#define PSDA_SVN_SIZE       4
+#define GID_SIZE            4
+#define PSVN_SIZE           18
+
+#define SAMPLE_REPORT_DATA_SIZE         64
+#define SAMPLE_CPUSVN_SIZE  16
+#define SAMPLE_SP_TAG_SIZE       16
+#define SAMPLE_SP_IV_SIZE        12
 
 #ifndef SAMPLE_FEBITSIZE
-    #define SAMPLE_FEBITSIZE        256
+    #define SAMPLE_FEBITSIZE                    256
 #endif
 
+#define SAMPLE_ECP_KEY_SIZE                     (SAMPLE_FEBITSIZE/8)
+
+#define SAMPLE_HASH_SIZE    32  // SHA256
+#define SAMPLE_MAC_SIZE     16  // Message Authentication Code
+
+/*Key Derivation Function ID : 0x0001  AES-CMAC Entropy Extraction and Key Expansion*/
+const uint16_t SAMPLE_AES_CMAC_KDF_ID = 0x0001;
+
 #define SAMPLE_NISTP256_KEY_SIZE    (SAMPLE_FEBITSIZE/ 8 /sizeof(uint32_t))
+
+#define SAMPLE_SP_TAG_SIZE          16
+
+#define SAMPLE_QUOTE_UNLINKABLE_SIGNATURE 0
+#define SAMPLE_QUOTE_LINKABLE_SIGNATURE   1
+
+#pragma pack(push, 1)
+
+typedef uint8_t sample_epid_group_id_t[4];
+typedef uint8_t sample_report_data_t[SAMPLE_REPORT_DATA_SIZE];
+typedef uint8_t sample_mac_t[SAMPLE_MAC_SIZE];
+
+typedef struct sample_ec_pub_t
+{
+    uint8_t gx[SAMPLE_ECP_KEY_SIZE];
+    uint8_t gy[SAMPLE_ECP_KEY_SIZE];
+} sample_ec_pub_t;
 
 typedef struct sample_ec_sign256_t
 {
@@ -58,9 +114,10 @@ typedef struct sample_ec_sign256_t
     uint32_t y[SAMPLE_NISTP256_KEY_SIZE];
 } sample_ec_sign256_t;
 
-#pragma pack(push,1)
-
-#define SAMPLE_SP_TAG_SIZE          16
+typedef struct sample_spid_t
+{
+    uint8_t                 id[16];
+} sample_spid_t;
 
 typedef struct sp_aes_gcm_data_t {
     uint32_t        payload_size;       /*  0: Size of the payload which is*/
@@ -73,30 +130,6 @@ typedef struct sp_aes_gcm_data_t {
                                         /*     followed by the plain text*/
 } sp_aes_gcm_data_t;
 
-
-#define ISVSVN_SIZE 2
-#define PSDA_SVN_SIZE 4
-#define GID_SIZE 4
-#define PSVN_SIZE 18
-
-/* @TODO: Modify at production to use the values specified by an Production*/
-/* attestation server API*/
-typedef struct ias_platform_info_blob_t_bak
-{
-     uint8_t sample_epid_group_status;
-     uint16_t sample_tcb_evaluation_status;
-     uint16_t pse_evaluation_status;
-     uint8_t latest_equivalent_tcb_psvn[PSVN_SIZE];
-     uint8_t latest_pse_isvsvn[ISVSVN_SIZE];
-     uint8_t latest_psda_svn[PSDA_SVN_SIZE];
-     uint8_t performance_rekey_gid[GID_SIZE];
-     sample_ec_sign256_t signature;
-} ias_platform_info_blob_t_bak;
-
-
-//sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
-//sgx_ql_qe_report_info_t qve_report_info;
-
 typedef struct ias_platform_info_blob_t
 {
     sgx_quote_nonce_t nonce;
@@ -104,11 +137,56 @@ typedef struct ias_platform_info_blob_t
     sgx_ql_qe_report_info_t qve_report_info;
 } ias_platform_info_blob_t;
 
+/*fixed length to align with internal structure*/
+typedef struct sample_ps_sec_prop_desc_t
+{
+    uint8_t  sample_ps_sec_prop_desc[256];
+} sample_ps_sec_prop_desc_t;
+
+typedef struct sample_ra_msg0_t
+{
+    uint32_t                    extended_epid_group_id;
+} sample_ra_msg0_t;
+
+typedef struct sample_ra_msg1_t
+{
+    sample_ec_pub_t             g_a;        /* the Endian-ness of Ga is
+                                                 Little-Endian*/
+    sample_epid_group_id_t      gid;        /* the Endian-ness of GID is
+                                                 Little-Endian*/
+} sample_ra_msg1_t;
+
+typedef struct sample_ra_msg2_t
+{
+    sample_ec_pub_t             g_b;        /* the Endian-ness of Gb is
+                                                  Little-Endian*/
+    sample_spid_t               spid;       /* In little endian*/
+    uint16_t                    quote_type; /* unlinkable Quote(0) or linkable Quote(0) in little endian*/
+    uint16_t                    kdf_id;     /* key derivation function id in little endian.
+                                             0x0001 for AES-CMAC Entropy Extraction and Key Derivation */
+    sample_ec_sign256_t         sign_gb_ga; /* In little endian*/
+    sample_mac_t                mac;        /* mac_smk(g_b||spid||quote_type||
+                                                       sign_gb_ga)*/
+    uint32_t                    sig_rl_size;
+    uint8_t                     sig_rl[];
+} sample_ra_msg2_t;
+
+typedef struct sample_ra_msg3_t
+{
+    sample_mac_t                mac;           /* mac_smk(g_a||ps_sec_prop||quote)*/
+    sample_ec_pub_t             g_a;           /* the Endian-ness of Ga is*/
+                                               /*  Little-Endian*/
+    sample_ps_sec_prop_desc_t   ps_sec_prop;
+    uint8_t                     quote[];
+} sample_ra_msg3_t;
+
+
 typedef struct sample_ra_att_result_msg_t {
     ias_platform_info_blob_t    platform_info_blob;
     sample_mac_t                mac;    /* mac_smk(attestation_status)*/
     sp_aes_gcm_data_t           secret;
 } sample_ra_att_result_msg_t;
+
 
 #pragma pack(pop)
 
