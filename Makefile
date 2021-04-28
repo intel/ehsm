@@ -257,7 +257,6 @@ App/enclave_u.o: App/enclave_u.c
 	@echo "CC   <=  $<"
 
 App/%.o: App/%.cpp
-	@echo "YYYYY"
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
