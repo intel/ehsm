@@ -184,7 +184,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
     sample_ecc_state_handle_t ecc_state = NULL;
     sample_status_t sample_ret = SAMPLE_SUCCESS;
     bool derive_ret = false;
-    uint8_t chanllenge[32] = "chanllenge";
 
     if(!p_msg1 || !pp_msg2 || (msg1_size != sizeof(sample_ra_msg1_t))) {
         return -1;
@@ -444,13 +443,11 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     int ret = 0;
     sample_status_t sample_ret = SAMPLE_SUCCESS;
     const uint8_t *p_msg3_cmaced = NULL;
-    //const sample_quote_t *p_quote = NULL;
     const sgx_quote3_t *p_quote = NULL;
     sample_sha_state_handle_t sha_handle = NULL;
     sample_report_data_t report_data = {0};
     sample_ra_att_result_msg_t *p_att_result_msg = NULL;
     ra_samp_response_header_t* p_att_result_msg_full = NULL;
-    uint32_t i;
 
     sgx_ql_auth_data_t *p_auth_data;
     sgx_ql_ecdsa_sig_data_t *p_sig_data;
@@ -459,7 +456,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     time_t current_time = 0;
     uint32_t supplemental_data_size = 0;
     uint8_t *p_supplemental_data = NULL;
-    sgx_status_t sgx_ret = SGX_SUCCESS;
+
     quote3_error_t dcap_ret = SGX_QL_ERROR_UNEXPECTED;
     sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
     uint32_t collateral_expiration_status = 1;
@@ -467,7 +464,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     sgx_ql_qe_report_info_t qve_report_info;
     unsigned char rand_nonce[16] = "59jslk201fgjmm;";
 
-    bool use_qve = false;
     uint32_t quote_size=0;
     
     if((!p_msg3) ||
@@ -840,10 +836,6 @@ int SocketDispatchCmd(
     int32_t ret;
 
     switch (req->type) {
-    case TYPE_RA_MSG0:
-        printf("Dispatching TYPE_RA_MSG0, body size: %d\n", req->size);
-        return ERR_NOT_IMPLEMENTED;
-
     case TYPE_RA_MSG1:
         printf("Dispatching TYPE_RA_MSG1, body size: %d\n", req->size);
         return sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((size_t)req
@@ -857,10 +849,6 @@ int SocketDispatchCmd(
             + sizeof(ra_samp_request_header_t)),
             req->size,
             p_resp);
-
-    case TYPE_RA_ATT_RESULT:
-        printf("Dispatching TYPE_RA_ATT_RESULT, body size: %d\n", req->size);
-        return ERR_NOT_IMPLEMENTED;
 
     default:
         printf("Cannot dispatch unknown msg type %d\n", req->type);

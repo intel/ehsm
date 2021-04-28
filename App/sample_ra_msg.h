@@ -29,8 +29,8 @@
  *
  */
 
-#ifndef _REMOTE_ATTESTATION_RESULT_H_
-#define _REMOTE_ATTESTATION_RESULT_H_
+#ifndef _SAMPLE_RA_MSG_
+#define _SAMPLE_RA_MSG_
 
 #include <stdint.h>
 
@@ -143,10 +143,6 @@ typedef struct sample_ps_sec_prop_desc_t
     uint8_t  sample_ps_sec_prop_desc[256];
 } sample_ps_sec_prop_desc_t;
 
-typedef struct sample_ra_msg0_t
-{
-    uint32_t                    extended_epid_group_id;
-} sample_ra_msg0_t;
 
 typedef struct sample_ra_msg1_t
 {
