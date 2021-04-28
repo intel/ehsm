@@ -100,7 +100,7 @@ else
 endif
 
 Untrusted_Cpp_Flags := $(Untrusted_C_Flags) -std=c++11
-Untrusted_Link_Flags := -lcurl -ljsoncpp -shared $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread
+Untrusted_Link_Flags := -lcurl -shared $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread
 
 ifneq ($(SGX_MODE), HW)
 	Untrusted_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
