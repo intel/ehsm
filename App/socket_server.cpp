@@ -173,6 +173,21 @@ static int32_t SendErrResponse(int32_t sockfd, int8_t type, int8_t err) {
     return SendResponse(sockfd, &p_err_resp_full);
 }
 
+
+static int fake_rand(uint8_t *buf, size_t size)
+{
+    uint32_t i;
+    if(!buf)
+        return -1;
+
+    for(i=0; i<(uint32_t)size; ++i){
+        buf[i]=(uint8_t)rand();
+    }
+
+    return 0;
+}
+
+
 // Verify message 1 then generate and return message 2 to isv.
 int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 						uint32_t msg1_size,
