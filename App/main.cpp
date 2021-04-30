@@ -13,14 +13,8 @@ void ocall_print_string(const char *str)
 
 
 int main(int argc, char* argv[]) {
-    printf("initialize socket server\n");
-    SocketServer *ss = new SocketServer();
-    if (!ss) {
-        printf("failed to initialze the socket server\n");
-        return -1;
-    }
+    Initialize();
 
-    ss->Initialize();
     return 0;
 }
 

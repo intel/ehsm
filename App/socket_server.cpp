@@ -37,9 +37,7 @@
 #include<unistd.h>
 #include<errno.h>
 #include<pthread.h>
-
 #include<error.h>
-#include<socket_server.h>
 
 #include "sgx_quote_3.h"
 #include <sgx_uae_launch.h>
@@ -49,6 +47,7 @@
 
 #include "ecp.h"
 #include "sample_libcrypto.h"
+#include "socket_server.h"
 
 namespace socket_server {
 
@@ -925,7 +924,7 @@ static void* SocketMsgHandler(void *sock_addr)
 }
 
 
-void SocketServer::Initialize() {
+void Initialize() {
     struct sockaddr_in serAddr, cliAddr;
     int32_t listenfd, connfd;
     socklen_t cliAddr_len;

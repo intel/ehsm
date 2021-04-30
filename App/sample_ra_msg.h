@@ -34,6 +34,7 @@
 
 #include <stdint.h>
 
+#include "ecp.h"
 #include "sgx_quote.h"
 #include "sgx_qve_header.h"
 #include "sgx_ql_quote.h"
@@ -183,6 +184,33 @@ typedef struct sample_ra_att_result_msg_t {
     sp_aes_gcm_data_t           secret;
 } sample_ra_att_result_msg_t;
 
+typedef struct _ra_samp_request_header_t{
+    uint8_t  type;     /* set to one of ra_msg_type_t*/
+    uint32_t size;     /*size of request body*/
+    uint8_t  align[3];
+    uint8_t body[];
+}ra_samp_request_header_t;
+
+typedef struct _ra_samp_response_header_t{
+    uint8_t  type;      /* set to one of ra_msg_type_t*/
+    uint8_t  status[2];
+    uint32_t size;      /*size of the response body*/
+    uint8_t  align[1];
+    uint8_t  body[];
+}ra_samp_response_header_t;
+
+// This is a context data structure used on SP side
+typedef struct _sp_db_item_t
+{
+    sample_ec_pub_t             g_a;
+    sample_ec_pub_t             g_b;
+    sample_ec_key_128bit_t      vk_key;// Shared secret key for the REPORT_DATA
+    sample_ec_key_128bit_t      mk_key;// Shared secret key for generating MAC's
+    sample_ec_key_128bit_t      sk_key;// Shared secret key for encryption
+    sample_ec_key_128bit_t      smk_key;// Used only for SIGMA protocol
+    sample_ec_priv_t            b;
+    sample_ps_sec_prop_desc_t   ps_sec_prop;
+}sp_db_item_t;
 
 #pragma pack(pop)
 

@@ -35,8 +35,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "sample_ra_msg.h"
-
 #ifndef SAMPLE_FEBITSIZE
     #define SAMPLE_FEBITSIZE                    256
 #endif
