@@ -88,12 +88,25 @@ typedef struct sample_ra_att_result_msg_t {
     sp_aes_gcm_data_t           secret;
 } sample_ra_att_result_msg_t;
 
-
 typedef struct sample_key_blob_t {
     uint32_t        blob_size;
     uint8_t         blob[];
 } sample_key_blob_t;
 
+typedef struct _ra_samp_request_header_t{
+    uint8_t  type;     /* set to one of ra_msg_type_t*/
+    uint32_t size;     /*size of request body*/
+    uint8_t  align[3];
+    uint8_t body[];
+} ra_samp_request_header_t;
+
+typedef struct _ra_samp_response_header_t{
+    uint8_t  type;      /* set to one of ra_msg_type_t*/
+    uint8_t  status[2];
+    uint32_t size;      /*size of the response body*/
+    uint8_t  align[1];
+    uint8_t  body[];
+} ra_samp_response_header_t;
 
 #pragma pack(pop)
 

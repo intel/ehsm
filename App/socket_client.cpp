@@ -654,20 +654,7 @@ out:
 }
 
 
-SocketClient::~SocketClient() {
-    Close();
-}
-
-
-void SocketClient::FreeRespBuf(ra_samp_response_header_t *resp)
-{
-    if(resp!=NULL)
-    {
-        free(resp);
-    }
-}
-
-void SocketClient::Open() {
+void Connect() {
     int32_t retry_count = 360;
     struct sockaddr_in serAddr;
     int32_t sockFd = -1;
@@ -700,19 +687,18 @@ void SocketClient::Open() {
     g_deploy_sock = sockFd;
 }
 
-void SocketClient::Close() {
+void DisConnect() {
     close(g_deploy_sock);
 }
 
-bool SocketClient::IsOpen()  {
+bool IsConnected()  {
     if (g_deploy_sock > 0)
         return true;
     else
         return false;
 }
 
-
-void SocketClient::Initialize() {
+void Initialize() {
     struct sockaddr_in serAddr, cliAddr;
     int32_t listenfd, connfd;
     socklen_t cliAddr_len;

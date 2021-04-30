@@ -22,12 +22,6 @@ int main(int argc, char* argv[])
 {
     int ret = 0;
 
-    SocketClient *sc = new SocketClient();
-    if(!sc) {
-        printf("failed to initialize the socket client.\n");
-        return -1;
-    }
-
     ret = sgx_create_enclave(_T(ENCLAVE_PATH),
                                  SGX_DEBUG_FLAG,
                                  NULL,
@@ -39,16 +33,16 @@ int main(int argc, char* argv[])
     }
 
     /* Connect to the deploy service*/
-    if(!sc->IsOpen()) {
+    if(!IsConnected()) {
         printf("try to connect to the socket server.\n");
-        sc->Open();
+        Connect();
     }
 
-    /* Initialize the socket server and wait the core service to connect */
-    sc->Initialize();
+    /* Initialize a socket server and wait for the connecttion */
+    Initialize();
 
-    /* close the socket connection with deplopy service */
-    sc->Close();
+    /* close the socket connection */
+    DisConnect();
 
     sgx_destroy_enclave(g_enclave_id);
 

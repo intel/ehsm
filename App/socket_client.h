@@ -42,13 +42,9 @@ using namespace std;
 
 namespace socket_client {
 
-const uint32_t SOCKET_RECV_BUF_SIZE = 2 * 4096;
-const uint32_t SOCKET_SEND_BUF_SIZE = 4096;
-
 const char deploy_ip_addr[] = "10.239.158.41";
 const uint32_t deploy_port = 8888;
 const uint32_t provisioning_port = 8887;
-
 
 #define ENCLAVE_PATH "enclave.signed.so"
 
@@ -66,55 +62,28 @@ const uint32_t provisioning_port = 8887;
 #define _ERRNO_T_DEFINED
 typedef int errno_t;
 #endif
-errno_t memcpy_s(void *dest, size_t numberOfElements, const void *src,
-                 size_t count);
+errno_t memcpy_s(void *dest,
+        size_t numberOfElements,
+        const void *src,
+        size_t count);
 
+/* Opens a connection to the socket server */
+void Connect();
 
-#pragma pack(1)
+/* Closes the connection to socket server */
+void DisConnect();
 
-typedef struct _ra_samp_request_header_t{
-    uint8_t  type;     /* set to one of ra_msg_type_t*/
-    uint32_t size;     /*size of request body*/
-    uint8_t  align[3];
-    uint8_t body[];
-}ra_samp_request_header_t;
+/* Check the status of the connection */
+bool IsConnected();
 
-typedef struct _ra_samp_response_header_t{
-    uint8_t  type;      /* set to one of ra_msg_type_t*/
-    uint8_t  status[2];
-    uint32_t size;      /*size of the response body*/
-    uint8_t  align[1];
-    uint8_t  body[];
-}ra_samp_response_header_t;
+void Initialize();
 
-#pragma pack()
+/* Send and Recv msg to/from socket server */
+int SendAndRecvMsg(const ra_samp_request_header_t *req,
+                        ra_samp_response_header_t **p_resp);
 
 int RetreiveDomainKey(const ra_samp_request_header_t *req,
                     ra_samp_response_header_t **p_resp);
-
-class SocketClient {
-public:
-    SocketClient() = default;
-    ~SocketClient();
-
-    /* Opens a connection to the socket server */
-    void Open();
-
-    /* Closes the connection to socket server */
-    void Close();
-
-    /* Check the status of the connection */
-    bool IsOpen();
-
-    /* Send and Recv msg to/from socket server */
-    int SendAndRecvMsg(const ra_samp_request_header_t *req,
-                            ra_samp_response_header_t **p_resp);
-
-    void FreeRespBuf(ra_samp_response_header_t *resp);
-
-    void Initialize();
-
-};
 
 }
 
