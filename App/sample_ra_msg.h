@@ -51,6 +51,7 @@ typedef enum _ra_msg_type_t
      TYPE_RA_MSG2,
      TYPE_RA_MSG3,
      TYPE_RA_ATT_RESULT,
+     TYPE_RA_RETRIEVE_DK,
 }ra_msg_type_t;
 
 
@@ -86,6 +87,13 @@ typedef struct sample_ra_att_result_msg_t {
     sgx_mac_t                mac;    /* mac_smk(attestation_status)*/
     sp_aes_gcm_data_t           secret;
 } sample_ra_att_result_msg_t;
+
+
+typedef struct sample_key_blob_t {
+    uint32_t        blob_size;
+    uint8_t         blob[];
+} sample_key_blob_t;
+
 
 #pragma pack(pop)
 

@@ -85,7 +85,7 @@ void printf(const char *fmt, ...)
     ocall_print_string(buf);
 }
 
-sgx_status_t sgx_create_domainkey(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
+sgx_status_t sgx_get_domainkey(uint8_t *blob, uint32_t blob_size, uint32_t *req_blob_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     uint32_t real_blob_len = sgx_calc_sealed_data_size(0, SGX_AES_KEY_SIZE);
@@ -98,9 +98,10 @@ sgx_status_t sgx_create_domainkey(uint8_t *cmk_blob, size_t cmk_blob_size, size_
         return SGX_SUCCESS;
     }
 
-    if (cmk_blob == NULL || cmk_blob_size != real_blob_len)
+    if (blob == NULL || blob_size != real_blob_len) {
+        printf("step1, blob_size=%d,real_blob_len=%d \n",blob_size, real_blob_len);
         return SGX_ERROR_INVALID_PARAMETER;
-
+        }
     uint8_t* tmp = (uint8_t *)malloc(SGX_AES_KEY_SIZE);
     if (tmp == NULL)
         return SGX_ERROR_OUT_OF_MEMORY;
@@ -111,7 +112,7 @@ sgx_status_t sgx_create_domainkey(uint8_t *cmk_blob, size_t cmk_blob_size, size_
         return ret;
     }
 
-    ret = sgx_seal_data(0, NULL, SGX_AES_KEY_SIZE, tmp, cmk_blob_size, (sgx_sealed_data_t *)cmk_blob);
+    ret = sgx_seal_data(0, NULL, SGX_AES_KEY_SIZE, tmp, blob_size, (sgx_sealed_data_t *)blob);
 
     memset_s(tmp, SGX_AES_KEY_SIZE, 0, SGX_AES_KEY_SIZE);
 

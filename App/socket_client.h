@@ -45,10 +45,14 @@ namespace socket_client {
 const uint32_t SOCKET_RECV_BUF_SIZE = 2 * 4096;
 const uint32_t SOCKET_SEND_BUF_SIZE = 4096;
 
-const char server_ip_addr[] = "10.239.158.41";
-const uint32_t server_port = 8888;
+const char deploy_ip_addr[] = "10.239.158.41";
+const uint32_t deploy_port = 8888;
+const uint32_t provisioning_port = 8887;
+
 
 #define ENCLAVE_PATH "enclave.signed.so"
+
+#define _T(x) x
 
 #ifndef INT_MAX
 #define INT_MAX     0x7fffffff 
@@ -85,6 +89,9 @@ typedef struct _ra_samp_response_header_t{
 
 #pragma pack()
 
+int RetreiveDomainKey(const ra_samp_request_header_t *req,
+                    ra_samp_response_header_t **p_resp);
+
 class SocketClient {
 public:
     SocketClient() = default;
@@ -100,12 +107,13 @@ public:
     bool IsOpen();
 
     /* Send and Recv msg to/from socket server */
-    int SendAndRecvMsg(    const ra_samp_request_header_t *req,
+    int SendAndRecvMsg(const ra_samp_request_header_t *req,
                             ra_samp_response_header_t **p_resp);
 
     void FreeRespBuf(ra_samp_response_header_t *resp);
-private:
-    int32_t _sockFd = -1;
+
+    void Initialize();
+
 };
 
 }

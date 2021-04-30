@@ -42,9 +42,9 @@ enclave {
     };
 
     trusted {
-        public sgx_status_t sgx_create_domainkey(
-            [out, size=cmk_blob_size] uint8_t *cmk_blob, size_t cmk_blob_size,
-            [out] size_t *req_blob_size);
+        public sgx_status_t sgx_get_domainkey(
+            [out, size=blob_size] uint8_t *blob, uint32_t blob_size,
+            [out] uint32_t *req_blob_size);
 
         public sgx_status_t enclave_init_ra(int b_pse,
             [out] sgx_ra_context_t *p_context);
