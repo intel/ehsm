@@ -74,9 +74,11 @@ typedef enum {
 #define PSVN_SIZE           18
 
 #define SAMPLE_REPORT_DATA_SIZE         64
-#define SAMPLE_CPUSVN_SIZE  16
-#define SAMPLE_SP_TAG_SIZE       16
-#define SAMPLE_SP_IV_SIZE        12
+#define SAMPLE_CPUSVN_SIZE      16
+#define SAMPLE_SP_TAG_SIZE      16
+#define SAMPLE_SP_IV_SIZE       12
+
+#define SGX_DOMAIN_KEY_SIZE     16
 
 #ifndef SAMPLE_FEBITSIZE
     #define SAMPLE_FEBITSIZE                    256

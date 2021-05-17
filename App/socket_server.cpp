@@ -53,9 +53,6 @@ namespace socket_server {
 
 static sp_db_item_t g_sp_db;
 
-uint8_t g_secret[] = {0,1,2,3,4,5,6,7};
-
-
 // This is the private EC key of SP, the corresponding public EC key is
 // hard coded in isv_enclave. It is based on NIST P-256 curve.
 static const sample_ec256_private_t g_sp_priv_key = {
@@ -185,7 +182,6 @@ static int fake_rand(uint8_t *buf, size_t size)
 
     return 0;
 }
-
 
 // Verify message 1 then generate and return message 2 to isv.
 int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
@@ -477,6 +473,8 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     
     sgx_ql_qe_report_info_t qve_report_info;
     unsigned char rand_nonce[16] = "59jslk201fgjmm;";
+
+    uint8_t *domain_key = NULL;
 
     uint32_t quote_size=0;
     
@@ -780,8 +778,18 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             break;
         }
 
+        domain_key = (uint8_t *)malloc(SGX_DOMAIN_KEY_SIZE);
+        if (!domain_key) {
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        /*TODO: current initialize the domain key as 1*SGX_DOMAIN_KEY_SIZE
+        * need to generate the real domain_key from the HSM in the real product
+        */
+        memset(domain_key, 1, SGX_DOMAIN_KEY_SIZE);
+
         // Respond the client with the results of the attestation.
-        uint32_t att_result_msg_size = sizeof(sample_ra_att_result_msg_t)+sizeof(g_secret);
+        uint32_t att_result_msg_size = sizeof(sample_ra_att_result_msg_t)+SGX_DOMAIN_KEY_SIZE;
         p_att_result_msg_full =
             (ra_samp_response_header_t*)malloc(att_result_msg_size
             + sizeof(ra_samp_response_header_t) );
@@ -811,14 +819,15 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         {
             fprintf(stderr, "\nError, cmac platform_info fail in [%s].\n", __FUNCTION__);
             ret = SP_INTERNAL_ERROR;
+            break;
         }
 
         // Generate shared secret and encrypt it with SK, if attestation passed.
         uint8_t aes_gcm_iv[SAMPLE_SP_IV_SIZE] = {0};
-        p_att_result_msg->secret.payload_size = sizeof(g_secret);
+        p_att_result_msg->secret.payload_size = SGX_DOMAIN_KEY_SIZE;
 
         ret = sample_rijndael128GCM_encrypt(&g_sp_db.sk_key,
-                    g_secret,
+                    domain_key,
                     p_att_result_msg->secret.payload_size,
                     p_att_result_msg->secret.payload,
                     &aes_gcm_iv[0],
@@ -839,6 +848,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     //clear the g_sp_db database after the attesation session finished.
     memset(&g_sp_db, 0, sizeof(sp_db_item_t));
 
+    SAFE_FREE(domain_key);
     return ret;
 }
 
