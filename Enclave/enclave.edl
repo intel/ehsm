@@ -42,22 +42,22 @@ enclave {
     };
 
     trusted {
-        public sgx_status_t sgx_get_domainkey(
-            [out, size=blob_size] uint8_t *blob, uint32_t blob_size,
-            [out] uint32_t *req_blob_size);
-
         public sgx_status_t enclave_init_ra(int b_pse,
             [out] sgx_ra_context_t *p_context);
 
         public sgx_status_t enclave_ra_close(sgx_ra_context_t context);
 
-        public sgx_status_t verify_att_result_mac(sgx_ra_context_t context,
+        public sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
             [in,size=message_size] uint8_t* message,
             size_t message_size,
             [in,size=mac_size] uint8_t* mac,
             size_t mac_size);
 
-        public sgx_status_t put_secret_data(sgx_ra_context_t context,
+        public sgx_status_t enclave_get_domainkey(
+            [out, size=blob_size] uint8_t *blob, uint32_t blob_size,
+            [out] uint32_t *req_blob_size);
+
+        public sgx_status_t enclave_store_domainkey(sgx_ra_context_t context,
             [in,size=secret_size] uint8_t* p_secret,
             uint32_t secret_size,
             [in,count=16] uint8_t* gcm_mac);

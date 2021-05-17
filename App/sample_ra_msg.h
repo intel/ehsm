@@ -61,6 +61,8 @@ typedef enum _ra_msg_type_t
 #define GID_SIZE 4
 #define PSVN_SIZE 18
 
+#define SGX_DOMAIN_KEY_SIZE     16
+
 #pragma pack(push,1)
 
 typedef struct sp_aes_gcm_data_t {

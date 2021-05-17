@@ -43,6 +43,8 @@
 
 #define SGX_AES_KEY_SIZE 16
 
+#define SGX_DOMAIN_KEY_SIZE     16
+
 // This is the public EC key of the SP. The corresponding private EC key is
 // used by the SP to sign data used in the remote attestation SIGMA protocol
 // to sign channel binding data in MSG2. A successful verification of the
@@ -70,10 +72,8 @@ static const sgx_ec256_public_t g_sp_pub_key = {
 
 };
 
-// Used to store the secret passed by the SP in the sample code. The
-// size is forced to be 8 bytes. Expected value is
-// 0x01,0x02,0x03,0x04,0x0x5,0x0x6,0x0x7
-uint8_t g_secret[8] = {0};
+// Used to store the secret passed by the SP in the sample code.
+uint8_t g_domain_key[SGX_DOMAIN_KEY_SIZE] = {0};
 
 void printf(const char *fmt, ...)
 {
@@ -83,42 +83,6 @@ void printf(const char *fmt, ...)
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
     ocall_print_string(buf);
-}
-
-sgx_status_t sgx_get_domainkey(uint8_t *blob, uint32_t blob_size, uint32_t *req_blob_size)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint32_t real_blob_len = sgx_calc_sealed_data_size(0, SGX_AES_KEY_SIZE);
-
-    if (real_blob_len == UINT32_MAX)
-        return SGX_ERROR_UNEXPECTED;
-
-    if (req_blob_size != NULL) {
-        *req_blob_size = real_blob_len;
-        return SGX_SUCCESS;
-    }
-
-    if (blob == NULL || blob_size != real_blob_len) {
-        printf("step1, blob_size=%d,real_blob_len=%d \n",blob_size, real_blob_len);
-        return SGX_ERROR_INVALID_PARAMETER;
-        }
-    uint8_t* tmp = (uint8_t *)malloc(SGX_AES_KEY_SIZE);
-    if (tmp == NULL)
-        return SGX_ERROR_OUT_OF_MEMORY;
-
-    ret = sgx_read_rand(tmp, SGX_AES_KEY_SIZE);
-    if (ret != SGX_SUCCESS) {
-        free(tmp);
-        return ret;
-    }
-
-    ret = sgx_seal_data(0, NULL, SGX_AES_KEY_SIZE, tmp, blob_size, (sgx_sealed_data_t *)blob);
-
-    memset_s(tmp, SGX_AES_KEY_SIZE, 0, SGX_AES_KEY_SIZE);
-
-    free(tmp);
-
-    return ret;
 }
 
 
@@ -310,7 +274,7 @@ sgx_status_t SGXAPI enclave_ra_close(
 // @return Any error produced by the AESCMAC function.
 // @return SGX_ERROR_MAC_MISMATCH - MAC compare fails.
 
-sgx_status_t verify_att_result_mac(sgx_ra_context_t context,
+sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
                                    uint8_t* p_message,
                                    size_t message_size,
                                    uint8_t* p_mac,
@@ -359,6 +323,29 @@ sgx_status_t verify_att_result_mac(sgx_ra_context_t context,
 }
 
 
+sgx_status_t enclave_get_domainkey(uint8_t *blob, uint32_t blob_size, uint32_t *req_blob_size)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    uint32_t real_blob_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);
+
+    if (real_blob_len == UINT32_MAX)
+        return SGX_ERROR_UNEXPECTED;
+
+    if (req_blob_size != NULL) {
+        *req_blob_size = real_blob_len;
+        return SGX_SUCCESS;
+    }
+
+    if (blob == NULL || blob_size != real_blob_len) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    ret = sgx_seal_data(0, NULL, SGX_DOMAIN_KEY_SIZE, g_domain_key, blob_size, (sgx_sealed_data_t *)blob);
+
+    return ret;
+}
+
+
 // Generate a secret information for the SP encrypted with SK.
 // Input pointers aren't checked since the trusted stubs copy
 // them into EPC memory.
@@ -376,7 +363,7 @@ sgx_status_t verify_att_result_mac(sgx_ra_context_t context,
 // @return SGX_ERROR_UNEXPECTED - the secret doesn't match the
 //         expected value.
 
-sgx_status_t put_secret_data(
+sgx_status_t enclave_store_domainkey (
     sgx_ra_context_t context,
     uint8_t *p_secret,
     uint32_t secret_size,
@@ -387,7 +374,7 @@ sgx_status_t put_secret_data(
     uint32_t i;
 
     do {
-        if(secret_size != 8)
+        if(secret_size != SGX_DOMAIN_KEY_SIZE)
         {
             ret = SGX_ERROR_INVALID_PARAMETER;
             break;
@@ -403,7 +390,7 @@ sgx_status_t put_secret_data(
         ret = sgx_rijndael128GCM_decrypt(&sk_key,
                                          p_secret,
                                          secret_size,
-                                         g_secret,
+                                         g_domain_key,
                                          &aes_gcm_iv[0],
                                          12,
                                          NULL,
@@ -415,8 +402,8 @@ sgx_status_t put_secret_data(
             printf("Failed to decrypt the secret from server\n");
         }
         printf("Decrypt the serect success\n");
-        for (i=0; i<sizeof(g_secret); i++) {
-            printf("secret[%d]=%2d\n", i,g_secret[i]);
+        for (i=0; i<sizeof(g_domain_key); i++) {
+            printf("domain_key[%d]=%2d\n", i, g_domain_key[i]);
         }
         // Once the server has the shared secret, it should be sealed to
         // persistent storage for future use. This will prevents having to

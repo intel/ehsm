@@ -523,7 +523,7 @@ static int RaSetupSecureChannel() {
     * Check the MAC using MK on the attestation result message.
     * The format of the attestation result message is specific(sample_ra_att_result_msg_t).
     */
-    ret = verify_att_result_mac(g_enclave_id,
+    ret = enclave_verify_att_result_mac(g_enclave_id,
             &status,
             context,
             (uint8_t*)&p_att_result_msg_body->platform_info_blob,
@@ -539,7 +539,7 @@ static int RaSetupSecureChannel() {
 
     fprintf(OUTPUT, "Verify attestation result is succeed!\n");
 
-    ret = put_secret_data(g_enclave_id,
+    ret = enclave_store_domainkey(g_enclave_id,
                           &status,
                           context,
                           p_att_result_msg_body->secret.payload,
@@ -604,7 +604,7 @@ int RetreiveDomainKey(const ra_samp_request_header_t *req,
         g_securechannel_ready = true;
     }
 
-    ret = sgx_get_domainkey(g_enclave_id, &status,
+    ret = enclave_get_domainkey(g_enclave_id, &status,
                 NULL,
                 0,
                 &(blob_size));
@@ -631,7 +631,7 @@ int RetreiveDomainKey(const ra_samp_request_header_t *req,
     p_dk->blob_size = blob_size;
     printf("YYY--p_resp_full->size=%d\n", p_resp_full->size);
 
-    ret = sgx_get_domainkey(g_enclave_id, &status,
+    ret = enclave_get_domainkey(g_enclave_id, &status,
                 p_dk->blob,
                 p_dk->blob_size,
                 NULL);
