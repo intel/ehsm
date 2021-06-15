@@ -42,7 +42,7 @@ using namespace std;
 
 namespace socket_client {
 
-const char deploy_ip_addr[] = "10.239.158.41";
+const char deploy_ip_addr[] = "10.239.158.138";
 const uint32_t deploy_port = 8888;
 const uint32_t provisioning_port = 8887;
 

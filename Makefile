@@ -121,7 +121,7 @@ endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
-App_Name := provisioningapp
+App_Name := ehsm-deployproxy
 
 
 ######## Enclave Settings ########
