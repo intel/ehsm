@@ -44,6 +44,8 @@ enclave {
     };
 
     trusted {
+        public sgx_status_t sgx_store_domainkey([in, size=blob_size] uint8_t *blob, uint32_t blob_size);
+
         public sgx_status_t sgx_create_aes_key([out, size=cmk_blob_size] uint8_t *cmk_blob,
                 size_t cmk_blob_size, [out] size_t *req_blob_size);
 

@@ -32,67 +32,59 @@
 #ifndef EHSM_RPOVIDER_H
 #define EHSM_PROVIDER_H
 
-typedef unsigned long int EH_ULONG;
-typedef unsigned char     EH_BYTE;
+#include "common_ehsm.h"
 
-typedef EH_BYTE*     EH_BYTE_PTR;
-typedef EH_ULONG*    EH_ULONG_PTR;
-typedef void*        EH_VOID_PTR;
+typedef enum _ra_msg_type_t
+{
+     TYPE_RA_MSG0 = 0,
+     TYPE_RA_MSG1,
+     TYPE_RA_MSG2,
+     TYPE_RA_MSG3,
+     TYPE_RA_ATT_RESULT,
+     TYPE_RA_RETRIEVE_DK,
+}ra_msg_type_t;
 
-enum EH_KEY_ORIGIN {
-    EHO_INTERNAL_KEY,
-    EHO_EXTERNAL_KEY,
-};
+#ifndef SAFE_FREE
+#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}}
+#endif
 
-/*
- * EH_MECHANISM_TYPE is a value that identifies a key spec
- * type
- */
-typedef unsigned long int    EH_MECHANISM_TYPE;
+const char prov_ip_addr[] = "127.0.0.1";
+const uint32_t prov_port = 8887;
 
-/* the following key spec types are defined: */
-#define EHM_AES_GCM_128  0x00000000UL
-#define EHM_SM4          0x00000001UL
-#define EHM_RSA_3072     0x00000002UL
+#pragma pack(1)
 
-typedef struct EH_MECHANISM {
-    EH_MECHANISM_TYPE   mechanism;
-    EH_VOID_PTR         pParameter;
-    EH_ULONG            ulParameterLen;  /* in bytes */
-} EH_MECHANISM;
+typedef struct _ra_samp_request_header_t{
+    uint8_t  type;     /* set to one of ra_msg_type_t*/
+    uint32_t size;     /*size of request body*/
+    uint8_t  align[3];
+    uint8_t body[];
+} ra_samp_request_header_t;
 
-typedef EH_MECHANISM* EH_MECHANISM_PTR;
+typedef struct _ra_samp_response_header_t{
+    uint8_t  type;      /* set to one of ra_msg_type_t*/
+    uint8_t  status[2];
+    uint32_t size;      /*size of the response body*/
+    uint8_t  align[1];
+    uint8_t  body[];
+} ra_samp_response_header_t;
 
-typedef struct EH_GCM_PARAMS {
-    EH_BYTE_PTR       pAAD;
-    EH_ULONG          ulAADLen;
-} EH_GCM_PARAMS;
+typedef struct sample_key_blob_t {
+    uint32_t        blob_size;
+    uint8_t         blob[];
+} sample_key_blob_t;
 
-typedef EH_GCM_PARAMS* EH_GCM_PARAMS_PTR;
+#pragma pack()
 
-typedef struct EH_KEY_BLOB {
-    EH_MECHANISM_TYPE ulKeyType;
-    EH_ULONG          ulKeyLen;
-    EH_BYTE_PTR       pKeyData;
-} EH_KEY_BLOB;
-
-typedef EH_KEY_BLOB* EH_KEY_BLOB_PTR;
-
-typedef EH_ULONG          EH_RV;
-
-#define EHR_OK                                0x00000000UL
-#define EHR_MECHANISM_INVALID                 0x00000001UL
-#define EHR_DEVICE_MEMORY                     0x00000002UL
-#define EHR_DEVICE_ERROR                      0x00000003UL
-#define EHR_GENERAL_ERROR                     0x00000005UL
-#define EHR_FUNCTION_FAILED                   0x00000006UL
-#define EHR_ARGUMENTS_BAD                     0x00000007UL
 
 namespace EHsmProvider
 {
     EH_RV Initialize();
 
     void Finalize();
+
+    EH_RV RetrieveDomainKey();
+
+    EH_RV UpgradeDomainKey();
 
     EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
             EH_KEY_BLOB_PTR pKeyBlob);

@@ -40,6 +40,11 @@
 
 #define SGX_AES_KEY_SIZE 16
 
+#define SGX_DOMAIN_KEY_SIZE     16
+
+// Used to store the secret passed by the SP in the sample code.
+uint8_t g_domain_key[16] = {0};
+
 void printf(const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
@@ -49,6 +54,34 @@ void printf(const char *fmt, ...)
     va_end(ap);
     ocall_print_string(buf);
 }
+
+sgx_status_t sgx_store_domainkey(uint8_t *blob, uint32_t blob_size)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (blob == NULL)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+
+    uint32_t dec_key_size = sgx_get_encrypt_txt_len((sgx_sealed_data_t *)blob);
+    if (dec_key_size == UINT32_MAX || dec_key_size != SGX_DOMAIN_KEY_SIZE) {
+        printf("dec_key_size size:%d is not expected: %d.\n", dec_key_size, sizeof(sgx_key_128bit_t));
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    ret = sgx_unseal_data((sgx_sealed_data_t *)blob, NULL, 0, (uint8_t *)g_domain_key, &dec_key_size);
+    if (ret != SGX_SUCCESS) {
+        printf("error(%d) unsealing key.\n", ret);
+        return ret;
+    }
+
+    for (int i=0; i<SGX_DOMAIN_KEY_SIZE; i++) {
+        printf("domain_key[%d]=%2d\n", i, g_domain_key[i]);
+    }
+
+    return SGX_SUCCESS;
+}
+
 
 sgx_status_t sgx_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
 {
