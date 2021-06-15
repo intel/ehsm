@@ -32,10 +32,11 @@
 ######## SGX SDK Settings ########
 
 SGX_SDK ?= /opt/intel/sgxsdk
-SGX_MODE ?= SIM
+SGX_MODE ?= HW
 SGX_ARCH ?= x64
+SGX_DEBUG ?= 1
 
-Enclave_Path ?= /usr/local/lib/
+Enclave_Path ?= .
 Enclave_Name := libSgxHsmEnclave.so
 Signed_Enclave_Name := libSgxHsmEnclave.signed.so
 
@@ -100,7 +101,8 @@ else
 endif
 
 Untrusted_Cpp_Flags := $(Untrusted_C_Flags) -std=c++11
-Untrusted_Link_Flags := -lcurl -shared $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread
+#Untrusted_Link_Flags := -lcurl -shared $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread
+Untrusted_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread
 
 ifneq ($(SGX_MODE), HW)
 	Untrusted_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -110,7 +112,7 @@ endif
 
 Untrusted_Cpp_Objects := $(Untrusted_Cpp_Files:.cpp=.o)
 
-Untrusted_Name := libEHsm.so
+App_Name := kmscore
 
 ######## Enclave Settings ########
 
@@ -157,10 +159,13 @@ endif
 endif
 
 
-.PHONY: all
+.PHONY: all target run
+all: $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name)
+	@$(MAKE) clean && $(MAKE) target
+	@mkdir out && mv $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name) out
 
 ifeq ($(Build_Mode), HW_RELEASE)
-all: $(Untrusted_Name) $(Enclave_Name)
+target: $(App_Name) $(Enclave_Name)
 	@echo "The project has been built in release hardware mode."
 	@echo "Please sign the $(Enclave_Name) first with your signing key before you run the App to launch and access the enclave."
 	@echo "To sign the enclave use the command:"
@@ -168,8 +173,10 @@ all: $(Untrusted_Name) $(Enclave_Name)
 	@echo "You can also sign the enclave using an external signing tool."
 	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
 else
-all: $(Untrusted_Name) $(Signed_Enclave_Name)
+target: $(App_Name) $(Signed_Enclave_Name)
 endif
+
+
 
 ######## Untrusted Objects ########
 
@@ -185,7 +192,7 @@ untrusted/%.o: untrusted/%.cpp
 	@$(CXX) $(Untrusted_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(Untrusted_Name): untrusted/enclave_hsm_u.o $(Untrusted_Cpp_Objects)
+$(App_Name): untrusted/enclave_hsm_u.o $(Untrusted_Cpp_Objects)
 	@$(CXX) $^ -o $@ $(Untrusted_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -211,13 +218,9 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key trusted/enclave_config/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 
-release: all
-	@mkdir -p release
-	@cp $(Signed_Enclave_Name) release
-	@cp untrusted/ehsm_provider.h release
-	@cp lib*.so release
 
 .PHONY: clean
 
 clean:
-	@rm -f release/*.* $(Enclave_Name) $(Signed_Enclave_Name) $(Untrusted_Cpp_Objects) $(Untrusted_Name) untrusted/enclave_hsm_u.* $(Enclave_Cpp_Objects) trusted/enclave_hsm_t.*
+	@rm -f $(Enclave_Name) $(Signed_Enclave_Name) $(Untrusted_Cpp_Objects) $(Enclave_Cpp_Objects) $(App_Name) untrusted/enclave_hsm_u.* trusted/enclave_hsm_t.*
+	@rm -rf out

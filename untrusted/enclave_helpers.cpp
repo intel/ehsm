@@ -55,16 +55,15 @@ namespace SgxCrypto
             return SGX_SUCCESS;
         }
 
-        std::string enclaveFileName = ENCLAVE_PATH;
-        enclaveFileName = enclaveFileName + ENCLAVE_NAME;
+        //std::string enclaveFileName = ENCLAVE_PATH;
+        //enclaveFileName = enclaveFileName + ENCLAVE_NAME;
 
-        sgxStatus = sgx_create_enclave(enclaveFileName.data(),
+        sgxStatus = sgx_create_enclave(_T(ENCLAVE_PATH),
                                        SGX_DEBUG_FLAG,
                                        NULL,
                                        NULL,
                                        &sgxEnclaveId,
                                        NULL);
-
         // Save the SGX enclave ID for later.
         if (sgxStatus == SGX_SUCCESS)
         {
