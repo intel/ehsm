@@ -112,7 +112,7 @@ endif
 
 Untrusted_Cpp_Objects := $(Untrusted_Cpp_Files:.cpp=.o)
 
-App_Name := kmscore
+App_Name := ehsm-core
 
 ######## Enclave Settings ########
 
