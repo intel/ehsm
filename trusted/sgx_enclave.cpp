@@ -382,6 +382,70 @@ sgx_status_t sgx_generate_datakey(uint32_t key_spec,
     return ret;
 }
 
+sgx_status_t sgx_export_datakey(uint32_t cmk_key_spec,
+                                  const uint8_t *cmk_blob,
+                                  size_t cmk_blob_size,
+                                  const uint8_t *context,
+                                  size_t context_len,
+                                  uint8_t *encrypted_key,
+                                  size_t encrypted_key_len,
+                                  uint32_t uk_key_spec,
+                                  const uint8_t *uk_blob,
+                                  size_t uk_blob_size,
+                                  uint8_t *new_encrypted_key,
+                                  size_t new_encrypted_key_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    uint8_t *tmp_datakey = NULL;
+    uint32_t tmp_datakey_len = 0;
+
+    if (cmk_blob == NULL || uk_blob == NULL || encrypted_key ==  NULL || new_encrypted_key == NULL)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (encrypted_key_len > 1024 || encrypted_key_len == 0 ||
+        encrypted_key_len < EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (new_encrypted_key_len > RSA_OAEP_3072_CIPHER_LENGTH || new_encrypted_key_len == 0)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (cmk_key_spec != EHM_AES_GCM_128)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (uk_key_spec != EHM_RSA_3072)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    tmp_datakey_len = encrypted_key_len - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
+    tmp_datakey = (uint8_t *)malloc(tmp_datakey_len);
+    if (tmp_datakey == NULL) {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+
+    // use the cmk to decrypt the datakey cipher text
+    ret = sgx_aes_decrypt(context, context_len, cmk_blob, cmk_blob_size,
+                    encrypted_key, encrypted_key_len, tmp_datakey, tmp_datakey_len);
+    if (SGX_SUCCESS != ret) {
+        printf("error decrypting encrypted text with cmk!\n");
+        goto out;
+    }
+
+    // use the user-suplied rsa key to encrypt the datakey plaint text again.
+    ret = sgx_rsa_encrypt(uk_blob, uk_blob_size, tmp_datakey, tmp_datakey_len,
+                    new_encrypted_key, new_encrypted_key_len);
+    if (SGX_SUCCESS != ret) {
+        printf("error enrypting plaint text!\n");
+        goto out;
+    }
+
+out:
+    memset_s(tmp_datakey, tmp_datakey_len, 0, tmp_datakey_len);
+
+    if (tmp_datakey)
+        free(tmp_datakey);
+
+    return ret;
+}
+
 /*
  * struct cmk_blob {
  *     sgx_rsa3072_public_key_t;

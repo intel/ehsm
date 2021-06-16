@@ -667,4 +667,82 @@ EH_RV GenerateDataKeyWithoutPlaintext(EH_MECHANISM_PTR  pMechanism,
     return GenerateDataKey(pMechanism, pMasterKeyBlob, NULL, ulPlainDataKeyLen,
             pEncryptedDataKey, pulEncryptedDataKeyLen);
 }
+
+EH_RV ExportDataKey(EH_MECHANISM_PTR pMechanism,
+            EH_KEY_BLOB_PTR pUsrKeyBlob, EH_KEY_BLOB_PTR pMasterKeyBlob,
+            EH_BYTE_PTR pEncryptedDataKey, EH_ULONG ulEncryptedDataKeyLen,
+            EH_BYTE_PTR pNewEncryptedDataKey, EH_ULONG_PTR pulNewEncryptedDataKeyLen)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    SgxCrypto::EnclaveHelpers enclaveHelpers;
+    EH_BYTE_PTR pContext = NULL;
+    EH_ULONG ulContextLen = 0;
+
+    if (pUsrKeyBlob->ulKeyType != EHM_RSA_3072) {
+        return EHR_ARGUMENTS_BAD;
+    }
+
+    if (pNewEncryptedDataKey == NULL && pulNewEncryptedDataKeyLen != NULL) {
+        *pulNewEncryptedDataKeyLen = RSA_OAEP_3072_CIPHER_LENGTH;
+        return EHR_OK;
+    }
+
+    if (ulEncryptedDataKeyLen > 1024 || ulEncryptedDataKeyLen == 0) {
+        return EHR_ARGUMENTS_BAD;
+    }
+
+    if (pMechanism == NULL || pUsrKeyBlob ==  NULL || pMasterKeyBlob ==  NULL ||
+            pEncryptedDataKey == NULL || pNewEncryptedDataKey == NULL ||
+            pulNewEncryptedDataKeyLen == NULL ||
+            pMechanism->mechanism != pMasterKeyBlob->ulKeyType) {
+        return EHR_ARGUMENTS_BAD;
+    }
+
+    switch(pMechanism->mechanism) {
+        case EHM_AES_GCM_128:
+            if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
+                return EHR_ARGUMENTS_BAD;
+            }
+
+            if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
+                    (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
+                return EHR_ARGUMENTS_BAD;
+            }
+
+            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
+                    (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
+                return EHR_ARGUMENTS_BAD;
+            }
+
+            pContext = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD;
+            ulContextLen = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen;
+
+            break;
+        default:
+            return EHR_MECHANISM_INVALID;
+    }
+
+    ret = sgx_export_datakey(enclaveHelpers.getSgxEnclaveId(),
+                               &sgxStatus,
+                               pMasterKeyBlob->ulKeyType,
+                               pMasterKeyBlob->pKeyData,
+                               pMasterKeyBlob->ulKeyLen,
+                               pContext,
+                               ulContextLen,
+                               pEncryptedDataKey,
+                               ulEncryptedDataKeyLen,
+                               pUsrKeyBlob->ulKeyType,
+                               pUsrKeyBlob->pKeyData,
+                               pUsrKeyBlob->ulKeyLen,
+                               pNewEncryptedDataKey,
+                               *pulNewEncryptedDataKeyLen);
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        return EHR_FUNCTION_FAILED;
+    }
+    else
+        return EHR_OK;
+}
+
 }

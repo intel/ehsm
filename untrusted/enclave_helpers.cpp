@@ -64,7 +64,6 @@ namespace SgxCrypto
                                        NULL,
                                        &sgxEnclaveId,
                                        NULL);
-        printf("YYY-- status=%#x\n", sgxStatus);
         // Save the SGX enclave ID for later.
         if (sgxStatus == SGX_SUCCESS)
         {

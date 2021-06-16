@@ -106,6 +106,11 @@ namespace EHsmProvider
             EH_KEY_BLOB_PTR pMasterKeyBlob, EH_ULONG ulPlainDataKeyLen,
             EH_BYTE_PTR pEncryptedDataKey, EH_ULONG_PTR pulEncryptedDataKeyLen);
 
+    EH_RV ExportDataKey(EH_MECHANISM_PTR pMechanism,
+            EH_KEY_BLOB_PTR pUsrKeyBlob, EH_KEY_BLOB_PTR pMasterKeyBlob,
+            EH_BYTE_PTR pEncryptedDataKey, EH_ULONG pEncryptedDataKeyLen,
+            EH_BYTE_PTR pEncryptedDataKey_new, EH_ULONG_PTR pulEncryptedDataKeyLen_new);
+
     EH_RV Sign(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
                EH_BYTE_PTR pData, EH_ULONG ulDataLen,
                EH_BYTE_PTR pSignature, EH_ULONG_PTR pulSignatureLen);

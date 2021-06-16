@@ -65,6 +65,14 @@ enclave {
                 [out, size=plain_key_len] uint8_t *plain_key, size_t plain_key_len,
                 [out, size=encrypted_key_len] uint8_t *encrypted_key, size_t encrypted_key_len);
 
+        public sgx_status_t sgx_export_datakey(uint32_t cmk_spec,
+                [in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
+                [in, size=context_len] const uint8_t *context, size_t context_len,
+                [in, size=encrypted_key_len] uint8_t *encrypted_key, size_t encrypted_key_len,
+				uint32_t uk_spec,
+				[in, size=uk_blob_size] const uint8_t *uk_blob, size_t uk_blob_size,
+                [out, size=new_encrypted_key_len] uint8_t *new_encrypted_key, size_t new_encrypted_key_len);
+
         public sgx_status_t sgx_create_rsa_key([out, size=cmk_blob_size] uint8_t *cmk_blob, size_t cmk_blob_size,
                                                [out] size_t *req_blob_size);
         public sgx_status_t sgx_rsa_sign([in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
