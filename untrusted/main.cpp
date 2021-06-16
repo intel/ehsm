@@ -51,6 +51,7 @@ EH_RV testAES()
     EH_BYTE_PTR dec_secret = NULL;
     EH_ULONG enc_len = 0;
     EH_ULONG dec_len = 0;
+    printf("============testAES start==========\n");
 
     printf("plain secret:%s, len is %ld\n", plain_secret, secret_len);
 
@@ -130,6 +131,7 @@ cleanup:
         free(enc_secret);
     if (key_blob.pKeyData != NULL)
         free(key_blob.pKeyData);
+    printf("============testAES Done==========\n");
 
     return rv;
 }
@@ -148,6 +150,7 @@ EH_RV testRSA()
         printf("untrusted test rsa CreateKey get size FAILED.\n");
         return EHR_FUNCTION_FAILED;
     }
+    printf("============testRSA start==========\n");
 
     printf("untrusted test rsa CreateKey get size(%lu) SUCCESSFULLY.\n", key_blob.ulKeyLen);
 
@@ -229,6 +232,7 @@ EH_RV testRSA()
         return ret1;
     if (ret2 != EHR_OK)
         return ret2;
+    printf("============testRSA done==========\n");
 
     return EHR_OK;
 }
@@ -251,6 +255,7 @@ EH_RV testGenerateDataKey()
     me.mechanism = EHM_AES_GCM_128;
     me.pParameter = &gcm_para;
     me.ulParameterLen = sizeof(gcm_para);
+    printf("============testGenerateDataKey start==========\n");
 
     //Here need to call CreateKey twice.
     //On first time, set pData to NULL to get needed key blob size.
@@ -307,7 +312,7 @@ EH_RV testGenerateDataKey()
     for (i = 0; i < key_len; i++) {
         printf("0x%x:", *(plain_key + i));
     }
-    printf("GenerateDataKey done\n");
+    printf("\nGenerateDataKey done\n");
 
     if ((rv = Decrypt(&me, &master_key_blob, enc_key, enc_key_len, NULL, &dec_key_len)) == EHR_OK) {
         printf("get dec key len done 0x%lx\n", dec_key_len);
@@ -330,7 +335,7 @@ EH_RV testGenerateDataKey()
     for (i = 0; i < dec_key_len; i++) {
         printf("0x%x:", *(dec_key + i));
     }
-    printf("decrypt done\n");
+    printf("\ndecrypt done\n");
 
     if ((rv = GenerateDataKeyWithoutPlaintext(&me, &master_key_blob, key_len, NULL, &enc_key_len) == EHR_OK)) {
         printf("get enc data key len done 0x%lx\n", enc_key_len);
@@ -372,7 +377,7 @@ EH_RV testGenerateDataKey()
     for (i = 0; i < dec_key_len; i++) {
         printf("0x%x:", *(dec_key + i));
     }
-    printf("decrypt done\n");
+    printf("\ndecrypt done\n");
 
 cleanup:
     if (plain_key != NULL)
@@ -383,6 +388,7 @@ cleanup:
         free(enc_key);
     if (master_key_blob.pKeyData != NULL)
         free(master_key_blob.pKeyData);
+    printf("============testGenerateDataKey done==========\n");
 
     return rv;
 }
@@ -450,7 +456,7 @@ EH_RV testExportDataKey()
         printf("Createkey with aes-gcm-128 failed!\n");
         goto cleanup;
     }
-    printf("Create an aes-gcm-128 key as the CMK done!\n");
+    printf("Create an aes-gcm-128 key as the CMK SUCCESSFULLY!\n");
 
     //step2. generate a cipher datakey which encrypted by the CMK
     me.mechanism = EHM_AES_GCM_128;
@@ -479,7 +485,7 @@ EH_RV testExportDataKey()
         printf("Failed(%d) to generate the DataKey!\n", rv);
         goto cleanup;
     }
-    printf("Generated a CipherDataKey that encrypted by the CMK succeed.\n");
+    printf("Generated a CipherDataKey that encrypted by the CMK SUCCESSFULLY.\n");
 
 
     //step3. verify the cipher text could be decrypted by CMK correctly
@@ -504,7 +510,7 @@ EH_RV testExportDataKey()
     for (i = 0; i < datakey_plaintlen; i++) {
         printf("0x%x:", *(datakey_plaintext + i));
     }
-    printf("\nThe DataKey decrypted by the CMK succeed!\n");
+    printf("\nThe DataKey decrypted by the CMK SUCCESSFULLY!\n");
 
 
     //step4. generate a new rsa key pair as the user-supplied asymmetric keymeterials.
@@ -530,7 +536,7 @@ EH_RV testExportDataKey()
         printf("Failed to create rsa key!\n");
         goto cleanup;
     }
-    printf("Create a user rsa keypair succeed!\n");
+    printf("Create a user rsa keypair SUCCESSFULLY!\n");
 
     //step5. export the datakey with the new user public key
     rv = ExportDataKey(&me, &user_key_blob, &master_key_blob, datakey_ciphertext, datakey_cipherlen, NULL, &datakey_cipherlen_new);
@@ -551,7 +557,7 @@ EH_RV testExportDataKey()
         goto cleanup;
     }
 
-    printf("ExportDataKey succeed!\n");
+    printf("ExportDataKey SUCCESSFULLY!\n");
 
     //step6. verify that the new datakey cipher text could be decrypt succeed by the user rsa key pair
     me.mechanism = EHM_RSA_3072;
@@ -576,7 +582,7 @@ EH_RV testExportDataKey()
     for (i = 0; i < datakey_plaintlen_new; i++) {
         printf("0x%x:", *(datakey_plainttext_new + i));
     }
-    printf("\nThe DataKey decrypted by the user-supplied asymmetric key succeed!\n");
+    printf("\nThe DataKey decrypted by the user-supplied asymmetric key SUCCESSFULLY!\n");
 
 cleanup:
     if (datakey_plaintext != NULL)
@@ -613,29 +619,11 @@ int main(int argc, char* argv[])
     }
     printf("Initialize done\n");
 
-    printf("AES test start\n");
-    rv = testAES();
-    if (rv != EHR_OK) {
-        printf("AES test failed 0x%lx\n", rv);
-        ret = -1;
-    }
-    printf("AES test done\n");
+    testAES();
 
-    printf("GenerateDataKey test start\n");
-    rv = testGenerateDataKey();
-    if (rv != EHR_OK) {
-        printf("GenerateDataKey test failed 0x%lx\n", rv);
-        ret = -1;
-    }
-    printf("GenerateDataKey test done\n");
+    testGenerateDataKey();
 
-    printf("RSA test start\n");
-    rv = testRSA();
-    if (rv != EHR_OK) {
-        printf("untrusted print test rsa failed.\n");
-        ret = -1;
-    }
-    printf("RSA test done.\n");
+    testRSA();
 
     testExportDataKey();
 
