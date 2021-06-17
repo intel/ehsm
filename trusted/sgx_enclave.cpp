@@ -402,7 +402,7 @@ sgx_status_t sgx_export_datakey(uint32_t cmk_key_spec,
     if (cmk_blob == NULL || uk_blob == NULL || encrypted_key ==  NULL || new_encrypted_key == NULL)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (encrypted_key_len > 1024 || encrypted_key_len == 0 ||
+    if (encrypted_key_len > 1024 ||
         encrypted_key_len < EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
