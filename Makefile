@@ -36,6 +36,7 @@ SGX_MODE ?= HW
 #SGX_MODE ?= SIM
 SGX_ARCH ?= x64
 SGX_DEBUG ?= 1
+SUPPLIED_KEY_DERIVATION ?=1
 
 include $(SGX_SDK)/buildenv.mk
 
@@ -67,6 +68,10 @@ ifeq ($(SGX_DEBUG), 1)
         SGX_COMMON_FLAGS += -O0 -g
 else
         SGX_COMMON_FLAGS += -O2
+endif
+
+ifeq ($(SUPPLIED_KEY_DERIVATION), 1)
+	SGX_COMMON_FLAGS += -DSUPPLIED_KEY_DERIVATION
 endif
 
 SGX_COMMON_FLAGS += -Wall -Wextra -Winit-self -Wpointer-arith -Wreturn-type \
