@@ -35,6 +35,7 @@ SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
 SGX_DEBUG ?= 1
+SUPPLIED_KEY_DERIVATION ?= 1
 
 include $(SGX_SDK)/buildenv.mk
 
@@ -60,6 +61,10 @@ ifeq ($(SGX_DEBUG), 1)
 ifeq ($(SGX_PRERELEASE), 1)
 $(error Cannot set SGX_DEBUG and SGX_PRERELEASE at the same time!!)
 endif
+endif
+
+ifeq ($(SUPPLIED_KEY_DERIVATION), 1)
+	SGX_COMMON_FLAGS += -DSUPPLIED_KEY_DERIVATION
 endif
 
 ifeq ($(SGX_DEBUG), 1)
