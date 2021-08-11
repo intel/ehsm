@@ -18,7 +18,7 @@ void ocall_print_string(const char *str)
      printf("Enclave: %s", str);
 }
 
-int main(int argc, char* argv[])
+int main()
 {
     int ret = 0;
 
