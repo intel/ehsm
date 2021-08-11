@@ -76,6 +76,7 @@ static void Connect()
         }
         else {
             printf("Fail to connect socket server.\n");
+			close(sockFd);
             return;
         }
     } while (retry_count-- > 0);
@@ -679,10 +680,6 @@ EH_RV ExportDataKey(EH_MECHANISM_PTR pMechanism,
     EH_BYTE_PTR pContext = NULL;
     EH_ULONG ulContextLen = 0;
 
-    if (pUsrKeyBlob->ulKeyType != EHM_RSA_3072) {
-        return EHR_ARGUMENTS_BAD;
-    }
-
     if (pNewEncryptedDataKey == NULL && pulNewEncryptedDataKeyLen != NULL) {
         *pulNewEncryptedDataKeyLen = RSA_OAEP_3072_CIPHER_LENGTH;
         return EHR_OK;
@@ -699,7 +696,11 @@ EH_RV ExportDataKey(EH_MECHANISM_PTR pMechanism,
         return EHR_ARGUMENTS_BAD;
     }
 
-    switch(pMechanism->mechanism) {
+	if (pUsrKeyBlob->ulKeyType != EHM_RSA_3072) {
+        return EHR_ARGUMENTS_BAD;
+    }
+
+	switch(pMechanism->mechanism) {
         case EHM_AES_GCM_128:
             if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
                 return EHR_ARGUMENTS_BAD;

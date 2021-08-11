@@ -86,8 +86,7 @@ endif
 Untrusted_Cpp_Files := $(wildcard untrusted/*.cpp)
 Untrusted_Include_Paths := -I$(SGX_SDK)/include -Iinclude -Iuntrusted
 
-Untrusted_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(Untrusted_Include_Paths) \
-                     -DENCLAVE_PATH=\"$(Enclave_Path)\" -DENCLAVE_NAME=\"$(Signed_Enclave_Name)\"
+Untrusted_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(Untrusted_Include_Paths)
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.

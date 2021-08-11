@@ -165,7 +165,7 @@ sgx_status_t sgx_store_domainkey(uint8_t *blob, uint32_t blob_size)
 
     uint32_t dec_key_size = sgx_get_encrypt_txt_len((sgx_sealed_data_t *)blob);
     if (dec_key_size == UINT32_MAX || dec_key_size != SGX_AES_KEY_SIZE) {
-        printf("dec_key_size size:%d is not expected: %d.\n", dec_key_size, sizeof(sgx_key_128bit_t));
+        printf("dec_key_size size:%d is not expected: %lu.\n", dec_key_size, sizeof(sgx_key_128bit_t));
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -241,7 +241,7 @@ sgx_status_t sgx_aes_encrypt(const uint8_t *aad, size_t aad_len,
 
     uint32_t enc_key_size = sgx_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk_blob);
     if (enc_key_size == UINT32_MAX || enc_key_size != sizeof(sgx_key_128bit_t)) {
-        printf("enc_key_size:%d is not expected: %d.\n", enc_key_size, sizeof(sgx_key_128bit_t));
+        printf("enc_key_size:%d is not expected: %lu.\n", enc_key_size, sizeof(sgx_key_128bit_t));
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -266,8 +266,8 @@ sgx_status_t sgx_aes_encrypt(const uint8_t *aad, size_t aad_len,
                           &enc_key_size, (uint8_t *)&enc_key,
                           (sgx_aes_gcm_data_ex_t *)cmk_blob);
     if (ret != SGX_SUCCESS) {
-        printf("error unsealing key 0x%lx\n", ret);
-        return ret;
+        printf("failed to decrypt key\n");
+		return ret;
     }
 
     ret = sgx_rijndael128GCM_encrypt(&enc_key, plaintext, plaintext_len,
@@ -298,7 +298,7 @@ sgx_status_t sgx_aes_decrypt(const uint8_t *aad, size_t aad_len,
 
     uint32_t dec_key_size = sgx_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk_blob);
     if (dec_key_size == UINT32_MAX || dec_key_size != sizeof(sgx_key_128bit_t)) {
-        printf("dec_key_size size:%d is not expected: %d.\n", dec_key_size, sizeof(sgx_key_128bit_t));
+        printf("dec_key_size size:%d is not expected: %lu.\n", dec_key_size, sizeof(sgx_key_128bit_t));
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -471,7 +471,7 @@ sgx_status_t sgx_create_rsa_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t 
     }
 
     if (cmk_blob == NULL || cmk_blob_size < real_keyblob_size) {
-        printf("ecall create_rsa_key cmk_keyblob_size:%d < key_blob_size:%d.\n", cmk_blob_size, real_keyblob_size);
+        printf("ecall create_rsa_key cmk_keyblob_size:%lu < key_blob_size:%d.\n", cmk_blob_size, real_keyblob_size);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -539,7 +539,7 @@ sgx_status_t sgx_rsa_sign(const uint8_t *cmk_blob, size_t cmk_blob_size, const u
     const sgx_aes_gcm_data_ex_t *rsa_key_blob = (sgx_aes_gcm_data_ex_t *)(cmk_blob + sizeof(sgx_rsa3072_public_key_t));
     uint32_t rsa_key_len = sgx_get_gcm_ciphertext_size(rsa_key_blob);
     if (rsa_key_len == UINT32_MAX || rsa_key_len != sizeof(rsa_params_t)) {
-        printf("ecall rsa_sign rsa key size:%d is not expected: %d.\n", rsa_key_len, sizeof(rsa_params_t));
+        printf("ecall rsa_sign rsa key size:%d is not expected: %lu.\n", rsa_key_len, sizeof(rsa_params_t));
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -707,7 +707,7 @@ sgx_status_t sgx_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, cons
     const sgx_aes_gcm_data_ex_t *rsa_key_blob = (sgx_aes_gcm_data_ex_t *)(cmk_blob + sizeof(sgx_rsa3072_public_key_t));
     uint32_t rsa_key_len = sgx_get_gcm_ciphertext_size(rsa_key_blob);
     if (rsa_key_len == UINT32_MAX || rsa_key_len != sizeof(rsa_params_t)) {
-        printf("ecall rsa_decrypt rsa key size:%d is not expected: %d.\n", rsa_key_len, sizeof(rsa_params_t));
+        printf("ecall rsa_decrypt rsa key size:%d is not expected: %lu.\n", rsa_key_len, sizeof(rsa_params_t));
         return SGX_ERROR_INVALID_PARAMETER;
     }
 

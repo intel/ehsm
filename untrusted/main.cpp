@@ -432,6 +432,12 @@ EH_RV testExportDataKey()
 
     uint32_t i = 0;
 
+	EH_KEY_BLOB user_key_blob;
+
+    user_key_blob.pKeyData = NULL;
+    user_key_blob.ulKeyLen = 0;
+
+
     printf("============testExportDataKey start==========\n");
 
     //step1. generate a customer master key
@@ -482,7 +488,7 @@ EH_RV testExportDataKey()
 
     rv = GenerateDataKeyWithoutPlaintext(&me, &master_key_blob, datakey_len, datakey_ciphertext, &datakey_cipherlen);
     if (rv != EHR_OK) {
-        printf("Failed(%d) to generate the DataKey!\n", rv);
+        printf("Failed(%lu) to generate the DataKey!\n", rv);
         goto cleanup;
     }
     printf("Generated a CipherDataKey that encrypted by the CMK SUCCESSFULLY.\n");
@@ -514,11 +520,6 @@ EH_RV testExportDataKey()
 
 
     //step4. generate a new rsa key pair as the user-supplied asymmetric keymeterials.
-    EH_KEY_BLOB user_key_blob;
-
-    user_key_blob.pKeyData = NULL;
-    user_key_blob.ulKeyLen = 0;
-
     rv = CreateKey(EHM_RSA_3072, origin, &user_key_blob);
     if (rv != EHR_OK) {
         printf("Failed to get data size of CreateKey with RSA key!\n");
@@ -553,7 +554,7 @@ EH_RV testExportDataKey()
 
     rv = ExportDataKey(&me, &user_key_blob, &master_key_blob, datakey_ciphertext, datakey_cipherlen, datakey_ciphertext_new, &datakey_cipherlen_new);
     if (rv != EHR_OK) {
-        printf("Failed(%d) to export the datakey with the user-supplied asymmetric key!\n", rv);
+        printf("Failed(%lu) to export the datakey with the user-supplied asymmetric key!\n", rv);
         goto cleanup;
     }
 
