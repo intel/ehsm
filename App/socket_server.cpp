@@ -162,14 +162,15 @@ static int32_t SendResponse(int32_t sockfd,
 }
 
 static int32_t SendErrResponse(int32_t sockfd, int8_t type, int8_t err) {
-    ra_samp_response_header_t  p_err_resp_full = {0};
+    ra_samp_response_header_t  p_err_resp_full;
+    memset(&p_err_resp_full, 0, sizeof(ra_samp_response_header_t));
 
     p_err_resp_full.type = type;
     p_err_resp_full.status[0] = err;
     return SendResponse(sockfd, &p_err_resp_full);
 }
 
-
+/*
 static int fake_rand(uint8_t *buf, size_t size)
 {
     uint32_t i;
@@ -182,11 +183,12 @@ static int fake_rand(uint8_t *buf, size_t size)
 
     return 0;
 }
+*/
 
 // Verify message 1 then generate and return message 2 to isv.
 int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
-						uint32_t msg1_size,
-						ra_samp_response_header_t **pp_msg2)
+                        uint32_t msg1_size,
+                        ra_samp_response_header_t **pp_msg2)
 {
     int ret = 0;
     ra_samp_response_header_t* p_msg2_full = NULL;
@@ -205,7 +207,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         // GID is Base-16 encoded of EPID GID in little-endian format.
         // In the product, the SP and attestation server uses an established channel for
         // communication.
-        uint8_t* sig_rl;
+        uint8_t* sig_rl = NULL;
         uint32_t sig_rl_size = 0;
 
         //clear the g_sp_db database when the attesation session begins.
@@ -877,7 +879,7 @@ int SocketDispatchCmd(
     default:
         printf("Cannot dispatch unknown msg type %d\n", req->type);
         return ERR_NOT_IMPLEMENTED;
-    } 
+    }
 
     return ret;
 }
@@ -887,9 +889,9 @@ int SocketDispatchCmd(
 */
 static void* SocketMsgHandler(void *sock_addr)
 {
-    ra_samp_request_header_t *req;
-    ra_samp_response_header_t *resp;
-    uint32_t req_size, resp_size;
+    ra_samp_request_header_t *req = NULL;
+    ra_samp_response_header_t *resp = NULL;
+    uint32_t req_size;
 
     int32_t sockfd = *(int32_t*)sock_addr;
     int32_t ret;
@@ -916,19 +918,21 @@ static void* SocketMsgHandler(void *sock_addr)
         }
 
         ret = SocketDispatchCmd(req,&resp);
-        if (ret < 0) {
+        if (ret < 0 || !resp) {
             printf("failed(%d) to handle msg type(%d)\n", ret, req->type);
             SendErrResponse(sockfd, req->type, ret);
+
+            SAFE_FREE(req);
+            SAFE_FREE(resp);
             continue;
         }
 
-        SendResponse(sockfd, resp);
+        if (resp)
+            SendResponse(sockfd, resp);
 
         SAFE_FREE(req);
         SAFE_FREE(resp);
     }
-
-    SAFE_FREE(req);
 
     return 0;
 }
@@ -955,6 +959,7 @@ void Initialize() {
     /* Bind the server socket */
     if ((ret = bind(listenfd,(struct sockaddr *)&serAddr , sizeof(serAddr))) < 0) {
         printf("bind failed(%d)\n", ret);
+        close(listenfd);
         return;
     }
 
@@ -972,8 +977,10 @@ void Initialize() {
         }
 
         char *ipaddr = hexToCharIP(cliAddr.sin_addr);
-        if (ipaddr)
+        if (ipaddr) {
             printf("New Client(%d) connected! IP=%s\n", connfd, ipaddr);
+            free(ipaddr);
+        }
 
         pthread_t sniffer_thread;
         if (pthread_create(&sniffer_thread, NULL, SocketMsgHandler, (void *)&connfd) < 0) {

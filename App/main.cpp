@@ -12,7 +12,7 @@ void ocall_print_string(const char *str)
 }
 
 
-int main(int argc, char* argv[]) {
+int main() {
     Initialize();
 
     return 0;

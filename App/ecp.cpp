@@ -58,7 +58,7 @@ bool verify_cmac128(
     uint32_t buf_size,
     const uint8_t *p_mac_buf)
 {
-    uint8_t data_mac[SAMPLE_EC_MAC_SIZE];
+    uint8_t data_mac[SAMPLE_EC_MAC_SIZE]={0};
     sample_status_t sample_ret;
 
     sample_ret = sample_rijndael128_cmac_msg((sample_cmac_128bit_key_t*)mac_key,
