@@ -1,16 +1,19 @@
 deployserver/App/enclave_u.*
 deployserver/Enclave/enclave_t.*
-deployserver/*.o
+deployserver/App/*.o
+deployserver/Enclave/*.o
 deployserver/out/
 
 deployproxy/App/enclave_u.*
 deployproxy/Enclave/enclave_t.*
-deployproxy/*.o
+deployproxy/App/*.o
+deployproxy/Enclave/*.o
 deployproxy/out/
 
-core/untrusted/enclave_u.*
-core/trusted/enclave_t.*
-core/*.o
+core/untrusted/enclave_hsm_u.*
+core/trusted/enclave_hsm_t.*
+core/untrusted/*.o
+core/trusted/*.o
 core/out/
 
 
