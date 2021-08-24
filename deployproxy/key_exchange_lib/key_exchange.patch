@@ -1,0 +1,313 @@
+diff --git a/sdk/tkey_exchange/tkey_exchange.cpp b/sdk/tkey_exchange/tkey_exchange.cpp
+old mode 100644
+new mode 100755
+index e4254e24..719fbc17
+--- a/sdk/tkey_exchange/tkey_exchange.cpp
++++ b/sdk/tkey_exchange/tkey_exchange.cpp
+@@ -43,7 +43,6 @@
+ #include "simple_vector.h"
+ #include "se_cdefs.h"
+ 
+-
+ // Add a version to tkey_exchange.
+ SGX_ACCESS_VERSION(tkey_exchange, 1)
+ 
+@@ -383,7 +382,6 @@ extern "C" sgx_status_t sgx_ra_proc_msg2_trusted(
+     return se_ret;
+ }
+ 
+-
+ /* the caller is supposed to fill the quote field in emp_msg3 before calling
+  * this function.*/
+ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+@@ -392,8 +390,10 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+     sgx_report_t* qe_report,
+     sgx_ra_msg3_t *emp_msg3,    //(mac||g_a||ps_sec_prop||quote)
+     uint32_t msg3_size)
++
+ {
+-    if(vector_size(&g_ra_db) <= context ||!quote_size || !qe_report || !emp_msg3)
++    UNUSED(qe_report);
++    if(vector_size(&g_ra_db) <= context ||!quote_size || !emp_msg3)
+         return SGX_ERROR_INVALID_PARAMETER;
+ 
+     ra_db_item_t* item = NULL;
+@@ -424,16 +424,6 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+ 
+     sgx_status_t se_ret = SGX_ERROR_UNEXPECTED;
+ 
+-    //verify qe report
+-    se_ret = sgx_verify_report(qe_report);
+-    if(se_ret != SGX_SUCCESS)
+-    {
+-        if (SGX_ERROR_MAC_MISMATCH != se_ret &&
+-            SGX_ERROR_OUT_OF_MEMORY != se_ret)
+-            se_ret = SGX_ERROR_UNEXPECTED;
+-        return se_ret;
+-    }
+-
+     sgx_spin_lock(&item->item_lock);
+     //sgx_ra_proc_msg2_trusted must have been called
+     if (item->state != ra_proc_msg2ed)
+@@ -441,13 +431,6 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+         sgx_spin_unlock(&item->item_lock);
+         return SGX_ERROR_INVALID_STATE;
+     }
+-    //verify qe_report attributes and mr_enclave same as quoting enclave
+-    if( memcmp( &qe_report->body.attributes, &item->qe_target.attributes, sizeof(sgx_attributes_t)) ||
+-        memcmp( &qe_report->body.mr_enclave, &item->qe_target.mr_enclave, sizeof(sgx_measurement_t)) )
+-    {
+-        sgx_spin_unlock(&item->item_lock);
+-        return SGX_ERROR_INVALID_PARAMETER;
+-    }
+ 
+     sgx_ra_msg3_t msg3_except_quote_in;
+     sgx_cmac_128bit_key_t smk_key;
+@@ -457,35 +440,10 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+     memcpy(&smk_key, &item->smk_key, sizeof(smk_key));
+     sgx_spin_unlock(&item->item_lock);
+ 
+-    sgx_sha_state_handle_t sha_handle = NULL;
+     sgx_cmac_state_handle_t cmac_handle = NULL;
+ 
+-
+-    //SHA256(NONCE || emp_quote)
+-    sgx_sha256_hash_t hash = {0};
+-    se_ret = sgx_sha256_init(&sha_handle);
+-    if (SGX_SUCCESS != se_ret)
+-    {
+-        if(SGX_ERROR_OUT_OF_MEMORY != se_ret)
+-            se_ret = SGX_ERROR_UNEXPECTED;
+-        return se_ret;
+-    }
+-    if (NULL == sha_handle)
+-        {
+-            return SGX_ERROR_UNEXPECTED;
+-        }
+     do
+     {
+-        se_ret = sgx_sha256_update((uint8_t *)&item->quote_nonce,
+-            sizeof(item->quote_nonce),
+-            sha_handle);
+-        if (SGX_SUCCESS != se_ret)
+-        {
+-            if(SGX_ERROR_OUT_OF_MEMORY != se_ret)
+-                se_ret = SGX_ERROR_UNEXPECTED;
+-            break;
+-        }
+-
+          //cmac   M := ga || PS_SEC_PROP_DESC(all zero if unused) ||emp_quote
+         sgx_cmac_128bit_tag_t mac;
+         se_ret = sgx_cmac128_init(&smk_key, &cmac_handle);
+@@ -517,7 +475,7 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+             break;
+         }
+ 
+-        // sha256 and cmac quote
++        // cmac quote
+         uint8_t quote_piece[32];
+         const uint8_t* emp_quote_piecemeal = emp_msg3->quote;
+         uint32_t quote_piece_size = static_cast<uint32_t>(sizeof(quote_piece));
+@@ -528,15 +486,7 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+             if (static_cast<uint32_t>(emp_msg3->quote + quote_size - emp_quote_piecemeal) < quote_piece_size)
+                 quote_piece_size = static_cast<uint32_t>(emp_msg3->quote - emp_quote_piecemeal) + quote_size ;
+             memcpy(quote_piece, emp_quote_piecemeal, quote_piece_size);
+-            se_ret = sgx_sha256_update(quote_piece,
+-                                    quote_piece_size,
+-                                    sha_handle);
+-           if (SGX_SUCCESS != se_ret)
+-           {
+-               if(SGX_ERROR_OUT_OF_MEMORY != se_ret)
+-                   se_ret = SGX_ERROR_UNEXPECTED;
+-              break;
+-           }
++
+            se_ret = sgx_cmac128_update(quote_piece,
+                                     quote_piece_size,
+                                     cmac_handle);
+@@ -550,15 +500,6 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+         }
+         ERROR_BREAK(se_ret);
+ 
+-        //get sha256 hash value
+-        se_ret = sgx_sha256_get_hash(sha_handle, &hash);
+-        if (SGX_SUCCESS != se_ret)
+-        {
+-            if(SGX_ERROR_OUT_OF_MEMORY != se_ret)
+-                se_ret = SGX_ERROR_UNEXPECTED;
+-            break;
+-        }
+-
+         //get cmac value
+         se_ret = sgx_cmac128_final(cmac_handle, &mac);
+         if (SGX_SUCCESS != se_ret)
+@@ -568,19 +509,12 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
+             break;
+         }
+ 
+-        //verify qe_report->body.report_data == SHA256(NONCE || emp_quote)
+-        if(0 != memcmp(&qe_report->body.report_data, &hash, sizeof(hash)))
+-        {
+-            se_ret = SGX_ERROR_MAC_MISMATCH;
+-            break;
+-        }
+-
+         memcpy(&msg3_except_quote_in.mac, mac, sizeof(mac));
+         memcpy(emp_msg3, &msg3_except_quote_in, offsetof(sgx_ra_msg3_t, quote));
+         se_ret = SGX_SUCCESS;
+     }while(0);
+     memset_s(&smk_key, sizeof(smk_key), 0, sizeof(smk_key));
+-    (void)sgx_sha256_close(sha_handle);
++
+     if(cmac_handle != NULL)
+         sgx_cmac128_close(cmac_handle);
+     return se_ret;
+diff --git a/sdk/ukey_exchange/ukey_exchange.cpp b/sdk/ukey_exchange/ukey_exchange.cpp
+old mode 100644
+new mode 100755
+index c55aba9a..037dd625
+--- a/sdk/ukey_exchange/ukey_exchange.cpp
++++ b/sdk/ukey_exchange/ukey_exchange.cpp
+@@ -48,6 +48,10 @@
+ #include "se_lock.hpp"
+ 
+ #include "se_cdefs.h"
++#include <stdio.h>
++#include "sgx_quote_3.h"
++#include "sgx_ql_lib_common.h"
++#include "sgx_dcap_ql_wrapper.h"
+ 
+ SGX_ACCESS_VERSION(ukey_exchange, 1)
+ 
+@@ -222,7 +226,6 @@ CLEANUP:
+     return ret;
+ }
+ 
+-
+ sgx_status_t SGXAPI sgx_ra_get_msg1_ex(
+ 	const sgx_att_key_id_t *p_att_key_id,
+ 	sgx_ra_context_t context,
+@@ -230,32 +233,23 @@ sgx_status_t SGXAPI sgx_ra_get_msg1_ex(
+ 	sgx_ecall_get_ga_trusted_t p_get_ga,
+     sgx_ra_msg1_t *p_msg1)
+ {
++    sgx_status_t ret = SGX_SUCCESS;
++    quote3_error_t qe3_ret = SGX_QL_SUCCESS;
++
+     if(!p_msg1 || !p_get_ga || !p_att_key_id)
+         return SGX_ERROR_INVALID_PARAMETER;
+-    size_t pub_key_id_size = 0;
++
+     sgx_target_info_t qe_target_info;
+ 
+     memset(&qe_target_info, 0, sizeof(qe_target_info));
+-    sgx_status_t ret = sgx_init_quote_ex(p_att_key_id, &qe_target_info, &pub_key_id_size, NULL);
+-    if(SGX_SUCCESS != ret)
+-        return ret;
+-    uint8_t *p_pub_key_id = (uint8_t *)malloc(pub_key_id_size);
+-    if (NULL == p_pub_key_id)
+-        return SGX_ERROR_OUT_OF_MEMORY;
+-    ret = sgx_init_quote_ex(p_att_key_id, &qe_target_info, &pub_key_id_size, p_pub_key_id);
+-    if(SGX_SUCCESS != ret)
+-    {
+-        free(p_pub_key_id);
++    qe3_ret = sgx_qe_get_target_info(&qe_target_info);
++    if (SGX_QL_SUCCESS != qe3_ret) {
++        printf("Error in sgx_qe_get_target_info. 0x%04x\n", qe3_ret);
++        ret = SGX_ERROR_UNEXPECTED;
+         return ret;
+     }
+-    free(p_pub_key_id);
++
+     g_ukey_spin_lock.lock();
+-    if(memcpy_s(&g_att_key_id, sizeof(*p_att_key_id),
+-             p_att_key_id, sizeof(*p_att_key_id)) != 0)
+-    {
+-        g_ukey_spin_lock.unlock();
+-        return SGX_ERROR_UNEXPECTED;
+-    }
+     if(memcpy_s(&g_qe_target_info, sizeof(g_qe_target_info),
+              &qe_target_info, sizeof(qe_target_info)) != 0)
+     {
+@@ -295,12 +289,13 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
+     if(msg2_size != sizeof(sgx_ra_msg2_t) + p_msg2->sig_rl_size)
+         return SGX_ERROR_INVALID_PARAMETER;
+ 
++    uint32_t quote_size = 0;
++    quote3_error_t qe3_ret = SGX_QL_SUCCESS;
+     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+     sgx_report_t report;
+     sgx_ra_msg3_t *p_msg3 = NULL;
+ 
+     memset(&report, 0, sizeof(report));
+-
+     {
+         sgx_quote_nonce_t nonce;
+         sgx_target_info_t qe_target_info;
+@@ -323,6 +318,7 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
+             goto CLEANUP;
+         }
+         g_ukey_spin_lock.unlock();
++
+         ret = p_proc_msg2(eid, &status, context, p_msg2, &qe_target_info,
+                           &report, &nonce);
+         if(SGX_SUCCESS!=ret)
+@@ -335,10 +331,10 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
+             goto CLEANUP;
+         }
+ 
+-        uint32_t quote_size = 0;
+-        ret = sgx_get_quote_size_ex(p_att_key_id, &quote_size);
+-        if(SGX_SUCCESS!=ret)
+-        {
++        qe3_ret = sgx_qe_get_quote_size(&quote_size);
++        if (SGX_QL_SUCCESS != qe3_ret) {
++            printf("Error in sgx_qe_get_quote_size. 0x%04x\n", qe3_ret);
++            ret =SGX_ERROR_UNEXPECTED;
+             goto CLEANUP;
+         }
+ 
+@@ -357,29 +353,15 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
+         }
+         memset(p_msg3, 0, msg3_size);
+ 
+-        sgx_qe_report_info_t qe_report_info;
+-        memset(&qe_report_info.app_enclave_target_info, 0, sizeof(qe_report_info.app_enclave_target_info));
+-        memcpy_s(&(qe_report_info.app_enclave_target_info.attributes),
+-                sizeof(qe_report_info.app_enclave_target_info.attributes),
+-                &report.body.attributes,
+-                sizeof(report.body.attributes));
+-        memcpy_s(&(qe_report_info.app_enclave_target_info.mr_enclave),
+-                sizeof(qe_report_info.app_enclave_target_info.mr_enclave),
+-                &report.body.mr_enclave,
+-                sizeof(report.body.mr_enclave));
+-        memcpy_s(&(qe_report_info.app_enclave_target_info.misc_select),
+-                sizeof(qe_report_info.app_enclave_target_info.misc_select),
+-                &report.body.misc_select,
+-                sizeof(report.body.misc_select));
+-        memcpy_s(&qe_report_info.nonce, sizeof(qe_report_info.nonce), &nonce, sizeof(nonce));
+-        ret = sgx_get_quote_ex(&report, p_att_key_id, &qe_report_info, p_msg3->quote, quote_size);
+-        if(SGX_SUCCESS!=ret)
+-        {
++        qe3_ret = sgx_qe_get_quote(&report, quote_size, p_msg3->quote);
++        if (SGX_QL_SUCCESS != qe3_ret) {
++            printf( "Error in sgx_qe_get_quote. 0x%04x\n", qe3_ret);
++            ret = SGX_ERROR_UNEXPECTED;
+             goto CLEANUP;
+         }
+ 
+-        ret = p_get_msg3(eid, &status, context, quote_size, &qe_report_info.qe_report,
+-                         p_msg3, msg3_size);
++        //sgx_report_t* qe_report is NULL for ECDSA
++        ret = p_get_msg3(eid, &status, context, quote_size, NULL, p_msg3, msg3_size);
+         if(SGX_SUCCESS!=ret)
+         {
+             goto CLEANUP;
+@@ -389,6 +371,7 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
+             ret = status;
+             goto CLEANUP;
+         }
++
+         *pp_msg3 = p_msg3;
+         *p_msg3_size = msg3_size;
+     }
