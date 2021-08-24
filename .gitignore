@@ -1,4 +1,0 @@
-trusted/enclave_hsm_t.*
-untrusted/enclave_hsm_u.*
-*.o
-out/
