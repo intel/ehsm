@@ -27,7 +27,7 @@
 #include <arpa/inet.h>
 
 #include <error.h>
-#include <socket_client.h>
+#include <ra_client.h>
 
 #include <memory>
 #include <error.h>
@@ -55,7 +55,7 @@ static int32_t g_deploy_sock = -1;
 
 sgx_enclave_id_t g_enclave_id;
 
-namespace socket_client {
+namespace ra_client {
 
 
 // Some utility functions to output some of the data structures passed between

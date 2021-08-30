@@ -6,10 +6,10 @@
 // Needed to create enclave and do ecall.
 #include "sgx_urts.h"
 
-#include "socket_client.h"
+#include "ra_client.h"
 
 using namespace std;
-using namespace socket_client;
+using namespace ra_client;
 
 extern sgx_enclave_id_t g_enclave_id;
 

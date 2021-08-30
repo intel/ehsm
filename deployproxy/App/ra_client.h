@@ -29,8 +29,8 @@
 *
 */
 
-#ifndef SOCKET_CLIENT_H
-#define SOCKET_CLIENT_H
+#ifndef _RA_CLIENT_H_
+#define _RA_CLIENT_H_
 
 #include <cstdint>
 #include <vector>
@@ -40,7 +40,7 @@
 
 using namespace std;
 
-namespace socket_client {
+namespace ra_client {
 
 const char deploy_ip_addr[] = "127.0.0.1";
 const uint32_t deploy_port = 8888;
