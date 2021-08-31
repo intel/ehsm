@@ -269,6 +269,9 @@ EH_RV UpgradeDomainKey()
 
 EH_RV Initialize()
 {
+    sgx_status_t status;
+    uint32_t ret_status;
+
     SgxCrypto::EnclaveHelpers enclaveHelpers;
 
     if (!enclaveHelpers.isSgxEnclaveLoaded())
@@ -279,8 +282,35 @@ EH_RV Initialize()
         }
     }
 
-    if (EHR_OK != RetrieveDomainKey())
-        return EHR_DEVICE_ERROR;
+    // create ECDH session using initiator enclave, it would create ECDH session with responder enclave running in another process
+    status = test_create_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
+    if (status != SGX_SUCCESS || ret_status != 0) {
+        printf("failed to establish secure channel: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
+        enclaveHelpers.unloadSgxEnclave();
+        return -1;
+    }
+    printf("succeed to establish secure channel.\n");
+
+    // Test message exchange between initiator enclave and responder enclave running in another process
+    status = test_message_exchange(enclaveHelpers.getSgxEnclaveId(), &ret_status);
+    if (status != SGX_SUCCESS || ret_status != 0) {
+        printf("test_message_exchange Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
+        enclaveHelpers.unloadSgxEnclave();
+        return -1;
+    }
+    printf("Succeed to exchange secure message...\n");
+
+    // close ECDH session
+    status = test_close_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
+    if (status != SGX_SUCCESS || ret_status != 0) {
+        printf("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
+        enclaveHelpers.unloadSgxEnclave();
+        return -1;
+    }
+    printf("Succeed to close Session...\n");
+
+    //if (EHR_OK != RetrieveDomainKey())
+      //  return EHR_DEVICE_ERROR;
 
     return EHR_OK;
 }

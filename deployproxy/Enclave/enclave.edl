@@ -36,12 +36,15 @@ enclave {
     include "sgx_quote.h"
     include "sgx_trts.h"
     include "stdbool.h"
+    include "datatypes.h"
+    include "../Include/dh_session_protocol.h"
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
     };
 
     trusted {
+        /* Interfaces for remote attestation */
         public sgx_status_t enclave_init_ra(int b_pse,
             [out] sgx_ra_context_t *p_context);
 
@@ -61,6 +64,24 @@ enclave {
             [in,size=secret_size] uint8_t* p_secret,
             uint32_t secret_size,
             [in,count=16] uint8_t* gcm_mac);
+
+
+        /* Interfaces for local attestation */
+		public uint32_t session_request([out] sgx_dh_msg1_t *dh_msg1,
+            [out] uint32_t *session_id);
+
+        public uint32_t exchange_report([in] sgx_dh_msg2_t *dh_msg2,
+            [out] sgx_dh_msg3_t *dh_msg3,
+            uint32_t session_id);
+
+        public uint32_t generate_response([in, size = req_message_size] secure_message_t* req_message,
+            size_t req_message_size,
+            size_t max_payload_size,
+            [out, size=resp_message_size] secure_message_t* resp_message,
+            size_t resp_message_size,
+            uint32_t session_id);
+
+        public uint32_t end_session(uint32_t session_id);
 
     };
 };
