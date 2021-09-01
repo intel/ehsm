@@ -107,26 +107,26 @@ But for the real product, the user need to deploy them into different platform a
     it will create a socket server and wait the connection request from ehsm-dkeycache agent and deploy the DK to it via a remote secure channel based
     on the SGX remote attestation. (The PCCS server is  the above step)
     ```
-***Note**** It's Recommend that the ehsm-dkeycache and ehsm-core should be deployed into one Pod with 1:1 mapping 
+***Note**** It's Recommend that the ehsm-dkeycache and ehsm-core should be deployed into one Pod with 1:1 mapping
 - Start the service of ehsm-dkeycache
     ```shell
     # cd deployserver/out
     # sudo ./ehsm-dkeyserver
-    
+
     It will try connect to the deployserver to retrieve the DK via the secure remote channel estabilished by the remote attestation. Then it will create another new
     socket to wait the connection from ehsm-core service.
-    A local secure channel based the local sealing key will be setup which used to transfer the DK between dkeycache and ehsm-core.
+    A local secure channel based the local attestation protocol will be setup which used to transfer the DK between dkeycache and ehsm-core.
 
     ```
 - Start the service of ehsm-core
     ```shell
     # cd core/out
     # sudo ./ehsm-core
-    
+
     It will try connect to the dkeycache to retrieve the DK via the local secure remote channel, then keep it in the SGX enclave.
-    
+
     When the DK provisioning is done, each key materials generated/imported/exported from the ehsm-core service will be encrypted by the DK, only the cipher text will
     be returned to the caller.
-    A local secure channel based the local sealing key will be setup which used to transfer the DK between dkeycache and ehsm-core.
+    A local secure channel based the local attestation will be setup which used to transfer the DK between dkeycache and ehsm-core.
 
     ```
