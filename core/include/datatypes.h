@@ -90,14 +90,14 @@ typedef struct _ms_in_msg_exchange_t {
     uint32_t msg_type; //Type of Call E2E or general message exchange
     uint32_t target_fn_id; //Function Id to be called in Destination. Is valid only when msg_type=ENCLAVE_TO_ENCLAVE_CALL
     uint32_t inparam_buff_len; //Length of the serialized input parameters
-    char inparam_buff[1]; //Serialized input parameters
+    uint8_t inparam_buff[1]; //Serialized input parameters
 } ms_in_msg_exchange_t;
 
 //Format of the return value and output function parameter structure
 typedef struct _ms_out_msg_exchange_t {
     uint32_t retval_len; //Length of the return value
     uint32_t ret_outparam_buff_len; //Length of the serialized return value and output parameters
-    char ret_outparam_buff[1]; //Serialized return value and output parameters
+    uint8_t ret_outparam_buff[1]; //Serialized return value and output parameters
 } ms_out_msg_exchange_t;
 
 //Session Tracker to generate session ids

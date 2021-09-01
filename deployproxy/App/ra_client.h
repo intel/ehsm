@@ -43,8 +43,8 @@ using namespace std;
 namespace ra_client {
 
 const char deploy_ip_addr[] = "127.0.0.1";
+
 const uint32_t deploy_port = 8888;
-const uint32_t provisioning_port = 8887;
 
 #define ENCLAVE_PATH "enclave.signed.so"
 
@@ -67,23 +67,7 @@ errno_t memcpy_s(void *dest,
         const void *src,
         size_t count);
 
-/* Opens a connection to the socket server */
-void Connect();
-
-/* Closes the connection to socket server */
-void DisConnect();
-
-/* Check the status of the connection */
-bool IsConnected();
-
-void Initialize();
-
-/* Send and Recv msg to/from socket server */
-int SendAndRecvMsg(const ra_samp_request_header_t *req,
-                        ra_samp_response_header_t **p_resp);
-
-int RetreiveDomainKey(const ra_samp_request_header_t *req,
-                    ra_samp_response_header_t **p_resp);
+int32_t Initialize();
 
 }
 

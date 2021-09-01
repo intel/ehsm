@@ -43,7 +43,7 @@
 
 #include "datatypes.h"
 #include "dh_session_protocol.h"
-#include "utility_e2.h"
+#include "marshal.h"
 
 #include "sgx_tcrypto.h"
 
@@ -51,8 +51,8 @@
 extern "C" {
 #endif
 
-uint32_t enclave_to_enclave_call_dispatcher(char* decrypted_data, size_t decrypted_data_length, char** resp_buffer, size_t* resp_length);
-uint32_t message_exchange_response_generator(char* decrypted_data, char** resp_buffer, size_t* resp_length);
+uint32_t enclave_to_enclave_call_dispatcher(uint8_t* decrypted_data, uint32_t decrypted_data_length, uint8_t** resp_buffer, uint32_t* resp_length);
+uint32_t message_exchange_response_generator(uint8_t* decrypted_data, uint8_t** resp_buffer, uint32_t* resp_length);
 uint32_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_enclave_identity);
 
 #ifdef __cplusplus
@@ -122,10 +122,11 @@ extern "C" uint32_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t*
 /* Function Description: Operates on the input secret and generates the output secret */
 uint32_t get_message_exchange_response(uint32_t cmd_id, uint8_t** out, uint32_t* out_size)
 {
-    printf("cmd=%d\n", cmd_id);
+
 
     switch(cmd_id) {
         case MESSAGE_EXCHANGE_CMD_DK:
+            printf("Receive cmd: MESSAGE_EXCHANGE_CMD_DK.\n");
             uint8_t *tmp_data;
 
             tmp_data = (uint8_t*)malloc(SGX_DOMAIN_KEY_SIZE);
@@ -149,9 +150,9 @@ uint32_t get_message_exchange_response(uint32_t cmd_id, uint8_t** out, uint32_t*
  * [input] decrtyped_data: pointer to decrypted data
  * [output] resp_buffer: pointer to response message, which is allocated in this function 
  * [output] resp_length: this is response length */
-extern "C" uint32_t message_exchange_response_generator(char* decrypted_data,
-                                              char** resp_buffer,
-                                               size_t* resp_length)
+extern "C" uint32_t message_exchange_response_generator(uint8_t* decrypted_data,
+                                              uint8_t** resp_buffer,
+                                               uint32_t* resp_length)
 {
     ms_in_msg_exchange_t *ms;
 
@@ -170,10 +171,6 @@ extern "C" uint32_t message_exchange_response_generator(char* decrypted_data,
     get_message_exchange_response(cmd_id, &out, &out_size);
     if(!out || !out_size) {
         return INVALID_PARAMETER;
-    }
-
-    for (uint32_t i=0; i<out_size; i++) {
-        printf("outdata[%d]=%2d\n", i, out[i]);
     }
 
     if(marshal_message_exchange_response(resp_buffer, resp_length, out, out_size) != SUCCESS)
@@ -312,10 +309,10 @@ extern "C" ATTESTATION_STATUS exchange_report(sgx_dh_msg2_t *dh_msg2,
 
 //Process the request from the Source enclave and send the response message back to the Source enclave
 extern "C" ATTESTATION_STATUS generate_response(secure_message_t* req_message,
-                                     size_t req_message_size,
-                                     size_t max_payload_size,
+                                     uint32_t req_message_size,
+                                     uint32_t max_payload_size,
                                      secure_message_t* resp_message,
-                                     size_t resp_message_size,
+                                     uint32_t resp_message_size,
                 				     uint32_t session_id)
 {
     const uint8_t* plaintext;
@@ -324,11 +321,11 @@ extern "C" ATTESTATION_STATUS generate_response(secure_message_t* req_message,
     uint32_t decrypted_data_length;
     uint32_t plain_text_offset;
     ms_in_msg_exchange_t * ms;
-    size_t resp_data_length;
-    size_t resp_message_calc_size;
-    char* resp_data;
+    uint32_t resp_data_length;
+    uint32_t resp_message_calc_size;
+    uint8_t* resp_data;
     uint8_t l_tag[TAG_SIZE];
-    size_t header_size, expected_payload_size;
+    uint32_t header_size, expected_payload_size;
     dh_session_t *session_info;
     secure_message_t* temp_resp_message;
     uint32_t ret;
@@ -404,7 +401,7 @@ extern "C" ATTESTATION_STATUS generate_response(secure_message_t* req_message,
     if(ms->msg_type == MESSAGE_EXCHANGE)
     {
         //Call the generic secret response generator for message exchange
-        ret = message_exchange_response_generator((char*)decrypted_data, &resp_data, &resp_data_length);
+        ret = message_exchange_response_generator((uint8_t*)decrypted_data, &resp_data, &resp_data_length);
         if(ret !=0)
         {
             SAFE_FREE(decrypted_data);

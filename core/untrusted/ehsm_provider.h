@@ -84,14 +84,6 @@ namespace EHsmProvider
 
     /*
     Description:
-    retrieve the domainkey from the deployproxy agent after the kms core enclave initialized.
-    */
-    EH_RV RetrieveDomainKey();
-
-    EH_RV UpgradeDomainKey();
-
-    /*
-    Description:
     Generates EGK and encrypts it with DK.
     Or
     Generates CIWK key pair and encrypts its private key with DK.

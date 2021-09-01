@@ -36,14 +36,14 @@
 #include "stdlib.h"
 #include "string.h"
 
-uint32_t marshal_input_parameters_e2_foo1(uint32_t target_fn_id, uint32_t msg_type, uint32_t var1, uint32_t var2, char** marshalled_buff, size_t* marshalled_buff_len)
+uint32_t marshal_input_parameters_e2_foo1(uint32_t target_fn_id, uint32_t msg_type, uint32_t var1, uint32_t var2, uint8_t** marshalled_buff, uint32_t* marshalled_buff_len)
 {
     ms_in_msg_exchange_t *ms;
-    size_t param_len, ms_len;
-    char *temp_buff;
+    uint32_t param_len, ms_len;
+    uint8_t *temp_buff;
         
     param_len = sizeof(var1)+sizeof(var2);
-    temp_buff = (char*)malloc(param_len);
+    temp_buff = (uint8_t*)malloc(param_len);
     if(!temp_buff)
         return MALLOC_ERROR;
 
@@ -60,21 +60,21 @@ uint32_t marshal_input_parameters_e2_foo1(uint32_t target_fn_id, uint32_t msg_ty
     ms->target_fn_id = target_fn_id;
     ms->inparam_buff_len = (uint32_t)param_len;
     memcpy(&ms->inparam_buff, temp_buff, param_len);
-    *marshalled_buff = (char*)ms;
+    *marshalled_buff = (uint8_t*)ms;
     *marshalled_buff_len = ms_len;
     SAFE_FREE(temp_buff);
     return SUCCESS;
 }
 
-uint32_t unmarshal_retval_and_output_parameters_e2_foo1(char* out_buff, char** retval)
+uint32_t unmarshal_retval_and_output_parameters_e2_foo1(uint8_t* out_buff, uint8_t** retval)
 {
-    size_t retval_len;
+    uint32_t retval_len;
     ms_out_msg_exchange_t *ms;
     if(!out_buff)
         return INVALID_PARAMETER_ERROR;
     ms = (ms_out_msg_exchange_t *)out_buff;
     retval_len = ms->retval_len;
-    *retval = (char*)malloc(retval_len);
+    *retval = (uint8_t*)malloc(retval_len);
     if(!*retval)
         return MALLOC_ERROR;
 
@@ -84,8 +84,8 @@ uint32_t unmarshal_retval_and_output_parameters_e2_foo1(char* out_buff, char** r
 
 uint32_t unmarshal_input_parameters_e1_foo1(external_param_struct_t *pstruct, ms_in_msg_exchange_t* ms)
 {
-    char* buff;
-    size_t len;
+    uint8_t* buff;
+    uint32_t len;
     if(!pstruct || !ms)
         return INVALID_PARAMETER_ERROR;
 
@@ -102,24 +102,24 @@ uint32_t unmarshal_input_parameters_e1_foo1(external_param_struct_t *pstruct, ms
     return SUCCESS;
 }
 
-uint32_t marshal_retval_and_output_parameters_e1_foo1(char** resp_buffer, size_t* resp_length, uint32_t retval, external_param_struct_t *p_struct_var, size_t len_data, size_t len_ptr_data)
+uint32_t marshal_retval_and_output_parameters_e1_foo1(uint8_t** resp_buffer, uint32_t* resp_length, uint32_t retval, external_param_struct_t *p_struct_var, uint32_t len_data, uint32_t len_ptr_data)
 {
     ms_out_msg_exchange_t *ms;
-    size_t param_len, ms_len, ret_param_len;;
-    char *temp_buff;
+    uint32_t param_len, ms_len, ret_param_len;;
+    uint8_t *temp_buff;
     int* addr;
-    char* struct_data;
-    size_t retval_len;
+    uint8_t* struct_data;
+    uint32_t retval_len;
     
     if(!resp_length || !p_struct_var)
         return INVALID_PARAMETER_ERROR;
 
     retval_len = sizeof(retval);
-    struct_data = (char*)p_struct_var;    
+    struct_data = (uint8_t*)p_struct_var;    
     param_len = len_data + len_ptr_data;
     ret_param_len = param_len + retval_len;
     addr = *(int **)(struct_data + len_data);
-    temp_buff = (char*)malloc(ret_param_len);
+    temp_buff = (uint8_t*)malloc(ret_param_len);
     if(!temp_buff)
         return MALLOC_ERROR;
 
@@ -136,17 +136,17 @@ uint32_t marshal_retval_and_output_parameters_e1_foo1(char** resp_buffer, size_t
     ms->retval_len = (uint32_t)retval_len;
     ms->ret_outparam_buff_len = (uint32_t)ret_param_len;
     memcpy(&ms->ret_outparam_buff, temp_buff, ret_param_len);
-    *resp_buffer = (char*)ms;
+    *resp_buffer = (uint8_t*)ms;
     *resp_length = ms_len;
     
     SAFE_FREE(temp_buff);
     return SUCCESS;
 }
 
-uint32_t marshal_message_exchange_request(uint32_t target_fn_id, uint32_t msg_type, uint32_t secret_data, char** marshalled_buff, size_t* marshalled_buff_len)
+uint32_t marshal_message_exchange_request(uint32_t target_fn_id, uint32_t msg_type, uint32_t secret_data, uint8_t** marshalled_buff, uint32_t* marshalled_buff_len)
 {
     ms_in_msg_exchange_t *ms;
-    size_t secret_data_len, ms_len;
+    uint32_t secret_data_len, ms_len;
     if(!marshalled_buff_len)
         return INVALID_PARAMETER_ERROR;
     secret_data_len = sizeof(secret_data);
@@ -159,15 +159,15 @@ uint32_t marshal_message_exchange_request(uint32_t target_fn_id, uint32_t msg_ty
     ms->target_fn_id = target_fn_id;
     ms->inparam_buff_len = (uint32_t)secret_data_len;
     memcpy(&ms->inparam_buff, &secret_data, secret_data_len);
-    *marshalled_buff = (char*)ms;
+    *marshalled_buff = (uint8_t*)ms;
     *marshalled_buff_len = ms_len;
     return SUCCESS;
 }
 
 uint32_t umarshal_message_exchange_request(uint32_t* inp_secret_data, ms_in_msg_exchange_t* ms)
 {
-    char* buff;
-    size_t len;
+    uint8_t* buff;
+    uint32_t len;
     if(!inp_secret_data || !ms)
         return INVALID_PARAMETER_ERROR;
     buff = ms->inparam_buff;
@@ -180,11 +180,11 @@ uint32_t umarshal_message_exchange_request(uint32_t* inp_secret_data, ms_in_msg_
     return SUCCESS;
 }
 
-uint32_t marshal_message_exchange_response(char** resp_buffer, size_t* resp_length, uint8_t* out, uint32_t out_size)
+uint32_t marshal_message_exchange_response(uint8_t** resp_buffer, uint32_t* resp_length, uint8_t* out, uint32_t out_size)
 {
     ms_out_msg_exchange_t *ms;
-    size_t ms_len;
-    size_t retval_len, ret_param_len;
+    uint32_t ms_len;
+    uint32_t retval_len, ret_param_len;
     if(!out)
         return INVALID_PARAMETER_ERROR;
 
@@ -201,25 +201,26 @@ uint32_t marshal_message_exchange_response(char** resp_buffer, size_t* resp_leng
     ms->retval_len = (uint32_t)retval_len;
     ms->ret_outparam_buff_len = (uint32_t)ret_param_len;
     memcpy(&ms->ret_outparam_buff, out, out_size);
-    *resp_buffer = (char*)ms;
+    *resp_buffer = (uint8_t*)ms;
     *resp_length = ms_len;
     return SUCCESS;
 }
 
-uint32_t umarshal_message_exchange_response(char* out_buff, char** secret_response)
+uint32_t umarshal_message_exchange_response(uint8_t* out_buff, uint8_t** secret, uint32_t* secret_len)
 {
-    size_t retval_len;
+    uint32_t retval_len;
     ms_out_msg_exchange_t *ms;
     if(!out_buff)
         return INVALID_PARAMETER_ERROR;
     ms = (ms_out_msg_exchange_t *)out_buff;
     retval_len = ms->retval_len;
-    *secret_response = (char*)malloc(retval_len);
-    if(!*secret_response)
+    *secret = (uint8_t*)malloc(retval_len);
+    if(!*secret)
     {
         return MALLOC_ERROR;
     }
-    memcpy(*secret_response, ms->ret_outparam_buff, retval_len);
+    memcpy(*secret, ms->ret_outparam_buff, retval_len);
+    *secret_len = retval_len;
     return SUCCESS;
 }
 

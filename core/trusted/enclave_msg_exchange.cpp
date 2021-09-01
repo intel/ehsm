@@ -52,11 +52,11 @@ extern "C" {
 ATTESTATION_STATUS create_session(dh_session_t *session_info);
 
 ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
-                                  char *inp_buff,
-                                  size_t inp_buff_len,
-                                  size_t max_out_buff_size,
-                                  char **out_buff,
-                                  size_t* out_buff_len);
+                                  uint8_t *inp_buff,
+                                  uint32_t inp_buff_len,
+                                  uint32_t max_out_buff_size,
+                                  uint8_t **out_buff,
+                                  uint32_t* out_buff_len);
 
 ATTESTATION_STATUS close_session(dh_session_t *session_info);
 
@@ -69,6 +69,8 @@ ATTESTATION_STATUS end_session(sgx_enclave_id_t src_enclave_id);
 #endif
 
 extern void printf(const char *fmt, ...);
+
+extern sgx_aes_gcm_128bit_key_t g_domain_key;
 
 #define MAX_SESSION_COUNT  16
 
@@ -214,11 +216,11 @@ ATTESTATION_STATUS create_session(dh_session_t *session_info)
 
 //Request for the response size, send the request message to the destination enclave and receive the response message back
 ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
-                                  char *inp_buff,
-                                  size_t inp_buff_len,
-                                  size_t max_out_buff_size,
-                                  char **out_buff,
-                                  size_t* out_buff_len)
+                                  uint8_t *inp_buff,
+                                  uint32_t inp_buff_len,
+                                  uint32_t max_out_buff_size,
+                                  uint8_t **out_buff,
+                                  uint32_t* out_buff_len)
 {
     const uint8_t* plaintext;
     uint32_t plaintext_length;
@@ -230,7 +232,7 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
     uint32_t decrypted_data_length;
     uint32_t plain_text_offset;
     uint8_t l_tag[TAG_SIZE];
-    size_t max_resp_message_length;
+    uint32_t max_resp_message_length;
     plaintext = (const uint8_t*)(" ");
     plaintext_length = 0;
 
@@ -276,7 +278,7 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
     }
 
     //Allocate memory for the response payload to be copied
-    *out_buff = (char*)malloc(max_out_buff_size);
+    *out_buff = (uint8_t*)malloc(max_out_buff_size);
     if(!*out_buff)
     {
         SAFE_FREE(req_message);
@@ -441,20 +443,19 @@ uint32_t test_message_exchange()
 {
     ATTESTATION_STATUS ke_status = SUCCESS;
     uint32_t target_fn_id, msg_type;
-    char* marshalled_inp_buff;
-    size_t marshalled_inp_buff_len;
-    char* out_buff;
-    size_t out_buff_len;
-    size_t max_out_buff_size;
-    char* secret_response;
-    //uint32_t secret_data;
+    uint8_t* marshalled_inp_buff;
+    uint32_t marshalled_inp_buff_len;
+    uint8_t* out_buff;
+    uint32_t out_buff_len;
+    uint32_t max_out_buff_size;
+    uint8_t* secret;
+    uint32_t secret_len;
 
     uint32_t cmd_id;
 
     target_fn_id = 0;
     msg_type = MESSAGE_EXCHANGE;
     max_out_buff_size = 50; // it's assumed the maximum payload size in response message is 50 bytes, it's for demonstration purpose
-    //secret_data = 0x12345678; //Secret Data here is shown only for purpose of demonstration.
 
     cmd_id = MESSAGE_EXCHANGE_CMD_DK;
 
@@ -470,24 +471,31 @@ uint32_t test_message_exchange()
                                                 marshalled_inp_buff_len, max_out_buff_size, &out_buff, &out_buff_len);
     if(ke_status != SUCCESS)
     {
-        SAFE_FREE(marshalled_inp_buff);
-        SAFE_FREE(out_buff);
-        return ke_status;
+        printf("failed to send req or recv resp\n");
+        goto out;
     }
 
     //Un-marshal the secret response data
-    ke_status = umarshal_message_exchange_response(out_buff, &secret_response);
+    ke_status = umarshal_message_exchange_response(out_buff, &secret, &secret_len);
     if(ke_status != SUCCESS)
     {
-        SAFE_FREE(marshalled_inp_buff);
-        SAFE_FREE(out_buff);
-        return ke_status;
+        printf("failed to unmarshal the resp\n");
+        goto out;
     }
 
+    if(secret_len != sizeof(g_domain_key)) {
+        printf("the received buffer not matched with domainkey's size\n");
+        ke_status = OUT_BUFFER_LENGTH_ERROR;
+        goto out;
+    }
+    memcpy(g_domain_key, secret, secret_len);
+
+out:
     SAFE_FREE(marshalled_inp_buff);
     SAFE_FREE(out_buff);
-    SAFE_FREE(secret_response);
-    return SUCCESS;
+    SAFE_FREE(secret);
+
+    return ke_status;
 }
 
 

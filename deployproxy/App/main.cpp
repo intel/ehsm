@@ -82,14 +82,12 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    /* Connect to the deploy service*/
-    if(!IsConnected()) {
-        printf("try to connect to the socket server.\n");
-        Connect();
+    // Connect to the dkeyserver and retrieve the domain key via the remote secure channel
+    ret = Initialize();
+    if (ret != 0) {
+        printf("failed to initialize the dkeycache service.\n");
+        sgx_destroy_enclave(g_enclave_id);
     }
-
-    /* Initialize a socket server and wait for the connecttion */
-    //Initialize();
 
     // create server instance, it would listen on sockets and proceeds client's requests
     g_la_task = new (std::nothrow) LaTask;
@@ -108,16 +106,14 @@ int main(int argc, char* argv[])
 
     if (g_la_server->init() != 0)
     {
-         printf("fail to init server\n");
+         printf("fail to init dkeycache service!\n");
     }else
     {
-         printf("Server is ON...\n");
-         printf("Press Ctrl+C to exit...\n");
+         printf("dkeycache service is ON...\n");
+         //printf("Press Ctrl+C to exit...\n");
          g_la_server->doWork();
     }
 
-    /* close the socket connection */
-    //DisConnect();
 
     sgx_destroy_enclave(g_enclave_id);
 
