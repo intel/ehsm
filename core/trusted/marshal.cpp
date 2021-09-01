@@ -32,7 +32,7 @@
 #include "sgx_eid.h"
 
 #include "error_codes.h"
-#include "utility_e1.h"
+#include "marshal.h"
 #include "stdlib.h"
 #include "string.h"
 
@@ -180,16 +180,19 @@ uint32_t umarshal_message_exchange_request(uint32_t* inp_secret_data, ms_in_msg_
     return SUCCESS;
 }
 
-uint32_t marshal_message_exchange_response(char** resp_buffer, size_t* resp_length, uint32_t secret_response)
+uint32_t marshal_message_exchange_response(char** resp_buffer, size_t* resp_length, uint8_t* out, uint32_t out_size)
 {
     ms_out_msg_exchange_t *ms;
-    size_t secret_response_len, ms_len;
+    size_t ms_len;
     size_t retval_len, ret_param_len;
+    if(!out)
+        return INVALID_PARAMETER_ERROR;
+
     if(!resp_length)
         return INVALID_PARAMETER_ERROR;
-    secret_response_len = sizeof(secret_response);
-    retval_len = secret_response_len;
-    ret_param_len = secret_response_len;
+
+    retval_len = out_size;
+    ret_param_len = out_size;
     ms_len = sizeof(ms_out_msg_exchange_t) + ret_param_len;
     ms = (ms_out_msg_exchange_t *)malloc(ms_len);
     if(!ms)
@@ -197,7 +200,7 @@ uint32_t marshal_message_exchange_response(char** resp_buffer, size_t* resp_leng
 
     ms->retval_len = (uint32_t)retval_len;
     ms->ret_outparam_buff_len = (uint32_t)ret_param_len;
-    memcpy(&ms->ret_outparam_buff, &secret_response, secret_response_len);
+    memcpy(&ms->ret_outparam_buff, out, out_size);
     *resp_buffer = (char*)ms;
     *resp_length = ms_len;
     return SUCCESS;

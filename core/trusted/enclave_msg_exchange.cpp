@@ -38,26 +38,16 @@
 #include "sgx_ecp_types.h"
 #include "sgx_thread.h"
 #include <map>
-#include "dh_session_protocol.h"
 #include "sgx_dh.h"
 #include "sgx_tcrypto.h"
 
-#include "sgx_eid.h"
-
-#include "error_codes.h"
-#include "utility_e1.h"
-#include "sgx_dh.h"
-#include "sgx_utils.h"
-#include <map>
+#include "dh_session_protocol.h"
 #include "enclave_hsm_t.h"
-#include "utility_e1.h"
+#include "marshal.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-uint32_t message_exchange_response_generator(char* decrypted_data, char** resp_buffer, size_t* resp_length);
-uint32_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_enclave_identity);
 
 ATTESTATION_STATUS create_session(dh_session_t *session_info);
 
@@ -77,6 +67,8 @@ ATTESTATION_STATUS end_session(sgx_enclave_id_t src_enclave_id);
 #ifdef __cplusplus
 }
 #endif
+
+extern void printf(const char *fmt, ...);
 
 #define MAX_SESSION_COUNT  16
 
@@ -133,51 +125,6 @@ extern "C" uint32_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t*
     if (peer_enclave_identity->attributes.flags & SGX_FLAGS_DEBUG)
     	return ENCLAVE_TRUST_ERROR;
 #endif
-
-    return SUCCESS;
-}
-
-/* Function Description: Operates on the input secret and generate the output secret
- * */
-uint32_t get_message_exchange_response(uint32_t inp_secret_data)
-{
-    uint32_t secret_response;
-
-    //User should use more complex encryption method to protect their secret, below is just a simple example
-    secret_response = inp_secret_data & 0x11111111;
-
-    return secret_response;
-
-}
-
-//Generates the response from the request message
-/* Function Description:
- *   process request message and generate response
- * Parameter Description:
- *   [input] decrypted_data: this is pointer to decrypted message
- *   [output] resp_buffer: this is pointer to response message, the buffer is allocated inside this function
- *   [output] resp_length: this points to response length
- * */
-extern "C" uint32_t message_exchange_response_generator(char* decrypted_data,
-                                              char** resp_buffer,
-                                              size_t* resp_length)
-{
-    ms_in_msg_exchange_t *ms;
-    uint32_t inp_secret_data;
-    uint32_t out_secret_data;
-    if(!decrypted_data || !resp_length)
-    {
-        return INVALID_PARAMETER_ERROR;
-    }
-    ms = (ms_in_msg_exchange_t *)decrypted_data;
-
-    if(umarshal_message_exchange_request(&inp_secret_data,ms) != SUCCESS)
-        return ATTESTATION_ERROR;
-
-    out_secret_data = get_message_exchange_response(inp_secret_data);
-
-    if(marshal_message_exchange_response(resp_buffer, resp_length, out_secret_data) != SUCCESS)
-        return MALLOC_ERROR;
 
     return SUCCESS;
 }
@@ -406,7 +353,7 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
         return status;
     }
 
-    // Verify if the nonce obtained in the response is equal to the session nonce + 1 (Prevents replay attacks)
+    //Verify if the nonce obtained in the response is equal to the session nonce + 1 (Prevents replay attacks)
     if(*((uint32_t*)resp_message->message_aes_gcm_data.reserved) != (session_info->active.counter + 1 ))
     {
         SAFE_FREE(req_message);
@@ -415,7 +362,7 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
         return INVALID_PARAMETER_ERROR;
     }
 
-        //Update the value of the session nonce in the source enclave
+    //Update the value of the session nonce in the source enclave
     session_info->active.counter = session_info->active.counter + 1;
 
     memcpy(out_buff_len, &decrypted_data_length, sizeof(decrypted_data_length));
@@ -500,15 +447,19 @@ uint32_t test_message_exchange()
     size_t out_buff_len;
     size_t max_out_buff_size;
     char* secret_response;
-    uint32_t secret_data;
+    //uint32_t secret_data;
+
+    uint32_t cmd_id;
 
     target_fn_id = 0;
     msg_type = MESSAGE_EXCHANGE;
     max_out_buff_size = 50; // it's assumed the maximum payload size in response message is 50 bytes, it's for demonstration purpose
-    secret_data = 0x12345678; //Secret Data here is shown only for purpose of demonstration.
+    //secret_data = 0x12345678; //Secret Data here is shown only for purpose of demonstration.
+
+    cmd_id = MESSAGE_EXCHANGE_CMD_DK;
 
     //Marshals the secret data into a buffer
-    ke_status = marshal_message_exchange_request(target_fn_id, msg_type, secret_data, &marshalled_inp_buff, &marshalled_inp_buff_len);
+    ke_status = marshal_message_exchange_request(target_fn_id, msg_type, cmd_id, &marshalled_inp_buff, &marshalled_inp_buff_len);
     if(ke_status != SUCCESS)
     {
         return ke_status;

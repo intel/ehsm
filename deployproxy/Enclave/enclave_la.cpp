@@ -59,6 +59,8 @@ uint32_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_encla
 }
 #endif
 
+extern void printf(const char *fmt, ...);
+
 #define MAX_SESSION_COUNT  16
 
 //number of open sessions
@@ -70,13 +72,15 @@ extern "C" ATTESTATION_STATUS end_session(uint32_t session_id);
 //Array of open session ids
 session_id_tracker_t *g_session_id_tracker[MAX_SESSION_COUNT];
 
+extern uint8_t g_domain_key[SGX_DOMAIN_KEY_SIZE];
+
 //Map between the session id and the session information associated with that particular session
 std::map<uint32_t, dh_session_t>g_dest_session_info_map;
 
+std::map<sgx_enclave_id_t, dh_session_t>g_src_session_info_map;
 
 #define UNUSED(val) (void)(val)
 
-std::map<sgx_enclave_id_t, dh_session_t>g_src_session_info_map;
 
 // this is expected initiator's MRSIGNER for demonstration purpose 
 sgx_measurement_t g_initiator_mrsigner = {
@@ -114,16 +118,30 @@ extern "C" uint32_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t*
     return SUCCESS;
 }
 
+
 /* Function Description: Operates on the input secret and generates the output secret */
-uint32_t get_message_exchange_response(uint32_t inp_secret_data)
+uint32_t get_message_exchange_response(uint32_t cmd_id, uint8_t** out, uint32_t* out_size)
 {
-    uint32_t secret_response;
+    printf("cmd=%d\n", cmd_id);
 
-    //User should use more complex encryption method to protect their secret, below is just a simple example
-    secret_response = inp_secret_data & 0x11111111;
+    switch(cmd_id) {
+        case MESSAGE_EXCHANGE_CMD_DK:
+            uint8_t *tmp_data;
 
-    return secret_response;
+            tmp_data = (uint8_t*)malloc(SGX_DOMAIN_KEY_SIZE);
+            if (!tmp_data)
+                return MALLOC_ERROR;
 
+
+            memcpy(tmp_data, g_domain_key, SGX_DOMAIN_KEY_SIZE);
+            *out_size = SGX_DOMAIN_KEY_SIZE;
+            *out = tmp_data;
+            break;
+        default:
+            break;
+    }
+
+    return 0;
 }
 
 /* Function Description: Generates the response from the request message 
@@ -136,22 +154,32 @@ extern "C" uint32_t message_exchange_response_generator(char* decrypted_data,
                                                size_t* resp_length)
 {
     ms_in_msg_exchange_t *ms;
-    uint32_t inp_secret_data;
-    uint32_t out_secret_data;
+
+    uint32_t cmd_id;
+    uint8_t* out = NULL;
+    uint32_t out_size = 0;
     
     if(!decrypted_data || !resp_length)
         return INVALID_PARAMETER_ERROR;
     
     ms = (ms_in_msg_exchange_t *)decrypted_data;
 
-    if(umarshal_message_exchange_request(&inp_secret_data,ms) != SUCCESS)
+    if(umarshal_message_exchange_request(&cmd_id,ms) != SUCCESS)
         return ATTESTATION_ERROR;
 
-    out_secret_data = get_message_exchange_response(inp_secret_data);
+    get_message_exchange_response(cmd_id, &out, &out_size);
+    if(!out || !out_size) {
+        return INVALID_PARAMETER;
+    }
 
-    if(marshal_message_exchange_response(resp_buffer, resp_length, out_secret_data) != SUCCESS)
+    for (uint32_t i=0; i<out_size; i++) {
+        printf("outdata[%d]=%2d\n", i, out[i]);
+    }
+
+    if(marshal_message_exchange_response(resp_buffer, resp_length, out, out_size) != SUCCESS)
         return MALLOC_ERROR;
 
+    SAFE_FREE(out);
     return SUCCESS;
 }
 

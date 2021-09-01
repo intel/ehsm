@@ -56,7 +56,12 @@
 #define IN_PROGRESS 0x1
 #define ACTIVE 0x2
 
+#define SGX_DOMAIN_KEY_SIZE     16
+
 #define MESSAGE_EXCHANGE 0x0
+
+#define MESSAGE_EXCHANGE_CMD_DK 0x1
+
 #define ENCLAVE_TO_ENCLAVE_CALL 0x1
 
 #define INVALID_ARGUMENT                   -2   ///< Invalid function argument
@@ -66,6 +71,7 @@
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
 
 #define VMC_ATTRIBUTE_MASK  0xFFFFFFFFFFFFFFCB
+
 
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
@@ -77,7 +83,7 @@ typedef struct _secure_message_t
 {
     uint32_t session_id; //Session ID identifyting the session to which the message belongs
     sgx_aes_gcm_data_t message_aes_gcm_data;    
-}secure_message_t;
+} secure_message_t;
 
 //Format of the input function parameter structure
 typedef struct _ms_in_msg_exchange_t {
@@ -98,7 +104,7 @@ typedef struct _ms_out_msg_exchange_t {
 typedef struct _session_id_tracker_t
 {
     uint32_t          session_id;
-}session_id_tracker_t;
+} session_id_tracker_t;
 
 #pragma pack(pop)
 

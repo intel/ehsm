@@ -629,7 +629,6 @@ int RetreiveDomainKey(const ra_samp_request_header_t *req,
     p_resp_full->status[1] = 0;
     p_dk = (sample_key_blob_t *)p_resp_full->body;
     p_dk->blob_size = blob_size;
-    printf("YYY--p_resp_full->size=%d\n", p_resp_full->size);
 
     ret = enclave_get_domainkey(g_enclave_id, &status,
                 p_dk->blob,
