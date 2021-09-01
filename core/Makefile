@@ -83,8 +83,8 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
-Untrusted_Cpp_Files := $(wildcard untrusted/*.cpp)
-Untrusted_Include_Paths := -I$(SGX_SDK)/include -Iinclude -Iuntrusted
+App_Cpp_Files := $(wildcard App/*.cpp)
+Untrusted_Include_Paths := -I$(SGX_SDK)/include -IInclude -IApp
 
 Untrusted_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(Untrusted_Include_Paths)
 
@@ -110,7 +110,7 @@ else
 	Untrusted_Link_Flags += -lsgx_epid -lsgx_quote_ex
 endif
 
-Untrusted_Cpp_Objects := $(Untrusted_Cpp_Files:.cpp=.o)
+App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
 App_Name := ehsm-core
 
@@ -125,8 +125,8 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 
-Enclave_Cpp_Files := $(wildcard trusted/*.cpp)
-Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -Iinclude -Itrusted
+Enclave_Cpp_Files := $(wildcard Enclave/*.cpp)
+Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -IInclude -IEnclave
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths)
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
@@ -144,11 +144,11 @@ Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefau
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \
-	-Wl,--version-script=trusted/enclave_config/enclave_hsm.lds
+	-Wl,--version-script=Enclave/enclave_config/enclave_hsm.lds
 
 Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 
-Enclave_Config_File := trusted/enclave_config/enclave_hsm.config.xml
+Enclave_Config_File := Enclave/enclave_config/enclave_hsm.config.xml
 
 ifeq ($(SGX_MODE), HW)
 ifneq ($(SGX_DEBUG), 1)
@@ -178,49 +178,49 @@ endif
 
 
 
-######## Untrusted Objects ########
+######## App Objects ########
 
-untrusted/enclave_hsm_u.c: $(SGX_EDGER8R) trusted/enclave_hsm.edl
-	@cd untrusted && $(SGX_EDGER8R) --untrusted ../trusted/enclave_hsm.edl --search-path ../trusted --search-path $(SGX_SDK)/include
+App/enclave_hsm_u.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
+	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
 	@echo "GEN  =>  $@"
 
-untrusted/enclave_hsm_u.o: untrusted/enclave_hsm_u.c
+App/enclave_hsm_u.o: App/enclave_hsm_u.c
 	@$(CC) $(Untrusted_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-untrusted/%.o: untrusted/%.cpp
+App/%.o: App/%.cpp
 	@$(CXX) $(Untrusted_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): untrusted/enclave_hsm_u.o $(Untrusted_Cpp_Objects)
+$(App_Name): App/enclave_hsm_u.o $(App_Cpp_Objects)
 	@$(CXX) $^ -o $@ $(Untrusted_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
 
-trusted/enclave_hsm_t.c: $(SGX_EDGER8R) trusted/enclave_hsm.edl
-	@cd trusted && $(SGX_EDGER8R) --trusted ../trusted/enclave_hsm.edl --search-path ../trusted --search-path $(SGX_SDK)/include
+Enclave/enclave_hsm_t.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
+	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
 	@echo "GEN  =>  $@"
 
-trusted/enclave_hsm_t.o: trusted/enclave_hsm_t.c
+Enclave/enclave_hsm_t.o: Enclave/enclave_hsm_t.c
 	@$(CC) $(Enclave_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-trusted/%.o: trusted/%.cpp
+Enclave/%.o: Enclave/%.cpp
 	@$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(Enclave_Name): trusted/enclave_hsm_t.o $(Enclave_Cpp_Objects)
+$(Enclave_Name): Enclave/enclave_hsm_t.o $(Enclave_Cpp_Objects)
 	@$(CXX) $^ -o $@ $(Enclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_Enclave_Name): $(Enclave_Name)
-	@$(SGX_ENCLAVE_SIGNER) sign -key trusted/enclave_config/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
+	@$(SGX_ENCLAVE_SIGNER) sign -key Enclave/enclave_config/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 
 
 .PHONY: clean
 
 clean:
-	@rm -f $(Enclave_Name) $(Signed_Enclave_Name) $(Untrusted_Cpp_Objects) $(Enclave_Cpp_Objects) $(App_Name) untrusted/enclave_hsm_u.* trusted/enclave_hsm_t.*
+	@rm -f $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) $(Enclave_Cpp_Objects) $(App_Name) untrusted/enclave_hsm_u.* Enclave/enclave_hsm_t.*
 	@rm -rf out
