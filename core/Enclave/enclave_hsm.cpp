@@ -155,35 +155,8 @@ static sgx_status_t sgx_gcm_decrypt(const sgx_aes_gcm_128bit_key_t *key,
     return ret;
 }
 
-sgx_status_t sgx_store_domainkey(uint8_t *blob, uint32_t blob_size)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (blob == NULL)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-
-    uint32_t dec_key_size = sgx_get_encrypt_txt_len((sgx_sealed_data_t *)blob);
-    if (dec_key_size == UINT32_MAX || dec_key_size != SGX_AES_KEY_SIZE) {
-        printf("dec_key_size size:%d is not expected: %lu.\n", dec_key_size, sizeof(sgx_key_128bit_t));
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    ret = sgx_unseal_data((sgx_sealed_data_t *)blob, NULL, 0, (uint8_t *)g_domain_key, &dec_key_size);
-    if (ret != SGX_SUCCESS) {
-        printf("error(%d) unsealing key.\n", ret);
-        return ret;
-    }
-
-    for (int i=0; i<SGX_AES_KEY_SIZE; i++) {
-        printf("domain_key[%d]=%2d\n", i, g_domain_key[i]);
-    }
-
-    return SGX_SUCCESS;
-}
-
-
-sgx_status_t sgx_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
+sgx_status_t enclave_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     uint32_t real_blob_len = sgx_calc_gcm_data_size(0, SGX_AES_KEY_SIZE);
@@ -225,7 +198,7 @@ sgx_status_t sgx_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t 
  *    OUT uint8_t mac[EH_AES_GCM_MAC_SIZE]; // 16B
  * }
  */
-sgx_status_t sgx_aes_encrypt(const uint8_t *aad, size_t aad_len,
+sgx_status_t enclave_aes_encrypt(const uint8_t *aad, size_t aad_len,
                              const uint8_t *cmk_blob, size_t cmk_blob_size,
                              const uint8_t *plaintext, size_t plaintext_len,
                              uint8_t *cipherblob, size_t cipherblob_len)
@@ -282,7 +255,7 @@ sgx_status_t sgx_aes_encrypt(const uint8_t *aad, size_t aad_len,
     return ret;
 }
 
-sgx_status_t sgx_aes_decrypt(const uint8_t *aad, size_t aad_len,
+sgx_status_t enclave_aes_decrypt(const uint8_t *aad, size_t aad_len,
                              const uint8_t *cmk_blob, size_t cmk_blob_size,
                              const uint8_t *cipherblob, size_t cipherblob_len,
                              uint8_t *plaintext, size_t plaintext_len)
@@ -333,7 +306,7 @@ sgx_status_t sgx_aes_decrypt(const uint8_t *aad, size_t aad_len,
     return ret;
 }
 
-sgx_status_t sgx_generate_datakey(uint32_t key_spec,
+sgx_status_t enclave_generate_datakey(uint32_t key_spec,
                                   const uint8_t *cmk_blob,
                                   size_t cmk_blob_size,
                                   const uint8_t *context,
@@ -365,7 +338,7 @@ sgx_status_t sgx_generate_datakey(uint32_t key_spec,
 
     switch(key_spec) {
         case EHM_AES_GCM_128:
-            ret = sgx_aes_encrypt(context, context_len, cmk_blob, cmk_blob_size,
+            ret = enclave_aes_encrypt(context, context_len, cmk_blob, cmk_blob_size,
                     datakey, plain_key_len, encrypted_key, encrypted_key_len);
             break;
         default:
@@ -382,7 +355,7 @@ sgx_status_t sgx_generate_datakey(uint32_t key_spec,
     return ret;
 }
 
-sgx_status_t sgx_export_datakey(uint32_t cmk_key_spec,
+sgx_status_t enclave_export_datakey(uint32_t cmk_key_spec,
                                   const uint8_t *cmk_blob,
                                   size_t cmk_blob_size,
                                   const uint8_t *context,
@@ -422,7 +395,7 @@ sgx_status_t sgx_export_datakey(uint32_t cmk_key_spec,
     }
 
     // use the cmk to decrypt the datakey cipher text
-    ret = sgx_aes_decrypt(context, context_len, cmk_blob, cmk_blob_size,
+    ret = enclave_aes_decrypt(context, context_len, cmk_blob, cmk_blob_size,
                     encrypted_key, encrypted_key_len, tmp_datakey, tmp_datakey_len);
     if (SGX_SUCCESS != ret) {
         printf("error decrypting encrypted text with cmk!\n");
@@ -430,7 +403,7 @@ sgx_status_t sgx_export_datakey(uint32_t cmk_key_spec,
     }
 
     // use the user-suplied rsa key to encrypt the datakey plaint text again.
-    ret = sgx_rsa_encrypt(uk_blob, uk_blob_size, tmp_datakey, tmp_datakey_len,
+    ret = enclave_rsa_encrypt(uk_blob, uk_blob_size, tmp_datakey, tmp_datakey_len,
                     new_encrypted_key, new_encrypted_key_len);
     if (SGX_SUCCESS != ret) {
         printf("error enrypting plaint text!\n");
@@ -455,7 +428,7 @@ out:
 #define RSA_OAEP_3072_MOD_SIZE      384
 #define RSA_OAEP_3072_EXP_SIZE      4
 
-sgx_status_t sgx_create_rsa_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
+sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -511,7 +484,7 @@ sgx_status_t sgx_create_rsa_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t 
     return ret;
 }
 
-sgx_status_t sgx_rsa_sign(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *data, uint32_t data_len, uint8_t *signature, uint32_t signature_len)
+sgx_status_t enclave_rsa_sign(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *data, uint32_t data_len, uint8_t *signature, uint32_t signature_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -566,7 +539,7 @@ sgx_status_t sgx_rsa_sign(const uint8_t *cmk_blob, size_t cmk_blob_size, const u
     return ret;
 }
 
-sgx_status_t sgx_rsa_verify(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *data, uint32_t data_len, const uint8_t *signature, uint32_t signature_len, bool* result)
+sgx_status_t enclave_rsa_verify(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *data, uint32_t data_len, const uint8_t *signature, uint32_t signature_len, bool* result)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -614,7 +587,7 @@ sgx_status_t sgx_rsa_verify(const uint8_t *cmk_blob, size_t cmk_blob_size, const
     return SGX_SUCCESS;
 }
 
-sgx_status_t sgx_rsa_encrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *plaintext, uint32_t plaintext_len, uint8_t *ciphertext, uint32_t ciphertext_len)
+sgx_status_t enclave_rsa_encrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *plaintext, uint32_t plaintext_len, uint8_t *ciphertext, uint32_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -683,7 +656,7 @@ out:
     return ret;
 }
 
-sgx_status_t sgx_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *ciphertext, uint32_t ciphertext_len, uint8_t *plaintext, uint32_t plaintext_len, uint32_t *req_plaintext_len)
+sgx_status_t enclave_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *ciphertext, uint32_t ciphertext_len, uint8_t *plaintext, uint32_t plaintext_len, uint32_t *req_plaintext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 

@@ -48,7 +48,7 @@
  *      [input, output] dh_msg1: pointer to ecdh msg1 buffer, this buffer is allocated in initiator enclave and filled by responder enclave
  *      [output] session_id: pointer to session id which is allocated by responder enclave
  * */
-extern "C" ATTESTATION_STATUS session_request_ocall(sgx_dh_msg1_t* dh_msg1, uint32_t* session_id)
+extern "C" ATTESTATION_STATUS ocall_session_request(sgx_dh_msg1_t* dh_msg1, uint32_t* session_id)
 {
 	FIFO_MSG msg1_request;
 	FIFO_MSG *msg1_response;
@@ -80,7 +80,7 @@ extern "C" ATTESTATION_STATUS session_request_ocall(sgx_dh_msg1_t* dh_msg1, uint
  *      [input, output]dh_msg3: this is pointer to ECDH message 3, this buffer is allocated in initiator enclave and filled by responder enclave
  *      [input] session_id: this is session id allocated by responder enclave
  * */
-extern "C" ATTESTATION_STATUS exchange_report_ocall(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh_msg3, uint32_t session_id)
+extern "C" ATTESTATION_STATUS ocall_exchange_report(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh_msg3, uint32_t session_id)
 {
 	FIFO_MSG * msg2 = NULL, * msg3 = NULL;
 	FIFO_MSG_HEADER * msg2_header = NULL;
@@ -129,7 +129,7 @@ extern "C" ATTESTATION_STATUS exchange_report_ocall(sgx_dh_msg2_t *dh_msg2, sgx_
  *      [input, output] this is pointer to response message, the buffer is allocated by initiator enclave and filled by responder enclave
  *      [input] response message size
  * */
-extern "C" ATTESTATION_STATUS send_request_ocall(uint32_t session_id, secure_message_t* req_message, size_t req_message_size, size_t max_payload_size, secure_message_t* resp_message, size_t resp_message_size)
+extern "C" ATTESTATION_STATUS ocall_send_request(uint32_t session_id, secure_message_t* req_message, size_t req_message_size, size_t max_payload_size, secure_message_t* resp_message, size_t resp_message_size)
 {
 	FIFO_MSG *msgreq = NULL, * msgresp= NULL;
 	FIFO_MSGBODY_REQ * msgbody;
@@ -176,7 +176,7 @@ extern "C" ATTESTATION_STATUS send_request_ocall(uint32_t session_id, secure_mes
  * Parameter Description:
  *      [input] session_id: this is session id allocated by responder enclave
  * */
-extern "C" ATTESTATION_STATUS end_session_ocall(uint32_t session_id)
+extern "C" ATTESTATION_STATUS ocall_end_session(uint32_t session_id)
 {
 	FIFO_MSG *msgresp = NULL;
 	FIFO_MSG *closemsg;

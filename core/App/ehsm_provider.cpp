@@ -63,7 +63,7 @@ EH_RV Initialize()
     }
 
     // create ECDH session using initiator enclave, it would create ECDH session with responder enclave running in another process
-    status = test_create_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
+    status = enclave_la_create_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
     if (status != SGX_SUCCESS || ret_status != 0) {
         printf("failed to establish secure channel: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
         enclaveHelpers.unloadSgxEnclave();
@@ -72,7 +72,7 @@ EH_RV Initialize()
     printf("succeed to establish secure channel.\n");
 
     // Test message exchange between initiator enclave and responder enclave running in another process
-    status = test_message_exchange(enclaveHelpers.getSgxEnclaveId(), &ret_status);
+    status = enclave_la_message_exchange(enclaveHelpers.getSgxEnclaveId(), &ret_status);
     if (status != SGX_SUCCESS || ret_status != 0) {
         printf("test_message_exchange Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
         enclaveHelpers.unloadSgxEnclave();
@@ -81,7 +81,7 @@ EH_RV Initialize()
     printf("Succeed to exchange secure message...\n");
 
     // close ECDH session
-    status = test_close_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
+    status = enclave_la_close_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
     if (status != SGX_SUCCESS || ret_status != 0) {
         printf("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
         enclaveHelpers.unloadSgxEnclave();
@@ -118,13 +118,13 @@ EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
     switch (ulKeySpec) {
         case EHM_AES_GCM_128:
             if (pKeyBlob->pKeyData == NULL) {
-                ret = sgx_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
+                ret = enclave_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
                                          &sgxStatus,
                                          pKeyBlob->pKeyData,
                                          pKeyBlob->ulKeyLen,
                                          &(pKeyBlob->ulKeyLen));
             } else {
-                ret = sgx_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
+                ret = enclave_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
                                          &sgxStatus,
                                          pKeyBlob->pKeyData,
                                          pKeyBlob->ulKeyLen,
@@ -133,10 +133,10 @@ EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
             break;
         case EHM_RSA_3072:
             if (pKeyBlob->pKeyData == NULL)
-                ret  = sgx_create_rsa_key(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                ret  = enclave_create_rsa_key(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
                                           pKeyBlob->pKeyData, pKeyBlob->ulKeyLen, &(pKeyBlob->ulKeyLen));
             else
-                ret  = sgx_create_rsa_key(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                ret  = enclave_create_rsa_key(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
                                           pKeyBlob->pKeyData, pKeyBlob->ulKeyLen, NULL);
             break;
         default:
@@ -191,7 +191,7 @@ EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
                 return EHR_ARGUMENTS_BAD;
             }
 
-            ret = sgx_aes_encrypt(enclaveHelpers.getSgxEnclaveId(),
+            ret = enclave_aes_encrypt(enclaveHelpers.getSgxEnclaveId(),
                                   &sgxStatus,
                                   EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD,
                                   EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen,
@@ -208,7 +208,7 @@ EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
                 return EHR_ARGUMENTS_BAD;
             }
 
-            ret = sgx_rsa_encrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+            ret = enclave_rsa_encrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
                                   pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
                                   pData, ulDataLen, pEncryptedData, *pulEncryptedDataLen);
             break;
@@ -267,7 +267,7 @@ EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
                 return EHR_ARGUMENTS_BAD;
             }
 
-            ret = sgx_aes_decrypt(enclaveHelpers.getSgxEnclaveId(),
+            ret = enclave_aes_decrypt(enclaveHelpers.getSgxEnclaveId(),
                                   &sgxStatus,
                                   EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD,
                                   EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen,
@@ -285,14 +285,14 @@ EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
             }
 
             if (pData != NULL) {
-                ret = sgx_rsa_decrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                ret = enclave_rsa_decrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
                                       pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
                                       pEncryptedData, ulEncryptedDataLen,
                                       pData, *pulDataLen, NULL);
             }
             else {
                 uint32_t req_plaintext_len = 0;
-                ret = sgx_rsa_decrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+                ret = enclave_rsa_decrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
                                       pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
                                       pEncryptedData, ulEncryptedDataLen,
                                       pData, *pulDataLen, &req_plaintext_len);
@@ -343,7 +343,7 @@ EH_RV Sign(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
                 printf("rsa 3072 sign requires a 384B signature.\n");
                 return EHR_ARGUMENTS_BAD;
             }
-            ret = sgx_rsa_sign(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+            ret = enclave_rsa_sign(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
                                pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
                                pData, ulDataLen, pSignature, *pulSignatureLen);
             break;
@@ -381,7 +381,7 @@ EH_RV Verify(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
                 printf("rsa 3072 verify requires a 384B signature.\n");
                 return EHR_ARGUMENTS_BAD;
             }
-            ret = sgx_rsa_verify(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
+            ret = enclave_rsa_verify(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
                                  pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
                                  pData, ulDataLen, pSignature, ulSignatureLen, result);
             break;
@@ -448,7 +448,7 @@ EH_RV GenerateDataKey(EH_MECHANISM_PTR  pMechanism,
             return EHR_MECHANISM_INVALID;
     }
 
-    ret = sgx_generate_datakey(enclaveHelpers.getSgxEnclaveId(),
+    ret = enclave_generate_datakey(enclaveHelpers.getSgxEnclaveId(),
                                &sgxStatus,
                                pMechanism->mechanism,
                                pMasterKeyBlob->pKeyData,
@@ -531,7 +531,7 @@ EH_RV ExportDataKey(EH_MECHANISM_PTR pMechanism,
             return EHR_MECHANISM_INVALID;
     }
 
-    ret = sgx_export_datakey(enclaveHelpers.getSgxEnclaveId(),
+    ret = enclave_export_datakey(enclaveHelpers.getSgxEnclaveId(),
                                &sgxStatus,
                                pMasterKeyBlob->ulKeyType,
                                pMasterKeyBlob->pKeyData,

@@ -56,10 +56,6 @@ enclave {
             [in,size=mac_size] uint8_t* mac,
             size_t mac_size);
 
-        public sgx_status_t enclave_get_domainkey(
-            [out, size=blob_size] uint8_t *blob, uint32_t blob_size,
-            [out] uint32_t *req_blob_size);
-
         public sgx_status_t enclave_store_domainkey(sgx_ra_context_t context,
             [in,size=secret_size] uint8_t* p_secret,
             uint32_t secret_size,
@@ -67,21 +63,21 @@ enclave {
 
 
         /* Interfaces for local attestation */
-		public uint32_t session_request([out] sgx_dh_msg1_t *dh_msg1,
+		public uint32_t enclave_la_session_request([out] sgx_dh_msg1_t *dh_msg1,
             [out] uint32_t *session_id);
 
-        public uint32_t exchange_report([in] sgx_dh_msg2_t *dh_msg2,
+        public uint32_t enclave_la_exchange_report([in] sgx_dh_msg2_t *dh_msg2,
             [out] sgx_dh_msg3_t *dh_msg3,
             uint32_t session_id);
 
-        public uint32_t generate_response([in, size = req_message_size] secure_message_t* req_message,
+        public uint32_t enclave_la_generate_response([in, size = req_message_size] secure_message_t* req_message,
             size_t req_message_size,
             size_t max_payload_size,
             [out, size=resp_message_size] secure_message_t* resp_message,
             size_t resp_message_size,
             uint32_t session_id);
 
-        public uint32_t end_session(uint32_t session_id);
+        public uint32_t enclave_la_end_session(uint32_t session_id);
 
     };
 };

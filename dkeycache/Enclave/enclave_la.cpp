@@ -41,23 +41,10 @@
 
 #include "sgx_dh.h"
 
-#include "datatypes.h"
-#include "dh_session_protocol.h"
+#include "enclave_la.h"
 #include "marshal.h"
 
 #include "sgx_tcrypto.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-uint32_t enclave_to_enclave_call_dispatcher(uint8_t* decrypted_data, uint32_t decrypted_data_length, uint8_t** resp_buffer, uint32_t* resp_length);
-uint32_t message_exchange_response_generator(uint8_t* decrypted_data, uint8_t** resp_buffer, uint32_t* resp_length);
-uint32_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_enclave_identity);
-
-#ifdef __cplusplus
-}
-#endif
 
 extern void printf(const char *fmt, ...);
 
@@ -65,9 +52,6 @@ extern void printf(const char *fmt, ...);
 
 //number of open sessions
 uint32_t g_session_count = 0;
-
-ATTESTATION_STATUS generate_session_id(uint32_t *session_id);
-extern "C" ATTESTATION_STATUS end_session(uint32_t session_id);
 
 //Array of open session ids
 session_id_tracker_t *g_session_id_tracker[MAX_SESSION_COUNT];
@@ -181,10 +165,35 @@ extern "C" uint32_t message_exchange_response_generator(uint8_t* decrypted_data,
 }
 
 
+//Returns a new sessionID for the source destination session
+ATTESTATION_STATUS generate_session_id(uint32_t *session_id)
+{
+    ATTESTATION_STATUS status = SUCCESS;
+
+    if(!session_id)
+    {
+        return INVALID_PARAMETER_ERROR;
+    }
+    //if the session structure is untintialized, set that as the next session ID
+    for (int i = 0; i < MAX_SESSION_COUNT; i++)
+    {
+        if (g_session_id_tracker[i] == NULL)
+        {
+            *session_id = i;
+            return status;
+        }
+    }
+
+    status = NO_AVAILABLE_SESSION_ERROR;
+
+    return status;
+
+}
+
 //Create a session with the destination enclave
 
 //Handle the request from Source Enclave for a session
-extern "C" ATTESTATION_STATUS session_request(sgx_dh_msg1_t *dh_msg1,
+extern "C" ATTESTATION_STATUS enclave_la_session_request(sgx_dh_msg1_t *dh_msg1,
                           uint32_t *session_id )
 {
     dh_session_t session_info;
@@ -232,7 +241,7 @@ extern "C" ATTESTATION_STATUS session_request(sgx_dh_msg1_t *dh_msg1,
 }
 
 //Verify Message 2, generate Message3 and exchange Message 3 with Source Enclave
-extern "C" ATTESTATION_STATUS exchange_report(sgx_dh_msg2_t *dh_msg2,
+extern "C" ATTESTATION_STATUS enclave_la_exchange_report(sgx_dh_msg2_t *dh_msg2,
                           sgx_dh_msg3_t *dh_msg3,
                           uint32_t session_id)
 {
@@ -301,14 +310,14 @@ extern "C" ATTESTATION_STATUS exchange_report(sgx_dh_msg2_t *dh_msg2,
 
     if(status != SUCCESS)
     {
-        end_session(session_id);
+        enclave_la_end_session(session_id);
     }
 
     return status;
 }
 
 //Process the request from the Source enclave and send the response message back to the Source enclave
-extern "C" ATTESTATION_STATUS generate_response(secure_message_t* req_message,
+extern "C" ATTESTATION_STATUS enclave_la_generate_response(secure_message_t* req_message,
                                      uint32_t req_message_size,
                                      uint32_t max_payload_size,
                                      secure_message_t* resp_message,
@@ -479,7 +488,7 @@ extern "C" ATTESTATION_STATUS generate_response(secure_message_t* req_message,
 
 
 //Respond to the request from the Source Enclave to close the session
-extern "C" ATTESTATION_STATUS end_session(uint32_t session_id)
+extern "C" ATTESTATION_STATUS enclave_la_end_session(uint32_t session_id)
 {
     ATTESTATION_STATUS status = SUCCESS;
     int i;
@@ -516,32 +525,6 @@ extern "C" ATTESTATION_STATUS end_session(uint32_t session_id)
             }
         }
     }
-
-    return status;
-
-}
-
-
-//Returns a new sessionID for the source destination session
-ATTESTATION_STATUS generate_session_id(uint32_t *session_id)
-{
-    ATTESTATION_STATUS status = SUCCESS;
-
-    if(!session_id)
-    {
-        return INVALID_PARAMETER_ERROR;
-    }
-    //if the session structure is untintialized, set that as the next session ID
-    for (int i = 0; i < MAX_SESSION_COUNT; i++)
-    {
-        if (g_session_id_tracker[i] == NULL)
-        {
-            *session_id = i;
-            return status;
-        }
-    }
-
-    status = NO_AVAILABLE_SESSION_ERROR;
 
     return status;
 

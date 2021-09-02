@@ -44,29 +44,7 @@
 #include "dh_session_protocol.h"
 #include "enclave_hsm_t.h"
 #include "marshal.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-ATTESTATION_STATUS create_session(dh_session_t *session_info);
-
-ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
-                                  uint8_t *inp_buff,
-                                  uint32_t inp_buff_len,
-                                  uint32_t max_out_buff_size,
-                                  uint8_t **out_buff,
-                                  uint32_t* out_buff_len);
-
-ATTESTATION_STATUS close_session(dh_session_t *session_info);
-
-ATTESTATION_STATUS generate_session_id(uint32_t *session_id);
-
-ATTESTATION_STATUS end_session(sgx_enclave_id_t src_enclave_id);
-
-#ifdef __cplusplus
-}
-#endif
+#include "enclave_msg_exchange.h"
 
 extern void printf(const char *fmt, ...);
 
@@ -76,7 +54,6 @@ extern sgx_aes_gcm_128bit_key_t g_domain_key;
 
 //number of open sessions
 uint32_t g_session_count = 0;
-
 
 //Array of open session ids
 session_id_tracker_t *g_session_id_tracker[MAX_SESSION_COUNT];
@@ -164,7 +141,7 @@ ATTESTATION_STATUS create_session(dh_session_t *session_info)
     }
 
     //Ocall to request for a session with the destination enclave and obtain session id and Message 1 if successful
-    status = session_request_ocall(&retstatus, &dh_msg1, &session_id);
+    status = ocall_session_request(&retstatus, &dh_msg1, &session_id);
     if (status == SGX_SUCCESS)
     {
         if ((ATTESTATION_STATUS)retstatus != SUCCESS)
@@ -182,7 +159,7 @@ ATTESTATION_STATUS create_session(dh_session_t *session_info)
     }
 
     //Send Message 2 to Destination Enclave and get Message 3 in return
-    status = exchange_report_ocall(&retstatus, &dh_msg2, &dh_msg3, session_id);
+    status = ocall_exchange_report(&retstatus, &dh_msg2, &dh_msg3, session_id);
     if (status == SGX_SUCCESS)
     {
         if ((ATTESTATION_STATUS)retstatus != SUCCESS)
@@ -297,7 +274,7 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
     memset(resp_message, 0, sizeof(secure_message_t)+ max_out_buff_size);
 
     //Ocall to send the request to the Destination Enclave and get the response message back
-    status = send_request_ocall(&retstatus, session_info->session_id, req_message,
+    status = ocall_send_request(&retstatus, session_info->session_id, req_message,
                                 (sizeof(secure_message_t)+ inp_buff_len), max_out_buff_size,
                                 resp_message, (sizeof(secure_message_t)+ max_out_buff_size));
     if (status == SGX_SUCCESS)
@@ -388,7 +365,7 @@ ATTESTATION_STATUS close_session(dh_session_t *session_info)
     }
 
     //Ocall to ask the destination enclave to end the session
-    status = end_session_ocall(&retstatus, session_info->session_id);
+    status = ocall_end_session(&retstatus, session_info->session_id);
     if (status == SGX_SUCCESS)
     {
         if ((ATTESTATION_STATUS)retstatus != SUCCESS)
@@ -431,7 +408,7 @@ ATTESTATION_STATUS generate_session_id(uint32_t *session_id)
  *   This is ECALL routine to create ECDH session.
  *   When it succeeds to create ECDH session, the session context is saved in g_session.
  * */
-extern "C" uint32_t test_create_session()
+extern "C" uint32_t enclave_la_create_session()
 {
         return create_session(&g_session);
 }
@@ -439,7 +416,7 @@ extern "C" uint32_t test_create_session()
 /* Function Description:
  *   This is ECALL routine to transfer message with ECDH peer
  * */
-uint32_t test_message_exchange()
+uint32_t enclave_la_message_exchange()
 {
     ATTESTATION_STATUS ke_status = SUCCESS;
     uint32_t target_fn_id, msg_type;
@@ -501,7 +478,7 @@ out:
 
 /* Function Description:
  *   This is ECALL interface to close secure session*/
-uint32_t test_close_session()
+uint32_t enclave_la_close_session()
 {
     ATTESTATION_STATUS ke_status = SUCCESS;
 

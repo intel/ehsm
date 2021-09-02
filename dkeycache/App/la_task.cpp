@@ -69,7 +69,7 @@ int generate_and_send_session_msg1_resp(int clientfd)
     memset(&msg1resp, 0, sizeof(SESSION_MSG1_RESP));
 
     // call responder enclave to generate ECDH message 1
-    ret = session_request(g_enclave_id, &status, &msg1resp.dh_msg1, &msg1resp.sessionid);
+    ret = enclave_la_session_request(g_enclave_id, &status, &msg1resp.dh_msg1, &msg1resp.sessionid);
     if (ret != SGX_SUCCESS)
     {
         printf("failed to do ECALL session_request.\n");
@@ -133,7 +133,7 @@ int process_exchange_report(int clientfd, SESSION_MSG2 * msg2)
     msg3->sessionid = msg2->sessionid; 
 
     // call responder enclave to process ECDH message 2 and generate message 3
-    ret = exchange_report(g_enclave_id, &status, &msg2->dh_msg2, &msg3->dh_msg3, msg2->sessionid);
+    ret = enclave_la_exchange_report(g_enclave_id, &status, &msg2->dh_msg2, &msg3->dh_msg3, msg2->sessionid);
     if (ret != SGX_SUCCESS)
     {
         printf("EnclaveResponse_exchange_report failure.\n");
@@ -184,7 +184,7 @@ int process_msg_transfer(int clientfd, FIFO_MSGBODY_REQ *req_msg)
     }
     memset(resp_message, 0, resp_message_size);
 
-    ret = generate_response(g_enclave_id, &status, (secure_message_t *)req_msg->buf, req_msg->size, req_msg->max_payload_size, resp_message, resp_message_size, req_msg->session_id);
+    ret = enclave_la_generate_response(g_enclave_id, &status, (secure_message_t *)req_msg->buf, req_msg->size, req_msg->max_payload_size, resp_message, resp_message_size, req_msg->session_id);
     if (ret != SGX_SUCCESS)
     {
         printf("EnclaveResponder_generate_response error.\n");
@@ -233,7 +233,7 @@ int process_close_req(int clientfd, SESSION_CLOSE_REQ * close_req)
         return -1; 
 
     // call responder enclave to close this session
-    ret = end_session(g_enclave_id, &status, close_req->session_id);
+    ret = enclave_la_end_session(g_enclave_id, &status, close_req->session_id);
     if (ret != SGX_SUCCESS)
         return -1;
 

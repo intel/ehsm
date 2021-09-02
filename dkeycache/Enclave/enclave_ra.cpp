@@ -323,29 +323,6 @@ sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
 }
 
 
-sgx_status_t enclave_get_domainkey(uint8_t *blob, uint32_t blob_size, uint32_t *req_blob_size)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint32_t real_blob_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);
-
-    if (real_blob_len == UINT32_MAX)
-        return SGX_ERROR_UNEXPECTED;
-
-    if (req_blob_size != NULL) {
-        *req_blob_size = real_blob_len;
-        return SGX_SUCCESS;
-    }
-
-    if (blob == NULL || blob_size != real_blob_len) {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    ret = sgx_seal_data(0, NULL, SGX_DOMAIN_KEY_SIZE, g_domain_key, blob_size, (sgx_sealed_data_t *)blob);
-
-    return ret;
-}
-
-
 // Generate a secret information for the SP encrypted with SK.
 // Input pointers aren't checked since the trusted stubs copy
 // them into EPC memory.

@@ -13,7 +13,7 @@ dkeycache/out/
 core/App/enclave_hsm_u.*
 core/Enclave/enclave_hsm_t.*
 core/App/*.o
-core/Encalve/*.o
+core/Enclave/*.o
 core/out/
 
 

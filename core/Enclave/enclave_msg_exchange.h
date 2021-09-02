@@ -36,35 +36,32 @@
 #include <map>
 #include "dh_session_protocol.h"
 
-#ifndef LOCALATTESTATION_H_
-#define LOCALATTESTATION_H_
+#ifndef _ENCLAVE_MSG_EXCHANGE_H_
+#define _ENCLAVE_MSG_EXCHANGE_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-uint32_t enclave_to_enclave_call_dispatcher(uint8_t* decrypted_data, uint32_t decrypted_data_length, uint8_t** resp_buffer, uint32_t* resp_length);
-uint32_t message_exchange_response_generator(uint8_t* decrypted_data, uint8_t** resp_buffer, uint32_t* resp_length);
-uint32_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_enclave_identity);
+ATTESTATION_STATUS create_session(dh_session_t *session_info);
+
+ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
+                                  uint8_t *inp_buff,
+                                  uint32_t inp_buff_len,
+                                  uint32_t max_out_buff_size,
+                                  uint8_t **out_buff,
+                                  uint32_t* out_buff_len);
+
+ATTESTATION_STATUS close_session(dh_session_t *session_info);
 
 ATTESTATION_STATUS generate_session_id(uint32_t *session_id);
 
-ATTESTATION_STATUS enclave_la_session_request(sgx_dh_msg1_t *dh_msg1,
-            uint32_t *session_id );
-ATTESTATION_STATUS enclave_la_exchange_report(sgx_dh_msg2_t *dh_msg2,
-            sgx_dh_msg3_t *dh_msg3,
-            uint32_t session_id);
+ATTESTATION_STATUS end_session(sgx_enclave_id_t src_enclave_id);
 
-ATTESTATION_STATUS enclave_la_generate_response(secure_message_t* req_message,
-            uint32_t req_message_size,
-            uint32_t max_payload_size,
-            secure_message_t* resp_message,
-            uint32_t resp_message_size,
-            uint32_t session_id);
-
-ATTESTATION_STATUS enclave_la_end_session(uint32_t session_id);
 #ifdef __cplusplus
 }
 #endif
 
+
 #endif
+
