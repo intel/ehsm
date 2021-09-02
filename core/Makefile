@@ -42,7 +42,11 @@ OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 
 ######## App Settings ########
 App_Cpp_Files := $(wildcard App/*.cpp)
-App_Include_Paths := -I$(SGX_SDK)/include -IInclude -IApp
+App_Include_Paths := \
+	-I$(SGX_SDK)/include \
+	-IInclude \
+	-IApp \
+	-I$(TOPDIR)/include
 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -73,7 +77,13 @@ App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := $(wildcard Enclave/*.cpp)
-Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -IInclude -IEnclave
+Enclave_Include_Paths := \
+	-I$(SGX_SDK)/include \
+	-I$(SGX_SDK)/include/tlibc \
+	-I$(SGX_SDK)/include/libcxx \
+	-IInclude \
+	-IEnclave \
+	-I$(TOPDIR)/include
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths)
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++

@@ -37,7 +37,7 @@ enclave {
     include "sgx_trts.h"
     include "stdbool.h"
     include "datatypes.h"
-    include "../Include/dh_session_protocol.h"
+    include "dh_session_protocol.h"
 
     untrusted {
         void ocall_print_string([in, string] const char *str);

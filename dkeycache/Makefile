@@ -48,6 +48,7 @@ App_Include_Paths := \
 	-IInclude \
 	-IApp \
 	-I$(SGX_SDK)/include \
+	-I$(TOPDIR)/include
 
 App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -86,7 +87,8 @@ Enclave_Include_Paths := \
 	-IEnclave \
 	-I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc \
-	-I$(SGX_SDK)/include/libcxx
+	-I$(SGX_SDK)/include/libcxx \
+	-I$(TOPDIR)/include
 
 Enclave_C_Flags := \
 	$(Enclave_Include_Paths) \

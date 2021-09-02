@@ -49,9 +49,9 @@ class LaServer
 		void shutDown();
 
 	private:
+		LaTask *m_cptask; // this is task queue which process received request message
 		int m_server_sock_fd;
 		int m_shutdown;
-		LaTask *m_cptask; // this is task queue which process received request message 
 
 	private:
 		LaServer(const LaServer&);

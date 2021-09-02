@@ -253,7 +253,6 @@ int process_close_req(int clientfd, SESSION_CLOSE_REQ * close_req)
 void LaTask::run()
 {
     FIFO_MSG * message = NULL;
-    sgx_status_t status;
 
     while (!isStopped())
     {

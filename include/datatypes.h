@@ -72,6 +72,31 @@
 
 #define VMC_ATTRIBUTE_MASK  0xFFFFFFFFFFFFFFCB
 
+#define _T(x) x
+
+#define UNUSED(val) (void)(val)
+
+#define TCHAR   char
+
+#define _TCHAR  char
+
+#define scanf_s scanf
+
+#define _tmain  main
+
+#ifndef INT_MAX
+#define INT_MAX     0x7fffffff
+#endif
+
+#ifndef SAFE_FREE
+#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}}
+#endif
+
+#ifndef _ERRNO_T_DEFINED
+#define _ERRNO_T_DEFINED
+typedef int errno_t;
+#endif
+
 
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
@@ -82,7 +107,7 @@ typedef uint8_t cmac_128[MAC_SIZE];
 typedef struct _secure_message_t
 {
     uint32_t session_id; //Session ID identifyting the session to which the message belongs
-    sgx_aes_gcm_data_t message_aes_gcm_data;    
+    sgx_aes_gcm_data_t message_aes_gcm_data;
 } secure_message_t;
 
 //Format of the input function parameter structure
@@ -107,5 +132,6 @@ typedef struct _session_id_tracker_t
 } session_id_tracker_t;
 
 #pragma pack(pop)
+
 
 #endif

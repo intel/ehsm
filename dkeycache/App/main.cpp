@@ -28,14 +28,6 @@ void ocall_print_string(const char *str)
      printf("Enclave: %s", str);
 }
 
-
-#define UNUSED(val) (void)(val)
-#define TCHAR   char
-#define _TCHAR  char
-#define _T(str) str
-#define scanf_s scanf
-#define _tmain  main
-
 LaTask * g_la_task = NULL;
 LaServer * g_la_server = NULL;
 

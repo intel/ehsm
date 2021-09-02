@@ -107,23 +107,6 @@ errno_t memcpy_s(
     return 0;
 }
 
-static char* hexToCharIP(struct in_addr addrIP)
-{
-    char* ip;
-    unsigned int intIP;
-    memcpy(&intIP, &addrIP,sizeof(unsigned int));
-    int a = (intIP >> 24) & 0xFF;
-    int b = (intIP >> 16) & 0xFF;
-    int c = (intIP >> 8) & 0xFF;
-    int d = intIP & 0xFF;
-    if((ip = (char*)malloc(16*sizeof(char))) == NULL) {
-        return NULL;
-    }
-    sprintf(ip, "%d.%d.%d.%d", d,c,b,a);
-    return ip;
-}
-
-
 static int32_t SendAndRecvMsg(int32_t sockfd,
     const ra_samp_request_header_t *p_req,
     ra_samp_response_header_t **p_resp)

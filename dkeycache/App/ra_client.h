@@ -36,6 +36,7 @@
 #include <vector>
 #include <memory>
 
+#include "datatypes.h"
 #include "sample_ra_msg.h"
 
 using namespace std;
@@ -48,20 +49,7 @@ const uint32_t deploy_port = 8888;
 
 #define ENCLAVE_PATH "libenclave-ehsm-dkeycache.signed.so"
 
-#define _T(x) x
 
-#ifndef INT_MAX
-#define INT_MAX     0x7fffffff 
-#endif
-
-#ifndef SAFE_FREE
-#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}}
-#endif
-
-#ifndef _ERRNO_T_DEFINED
-#define _ERRNO_T_DEFINED
-typedef int errno_t;
-#endif
 errno_t memcpy_s(void *dest,
         size_t numberOfElements,
         const void *src,
