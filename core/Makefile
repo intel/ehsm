@@ -29,100 +29,47 @@
 #
 #
 
-######## SGX SDK Settings ########
+include ../buildenv.mk
 
-SGX_SDK ?= /opt/intel/sgxsdk
-SGX_MODE ?= HW
-SGX_ARCH ?= x64
-SGX_DEBUG ?= 1
-#SUPPLIED_KEY_DERIVATION ?= 1
+App_Name := ehsm-core
+Enclave_Name := libenclave-$(App_Name).so
+Signed_Enclave_Name := libenclave-$(App_Name).signed.so
 
-Enclave_Path ?= .
-Enclave_Name := libSgxHsmEnclave.so
-Signed_Enclave_Name := libSgxHsmEnclave.signed.so
+Enclave_Config_File := Enclave/enclave.config.xml
+Enclave_Signing_Key := Enclave/enclave_private_test.pem
 
-ifeq ($(shell getconf LONG_BIT), 32)
-	SGX_ARCH := x86
-else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
-	SGX_ARCH := x86
-endif
+OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 
-ifeq ($(SGX_ARCH), x86)
-	SGX_COMMON_CFLAGS := -m32
-	SGX_LIBRARY_PATH := $(SGX_SDK)/lib
-	SGX_ENCLAVE_SIGNER := $(SGX_SDK)/bin/x86/sgx_sign
-	SGX_EDGER8R := $(SGX_SDK)/bin/x86/sgx_edger8r
-else
-	SGX_COMMON_CFLAGS := -m64
-	SGX_LIBRARY_PATH := $(SGX_SDK)/lib64
-	SGX_ENCLAVE_SIGNER := $(SGX_SDK)/bin/x64/sgx_sign
-	SGX_EDGER8R := $(SGX_SDK)/bin/x64/sgx_edger8r
-endif
-
-ifeq ($(SGX_DEBUG), 1)
-ifeq ($(SGX_PRERELEASE), 1)
-$(error Cannot set SGX_DEBUG and SGX_PRERELEASE at the same time!!)
-endif
-endif
-
-ifeq ($(SGX_DEBUG), 1)
-        SGX_COMMON_CFLAGS += -O0 -ggdb3
-else
-        SGX_COMMON_CFLAGS += -O2
-endif
-
-ifeq ($(SUPPLIED_KEY_DERIVATION), 1)
-        SGX_COMMON_CFLAGS += -DSUPPLIED_KEY_DERIVATION
-endif
-
-######## Untrusted Settings ########
-
-ifneq ($(SGX_MODE), HW)
-	Urts_Library_Name := sgx_urts_sim
-else
-	Urts_Library_Name := sgx_urts
-endif
-
+######## App Settings ########
 App_Cpp_Files := $(wildcard App/*.cpp)
-Untrusted_Include_Paths := -I$(SGX_SDK)/include -IInclude -IApp
+App_Include_Paths := -I$(SGX_SDK)/include -IInclude -IApp
 
-Untrusted_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(Untrusted_Include_Paths)
+App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
 #   Prerelease - Macro NDEBUG and EDEBUG enabled.
 #   Release - Macro NDEBUG enabled.
 ifeq ($(SGX_DEBUG), 1)
-        Untrusted_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG
+    App_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG
 else ifeq ($(SGX_PRERELEASE), 1)
-        Untrusted_C_Flags += -DNDEBUG -DEDEBUG -UDEBUG
+    App_C_Flags += -DNDEBUG -DEDEBUG -UDEBUG
 else
-        Untrusted_C_Flags += -DNDEBUG -UEDEBUG -UDEBUG
+    App_C_Flags += -DNDEBUG -UEDEBUG -UDEBUG
 endif
 
-Untrusted_Cpp_Flags := $(Untrusted_C_Flags) -std=c++11
-#Untrusted_Link_Flags := -lcurl -shared $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread
-Untrusted_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread
+App_Cpp_Flags := $(App_C_Flags) -std=c++11
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread
 
 ifneq ($(SGX_MODE), HW)
-	Untrusted_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
+	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
 else
-	Untrusted_Link_Flags += -lsgx_epid -lsgx_quote_ex
+	App_Link_Flags += -lsgx_epid -lsgx_quote_ex
 endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
-App_Name := ehsm-core
-
 ######## Enclave Settings ########
-
-ifneq ($(SGX_MODE), HW)
-	Trts_Library_Name := sgx_trts_sim
-	Service_Library_Name := sgx_tservice_sim
-else
-	Trts_Library_Name := sgx_trts
-	Service_Library_Name := sgx_tservice
-endif
 Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := $(wildcard Enclave/*.cpp)
@@ -150,32 +97,23 @@ Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 
 Enclave_Config_File := Enclave/enclave_config/enclave_hsm.config.xml
 
-ifeq ($(SGX_MODE), HW)
-ifneq ($(SGX_DEBUG), 1)
-ifneq ($(SGX_PRERELEASE), 1)
-Build_Mode = HW_RELEASE
-endif
-endif
-endif
 
-
-.PHONY: all target run
-all: $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name)
-	@$(MAKE) clean && $(MAKE) target
-	@mkdir out && mv $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name) out
+######## Build Settings ########
+.PHONY: all target clean
+all: target
+	@$(MAKE) target
+	@mkdir -p $(OUT)
+	@mv $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
 
 ifeq ($(Build_Mode), HW_RELEASE)
 target: $(App_Name) $(Enclave_Name)
-	@echo "The project has been built in release hardware mode."
-	@echo "Please sign the $(Enclave_Name) first with your signing key before you run the App to launch and access the enclave."
-	@echo "To sign the enclave use the command:"
-	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <your key> -enclave $(Enclave_Name) -out <$(Signed_Enclave_Name)> -config $(Enclave_Config_File)"
-	@echo "You can also sign the enclave using an external signing tool."
-	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
 else
 target: $(App_Name) $(Signed_Enclave_Name)
 endif
 
+clean:
+	@rm -f $(App_Cpp_Objects) $(Enclave_Cpp_Objects) App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
+	@rm -rf $(OUT)
 
 
 ######## App Objects ########
@@ -185,15 +123,15 @@ App/enclave_hsm_u.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
 	@echo "GEN  =>  $@"
 
 App/enclave_hsm_u.o: App/enclave_hsm_u.c
-	@$(CC) $(Untrusted_C_Flags) -c $< -o $@
+	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
 App/%.o: App/%.cpp
-	@$(CXX) $(Untrusted_Cpp_Flags) -c $< -o $@
+	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 $(App_Name): App/enclave_hsm_u.o $(App_Cpp_Objects)
-	@$(CXX) $^ -o $@ $(Untrusted_Link_Flags)
+	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
@@ -217,10 +155,3 @@ $(Enclave_Name): Enclave/enclave_hsm_t.o $(Enclave_Cpp_Objects)
 $(Signed_Enclave_Name): $(Enclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key Enclave/enclave_config/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
-
-
-.PHONY: clean
-
-clean:
-	@rm -f $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) $(Enclave_Cpp_Objects) $(App_Name) untrusted/enclave_hsm_u.* Enclave/enclave_hsm_t.*
-	@rm -rf out

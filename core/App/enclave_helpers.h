@@ -40,7 +40,7 @@
 #include "enclave_hsm_u.h"
 
 #define _T(x) x
-#define ENCLAVE_PATH "libSgxHsmEnclave.signed.so"
+#define ENCLAVE_PATH "libenclave-ehsm-core.signed.so"
 
 // Globals with file scope.
 namespace SgxCrypto

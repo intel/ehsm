@@ -2,19 +2,18 @@ dkeyserver/App/enclave_u.*
 dkeyserver/Enclave/enclave_t.*
 dkeyserver/App/*.o
 dkeyserver/Enclave/*.o
-dkeyserver/out/
 
 dkeycache/App/enclave_u.*
 dkeycache/Enclave/enclave_t.*
 dkeycache/App/*.o
 dkeycache/Enclave/*.o
-dkeycache/out/
 
 core/App/enclave_hsm_u.*
 core/Enclave/enclave_hsm_t.*
 core/App/*.o
 core/Enclave/*.o
-core/out/
+
+bin/
 
 
 
