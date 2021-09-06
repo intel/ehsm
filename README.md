@@ -32,27 +32,27 @@ The below diagram depicts the high level architecture of the eHSM,
 
 ## Components and Services
 
-### ehsm-deployserver
+### ehsm-dkeyserver
 It will be deployed in an HSM-equipped platform or an SGX-capable platform, and runs as a TCP/IP socket server.
 
 - Responsible for generating DK(domainkey) and protecting it in the HSM or enclave.
 
-- Respond to the connection request from ehsm-deployproxy agent and deploy the DK to it via a remote secure channel
+- Respond to the connection request from ehsm-dkeycache agent and deploy the DK to it via a remote secure channel
 based on the SGX remote attestation.
 
 - It may also provide some eHSM Configuration interfaces to the Customer Operator Panel to manage the domains.
 (depending on the requirements, and not implemented yet.)
 
 
-### ehsm-deployproxy
+### ehsm-dkeycache
 It will be deployed in the SGX worker node(1:1 map with ehsm-core in a Pod), and runs as a proxy agent service.
 
-- Responsible for retrieving the DK from the ehsm-deployserver via remote secure channel and then distributing to
+- Responsible for retrieving the DK from the ehsm-dkeyserver via remote secure channel and then distributing to
 ehsm-core instance via local secure channel.
 
 
 ### ehsm-core
-It will be deployed in the SGX worker node(1:1 map with ehsm-deployproxy in a Pod), and runs as a service to provide
+It will be deployed in the SGX worker node(1:1 map with ehsm-dkeycache in a Pod), and runs as a service to provide
 main KMS functionality interfaces implementation to the Customer KMS Manager.
 
 Currently, it now support the following cryptographic functionalities:
@@ -73,25 +73,24 @@ Currently, it now support the following cryptographic functionalities:
 
 ## Build Instructions
 
-
 ```shell
-Build ehsm-deployserver
-
-# cd deployserver
 # make
-The binary of ehsm-deployserver will be generated in the out folder.
 
-Build ehsm-deployproxy
+The binary will be generated in the bin folder.
+bin/
+├── ehsm-core
+│   ├── ehsm-core
+│   ├── libenclave-ehsm-core.signed.so
+│   └── libenclave-ehsm-core.so
+├── ehsm-dkeycache
+│   ├── ehsm-dkeycache
+│   ├── libenclave-ehsm-dkeycache.signed.so
+│   └── libenclave-ehsm-dkeycache.so
+└── ehsm-dkeyserver
+    ├── ehsm-dkeyserver
+    ├── libenclave-ehsm-dkeyserver.signed.so
+    └── libenclave-ehsm-dkeyserver.so
 
-# cd deployproxy
-# make
-The binary of ehsm-deployproxy will be generated in the out folder.
-
-Build ehsm-core
-
-# cd core
-# make
-The binary of ehsm-core will be generated in the out folder.
 ```
 
 ## Deployment
@@ -100,33 +99,33 @@ But for the real product, the user need to deploy them into different platform a
 
 - Setup the DCAP server
     - following the wiki [intel-software-guard-extensions-data-center-attestation-primitives-quick-install-guide](https://software.intel.com/content/www/us/en/develop/articles/intel-software-guard-extensions-data-center-attestation-primitives-quick-install-guide.html)
-- Start the service of ehsm-deployserver
+- Start the service of ehsm-dkeyserver
     ```shell
-    # cd deployserver/out
-    # sudo ./ehsm-deployserver
-    it will create a socket server and wait the connection request from ehsm-deployproxy agent and deploy the DK to it via a remote secure channel based
+    # cd bin/ehsm-dkeyserver
+    # sudo ./ehsm-dkeyserver
+    it will create a socket server and wait the connection request from ehsm-dkeycache agent and deploy the DK to it via a remote secure channel based
     on the SGX remote attestation. (The PCCS server is  the above step)
     ```
-***Note**** It's Recommend that the deployproxy and ehsm-core should be deployed into one Pod with 1:1 mapping 
-- Start the service of ehsm-deployproxy
+***Note**** It's Recommend that the ehsm-dkeycache and ehsm-core should be deployed into one Pod with 1:1 mapping
+- Start the service of ehsm-dkeycache
     ```shell
-    # cd deployserver/out
-    # sudo ./ehsm-deployserver
-    
+    # cd bin/ehsm-dkeycache
+    # sudo ./ehsm-dkeycache
+
     It will try connect to the deployserver to retrieve the DK via the secure remote channel estabilished by the remote attestation. Then it will create another new
     socket to wait the connection from ehsm-core service.
-    A local secure channel based the local sealing key will be setup which used to transfer the DK between deployproxy and ehsm-core.
+    A local secure channel based the local attestation protocol will be setup which used to transfer the DK between dkeycache and ehsm-core.
 
     ```
 - Start the service of ehsm-core
     ```shell
-    # cd core/out
+    # cd bin/ehsm-core
     # sudo ./ehsm-core
-    
-    It will try connect to the deployproxy to retrieve the DK via the local secure remote channel, then keep it in the SGX enclave.
-    
+
+    It will try connect to the dkeycache to retrieve the DK via the local secure remote channel, then keep it in the SGX enclave.
+
     When the DK provisioning is done, each key materials generated/imported/exported from the ehsm-core service will be encrypted by the DK, only the cipher text will
     be returned to the caller.
-    A local secure channel based the local sealing key will be setup which used to transfer the DK between deployproxy and ehsm-core.
+    A local secure channel based the local attestation will be setup which used to transfer the DK between dkeycache and ehsm-core.
 
     ```
