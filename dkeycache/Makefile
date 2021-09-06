@@ -45,7 +45,6 @@ OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 App_Cpp_Files := $(wildcard App/*.cpp)
 
 App_Include_Paths := \
-	-IInclude \
 	-IApp \
 	-I$(SGX_SDK)/include \
 	-I$(TOPDIR)/include
@@ -83,7 +82,6 @@ Crypto_Library_Name := sgx_tcrypto
 Enclave_Cpp_Files := $(wildcard Enclave/*.cpp)
 
 Enclave_Include_Paths := \
-	-IInclude \
 	-IEnclave \
 	-I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc \
