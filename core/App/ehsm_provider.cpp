@@ -63,7 +63,7 @@ EH_RV Initialize()
     }
 
     // create ECDH session using initiator enclave, it would create ECDH session with responder enclave running in another process
-    /*status = enclave_la_create_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
+    status = enclave_la_create_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
     if (status != SGX_SUCCESS || ret_status != 0) {
         printf("failed to establish secure channel: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
         enclaveHelpers.unloadSgxEnclave();
@@ -86,7 +86,7 @@ EH_RV Initialize()
         printf("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
         enclaveHelpers.unloadSgxEnclave();
         return -1;
-    }*/
+    }
     printf("Succeed to close Session...\n");
 
     return EHR_OK;
@@ -108,28 +108,22 @@ EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     SgxCrypto::EnclaveHelpers enclaveHelpers;
-    printf("==========CreateKey IN==========\n");
-    printf("ulKeySpec : %lu\n", ulKeySpec);
-    printf("eOrigin : %d\n", eOrigin);
-    printf("pKeyBlob : %p\n", pKeyBlob);
 
     if (eOrigin != EHO_INTERNAL_KEY || pKeyBlob == NULL) {
         return EHR_ARGUMENTS_BAD;
     }
-    printf("==========CreateKey 1==========\n");
+
     pKeyBlob->ulKeyType = ulKeySpec;
 
     switch (ulKeySpec) {
         case EHM_AES_GCM_128:
             if (pKeyBlob->pKeyData == NULL) {
-                printf("==========CreateKey 2.1==========\n");
                 ret = enclave_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
                                          &sgxStatus,
                                          pKeyBlob->pKeyData,
                                          pKeyBlob->ulKeyLen,
                                          &(pKeyBlob->ulKeyLen));
             } else {
-                printf("==========CreateKey 2.2==========\n");
                 ret = enclave_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
                                          &sgxStatus,
                                          pKeyBlob->pKeyData,
@@ -148,7 +142,7 @@ EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
         default:
             return EHR_MECHANISM_INVALID;
     }
-    printf("==========CreateKey 3========== %d | %d\n", ret, sgxStatus);
+
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EHR_FUNCTION_FAILED;
     else
