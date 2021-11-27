@@ -61,8 +61,26 @@ COPY bin/ehsm-core/libenclave-ehsm-core.signed.so /home/ehsm/ehsm-core/libenclav
 #    && cd ehsm \
 #    && make
 
+# node-service
+RUN mkdir -p /home/ehsm/ehsm-service
+WORKDIR /home/ehsm/ehsm-service
+
+RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
+    && tar xf  node-v16.13.0-linux-x64.tar.xz \
+    && mv node-v16.13.0-linux-x64/ /usr/local/nodejs \
+    && ln -s /usr/local/nodejs/bin/node /usr/local/bin \
+    && ln -s /usr/local/nodejs/bin/npm /usr/local/bin
+    # && npm config set registry https://registry.npm.taobao.org/
+
+COPY /ehsm-service /home/ehsm/ehsm-service
+
+RUN npm install
+
+EXPOSE 3000
+
 
 #RUN adduser -q --disabled-password --gecos "" --no-create-home sgxuser
 #USER sgxuser
 
-CMD tail -f /dev/null
+# CMD tail -f /dev/null
+CMD ["node","index.js"]

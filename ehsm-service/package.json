@@ -1,0 +1,23 @@
+{
+  "name": "express-so-example",
+  "version": "1.0.0",
+  "description": "a application with .so ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "keywords": [
+    "so"
+  ],
+  "author": "ginkgo",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "ffi-napi": "^4.0.3",
+    "log4js": "^6.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
+}
