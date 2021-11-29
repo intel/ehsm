@@ -29,7 +29,6 @@
  *
  */
 
-#include "common_ehsm.h"
 #include "enclave_hsm_t.h"
 #include "sgx_tseal.h"
 
@@ -38,9 +37,43 @@
 #include <stdbool.h>
 #include <mbusafecrt.h>
 
+typedef enum {
+    EH_AES_GCM_128 = 0x00000000UL,
+    EH_AES_GCM_256,
+    EH_RSA_2048,
+    EH_RSA_3072,
+    EH_EC_P256,
+    EH_EC_P512,
+    EH_EC_SM2,
+    EH_SM4,
+} ehsm_keyspec_t;
+
+
 #define SGX_AES_KEY_SIZE 16
 
 #define SGX_DOMAIN_KEY_SIZE     16
+
+#define RSA_OAEP_3072_MOD_SIZE      384
+#define RSA_OAEP_3072_EXP_SIZE      4
+
+#define EH_ENCRYPT_MAX_SIZE (6*1024)
+
+#define EH_DATA_KEY_MAX_SIZE 1024
+
+#define EH_AES_GCM_IV_SIZE  12
+#define EH_AES_GCM_MAC_SIZE 16
+
+#define RSA_OAEP_2048_SHA_256_MAX_ENCRYPTION_SIZE       190
+//#define RSA_2048_OAEP_SHA_1_MAX_ENCRYPTION_SIZE       214
+
+#define RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE       318
+//#define RSA_3072_OAEP_SHA_1_MAX_ENCRYPTION_SIZE       342
+
+#define SM2PKE_MAX_ENCRYPTION_SIZE                      6047
+
+#define RSA_OAEP_3072_CIPHER_LENGTH       384
+#define RSA_OAEP_3072_SIGNATURE_SIZE      384
+
 
 // Used to store the secret passed by the SP in the sample code.
 sgx_aes_gcm_128bit_key_t g_domain_key = {0};
@@ -156,7 +189,7 @@ static sgx_status_t sgx_gcm_decrypt(const sgx_aes_gcm_128bit_key_t *key,
 }
 
 
-sgx_status_t enclave_create_aes_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
+sgx_status_t enclave_create_aes_key(uint8_t *cmk_blob, uint32_t cmk_blob_size, uint32_t *req_blob_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     uint32_t real_blob_len = sgx_calc_gcm_data_size(0, SGX_AES_KEY_SIZE);
@@ -337,7 +370,7 @@ sgx_status_t enclave_generate_datakey(uint32_t key_spec,
     }
 
     switch(key_spec) {
-        case EHM_AES_GCM_128:
+        case EH_AES_GCM_128:
             ret = enclave_aes_encrypt(context, context_len, cmk_blob, cmk_blob_size,
                     datakey, plain_key_len, encrypted_key, encrypted_key_len);
             break;
@@ -382,10 +415,10 @@ sgx_status_t enclave_export_datakey(uint32_t cmk_key_spec,
     if (new_encrypted_key_len > RSA_OAEP_3072_CIPHER_LENGTH || new_encrypted_key_len == 0)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (cmk_key_spec != EHM_AES_GCM_128)
+    if (cmk_key_spec != EH_AES_GCM_128)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (uk_key_spec != EHM_RSA_3072)
+    if (uk_key_spec != EH_RSA_3072)
         return SGX_ERROR_INVALID_PARAMETER;
 
     tmp_datakey_len = encrypted_key_len - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
@@ -425,10 +458,7 @@ out:
  *     enc(rsa_params_t);
  * }
 */
-#define RSA_OAEP_3072_MOD_SIZE      384
-#define RSA_OAEP_3072_EXP_SIZE      4
-
-sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
+sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob, uint32_t cmk_blob_size, uint32_t *req_blob_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -607,7 +637,7 @@ sgx_status_t enclave_rsa_encrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, 
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext_len > RSA_OAEP_3072_MAX_ENCRYPTION_SIZE) {
+    if (plaintext_len > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE) {
         printf("ecall rsa_encrypt plain len is up to 318B.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
