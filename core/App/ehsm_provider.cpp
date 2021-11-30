@@ -109,27 +109,24 @@ EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     SgxCrypto::EnclaveHelpers enclaveHelpers;
     printf("==========CreateKey IN==========\n");
-    printf("ulKeySpec : %lu\n", ulKeySpec);
-    printf("eOrigin : %d\n", eOrigin);
-    printf("pKeyBlob : %p\n", pKeyBlob);
+    //printf("ulKeySpec : %lu\n", ulKeySpec);
+    //printf("eOrigin : %d\n", eOrigin);
+    //printf("pKeyBlob : %p\n", pKeyBlob);
 
     if (eOrigin != EHO_INTERNAL_KEY || pKeyBlob == NULL) {
         return EHR_ARGUMENTS_BAD;
     }
-    printf("==========CreateKey 1==========\n");
     pKeyBlob->ulKeyType = ulKeySpec;
 
     switch (ulKeySpec) {
         case EHM_AES_GCM_128:
             if (pKeyBlob->pKeyData == NULL) {
-                printf("==========CreateKey 2.1==========\n");
                 ret = enclave_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
                                          &sgxStatus,
                                          pKeyBlob->pKeyData,
                                          pKeyBlob->ulKeyLen,
                                          &(pKeyBlob->ulKeyLen));
             } else {
-                printf("==========CreateKey 2.2==========\n");
                 ret = enclave_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
                                          &sgxStatus,
                                          pKeyBlob->pKeyData,
@@ -148,7 +145,6 @@ EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
         default:
             return EHR_MECHANISM_INVALID;
     }
-    printf("==========CreateKey 3========== %d | %d\n", ret, sgxStatus);
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EHR_FUNCTION_FAILED;
     else
@@ -162,9 +158,17 @@ EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     SgxCrypto::EnclaveHelpers enclaveHelpers;
-
+    printf("==========Encrypt IN==========\n");
+    //printf("pMechanism : %p\n", pMechanism);
+    //printf("pKeyBlob : %p\n", pKeyBlob);
+    //printf("pData : %p\n", pData);
+    //printf("ulDataLen : %lu\n", ulDataLen);
+    //printf("pEncryptedData : %p\n", pEncryptedData);
+    //printf("pulEncryptedDataLen : %p\n", pulEncryptedDataLen);
+    
     if (pMechanism != NULL && pEncryptedData == NULL &&
             pulEncryptedDataLen != NULL) {
+            printf("==========Encrypt 1==========\n");
         return enclaveHelpers.getEncryptLen(pMechanism->mechanism,
                 ulDataLen, pulEncryptedDataLen);
     }
@@ -173,6 +177,10 @@ EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
             pData == NULL || ulDataLen == 0 ||
             pEncryptedData == NULL || pulEncryptedDataLen == NULL ||
             pMechanism->mechanism != pKeyBlob->ulKeyType) {
+            printf("==========Encrypt 2==========\n");
+            printf("pMechanism : %lu\n", pMechanism->mechanism);
+            printf("pKeyBlob->ulKeyType : %lu\n", pKeyBlob->ulKeyType);
+            
         return EHR_ARGUMENTS_BAD;
     }
 
@@ -180,23 +188,30 @@ EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
         case EHM_AES_GCM_128:
             // todo: refine later
             if (ulDataLen > EH_ENCRYPT_MAX_SIZE) {
+            printf("==========Encrypt 3==========\n");
                 return EHR_ARGUMENTS_BAD;
             }
 
             if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
+            printf("==========Encrypt 4==========\n");
                 return EHR_ARGUMENTS_BAD;
             }
 
             if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
                     (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
+                    printf("==========Encrypt 5==========\n");
                 return EHR_ARGUMENTS_BAD;
             }
 
             if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
                     (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
+                    printf("==========Encrypt 6==========\n");
                 return EHR_ARGUMENTS_BAD;
             }
-
+            
+            printf("pKeyBlob->ulKeyLen : %lu\n", pKeyBlob->ulKeyLen);
+            printf("pKeyBlob->pKeyData : %s\n", pKeyBlob->pKeyData);
+            
             ret = enclave_aes_encrypt(enclaveHelpers.getSgxEnclaveId(),
                                   &sgxStatus,
                                   EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD,

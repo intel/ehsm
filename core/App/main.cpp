@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <cstdint>
 #include "ehsm_provider.h"
+
 using namespace EHsmProvider;
 
 EH_RV testAES()
@@ -619,7 +620,7 @@ int main(int argc, char* argv[])
         return -1;
     }
     printf("Initialize done\n");
-
+    
     testAES();
 
     testGenerateDataKey();

@@ -34,16 +34,16 @@ const pramas = {
       maxLength: 128,
       length: 100
     },
+    enData: {
+      type: 'string',
+      maxLength: 128,
+      length: 100
+    },
     key: {
       type: 'string',
       maxLength: 128,
       length: 100
     },
-    enData: {
-      type: 'string',
-      maxLength: 128,
-      length: 100
-    }
   },
   GenerateDataKey: {
     mechanism: {

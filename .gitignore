@@ -14,7 +14,6 @@ core/App/*.o
 core/Enclave/*.o
 
 bin/
-
-
-
+ehsm-service/node_modules/
+ehsm-service/package-lock.json
 
