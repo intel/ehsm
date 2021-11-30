@@ -106,6 +106,10 @@ ehsm_status_t Initialize()
 
     rc = SetupSecureChannel(g_enclave_id);
     if (rc != EH_OK) {
+#if EHSM_DEFAULT_DOMAIN_KEY_FALLBACK
+        printf("failed(%d) to setup secure channel, but continue to use the default domainkey...\n", rc);
+        return EH_OK;
+#endif
         printf("failed(%d) to setup secure channel\n", rc);
         sgx_destroy_enclave(g_enclave_id);
     }
