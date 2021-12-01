@@ -35,19 +35,36 @@
 #include <string.h>
 #include <stdlib.h>
 #include <cstdint>
+
 #include "ehsm_provider.h"
+#include "base64.h"
+
 using namespace EHsmProvider;
 
 static void dump_data(uint8_t *data, uint32_t datalen) {
     uint32_t i;
+    std::string encode_str;
 
     printf("datalen=%d, data is:\n", datalen);
-    for (i=1; i<=datalen; i++) {
-        printf("%d\t", data[i-1]);
+
+    encode_str = base64_encode(data, datalen);
+    printf("%s\n", encode_str.c_str());
+
+#if 0
+    std::string decode_str;
+    decode_str = base64_decode(encode_str);
+    printf("decode_str.size=%ld, data is:\n", decode_str.size());
+
+    for (i=1; i<=decode_str.size(); i++) {
+        printf("%d\t", decode_str.data()[i-1]);
         if (i%16 == 0)
             printf("\n");
     }
-    printf("\n");
+
+    std::string encode_str2;
+    encode_str2 = base64_encode((uint8_t*)decode_str.data(), decode_str.size());
+    printf("str=%s\n", encode_str2.c_str());
+#endif
 }
 
 ehsm_status_t testAES()
