@@ -39,359 +39,405 @@
 
 using namespace EHsmProvider;
 
-EH_RV testAES()
+static void dump_data(uint8_t *data, uint32_t datalen) {
+    uint32_t i;
+
+    printf("datalen=%d, data is:\n", datalen);
+    for (i=1; i<=datalen; i++) {
+        printf("%d\t", data[i-1]);
+        if (i%16 == 0)
+            printf("\n");
+    }
+    printf("\n");
+}
+
+ehsm_status_t testAES()
 {
-    EH_RV rv = EHR_FUNCTION_FAILED;
-    EH_KEY_BLOB key_blob;
-    EH_MECHANISM me;
-    EH_GCM_PARAMS gcm_para;
-    EH_KEY_ORIGIN origin;
-    EH_BYTE plain_secret[] = "123";
-    EH_ULONG secret_len = strlen((const char *)plain_secret) + 1;
-    EH_BYTE_PTR enc_secret = NULL;
-    EH_BYTE_PTR dec_secret = NULL;
-    EH_ULONG enc_len = 0;
-    EH_ULONG dec_len = 0;
+    ehsm_status_t ret = EH_OK;
+
+    ehsm_keyblob_t cmk;
+    ehsm_data_t aad;
+    ehsm_data_t plaintext;
+    ehsm_data_t ciphertext;
+    ehsm_data_t plaintext2;
+
+    cmk.metadata.origin = EH_INTERNAL_KEY;
+    cmk.metadata.keyspec = EH_AES_GCM_128;
+    cmk.keybloblen = 0;
+
     printf("============testAES start==========\n");
 
-    printf("plain secret:%s, len is %ld\n", plain_secret, secret_len);
-
-    me.mechanism = EHM_AES_GCM_128;
-    me.pParameter = &gcm_para;
-    me.ulParameterLen = sizeof(gcm_para);
-
-    //Here need to call CreateKey twice.
-    //On first time, set pData to NULL to get needed key blob size.
-    key_blob.pKeyData = NULL;
-    key_blob.ulKeyLen = 0;
-    origin = EHO_INTERNAL_KEY;
-
-    if ((rv = CreateKey(EHM_AES_GCM_128, origin, &key_blob)) == EHR_OK) {
-        printf("get key size done 0x%lx\n", key_blob.ulKeyLen);
-        key_blob.pKeyData = (EH_BYTE_PTR)malloc(key_blob.ulKeyLen * sizeof(uint8_t));
-        if (key_blob.pKeyData == NULL) {
-            return EHR_DEVICE_MEMORY;
-        }
-
-        rv = CreateKey(EHM_AES_GCM_128, origin, &key_blob);
-        if (rv != EHR_OK) {
-            printf("create key 1 failed 0x%lx\n", rv);
-            goto cleanup;
-        }
-    } else {
-        printf("create key 2 failed 0x%lx\n", rv);
-        return rv;
-    }
-    printf("create key done\n");
-
-    gcm_para.ulAADLen = 0;
-    gcm_para.pAAD = NULL;
-
-    if ((rv = Encrypt(&me, &key_blob, plain_secret, secret_len, NULL, &enc_len) == EHR_OK)) {
-        printf("get enc len done 0x%lx\n", enc_len);
-        enc_secret = (EH_BYTE_PTR) malloc(enc_len * sizeof(EH_BYTE));
-        if (enc_secret == NULL) {
-            rv = EHR_DEVICE_MEMORY;
-            goto cleanup;
-        }
-
-    rv = Encrypt(&me, &key_blob, plain_secret, secret_len, enc_secret, &enc_len);
-    if (rv != EHR_OK) {
-            printf("encrypt 1 failed 0x%lx\n", rv);
-            goto cleanup;
-        }
-    } else {
-        printf("encrypt 2 failed 0x%lx\n", rv);
+    ret = CreateKey(&cmk);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to get the data size of CreateKey with AES key!\n", ret);
         goto cleanup;
     }
-    printf("encrypt done:%s\n", enc_secret);
 
-    if ((rv = Decrypt(&me, &key_blob, enc_secret, enc_len, NULL, &dec_len)) == EHR_OK) {
-        printf("get dec len done 0x%lx\n", dec_len);
-        dec_secret = (EH_BYTE_PTR) malloc(dec_len * sizeof(EH_BYTE));
-        if (dec_secret == NULL) {
-            rv = EHR_DEVICE_MEMORY;
-            goto cleanup;
-        }
-
-        rv = Decrypt(&me, &key_blob, enc_secret, enc_len, dec_secret, &dec_len);
-        if (rv != EHR_OK) {
-            printf("decrypt 1 failed 0x%lx\n", rv);
-            goto cleanup;
-        }
-    } else {
-        printf("decrypt 2 failed 0x%lx\n", rv);
+    cmk.keyblob = (uint8_t*)malloc(cmk.keybloblen);
+    if (cmk.keyblob == NULL) {
+        ret = EH_DEVICE_MEMORY;
         goto cleanup;
     }
-    printf("decrypt done:%s\n", dec_secret);
 
+    ret = CreateKey(&cmk);
+    if (ret != EH_OK) {
+        printf("Createkey with aes-gcm-128 failed!\n");
+        goto cleanup;
+    }
+    printf("Create CMK with AES-128 SUCCESSFULLY!\n");
+    dump_data(cmk.keyblob, cmk.keybloblen);
+
+    plaintext.datalen = 16;
+    plaintext.data = (uint8_t*)malloc(plaintext.datalen);
+    if (plaintext.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto cleanup;
+    }
+    memset(plaintext.data, 'A', plaintext.datalen);
+    dump_data(plaintext.data, plaintext.datalen);
+
+    aad.datalen = 0;
+    aad.data = NULL;
+    ciphertext.datalen = 0;
+    ret = Encrypt(&cmk, &plaintext, &aad, &ciphertext);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to get data size of Encrypt!\n", ret);
+        goto cleanup;
+    }
+
+    ciphertext.data = (uint8_t*)malloc(ciphertext.datalen);
+    if (ciphertext.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto cleanup;
+    }
+
+    ret = Encrypt(&cmk, &plaintext, &aad, &ciphertext);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to Encrypt the plaittext data\n", ret);
+        goto cleanup;
+    }
+    printf("Encrypt data SUCCESSFULLY!\n");
+    dump_data(ciphertext.data, ciphertext.datalen);
+
+    plaintext2.datalen = 0;
+    ret = Decrypt(&cmk, &ciphertext, &aad, &plaintext2);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to get data size of Decrypt!\n", ret);
+        goto cleanup;
+    }
+    plaintext2.data = (uint8_t*)malloc(plaintext2.datalen);
+    if (plaintext2.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto cleanup;
+    }
+
+    ret = Decrypt(&cmk, &ciphertext, &aad, &plaintext2);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to Decrypt the data\n", ret);
+        goto cleanup;
+    }
+    printf("Decrypt data SUCCESSFULLY!\n");
+    dump_data(plaintext2.data, plaintext2.datalen);
 cleanup:
-    if (dec_secret != NULL)
-        free(dec_secret);
-    if (enc_secret != NULL)
-        free(enc_secret);
-    if (key_blob.pKeyData != NULL)
-        free(key_blob.pKeyData);
+    SAFE_FREE(cmk.keyblob);
+    SAFE_FREE(plaintext.data);
+    SAFE_FREE(ciphertext.data);
+    SAFE_FREE(plaintext2.data);
+
     printf("============testAES Done==========\n");
 
-    return rv;
+    return ret;
 }
 
-EH_RV testRSA()
+
+
+ehsm_status_t testRSA()
 {
-    EH_KEY_BLOB key_blob;
-    EH_KEY_ORIGIN origin;
+    ehsm_status_t ret = EH_OK;
 
-    key_blob.pKeyData = NULL;
-    origin = EHO_INTERNAL_KEY;
-    key_blob.ulKeyLen = 0;
+    ehsm_keyblob_t cmk;
+    ehsm_data_t aad;
+    ehsm_data_t plaintext;
+    ehsm_data_t ciphertext;
+    ehsm_data_t plaintext2;
 
-    /* get size of rsa blob */
-    if (CreateKey(EHM_RSA_3072, origin, &key_blob) != EHR_OK) {
-        printf("untrusted test rsa CreateKey get size FAILED.\n");
-        return EHR_FUNCTION_FAILED;
-    }
+    ehsm_data_t digest;
+    ehsm_data_t signature;
+    bool result = false;
+
     printf("============testRSA start==========\n");
 
-    printf("untrusted test rsa CreateKey get size(%lu) SUCCESSFULLY.\n", key_blob.ulKeyLen);
+    cmk.metadata.origin = EH_INTERNAL_KEY;
+    cmk.metadata.keyspec = EH_RSA_3072;
+    cmk.keybloblen = 0;
 
-    uint8_t rsa_blob[key_blob.ulKeyLen] = {0};
-    key_blob.pKeyData = rsa_blob;
-    key_blob.ulKeyLen = sizeof(rsa_blob);
-
-    if (CreateKey(EHM_RSA_3072, origin, &key_blob) != EHR_OK) {
-        printf("untrusted test rsa CreateKey FAILED.\n");
-        return EHR_FUNCTION_FAILED;
-    }
-
-    printf("untrusted test rsa CreateKey SUCCESSFULLY.\n");
-
-    EH_MECHANISM mechanism;
-    mechanism.mechanism = EHM_RSA_3072;
-    uint8_t rsa_data2encrypt[] = "QQQQQQQQQQQQQQQQQQQQQQQQQQQQ";
-    uint8_t rsa_ciphertext[384];
-    unsigned long int rsa_ciphertext_len = sizeof(rsa_ciphertext);
-
-    printf("untrusted test rsa_encrypt, data to encrypt is %s.\n", rsa_data2encrypt);
-    EH_RV ret1 = Encrypt(&mechanism, &key_blob,
-                         rsa_data2encrypt, sizeof(rsa_data2encrypt),
-                         rsa_ciphertext, &rsa_ciphertext_len);
-    if (ret1 != EHR_OK) {
-        printf("untrusted test rsa encryption FAILED:%lu.\n", ret1);
-        return ret1;
-    }
-
-    printf("untrusted test rsa encryption is SUCCESSFUL.\n");
-
-    unsigned long int rsa_plaintext_len = 0;
-
-    /* get plaintext size */
-    ret1 = Decrypt(&mechanism, &key_blob,
-                   rsa_ciphertext, sizeof(rsa_ciphertext),
-                   NULL, &rsa_plaintext_len);
-    if (ret1 != EHR_OK)
-        printf("untrusted test rsa decryption get plaintext size FAILED:%lu.\n", ret1);
-    else {
-        printf("untrusted test rsa decryption get plaintext size SUCCESSFUL, size is %lu.\n", rsa_plaintext_len);
-
-        uint8_t rsa_plaintext[rsa_plaintext_len] = {0};
-        ret1 = Decrypt(&mechanism, &key_blob,
-                       rsa_ciphertext, sizeof(rsa_ciphertext),
-                       rsa_plaintext, &rsa_plaintext_len);
-        if (ret1 != EHR_OK)
-            printf("untrusted test rsa decryption FAILED:%lu.\n", ret1);
-        else
-            printf("untrusted test rsa decryption is SUCCESSFUL, plain text is %s.\n", rsa_plaintext);
-    }
-
-    uint8_t data2sign[256] = "1234567890";
-    uint8_t signature[384] = {0};
-    unsigned long int signature_len = sizeof(signature);
-    bool verified_result = false;
-
-    printf("untrusted test rsa sign/verify, data to sign is %s.\n", data2sign);
-    EH_RV ret2 = Sign(&mechanism, &key_blob, data2sign, sizeof(data2sign),
-                      signature, &signature_len);
-    if (ret2 != EHR_OK) {
-        printf("untrusted test rsa sign FAILED:%lu.\n", ret2);
-        return ret2;
-    }
-
-    printf("untrusted test rsa sign is SUCCESSFUL.\n");
-
-    ret2 = Verify(&mechanism, &key_blob, data2sign, sizeof(data2sign),
-                  signature, signature_len, &verified_result);
-    if (ret2 != EHR_OK) {
-        printf("untrusted test rsa verify FAILED:%lu.\n", ret2);
-        return ret2;
-    }
-
-    printf("untrusted test rsa verify is SUCCESSFUL, verified result is %s.\n",
-               verified_result ? "TRUE" : "FALSE");
-
-    if (ret1 != EHR_OK)
-        return ret1;
-    if (ret2 != EHR_OK)
-        return ret2;
-    printf("============testRSA done==========\n");
-
-    return EHR_OK;
-}
-
-EH_RV testGenerateDataKey()
-{
-    EH_RV rv = EHR_FUNCTION_FAILED;
-    EH_KEY_BLOB master_key_blob;
-    EH_MECHANISM me;
-    EH_GCM_PARAMS gcm_para;
-    EH_KEY_ORIGIN origin;
-    EH_BYTE_PTR plain_key = NULL;
-    EH_BYTE_PTR enc_key = NULL;
-    EH_BYTE_PTR dec_key = NULL;
-    EH_ULONG key_len = 0;
-    EH_ULONG enc_key_len = 0;
-    EH_ULONG dec_key_len = 0;
-    uint32_t i = 0;
-
-    me.mechanism = EHM_AES_GCM_128;
-    me.pParameter = &gcm_para;
-    me.ulParameterLen = sizeof(gcm_para);
-    printf("============testGenerateDataKey start==========\n");
-
-    //Here need to call CreateKey twice.
-    //On first time, set pData to NULL to get needed key blob size.
-    master_key_blob.pKeyData = NULL;
-    master_key_blob.ulKeyLen = 16;
-    origin = EHO_INTERNAL_KEY;
-
-    if ((rv = CreateKey(EHM_AES_GCM_128, origin, &master_key_blob)) == EHR_OK) {
-        printf("get key size done 0x%lx\n", master_key_blob.ulKeyLen);
-        master_key_blob.pKeyData = (EH_BYTE_PTR)malloc(master_key_blob.ulKeyLen * sizeof(uint8_t));
-        if (master_key_blob.pKeyData == NULL) {
-            return EHR_DEVICE_MEMORY;
-        }
-
-        rv = CreateKey(EHM_AES_GCM_128, origin, &master_key_blob);
-        if (rv != EHR_OK) {
-            printf("create key 1 failed 0x%lx\n", rv);
-            goto cleanup;
-        }
-    } else {
-        printf("create key 2 failed 0x%lx\n", rv);
-        return rv;
-    }
-    printf("create key done\n");
-
-    gcm_para.ulAADLen = 0;
-    gcm_para.pAAD = NULL;
-
-    key_len = 16;
-    plain_key = (EH_BYTE_PTR) malloc(key_len * sizeof(EH_BYTE));
-    if (plain_key == NULL) {
-        rv = EHR_DEVICE_MEMORY;
+    ret = CreateKey(&cmk);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to get the data size of CreateKey with RSA-3072 key!\n", ret);
         goto cleanup;
     }
 
-    if ((rv = GenerateDataKey(&me, &master_key_blob, plain_key, key_len, NULL, &enc_key_len) == EHR_OK)) {
-        printf("get enc data key len done 0x%lx\n", enc_key_len);
-        enc_key = (EH_BYTE_PTR) malloc(enc_key_len * sizeof(EH_BYTE));
-        if (enc_key == NULL) {
-            rv = EHR_DEVICE_MEMORY;
-            goto cleanup;
-        }
-
-        rv = GenerateDataKey(&me, &master_key_blob, plain_key, key_len, enc_key, &enc_key_len);
-        if (rv != EHR_OK) {
-            printf("GenerateDataKey 1 failed 0x%lx\n", rv);
-            goto cleanup;
-        }
-    } else {
-        printf("GenerateDataKey 2 failed 0x%lx\n", rv);
+    cmk.keyblob = (uint8_t*)malloc(cmk.keybloblen);
+    if (cmk.keyblob == NULL) {
+        ret = EH_DEVICE_MEMORY;
         goto cleanup;
     }
 
-    for (i = 0; i < key_len; i++) {
-        printf("0x%x:", *(plain_key + i));
+    ret = CreateKey(&cmk);
+    if (ret != EH_OK) {
+        printf("Createkey with RSA-3072 failed!\n");
+        goto cleanup;
     }
-    printf("\nGenerateDataKey done\n");
+    printf("Create CMK with RSA-3072 SUCCESSFULLY!\n");
+    dump_data(cmk.keyblob, cmk.keybloblen);
 
-    if ((rv = Decrypt(&me, &master_key_blob, enc_key, enc_key_len, NULL, &dec_key_len)) == EHR_OK) {
-        printf("get dec key len done 0x%lx\n", dec_key_len);
-        dec_key =  (EH_BYTE_PTR) malloc(dec_key_len * sizeof(EH_BYTE));
-        if (dec_key == NULL) {
-            rv = EHR_DEVICE_MEMORY;
-            goto cleanup;
-        }
 
-        rv = Decrypt(&me, &master_key_blob, enc_key, enc_key_len, dec_key, &dec_key_len);
-        if (rv != EHR_OK) {
-            printf("decrypt 1 failed 0x%lx\n", rv);
-            goto cleanup;
-        }
-    } else {
-        printf("decrypt 2 failed 0x%lx\n", rv);
+    plaintext.datalen = 16;
+    plaintext.data = (uint8_t*)malloc(plaintext.datalen);
+    if (plaintext.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto cleanup;
+    }
+    memset(plaintext.data, 'A', plaintext.datalen);
+    dump_data(plaintext.data, plaintext.datalen);
+
+    ciphertext.datalen = 0;
+    ret = AsymmetricEncrypt(&cmk, &plaintext, &ciphertext);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to get data size of AsymmetricEncrypt!\n", ret);
         goto cleanup;
     }
 
-    for (i = 0; i < dec_key_len; i++) {
-        printf("0x%x:", *(dec_key + i));
-    }
-    printf("\ndecrypt done\n");
-
-    if ((rv = GenerateDataKeyWithoutPlaintext(&me, &master_key_blob, key_len, NULL, &enc_key_len) == EHR_OK)) {
-        printf("get enc data key len done 0x%lx\n", enc_key_len);
-        enc_key = (EH_BYTE_PTR) malloc(enc_key_len * sizeof(EH_BYTE));
-        if (enc_key == NULL) {
-            rv = EHR_DEVICE_MEMORY;
-            goto cleanup;
-        }
-
-        rv = GenerateDataKeyWithoutPlaintext(&me, &master_key_blob, key_len, enc_key, &enc_key_len);
-        if (rv != EHR_OK) {
-            printf("GenerateDataKeyWithoutPlaintext 1 failed 0x%lx\n", rv);
-            goto cleanup;
-        }
-    } else {
-        printf("GenerateDataKeyWithoutPlaintext 2 failed 0x%lx\n", rv);
-        goto cleanup;
-    }
-    printf("GenerateDataKeyWithoutPlaintext done\n");
-
-    if ((rv = Decrypt(&me, &master_key_blob, enc_key, enc_key_len, NULL, &dec_key_len)) == EHR_OK) {
-        printf("get dec key len done 0x%lx\n", dec_key_len);
-        dec_key = (EH_BYTE_PTR) malloc(dec_key_len * sizeof(EH_BYTE));
-        if (dec_key == NULL) {
-            rv = EHR_DEVICE_MEMORY;
-            goto cleanup;
-        }
-
-        rv = Decrypt(&me, &master_key_blob, enc_key, enc_key_len, dec_key, &dec_key_len);
-        if (rv != EHR_OK) {
-            printf("decrypt 1 failed 0x%lx\n", rv);
-            goto cleanup;
-        }
-    } else {
-        printf("decrypt 2 failed 0x%lx\n", rv);
+    ciphertext.data = (uint8_t*)malloc(ciphertext.datalen);
+    if (ciphertext.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
         goto cleanup;
     }
 
-    for (i = 0; i < dec_key_len; i++) {
-        printf("0x%x:", *(dec_key + i));
+    ret = AsymmetricEncrypt(&cmk, &plaintext, &ciphertext);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to AsymmetricEncrypt data!\n", ret);
+        goto cleanup;
     }
-    printf("\ndecrypt done\n");
+    printf("AsymmetricEncrypt data SUCCESSFULLY!\n");
+    dump_data(ciphertext.data, ciphertext.datalen);
+
+    plaintext2.datalen = 0;
+    ret = AsymmetricDecrypt(&cmk, &ciphertext, &plaintext2);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to get data size of AsymmetricDecrypt!\n", ret);
+        goto cleanup;
+    }
+    plaintext2.data = (uint8_t*)malloc(plaintext2.datalen);
+    if (plaintext2.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto cleanup;
+    }
+
+    ret = AsymmetricDecrypt(&cmk, &ciphertext, &plaintext2);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to AsymmetricDecrypt the data\n", ret);
+        goto cleanup;
+    }
+    printf("AsymmetricDecrypt data SUCCESSFULLY!\n");
+    dump_data(plaintext2.data, plaintext2.datalen);
+
+    digest.datalen = 64;
+    digest.data = (uint8_t*)malloc(digest.datalen);
+    if (digest.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto cleanup;
+    }
+    memset(digest.data, 'B', digest.datalen);
+    dump_data(digest.data, digest.datalen);
+
+    signature.datalen = 0;
+    ret = Sign(&cmk, &digest, &signature);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to get data size of Sign!\n", ret);
+        goto cleanup;
+    }
+
+    signature.data = (uint8_t*)malloc(signature.datalen);
+    if (signature.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto cleanup;
+    }
+
+    ret = Sign(&cmk, &digest, &signature);
+    if (ret != EH_OK) {
+        printf("Failed(%d) to Sign the digest!\n", ret);
+        goto cleanup;
+    }
+    printf("Sign data SUCCESSFULLY!\n");
+    dump_data(signature.data, signature.datalen);
+
+    ret = Verify(&cmk, &digest, &signature, &result);
+    if (ret != EH_OK || !result) {
+        printf("Failed(%d) to Verify the signature!\n", ret);
+        goto cleanup;
+    }
+    printf("Verify signature SUCCESSFULLY!\n");
 
 cleanup:
-    if (plain_key != NULL)
-        free(plain_key);
-    if (dec_key != NULL)
-        free(dec_key);
-    if (enc_key != NULL)
-        free(enc_key);
-    if (master_key_blob.pKeyData != NULL)
-        free(master_key_blob.pKeyData);
-    printf("============testGenerateDataKey done==========\n");
+    SAFE_FREE(cmk.keyblob);
+    SAFE_FREE(plaintext.data);
+    SAFE_FREE(ciphertext.data);
+    SAFE_FREE(plaintext2.data);
+    SAFE_FREE(signature.data);
 
-    return rv;
+    printf("============testRSA done==========\n");
+    return ret;
+}
+
+
+
+ehsm_status_t testGenerateDataKey()
+{
+    ehsm_status_t ret = EH_OK;
+
+    ehsm_keyblob_t cmk;
+    ehsm_data_t aad;
+    ehsm_data_t plaint_datakey;
+    ehsm_data_t cipher_datakey;
+    ehsm_data_t plaint_datakey2;
+    ehsm_data_t cipher_datakey2;
+    ehsm_data_t plaintext1;
+    ehsm_data_t plaintext2;
+
+    printf("============testGenerateDataKey start==========\n");
+    cmk.metadata.origin = EH_INTERNAL_KEY;
+    cmk.metadata.keyspec = EH_AES_GCM_128;
+    cmk.keybloblen = 0;
+
+    /* create an aes-128 key as the cmk */
+    ret = CreateKey(&cmk);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get the data size of CreateKey with AES key!\n", ret);
+       goto cleanup;
+    }
+
+    cmk.keyblob = (uint8_t*)malloc(cmk.keybloblen);
+    if (cmk.keyblob == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
+    }
+
+    ret = CreateKey(&cmk);
+    if (ret != EH_OK) {
+       printf("Createkey with aes-gcm-128 failed!\n");
+       goto cleanup;
+    }
+    printf("Create CMK with AES-128 SUCCESSFULLY!\n");
+    dump_data(cmk.keyblob, cmk.keybloblen);
+
+    /* generate a 16 bytes random data key and with plaint text returned */
+    aad.data = NULL;
+    aad.datalen = 0;
+
+    plaint_datakey.datalen = 16;
+    plaint_datakey.data = (uint8_t*)malloc(plaint_datakey.datalen);
+    if (plaint_datakey.data == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
+    }
+    dump_data(plaint_datakey.data, plaint_datakey.datalen);
+
+    cipher_datakey.datalen = 0;
+    ret = GenerateDataKey(&cmk, &aad, &plaint_datakey, &cipher_datakey);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of GenerateDataKey!\n", ret);
+       goto cleanup;
+    }
+
+    cipher_datakey.data = (uint8_t*)malloc(cipher_datakey.datalen);
+    if (cipher_datakey.data == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
+    }
+
+    ret = GenerateDataKey(&cmk, &aad, &plaint_datakey, &cipher_datakey);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of GenerateDataKey!\n", ret);
+       goto cleanup;
+    }
+    printf("GenerateDataKey SUCCESSFULLY!\n");
+    dump_data(plaint_datakey.data, plaint_datakey.datalen);
+    dump_data(cipher_datakey.data, cipher_datakey.datalen);
+
+    /* try to use the cmk to decrypt the datakey */
+    plaintext1.datalen = 0;
+    ret = Decrypt(&cmk, &cipher_datakey, &aad, &plaintext1);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of Decrypt!\n", ret);
+       goto cleanup;
+    }
+    plaintext1.data = (uint8_t*)malloc(plaintext1.datalen);
+    if (plaintext1.data == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
+    }
+    ret = Decrypt(&cmk, &cipher_datakey, &aad, &plaintext1);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to Decrypt the datakey!\n", ret);
+       goto cleanup;
+    }
+    printf("Decrypt datakey SUCCESSFULLY!\n");
+    dump_data(plaintext1.data, plaintext1.datalen);
+
+    /* generate a 48 bytes random data key and without plaint text returned */
+    plaint_datakey2.datalen = 48;
+    plaint_datakey2.data = NULL;
+    cipher_datakey2.datalen = 0;
+    ret = GenerateDataKeyWithoutPlaintext(&cmk, &aad, &plaint_datakey2, &cipher_datakey2);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of GenerateDataKeyWithoutPlaintext!\n", ret);
+       goto cleanup;
+    }
+    cipher_datakey2.data = (uint8_t*)malloc(cipher_datakey2.datalen);
+    if (cipher_datakey2.data == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
+    }
+
+    ret = GenerateDataKeyWithoutPlaintext(&cmk, &aad, &plaint_datakey2, &cipher_datakey2);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of GenerateDataKey!\n", ret);
+       goto cleanup;
+    }
+    printf("GenerateDataKeyWithoutPlaintext SUCCESSFULLY!\n");
+    dump_data(cipher_datakey2.data, cipher_datakey2.datalen);
+
+    /* try to use the cmk to decrypt the datakey2 */
+    plaintext2.datalen = 0;
+    ret = Decrypt(&cmk, &cipher_datakey2, &aad, &plaintext2);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of Decrypt!\n", ret);
+       goto cleanup;
+    }
+    plaintext2.data = (uint8_t*)malloc(plaintext2.datalen);
+    if (plaintext2.data == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
+    }
+    ret = Decrypt(&cmk, &cipher_datakey2, &aad, &plaintext2);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to Decrypt the datakey!\n", ret);
+       goto cleanup;
+    }
+    printf("Decrypt datakey SUCCESSFULLY!\n");
+    dump_data(plaintext2.data, plaintext2.datalen);
+
+cleanup:
+    SAFE_FREE(cmk.keyblob);
+    SAFE_FREE(plaint_datakey.data);
+    SAFE_FREE(cipher_datakey.data);
+    SAFE_FREE(cipher_datakey2.data);
+    SAFE_FREE(plaintext1.data);
+    SAFE_FREE(plaintext2.data);
+
+    printf("============testGenerateDataKey done==========\n");
+    return ret;
 }
 
 /*
@@ -409,215 +455,160 @@ step5. export the datakey with the new user public key
 step6. verify that the new datakey cipher text could be decrypt succeed by the user rsa key pair
 
 */
-EH_RV testExportDataKey()
+ehsm_status_t testExportDataKey()
 {
-    EH_RV rv = EHR_FUNCTION_FAILED;
-    EH_KEY_BLOB master_key_blob;
-    EH_MECHANISM me;
-    EH_GCM_PARAMS gcm_para;
-    EH_KEY_ORIGIN origin;
+    ehsm_status_t ret = EH_OK;
 
-    EH_ULONG datakey_len = 0;
+    ehsm_keyblob_t cmk;
+    ehsm_keyblob_t ukey;
+    ehsm_data_t aad;
+    ehsm_data_t plaint_datakey;
+    ehsm_data_t cipher_datakey;
+    ehsm_data_t cipher_datakey_new;
 
-    EH_BYTE_PTR datakey_plaintext = NULL;
-    EH_ULONG datakey_plaintlen = 0;
+    ehsm_data_t plaintext1;
 
-    EH_BYTE_PTR datakey_ciphertext = NULL;
-    EH_ULONG datakey_cipherlen = 0;
-
-    EH_BYTE_PTR datakey_ciphertext_new = NULL;
-    EH_ULONG datakey_cipherlen_new = 0;
-
-    EH_BYTE_PTR datakey_plainttext_new = NULL;
-    EH_ULONG datakey_plaintlen_new = 0;
-
-    uint32_t i = 0;
-
-	EH_KEY_BLOB user_key_blob;
-
-    user_key_blob.pKeyData = NULL;
-    user_key_blob.ulKeyLen = 0;
 
 
     printf("============testExportDataKey start==========\n");
+    cmk.metadata.origin = EH_INTERNAL_KEY;
+    cmk.metadata.keyspec = EH_AES_GCM_128;
+    cmk.keybloblen = 0;
 
-    //step1. generate a customer master key
-    origin = EHO_INTERNAL_KEY;
-
-    master_key_blob.pKeyData = NULL;
-    master_key_blob.ulKeyLen = 16;
-    rv = CreateKey(EHM_AES_GCM_128, origin, &master_key_blob);
-    if (rv != EHR_OK) {
-        printf("Failed to get the data size of CreateKey with AES key!\n");
-        goto cleanup;
+    /* create an aes-128 key as the cmk */
+    ret = CreateKey(&cmk);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get the data size of CreateKey with AES key!\n", ret);
+       goto cleanup;
     }
 
-    master_key_blob.pKeyData = (EH_BYTE_PTR)malloc(master_key_blob.ulKeyLen);
-    if (master_key_blob.pKeyData == NULL) {
-        rv = EHR_DEVICE_MEMORY;
-        goto cleanup;
+    cmk.keyblob = (uint8_t*)malloc(cmk.keybloblen);
+    if (cmk.keyblob == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
     }
 
-    rv = CreateKey(EHM_AES_GCM_128, origin, &master_key_blob);
-    if (rv != EHR_OK) {
-        printf("Createkey with aes-gcm-128 failed!\n");
-        goto cleanup;
+    ret = CreateKey(&cmk);
+    if (ret != EH_OK) {
+       printf("Createkey with aes-gcm-128 failed!\n");
+       goto cleanup;
     }
-    printf("Create an aes-gcm-128 key as the CMK SUCCESSFULLY!\n");
+    printf("Create CMK with AES-128 SUCCESSFULLY!\n");
+    dump_data(cmk.keyblob, cmk.keybloblen);
 
-    //step2. generate a cipher datakey which encrypted by the CMK
-    me.mechanism = EHM_AES_GCM_128;
-    me.pParameter = &gcm_para;
-    me.ulParameterLen = sizeof(gcm_para);
+    /* generate a 48 bytes random data key and without plaint text returned */
+    aad.data = NULL;
+    aad.datalen = 0;
 
-    gcm_para.ulAADLen = 0;
-    gcm_para.pAAD = NULL;
+    plaint_datakey.datalen = 48;
+    plaint_datakey.data = NULL;
 
-    datakey_len = 16;
-
-    rv = GenerateDataKeyWithoutPlaintext(&me, &master_key_blob, datakey_len, NULL, &datakey_cipherlen);
-    if (rv != EHR_OK) {
-        printf("Failed to get the data size of GenerateDataKeyWithoutPlaintext!\n");
-        goto cleanup;
+    cipher_datakey.datalen = 0;
+    ret = GenerateDataKeyWithoutPlaintext(&cmk, &aad, &plaint_datakey, &cipher_datakey);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of GenerateDataKeyWithoutPlaintext!\n", ret);
+       goto cleanup;
     }
-
-    datakey_ciphertext = (EH_BYTE_PTR)malloc(datakey_cipherlen);
-    if (datakey_ciphertext == NULL) {
-        rv = EHR_DEVICE_MEMORY;
-        goto cleanup;
+    cipher_datakey.data = (uint8_t*)malloc(cipher_datakey.datalen);
+    if (cipher_datakey.data == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
     }
 
-    rv = GenerateDataKeyWithoutPlaintext(&me, &master_key_blob, datakey_len, datakey_ciphertext, &datakey_cipherlen);
-    if (rv != EHR_OK) {
-        printf("Failed(%lu) to generate the DataKey!\n", rv);
-        goto cleanup;
+    ret = GenerateDataKeyWithoutPlaintext(&cmk, &aad, &plaint_datakey, &cipher_datakey);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of GenerateDataKey!\n", ret);
+       goto cleanup;
     }
-    printf("Generated a CipherDataKey that encrypted by the CMK SUCCESSFULLY.\n");
+    printf("GenerateDataKeyWithoutPlaintext SUCCESSFULLY!\n");
+    dump_data(cipher_datakey.data, cipher_datakey.datalen);
 
-
-    //step3. verify the cipher text could be decrypted by CMK correctly
-    rv = Decrypt(&me, &master_key_blob, datakey_ciphertext, datakey_cipherlen, NULL, &datakey_plaintlen);
-    if (rv != EHR_OK) {
-        printf("Failed to get data size of Decrypt!\n");
-        goto cleanup;
+    /* try to use the cmk to decrypt the datakey */
+    plaintext1.datalen = 0;
+    ret = Decrypt(&cmk, &cipher_datakey, &aad, &plaintext1);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get size of Decrypt!\n", ret);
+       goto cleanup;
     }
-
-    datakey_plaintext = (EH_BYTE_PTR)malloc(datakey_plaintlen);
-    if (datakey_plaintext == NULL) {
-        rv = EHR_DEVICE_MEMORY;
-        goto cleanup;
+    plaintext1.data = (uint8_t*)malloc(plaintext1.datalen);
+    if (plaintext1.data == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
     }
-
-    rv = Decrypt(&me, &master_key_blob, datakey_ciphertext, datakey_cipherlen, datakey_plaintext, &datakey_plaintlen);
-    if (rv != EHR_OK) {
-        printf("Failed to Decrypt the DataKey!\n");
-        goto cleanup;
+    ret = Decrypt(&cmk, &cipher_datakey, &aad, &plaintext1);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to Decrypt the datakey!\n", ret);
+       goto cleanup;
     }
-
-    for (i = 0; i < datakey_plaintlen; i++) {
-        printf("0x%x:", *(datakey_plaintext + i));
-    }
-    printf("\nThe DataKey decrypted by the CMK SUCCESSFULLY!\n");
+    printf("Decrypt datakey SUCCESSFULLY!\n");
+    dump_data(plaintext1.data, plaintext1.datalen);
 
 
-    //step4. generate a new rsa key pair as the user-supplied asymmetric keymeterials.
-    rv = CreateKey(EHM_RSA_3072, origin, &user_key_blob);
-    if (rv != EHR_OK) {
-        printf("Failed to get data size of CreateKey with RSA key!\n");
-        goto cleanup;
-    }
-
-    user_key_blob.pKeyData = (EH_BYTE_PTR)malloc(user_key_blob.ulKeyLen);
-    if (user_key_blob.pKeyData == NULL) {
-        rv = EHR_DEVICE_MEMORY;
-        goto cleanup;
+    /* create an EHM_RSA_3072 key as the ukey */
+    ukey.metadata.origin = EH_INTERNAL_KEY;
+    ukey.metadata.keyspec = EH_RSA_3072;
+    ukey.keybloblen = 0;
+    ret = CreateKey(&ukey);
+    if (ret != EH_OK) {
+       printf("Failed(%d) to get the data size of CreateKey with EH_RSA_3072 key!\n", ret);
+       goto cleanup;
     }
 
-    rv = CreateKey(EHM_RSA_3072, origin, &user_key_blob);
-    if (rv != EHR_OK) {
-        printf("Failed to create rsa key!\n");
-        goto cleanup;
+    ukey.keyblob = (uint8_t*)malloc(ukey.keybloblen);
+    if (ukey.keyblob == NULL) {
+       ret = EH_DEVICE_MEMORY;
+       goto cleanup;
     }
-    printf("Create a user rsa keypair SUCCESSFULLY!\n");
 
-    //step5. export the datakey with the new user public key
-    rv = ExportDataKey(&me, &user_key_blob, &master_key_blob, datakey_ciphertext, datakey_cipherlen, NULL, &datakey_cipherlen_new);
-    if (rv != EHR_OK) {
+    ret = CreateKey(&ukey);
+    if (ret != EH_OK) {
+       printf("Createkey with RSA_3072 failed!\n");
+       goto cleanup;
+    }
+    printf("Create UKEY with RSA_3072 SUCCESSFULLY!\n");
+    dump_data(ukey.keyblob, ukey.keybloblen);
+
+    /* export the datakey with the new user public key */
+    cipher_datakey_new.datalen = 0;
+    ret = ExportDataKey(&cmk, &ukey, &aad, &cipher_datakey, &cipher_datakey_new);
+    if (ret != EH_OK) {
         printf("Failed to get the data size of ExportDataKey!\n");
         goto cleanup;
     }
 
-    datakey_ciphertext_new = (EH_BYTE_PTR)malloc(datakey_cipherlen_new);
-    if (datakey_ciphertext_new == NULL) {
-        rv = EHR_DEVICE_MEMORY;
+    cipher_datakey_new.data = (uint8_t*)malloc(cipher_datakey_new.datalen);
+    if (cipher_datakey_new.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
         goto cleanup;
     }
 
-    rv = ExportDataKey(&me, &user_key_blob, &master_key_blob, datakey_ciphertext, datakey_cipherlen, datakey_ciphertext_new, &datakey_cipherlen_new);
-    if (rv != EHR_OK) {
-        printf("Failed(%lu) to export the datakey with the user-supplied asymmetric key!\n", rv);
+    ret = ExportDataKey(&cmk, &ukey, &aad, &cipher_datakey, &cipher_datakey_new);
+    if (ret != EH_OK) {
+        printf("Failed to ExportDataKey with ukey!\n");
         goto cleanup;
     }
-
     printf("ExportDataKey SUCCESSFULLY!\n");
-
-    //step6. verify that the new datakey cipher text could be decrypt succeed by the user rsa key pair
-    me.mechanism = EHM_RSA_3072;
-    rv = Decrypt(&me, &user_key_blob, datakey_ciphertext_new, datakey_cipherlen_new, NULL, &datakey_plaintlen_new);
-    if (rv != EHR_OK) {
-        printf("Failed to get datasize of Decrypt!\n");
-        goto cleanup;
-    }
-
-    datakey_plainttext_new = (EH_BYTE_PTR)malloc(datakey_plaintlen_new);
-    if (datakey_plainttext_new == NULL) {
-        rv = EHR_DEVICE_MEMORY;
-        goto cleanup;
-    }
-
-    rv = Decrypt(&me, &user_key_blob, datakey_ciphertext_new, datakey_cipherlen_new, datakey_plainttext_new, &datakey_plaintlen_new);
-    if (rv != EHR_OK) {
-        printf("Failed to Decrypt the DataKey with user-supplied asymmetric key! !\n");
-        goto cleanup;
-    }
-
-    for (i = 0; i < datakey_plaintlen_new; i++) {
-        printf("0x%x:", *(datakey_plainttext_new + i));
-    }
-    printf("\nThe DataKey decrypted by the user-supplied asymmetric key SUCCESSFULLY!\n");
+    dump_data(cipher_datakey_new.data, cipher_datakey_new.datalen);
 
 cleanup:
-    if (datakey_plaintext != NULL)
-        free(datakey_plaintext);
-
-    if (datakey_ciphertext != NULL)
-        free(datakey_ciphertext);
-
-    if (master_key_blob.pKeyData != NULL)
-        free(master_key_blob.pKeyData);
-
-    if (user_key_blob.pKeyData != NULL)
-        free(user_key_blob.pKeyData);
-
-    if (datakey_ciphertext_new != NULL)
-        free(datakey_ciphertext_new);
-
-    if (datakey_plainttext_new != NULL)
-        free(datakey_plainttext_new);
+    SAFE_FREE(cmk.keyblob);
+    SAFE_FREE(ukey.keyblob);
+    SAFE_FREE(cipher_datakey.data);
+    SAFE_FREE(cipher_datakey_new.data);
+    SAFE_FREE(plaintext1.data);
 
     printf("============testExportDataKey end==========\n");
-    return rv;
+    return ret;
 }
 
 int main(int argc, char* argv[])
 {
-    int ret = 0;
-    EH_RV rv = EHR_FUNCTION_FAILED;
+    ehsm_status_t ret = EH_OK;
 
-    rv = Initialize();
-    if (rv != EHR_OK) {
-        printf("Initialize failed 0x%lx\n", rv);
-        return -1;
+    ret = Initialize();
+    if (ret != EH_OK) {
+        printf("Initialize failed %d\n", ret);
+        return ret;
     }
     printf("Initialize done\n");
     

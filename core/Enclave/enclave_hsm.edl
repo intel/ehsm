@@ -32,8 +32,6 @@
 enclave {
     //from "sgx_tkey_exchange.edl" import *;
 
-    include "common_ehsm.h"
-
     include "sgx_key_exchange.h"
     include "sgx_quote.h"
     include "sgx_trts.h"
@@ -64,7 +62,7 @@ enclave {
     trusted {
         /* Interfaces for eHSM core crypto functions */
         public sgx_status_t enclave_create_aes_key([out, size=cmk_blob_size] uint8_t *cmk_blob,
-                size_t cmk_blob_size, [out] size_t *req_blob_size);
+                uint32_t cmk_blob_size, [out] uint32_t *req_blob_size);
 
         public sgx_status_t enclave_aes_encrypt([in, size=aad_len] const uint8_t *aad, size_t aad_len,
                 [in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
@@ -90,8 +88,8 @@ enclave {
 				[in, size=uk_blob_size] const uint8_t *uk_blob, size_t uk_blob_size,
                 [out, size=new_encrypted_key_len] uint8_t *new_encrypted_key, size_t new_encrypted_key_len);
 
-        public sgx_status_t enclave_create_rsa_key([out, size=cmk_blob_size] uint8_t *cmk_blob, size_t cmk_blob_size,
-                                               [out] size_t *req_blob_size);
+        public sgx_status_t enclave_create_rsa_key([out, size=cmk_blob_size] uint8_t *cmk_blob, uint32_t cmk_blob_size,
+                                               [out] uint32_t *req_blob_size);
         public sgx_status_t enclave_rsa_sign([in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
                                          [in, size=data_len] const uint8_t *data, uint32_t data_len,
                                          [out, size=signature_len] uint8_t *signature, uint32_t signature_len);

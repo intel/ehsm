@@ -39,539 +39,774 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <sgx_error.h>
+#include <sgx_eid.h>
+#include <sgx_urts.h>
 
-#include "enclave_helpers.h"
 #include "enclave_hsm_u.h"
 #include "ehsm_provider.h"
+
+void ocall_print_string(const char *str)
+{
+    printf("%s", str);
+}
 
 namespace EHsmProvider
 {
 
-EH_RV Initialize()
+sgx_enclave_id_t g_enclave_id;
+
+static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
 {
-    sgx_status_t status;
-    uint32_t ret_status;
-
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
-
-    if (!enclaveHelpers.isSgxEnclaveLoaded())
-    {
-        if (SGX_SUCCESS != enclaveHelpers.loadSgxEnclave())
-        {
-            return EHR_DEVICE_ERROR;
-        }
-    }
+    uint32_t sgxStatus;
+    sgx_status_t ret;
 
     // create ECDH session using initiator enclave, it would create ECDH session with responder enclave running in another process
-    /*status = enclave_la_create_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
-    if (status != SGX_SUCCESS || ret_status != 0) {
-        printf("failed to establish secure channel: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
-        enclaveHelpers.unloadSgxEnclave();
-        return -1;
+    ret = enclave_la_create_session(eid, &sgxStatus);
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        printf("failed to establish secure channel: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
+        return EH_LA_SETUP_ERROR;
     }
     printf("succeed to establish secure channel.\n");
 
     // Test message exchange between initiator enclave and responder enclave running in another process
-    status = enclave_la_message_exchange(enclaveHelpers.getSgxEnclaveId(), &ret_status);
-    if (status != SGX_SUCCESS || ret_status != 0) {
-        printf("test_message_exchange Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
-        enclaveHelpers.unloadSgxEnclave();
-        return -1;
+    ret = enclave_la_message_exchange(eid, &sgxStatus);
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        printf("test_message_exchange Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
+        return EH_LA_EXCHANGE_MSG_ERROR;
     }
     printf("Succeed to exchange secure message...\n");
 
     // close ECDH session
-    status = enclave_la_close_session(enclaveHelpers.getSgxEnclaveId(), &ret_status);
-    if (status != SGX_SUCCESS || ret_status != 0) {
-        printf("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", status, ret_status);
-        enclaveHelpers.unloadSgxEnclave();
-        return -1;
-    }*/
+    ret = enclave_la_close_session(eid, &sgxStatus);
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        printf("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
+        return EH_LA_CLOSE_ERROR;
+    }
     printf("Succeed to close Session...\n");
 
-    return EHR_OK;
+    return EH_OK;
+}
+
+ehsm_status_t Initialize()
+{
+    ehsm_status_t rc = EH_OK;
+    sgx_status_t sgxStatus;
+    sgx_status_t ret;
+
+    ret = sgx_create_enclave(_T(ENCLAVE_PATH),
+                             SGX_DEBUG_FLAG,
+                             NULL,
+                             NULL,
+                             &g_enclave_id, NULL);
+    if(ret != SGX_SUCCESS) {
+        printf("failed(%d) to create enclave.\n", ret);
+        return EH_DEVICE_ERROR;
+    }
+
+    rc = SetupSecureChannel(g_enclave_id);
+    if (rc != EH_OK) {
+#if EHSM_DEFAULT_DOMAIN_KEY_FALLBACK
+        printf("failed(%d) to setup secure channel, but continue to use the default domainkey...\n", rc);
+        return EH_OK;
+#endif
+        printf("failed(%d) to setup secure channel\n", rc);
+        sgx_destroy_enclave(g_enclave_id);
+    }
+
+    return rc;
 }
 
 void Finalize()
 {
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
-
-    if (enclaveHelpers.isSgxEnclaveLoaded())
-    {
-        enclaveHelpers.unloadSgxEnclave();
-    }
+    sgx_destroy_enclave(g_enclave_id);
 }
-
-EH_RV CreateKey(EH_MECHANISM_TYPE ulKeySpec, EH_KEY_ORIGIN eOrigin,
-        EH_KEY_BLOB_PTR pKeyBlob)
+ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
-    printf("==========CreateKey IN==========\n");
-    //printf("ulKeySpec : %lu\n", ulKeySpec);
-    //printf("eOrigin : %d\n", eOrigin);
-    //printf("pKeyBlob : %p\n", pKeyBlob);
 
-    if (eOrigin != EHO_INTERNAL_KEY || pKeyBlob == NULL) {
-        return EHR_ARGUMENTS_BAD;
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY) {
+        return EH_ARGUMENTS_BAD;
     }
-    pKeyBlob->ulKeyType = ulKeySpec;
 
-    switch (ulKeySpec) {
-        case EHM_AES_GCM_128:
-            if (pKeyBlob->pKeyData == NULL) {
-                ret = enclave_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
+    switch (cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+            if (cmk->keybloblen == 0) {
+                ret = enclave_create_aes_key(g_enclave_id,
                                          &sgxStatus,
-                                         pKeyBlob->pKeyData,
-                                         pKeyBlob->ulKeyLen,
-                                         &(pKeyBlob->ulKeyLen));
+                                         NULL,
+                                         0,
+                                         &(cmk->keybloblen));
             } else {
-                ret = enclave_create_aes_key(enclaveHelpers.getSgxEnclaveId(),
+                ret = enclave_create_aes_key(g_enclave_id,
                                          &sgxStatus,
-                                         pKeyBlob->pKeyData,
-                                         pKeyBlob->ulKeyLen,
+                                         cmk->keyblob,
+                                         cmk->keybloblen,
                                          NULL);
             }
             break;
-        case EHM_RSA_3072:
-            if (pKeyBlob->pKeyData == NULL)
-                ret  = enclave_create_rsa_key(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
-                                          pKeyBlob->pKeyData, pKeyBlob->ulKeyLen, &(pKeyBlob->ulKeyLen));
+        case EH_RSA_3072:
+            if (cmk->keybloblen == 0)
+                ret  = enclave_create_rsa_key(g_enclave_id,
+                                         &sgxStatus,
+                                         NULL,
+                                         0,
+                                         &(cmk->keybloblen));
             else
-                ret  = enclave_create_rsa_key(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
-                                          pKeyBlob->pKeyData, pKeyBlob->ulKeyLen, NULL);
+                ret  = enclave_create_rsa_key(g_enclave_id,
+                                         &sgxStatus,
+                                         cmk->keyblob,
+                                         cmk->keybloblen,
+                                         NULL);
             break;
         default:
-            return EHR_MECHANISM_INVALID;
+            return EH_KEYSPEC_INVALID;
     }
+
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EHR_FUNCTION_FAILED;
+        return EH_FUNCTION_FAILED;
     else
-        return EHR_OK;
+        return EH_OK;
 }
 
-EH_RV Encrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-        EH_BYTE_PTR pData, EH_ULONG ulDataLen,
-        EH_BYTE_PTR pEncryptedData, EH_ULONG_PTR pulEncryptedDataLen)
+ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
+            ehsm_data_t *plaintext,
+            ehsm_data_t *aad,
+            ehsm_data_t *ciphertext)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
-    printf("==========Encrypt IN==========\n");
-    //printf("pMechanism : %p\n", pMechanism);
-    //printf("pKeyBlob : %p\n", pKeyBlob);
-    //printf("pData : %p\n", pData);
-    //printf("ulDataLen : %lu\n", ulDataLen);
-    //printf("pEncryptedData : %p\n", pEncryptedData);
-    //printf("pulEncryptedDataLen : %p\n", pulEncryptedDataLen);
-    
-    if (pMechanism != NULL && pEncryptedData == NULL &&
-            pulEncryptedDataLen != NULL) {
-            printf("==========Encrypt 1==========\n");
-        return enclaveHelpers.getEncryptLen(pMechanism->mechanism,
-                ulDataLen, pulEncryptedDataLen);
+
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || plaintext == NULL || ciphertext == NULL) {
+        return EH_ARGUMENTS_BAD;
     }
 
-    if (pMechanism ==  NULL || pKeyBlob == NULL ||
-            pData == NULL || ulDataLen == 0 ||
-            pEncryptedData == NULL || pulEncryptedDataLen == NULL ||
-            pMechanism->mechanism != pKeyBlob->ulKeyType) {
-            printf("==========Encrypt 2==========\n");
-            printf("pMechanism : %lu\n", pMechanism->mechanism);
-            printf("pKeyBlob->ulKeyType : %lu\n", pKeyBlob->ulKeyType);
-            
-        return EHR_ARGUMENTS_BAD;
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_SM4) {
+        return EH_KEYSPEC_INVALID;
     }
 
-    switch(pMechanism->mechanism) {
-        case EHM_AES_GCM_128:
-            // todo: refine later
-            if (ulDataLen > EH_ENCRYPT_MAX_SIZE) {
-            printf("==========Encrypt 3==========\n");
-                return EHR_ARGUMENTS_BAD;
+    /* only support to directly encrypt data of less than 6 KB */
+    if (plaintext->data == NULL || plaintext->datalen == 0 ||
+        plaintext->datalen > EH_ENCRYPT_MAX_SIZE) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    switch(cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+            /* calculate the ciphertext length */
+            if (ciphertext->datalen == 0) {
+                ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (ciphertext->data == NULL ||
+                ciphertext->datalen != plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
+                return EH_ARGUMENTS_BAD;
+
+            if ((0 != aad->datalen) && (NULL == aad->data)) {
+                return EH_ARGUMENTS_BAD;
             }
 
-            if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
-            printf("==========Encrypt 4==========\n");
-                return EHR_ARGUMENTS_BAD;
+            if ((0 == aad->datalen) && (NULL != aad->data)) {
+                return EH_ARGUMENTS_BAD;
             }
-
-            if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
-                    (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                    printf("==========Encrypt 5==========\n");
-                return EHR_ARGUMENTS_BAD;
-            }
-
-            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
-                    (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                    printf("==========Encrypt 6==========\n");
-                return EHR_ARGUMENTS_BAD;
-            }
-            
-            printf("pKeyBlob->ulKeyLen : %lu\n", pKeyBlob->ulKeyLen);
-            printf("pKeyBlob->pKeyData : %s\n", pKeyBlob->pKeyData);
-            
-            ret = enclave_aes_encrypt(enclaveHelpers.getSgxEnclaveId(),
+            ret = enclave_aes_encrypt(g_enclave_id,
                                   &sgxStatus,
-                                  EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD,
-                                  EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen,
-                                  pKeyBlob->pKeyData,
-                                  pKeyBlob->ulKeyLen,
-                                  pData,
-                                  ulDataLen,
-                                  pEncryptedData,
-                                  *pulEncryptedDataLen);
+                                  aad->data,
+                                  aad->datalen,
+                                  cmk->keyblob,
+                                  cmk->keybloblen,
+                                  plaintext->data,
+                                  plaintext->datalen,
+                                  ciphertext->data,
+                                  ciphertext->datalen);
             break;
-        case EHM_RSA_3072:
-            if (ulDataLen > RSA_OAEP_3072_MAX_ENCRYPTION_SIZE) {
-                printf("Error data len(%lu) for rsa encryption, max is 318.\n", ulDataLen);
-                return EHR_ARGUMENTS_BAD;
-            }
-
-            ret = enclave_rsa_encrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
-                                  pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
-                                  pData, ulDataLen, pEncryptedData, *pulEncryptedDataLen);
+        case EH_SM4:
+            //TODO
             break;
         default:
-            return EHR_MECHANISM_INVALID;
+            return EH_KEYSPEC_INVALID;
     }
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EHR_FUNCTION_FAILED;
+        return EH_FUNCTION_FAILED;
     else
-        return EHR_OK;
+        return EH_OK;
 }
 
-EH_RV Decrypt(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-        EH_BYTE_PTR pEncryptedData, EH_ULONG ulEncryptedDataLen,
-        EH_BYTE_PTR pData, EH_ULONG_PTR pulDataLen)
+ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
+        ehsm_data_t *plaintext,
+        ehsm_data_t *ciphertext)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
 
-    if (pMechanism == NULL)
-        return EHR_ARGUMENTS_BAD;
-
-    if (pData == NULL && pulDataLen != NULL) {
-        if (pMechanism->mechanism == EHM_AES_GCM_128) {
-            if (ulEncryptedDataLen > EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE) {
-                *pulDataLen = ulEncryptedDataLen - EH_AES_GCM_IV_SIZE -
-                    EH_AES_GCM_MAC_SIZE;
-                return EHR_OK;
-            }
-        }
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || plaintext == NULL || ciphertext == NULL) {
+        return EH_ARGUMENTS_BAD;
     }
 
-    if (pKeyBlob == NULL || pEncryptedData == NULL || pulDataLen == NULL ||
-            pMechanism->mechanism != pKeyBlob->ulKeyType) {
-        return EHR_ARGUMENTS_BAD;
+    /* this api only support for asymmetric keys */
+    if (cmk->metadata.keyspec != EH_RSA_2048 &&
+        cmk->metadata.keyspec != EH_RSA_3072 &&
+        cmk->metadata.keyspec != EH_EC_P256 &&
+        cmk->metadata.keyspec != EH_EC_P512 &&
+        cmk->metadata.keyspec != EH_EC_SM2) {
+        return EH_KEYSPEC_INVALID;
     }
 
-    switch(pMechanism->mechanism) {
-        case EHM_AES_GCM_128:
-            if (pData == NULL)
-                return EHR_ARGUMENTS_BAD;
+    if (plaintext->data == NULL || plaintext->datalen == 0)
+        return EH_ARGUMENTS_BAD;
 
-            if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
-                return EHR_ARGUMENTS_BAD;
+    switch(cmk->metadata.keyspec) {
+        case EH_RSA_2048:
+            //TODO
+            break;
+        case EH_RSA_3072:
+            if(plaintext->datalen > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE) {
+                printf("Error data len(%d) for rsa encryption, max is 318.\n", plaintext->datalen);
+                return EH_ARGUMENTS_BAD;
             }
-
-            if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
-                    (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                return EHR_ARGUMENTS_BAD;
+            /* calculate the ciphertext length  */
+            if (ciphertext->datalen == 0) {
+                ciphertext->datalen = RSA_OAEP_3072_CIPHER_LENGTH;
+                return EH_OK;
             }
-
-            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
-                    (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                return EHR_ARGUMENTS_BAD;
-            }
-
-            ret = enclave_aes_decrypt(enclaveHelpers.getSgxEnclaveId(),
+            /* check if the datalen is valid */
+            if (ciphertext->data == NULL || ciphertext->datalen != RSA_OAEP_3072_CIPHER_LENGTH)
+                return EH_ARGUMENTS_BAD;
+            ret = enclave_rsa_encrypt(g_enclave_id,
                                   &sgxStatus,
-                                  EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD,
-                                  EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen,
-                                  pKeyBlob->pKeyData,
-                                  pKeyBlob->ulKeyLen,
-                                  pEncryptedData,
-                                  ulEncryptedDataLen,
-                                  pData,
-                                  *pulDataLen);
+                                  cmk->keyblob,
+                                  cmk->keybloblen,
+                                  plaintext->data,
+                                  plaintext->datalen,
+                                  ciphertext->data,
+                                  ciphertext->datalen);
             break;
-        case EHM_RSA_3072:
-            if (ulEncryptedDataLen > RSA_OAEP_3072_CIPHER_LENGTH) {
-                printf("Error data len(%lu) for rsa decryption, max is 384.\n", ulEncryptedDataLen);
-                return EHR_ARGUMENTS_BAD;
-            }
-
-            if (pData != NULL) {
-                ret = enclave_rsa_decrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
-                                      pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
-                                      pEncryptedData, ulEncryptedDataLen,
-                                      pData, *pulDataLen, NULL);
-            }
-            else {
-                uint32_t req_plaintext_len = 0;
-                ret = enclave_rsa_decrypt(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
-                                      pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
-                                      pEncryptedData, ulEncryptedDataLen,
-                                      pData, *pulDataLen, &req_plaintext_len);
-                *pulDataLen = req_plaintext_len;
-            }
+        case EH_EC_P256:
+            //TODO
+            break;
+        case EH_EC_P512:
+            //TODO
+            break;
+        case EH_EC_SM2:
+            //TODO
             break;
         default:
-            return EHR_MECHANISM_INVALID;
+            return EH_KEYSPEC_INVALID;
     }
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EHR_FUNCTION_FAILED;
+        return EH_FUNCTION_FAILED;
     else
-        return EHR_OK;
+        return EH_OK;
 }
 
-EH_RV Sign(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-           EH_BYTE_PTR pData, EH_ULONG ulDataLen,
-           EH_BYTE_PTR pSignature, EH_ULONG_PTR pulSignatureLen)
+ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
+            ehsm_data_t *ciphertext,
+            ehsm_data_t *aad,
+            ehsm_data_t *plaintext)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
 
-    if (pMechanism == NULL)
-        return EHR_ARGUMENTS_BAD;
-
-    if (pulSignatureLen != NULL && pSignature == NULL) {
-        if (pMechanism->mechanism == EHM_RSA_3072)
-            *pulSignatureLen = RSA_OAEP_3072_SIGNATURE_SIZE;
-        else
-            return EHR_MECHANISM_INVALID;
-        return EHR_OK;
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || plaintext == NULL || ciphertext == NULL) {
+        return EH_ARGUMENTS_BAD;
     }
 
-    if (pKeyBlob == NULL || pData == NULL || ulDataLen == 0 ||
-        pSignature == NULL || pulSignatureLen == NULL) {
-        return EHR_ARGUMENTS_BAD;
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_SM4) {
+        return EH_KEYSPEC_INVALID;
     }
 
-    switch (pMechanism->mechanism) {
-        case EHM_RSA_3072:
-            if (ulDataLen > 256) {
+    if (ciphertext->data == NULL || ciphertext->datalen == 0) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    switch(cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+            /* calculate the ciphertext length */
+            if (plaintext->datalen == 0) {
+                plaintext->datalen = ciphertext->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (plaintext->data == NULL ||
+                plaintext->datalen != ciphertext->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE)
+                return EH_ARGUMENTS_BAD;
+
+            if ((0 != aad->datalen) && (NULL == aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            if ((0 == aad->datalen) && (NULL != aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            ret = enclave_aes_decrypt(g_enclave_id,
+                                  &sgxStatus,
+                                  aad->data,
+                                  aad->datalen,
+                                  cmk->keyblob,
+                                  cmk->keybloblen,
+                                  ciphertext->data,
+                                  ciphertext->datalen,
+                                  plaintext->data,
+                                  plaintext->datalen);
+            break;
+        case EH_SM4:
+            //TODO
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
+    }
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+}
+
+ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
+            ehsm_data_t *ciphertext,
+            ehsm_data_t *plaintext)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || plaintext == NULL || ciphertext == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    /* this api only support for asymmetric keys */
+    if (cmk->metadata.keyspec != EH_RSA_2048 &&
+        cmk->metadata.keyspec != EH_RSA_3072 &&
+        cmk->metadata.keyspec != EH_EC_P256 &&
+        cmk->metadata.keyspec != EH_EC_P512 &&
+        cmk->metadata.keyspec != EH_EC_SM2) {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    switch(cmk->metadata.keyspec) {
+        case EH_RSA_2048:
+            //TODO
+            return EH_OK;
+        case EH_RSA_3072:
+            if (ciphertext->data == NULL || ciphertext->datalen == 0 ||
+                ciphertext->datalen > RSA_OAEP_3072_CIPHER_LENGTH) {
+                return EH_ARGUMENTS_BAD;
+            }
+            /* calculate the ciphertext length */
+            if (plaintext->datalen == 0) {
+                ret = enclave_rsa_decrypt(g_enclave_id,
+                                  &sgxStatus,
+                                  cmk->keyblob,
+                                  cmk->keybloblen,
+                                  ciphertext->data,
+                                  ciphertext->datalen,
+                                  NULL, 0,
+                                  &(plaintext->datalen));
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (plaintext->data == NULL || plaintext->datalen == 0)
+                return EH_ARGUMENTS_BAD;
+            ret = enclave_rsa_decrypt(g_enclave_id,
+                                  &sgxStatus,
+                                  cmk->keyblob,
+                                  cmk->keybloblen,
+                                  ciphertext->data,
+                                  ciphertext->datalen,
+                                  plaintext->data,
+                                  plaintext->datalen,
+                                  NULL);
+        case EH_EC_P256:
+            //TODO
+            return EH_OK;
+        case EH_EC_P512:
+            //TODO
+            return EH_OK;
+        case EH_EC_SM2:
+            //TODO
+            return EH_OK;
+        default:
+            return EH_KEYSPEC_INVALID;
+    }
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+}
+
+ehsm_status_t Sign(ehsm_keyblob_t *cmk,
+           ehsm_data_t *digest,
+           ehsm_data_t *signature)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || digest == NULL || signature == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    /* this api only support for asymmetric keys */
+    if (cmk->metadata.keyspec != EH_RSA_2048 &&
+        cmk->metadata.keyspec != EH_RSA_3072 &&
+        cmk->metadata.keyspec != EH_EC_P256 &&
+        cmk->metadata.keyspec != EH_EC_P512 &&
+        cmk->metadata.keyspec != EH_EC_SM2) {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    switch(cmk->metadata.keyspec) {
+        case EH_RSA_2048:
+            //TODO
+            return EH_OK;
+        case EH_RSA_3072:
+            if (digest->datalen > 256) {
                 printf("rsa 3072 sign requires a <=256B digest.\n");
-                return EHR_ARGUMENTS_BAD;
-            }
-            if (*pulSignatureLen != RSA_OAEP_3072_SIGNATURE_SIZE) {
-                printf("rsa 3072 sign requires a 384B signature.\n");
-                return EHR_ARGUMENTS_BAD;
-            }
-            ret = enclave_rsa_sign(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
-                               pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
-                               pData, ulDataLen, pSignature, *pulSignatureLen);
-            break;
-        default:
-            return EHR_MECHANISM_INVALID;
-    }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EHR_FUNCTION_FAILED;
-    else
-        return EHR_OK;
-}
-
-
-EH_RV Verify(EH_MECHANISM_PTR pMechanism, EH_KEY_BLOB_PTR pKeyBlob,
-             EH_BYTE_PTR pData, EH_ULONG ulDataLen,
-             EH_BYTE_PTR pSignature, EH_ULONG ulSignatureLen, bool* result)
-{
-    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
-
-    if (pMechanism ==  NULL || pKeyBlob == NULL || pData == NULL || ulDataLen == 0 ||
-        pSignature == NULL || ulSignatureLen == 0 || result == NULL) {
-        return EHR_ARGUMENTS_BAD;
-    }
-
-    switch (pMechanism->mechanism) {
-        case EHM_RSA_3072:
-            if (ulDataLen > 256) {
-                printf("rsa 3072 verify requires a <=256B digest.\n");
-                return EHR_ARGUMENTS_BAD;
-            }
-            if (ulSignatureLen != RSA_OAEP_3072_SIGNATURE_SIZE) {
-                printf("rsa 3072 verify requires a 384B signature.\n");
-                return EHR_ARGUMENTS_BAD;
-            }
-            ret = enclave_rsa_verify(enclaveHelpers.getSgxEnclaveId(), &sgxStatus,
-                                 pKeyBlob->pKeyData, pKeyBlob->ulKeyLen,
-                                 pData, ulDataLen, pSignature, ulSignatureLen, result);
-            break;
-        default:
-            return EHR_MECHANISM_INVALID;
-    }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EHR_FUNCTION_FAILED;
-    else
-        return EHR_OK;
-}
-
-EH_RV GenerateDataKey(EH_MECHANISM_PTR  pMechanism,
-                      EH_KEY_BLOB_PTR   pMasterKeyBlob,
-                      EH_BYTE_PTR       pPlainDataKey,
-                      EH_ULONG          ulPlainDataKeyLen,
-                      EH_BYTE_PTR       pEncryptedDataKey,
-                      EH_ULONG_PTR      pulEncryptedDataKeyLen)
-{
-    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
-    EH_BYTE_PTR pContext = NULL;
-    EH_ULONG ulContextLen = 0;
-
-    if (pMasterKeyBlob != NULL && pEncryptedDataKey == NULL &&
-            pulEncryptedDataKeyLen != NULL) {
-        return enclaveHelpers.getEncryptLen(pMasterKeyBlob->ulKeyType,
-                ulPlainDataKeyLen, pulEncryptedDataKeyLen);
-    }
-
-    if (ulPlainDataKeyLen > 1024 || ulPlainDataKeyLen == 0) {
-        return EHR_ARGUMENTS_BAD;
-    }
-
-    if (pMechanism == NULL || pMasterKeyBlob ==  NULL ||
-            pEncryptedDataKey == NULL || pulEncryptedDataKeyLen == NULL ||
-            pMechanism->mechanism != pMasterKeyBlob->ulKeyType) {
-        return EHR_ARGUMENTS_BAD;
-    }
-
-    switch(pMechanism->mechanism) {
-        case EHM_AES_GCM_128:
-            if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
-                return EHR_ARGUMENTS_BAD;
+                return EH_ARGUMENTS_BAD;
             }
 
-            if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
-                    (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                return EHR_ARGUMENTS_BAD;
+            /* calculate the signature length */
+            if (signature->datalen == 0) {
+                signature->datalen = RSA_OAEP_3072_SIGNATURE_SIZE;
+                return EH_OK;
             }
+            /* check if the datalen is valid */
+            if (signature->data == NULL || signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE)
+                return EH_ARGUMENTS_BAD;
 
-            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
-                    (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                return EHR_ARGUMENTS_BAD;
-            }
-
-            pContext = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD;
-            ulContextLen = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen;
-
-            break;
-        default:
-            return EHR_MECHANISM_INVALID;
-    }
-
-    ret = enclave_generate_datakey(enclaveHelpers.getSgxEnclaveId(),
+            ret = enclave_rsa_sign(g_enclave_id,
                                &sgxStatus,
-                               pMechanism->mechanism,
-                               pMasterKeyBlob->pKeyData,
-                               pMasterKeyBlob->ulKeyLen,
-                               pContext,
-                               ulContextLen,
-                               pPlainDataKey,
-                               ulPlainDataKeyLen,
-                               pEncryptedDataKey,
-                               *pulEncryptedDataKeyLen);
+                               cmk->keyblob,
+                               cmk->keybloblen,
+                               digest->data,
+                               digest->datalen,
+                               signature->data,
+                               signature->datalen);
+        case EH_EC_P256:
+            //TODO
+            return EH_OK;
+        case EH_EC_P512:
+            //TODO
+            return EH_OK;
+        case EH_EC_SM2:
+            //TODO
+            return EH_OK;
+        default:
+            return EH_KEYSPEC_INVALID;
+    }
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EHR_FUNCTION_FAILED;
+        return EH_FUNCTION_FAILED;
     else
-        return EHR_OK;
+        return EH_OK;
 }
 
-EH_RV GenerateDataKeyWithoutPlaintext(EH_MECHANISM_PTR  pMechanism,
-                                      EH_KEY_BLOB_PTR   pMasterKeyBlob,
-                                      EH_ULONG          ulPlainDataKeyLen,
-                                      EH_BYTE_PTR       pEncryptedDataKey,
-                                      EH_ULONG_PTR      pulEncryptedDataKeyLen)
-{
-    return GenerateDataKey(pMechanism, pMasterKeyBlob, NULL, ulPlainDataKeyLen,
-            pEncryptedDataKey, pulEncryptedDataKeyLen);
-}
-
-EH_RV ExportDataKey(EH_MECHANISM_PTR pMechanism,
-            EH_KEY_BLOB_PTR pUsrKeyBlob, EH_KEY_BLOB_PTR pMasterKeyBlob,
-            EH_BYTE_PTR pEncryptedDataKey, EH_ULONG ulEncryptedDataKeyLen,
-            EH_BYTE_PTR pNewEncryptedDataKey, EH_ULONG_PTR pulNewEncryptedDataKeyLen)
+ehsm_status_t Verify(ehsm_keyblob_t *cmk,
+                 ehsm_data_t *digest,
+                 ehsm_data_t *signature,
+                 bool* result)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    SgxCrypto::EnclaveHelpers enclaveHelpers;
-    EH_BYTE_PTR pContext = NULL;
-    EH_ULONG ulContextLen = 0;
 
-    if (pNewEncryptedDataKey == NULL && pulNewEncryptedDataKeyLen != NULL) {
-        *pulNewEncryptedDataKeyLen = RSA_OAEP_3072_CIPHER_LENGTH;
-        return EHR_OK;
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || digest == NULL || signature == NULL || result == NULL) {
+        return EH_ARGUMENTS_BAD;
     }
 
-    if (ulEncryptedDataKeyLen > 1024 || ulEncryptedDataKeyLen == 0) {
-        return EHR_ARGUMENTS_BAD;
+    /* this api only support for asymmetric keys */
+    if (cmk->metadata.keyspec != EH_RSA_2048 &&
+        cmk->metadata.keyspec != EH_RSA_3072 &&
+        cmk->metadata.keyspec != EH_EC_P256 &&
+        cmk->metadata.keyspec != EH_EC_P512 &&
+        cmk->metadata.keyspec != EH_EC_SM2) {
+        return EH_KEYSPEC_INVALID;
     }
 
-    if (pMechanism == NULL || pUsrKeyBlob ==  NULL || pMasterKeyBlob ==  NULL ||
-            pEncryptedDataKey == NULL || pNewEncryptedDataKey == NULL ||
-            pulNewEncryptedDataKeyLen == NULL ||
-            pMechanism->mechanism != pMasterKeyBlob->ulKeyType) {
-        return EHR_ARGUMENTS_BAD;
-    }
-
-	if (pUsrKeyBlob->ulKeyType != EHM_RSA_3072) {
-        return EHR_ARGUMENTS_BAD;
-    }
-
-	switch(pMechanism->mechanism) {
-        case EHM_AES_GCM_128:
-            if (pMechanism->ulParameterLen != sizeof(EH_GCM_PARAMS)) {
-                return EHR_ARGUMENTS_BAD;
-            }
-
-            if ((0 != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
-                    (NULL == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                return EHR_ARGUMENTS_BAD;
-            }
-
-            if ((0 == EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen) &&
-                    (NULL != EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD)) {
-                return EHR_ARGUMENTS_BAD;
-            }
-
-            pContext = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->pAAD;
-            ulContextLen = EH_GCM_PARAMS_PTR(pMechanism->pParameter)->ulAADLen;
+    switch(cmk->metadata.keyspec) {
+        case EH_RSA_2048:
+            //TODO
+            return EH_OK;
+        case EH_RSA_3072:
+            if (signature->data == NULL || signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE)
+                return EH_ARGUMENTS_BAD;
+            if (digest->data == NULL || digest->datalen > 256)
+                return EH_ARGUMENTS_BAD;
+            ret = enclave_rsa_verify(g_enclave_id,
+                                 &sgxStatus,
+                                 cmk->keyblob,
+                                 cmk->keybloblen,
+                                 digest->data,
+                                 digest->datalen,
+                                 signature->data,
+                                 signature->datalen,
+                                 result);
 
             break;
+        case EH_EC_P256:
+            //TODO
+            return EH_OK;
+        case EH_EC_P512:
+            //TODO
+            return EH_OK;
+        case EH_EC_SM2:
+            //TODO
+            return EH_OK;
         default:
-            return EHR_MECHANISM_INVALID;
+            return EH_KEYSPEC_INVALID;
     }
 
-    ret = enclave_export_datakey(enclaveHelpers.getSgxEnclaveId(),
-                               &sgxStatus,
-                               pMasterKeyBlob->ulKeyType,
-                               pMasterKeyBlob->pKeyData,
-                               pMasterKeyBlob->ulKeyLen,
-                               pContext,
-                               ulContextLen,
-                               pEncryptedDataKey,
-                               ulEncryptedDataKeyLen,
-                               pUsrKeyBlob->ulKeyType,
-                               pUsrKeyBlob->pKeyData,
-                               pUsrKeyBlob->ulKeyLen,
-                               pNewEncryptedDataKey,
-                               *pulNewEncryptedDataKeyLen);
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
-        return EHR_FUNCTION_FAILED;
-    }
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
     else
-        return EHR_OK;
+        return EH_OK;
+}
+
+ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
+            ehsm_data_t *aad,
+            ehsm_data_t *plaintext,
+            ehsm_data_t *ciphertext)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || plaintext == NULL || ciphertext == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_SM4) {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    /* the datakey length should be 1~1024 and the data buffer should not be NULL */
+    if (plaintext->data == NULL ||
+        plaintext->datalen == 0 ||
+        plaintext->datalen > EH_DATA_KEY_MAX_SIZE) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    switch(cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+            /* calculate the ciphertext length */
+            if (ciphertext->datalen == 0) {
+                ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (ciphertext->data == NULL ||
+                ciphertext->datalen != plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            if ((0 != aad->datalen) && (NULL == aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            if ((0 == aad->datalen) && (NULL != aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            ret = enclave_generate_datakey(g_enclave_id,
+                                   &sgxStatus,
+                                   cmk->metadata.keyspec,
+                                   cmk->keyblob,
+                                   cmk->keybloblen,
+                                   aad->data,
+                                   aad->datalen,
+                                   plaintext->data,
+                                   plaintext->datalen,
+                                   ciphertext->data,
+                                   ciphertext->datalen);
+            break;
+        case EH_SM4:
+            //TODO
+            return EH_OK;
+        default:
+            return EH_KEYSPEC_INVALID;
+    }
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+}
+
+ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
+        ehsm_data_t *aad,
+        ehsm_data_t *plaintext,
+        ehsm_data_t *ciphertext)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || plaintext == NULL || ciphertext == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_SM4) {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    /* the datakey length should be 1~1024 and the data buffer should be NULL */
+    if (plaintext->data != NULL ||
+        plaintext->datalen == 0 ||
+        plaintext->datalen > EH_DATA_KEY_MAX_SIZE) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    switch(cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+            /* calculate the ciphertext length */
+            if (ciphertext->datalen == 0) {
+                ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (ciphertext->data == NULL ||
+                ciphertext->datalen != plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
+                return EH_ARGUMENTS_BAD;
+
+            if ((0 != aad->datalen) && (NULL == aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            if ((0 == aad->datalen) && (NULL != aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            ret = enclave_generate_datakey(g_enclave_id,
+                                   &sgxStatus,
+                                   cmk->metadata.keyspec,
+                                   cmk->keyblob,
+                                   cmk->keybloblen,
+                                   aad->data,
+                                   aad->datalen,
+                                   NULL,
+                                   plaintext->datalen,
+                                   ciphertext->data,
+                                   ciphertext->datalen);
+            break;
+        case EH_SM4:
+            //TODO
+            return EH_OK;
+        default:
+            return EH_KEYSPEC_INVALID;
+    }
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+
+}
+
+ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
+            ehsm_keyblob_t *ukey,
+            ehsm_data_t *aad,
+            ehsm_data_t *olddatakey,
+            ehsm_data_t *newdatakey)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || ukey == NULL || olddatakey == NULL || newdatakey == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    /* cmk should be symmetric key and the ukey should be an asymmetric key */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_SM4 &&
+        ukey->metadata.keyspec != EH_RSA_2048 &&
+        ukey->metadata.keyspec != EH_RSA_3072 &&
+        ukey->metadata.keyspec != EH_EC_P256 &&
+        ukey->metadata.keyspec != EH_EC_P512 &&
+        ukey->metadata.keyspec != EH_EC_SM2) {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    if (olddatakey->data == NULL ||
+        olddatakey->datalen >1024 || olddatakey->datalen == 0)
+        return EH_ARGUMENTS_BAD;
+
+    switch(ukey->metadata.keyspec) {
+        case EH_RSA_2048:
+            //TODO
+            return EH_OK;
+        case EH_RSA_3072:
+            if(olddatakey->datalen > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE) {
+                return EH_ARGUMENTS_BAD;
+            }
+            /* calculate the newdatakey length */
+            if (newdatakey->datalen == 0) {
+                newdatakey->datalen = RSA_OAEP_3072_CIPHER_LENGTH;
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (newdatakey->data == NULL ||
+                newdatakey->datalen != RSA_OAEP_3072_CIPHER_LENGTH){
+                return EH_ARGUMENTS_BAD;
+            }
+
+            if ((0 != aad->datalen) && (NULL == aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            if ((0 == aad->datalen) && (NULL != aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+
+            ret = enclave_export_datakey(g_enclave_id,
+                           &sgxStatus,
+                           cmk->metadata.keyspec,
+                           cmk->keyblob,
+                           cmk->keybloblen,
+                           aad->data,
+                           aad->datalen,
+                           olddatakey->data,
+                           olddatakey->datalen,
+                           ukey->metadata.keyspec,
+                           ukey->keyblob,
+                           ukey->keybloblen,
+                           newdatakey->data,
+                           newdatakey->datalen);
+            break;
+        case EH_EC_P256:
+            //TODO
+            return EH_OK;
+        case EH_EC_P512:
+            //TODO
+            return EH_OK;
+        case EH_EC_SM2:
+            //TODO
+            return EH_OK;
+        default:
+            return EH_KEYSPEC_INVALID;
+    }
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
 }
 
 }
