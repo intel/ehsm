@@ -93,9 +93,9 @@ typedef enum {
 #pragma pack(push,1)
 
 typedef struct {
-    ehsm_keyspec_t keyspec;
-    ehsm_keyorigin_t origin;
-    ehsm_keypurpose_t purpose;
+    uint32_t keyspec;
+    uint32_t origin;
+    uint32_t purpose;
     uint32_t apiversion;
     uint8_t  descrption[16];
     uint8_t  createdate[8];
