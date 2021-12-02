@@ -214,6 +214,7 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
             if ((0 == aad->datalen) && (NULL != aad->data)) {
                 return EH_ARGUMENTS_BAD;
             }
+
             ret = enclave_aes_encrypt(g_enclave_id,
                                   &sgxStatus,
                                   aad->data,
