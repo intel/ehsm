@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y \
     module-init-tools \
     g++
 
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | -E bash -
+RUN apt-get install -y nodejs
+
 # Install the SDK
 WORKDIR /opt/intel
 RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.12.1/linux/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.15.101.1.bin \
@@ -52,17 +55,34 @@ RUN apt-get update &&apt-get install -y \
     libsgx-ra-uefi
 
 # The prebuild app
-WORKDIR /home/ehsm/ehsm-core
-COPY bin/ehsm-core/ehsm-core /home/ehsm/ehsm-core/ehsm-core
-COPY bin/ehsm-core/libenclave-ehsm-core.signed.so /home/ehsm/ehsm-core/libenclave-ehsm-core.signed.so
+# WORKDIR /home/ehsm/ehsm-core
+# COPY bin/ehsm-core/ehsm-core /home/ehsm/ehsm-core/ehsm-core
+# COPY bin/ehsm-core/libenclave-ehsm-core.signed.so /home/ehsm/ehsm-core/libenclave-ehsm-core.signed.so
 
 # Build App from source
-#RUN git clone https://github.com/intel/ehsm.git \
-#    && cd ehsm \
-#    && make
+RUN git clone https://github.com/intel/ehsm.git \
+   && cd ehsm \
+   && make
+
+# Install node & npm packages
+RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
+    && tar xf  node-v16.13.0-linux-x64.tar.xz \
+    && mv node-v16.13.0-linux-x64/ /usr/local/nodejs \
+    && ln -s /usr/local/nodejs/bin/node /usr/local/bin \
+    && ln -s /usr/local/nodejs/bin/npm /usr/local/bin
+
+# Install ehsm-service dependence packages
+WORKDIR /opt/intel/ehsm/ehsmservice
+RUN npm install
+
+# image port
+EXPOSE 3000
+
+# run ehsm-service
+CMD ["node","server.js"]
 
 
 #RUN adduser -q --disabled-password --gecos "" --no-create-home sgxuser
 #USER sgxuser
 
-CMD tail -f /dev/null
+# CMD tail -f /dev/null
