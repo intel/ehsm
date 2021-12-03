@@ -91,74 +91,73 @@ struct RetJsonObj
 };
 
 
-extern "C" char* Encrypt_napi(int intMechanism, char* key, char* plaintext)
+extern "C" char* Decrypt_napi(int intMechanism, char* key, char* plaintext)
 {
     ehsm_status_t rv = EH_FUNCTION_FAILED;
     RetJsonObj retJsonObj;
     ehsm_data_t plain_text;
-    ehsm_data_t ciphertext;
+    ehsm_data_t outPuttext;
     ehsm_data_t aad;
     ehsm_keyblob_t cmk;
 
-    printf("========== Encrypt_napi start==========\n");
     std::string KeyInput = key;
     std::string decode_KeyInput;
     decode_KeyInput = base64_decode(KeyInput);
-    
-    plain_text.datalen = strlen(plaintext);
-    plain_text.data = (unsigned char *)plaintext;
-    
     cmk.keybloblen = EH_AES_CRE_KEY_SIZE;
     cmk.keyblob = (unsigned char *)decode_KeyInput.c_str();
     cmk.metadata.keyspec = (ehsm_keyspec_t)intMechanism;
 
+    std::string plaintextInput = plaintext;
+    std::string decode_plaintext;
+    decode_plaintext = base64_decode(plaintextInput);
+    plain_text.datalen = decode_plaintext.size();
+    plain_text.data = (unsigned char *)decode_plaintext.c_str();
+    
+    printf("========== Decrypt_napi start==========\n");
+
     rv = Initialize();
     if (rv != EH_OK) {
         retJsonObj.code = retJsonObj.CODE_FAILED;
-        retJsonObj.msg = "encrypt key napi failed!";
+        retJsonObj.msg = "decrypt failed!";
         return retJsonObj.toChar();
     }
     printf("Initialize done\n");
 
     aad.datalen = 0;
     aad.data = NULL;
-    ciphertext.datalen = 0;
-    rv = Encrypt(&cmk, &plain_text, &aad, &ciphertext);
+    outPuttext.datalen = 0;
+
+    rv = Decrypt(&cmk, &plain_text, &aad, &outPuttext);
     if (rv != EH_OK) {
         retJsonObj.code = retJsonObj.CODE_FAILED;
-        retJsonObj.msg = "encrypt key failed!";
+        retJsonObj.msg = "decrypt failed!";
         return retJsonObj.toChar();
     }
-      
-    ciphertext.data = (uint8_t*)malloc(ciphertext.datalen);
-    if (ciphertext.data == nullptr) {
+    outPuttext.data = (uint8_t*)malloc(outPuttext.datalen);
+    if (outPuttext.data == nullptr) {
         rv = EH_DEVICE_MEMORY;
         retJsonObj.code = retJsonObj.CODE_FAILED;
-        retJsonObj.msg = "create key failed!";
+        retJsonObj.msg = "decrypt failed!";
         return retJsonObj.toChar();
     }
-    rv = Encrypt(&cmk, &plain_text, &aad, &ciphertext);
+
+    rv = Decrypt(&cmk, &plain_text, &aad, &outPuttext);
     if (rv != EH_OK) {
         retJsonObj.code = retJsonObj.CODE_FAILED;
-        retJsonObj.msg = "create key failed!";
+        retJsonObj.msg = "decrypt failed!";
         return retJsonObj.toChar();
     }
-    
-    std::string ciphertext_base64;
-    ciphertext_base64 = base64_encode(ciphertext.data, ciphertext.datalen);
+    std::string encode_outPuttext;
+    encode_outPuttext = base64_encode(outPuttext.data, outPuttext.datalen);
 
-    if(ciphertext.data != nullptr){   
-      free(ciphertext.data);
-    }
-    printf("========== Encrypt_napi done==========\n");
-    if(ciphertext_base64.size() > 0){
+    printf("========== Decrypt_napi done==========\n");
+    if(outPuttext.data != nullptr){
         RetJsonObj retObj;
-        retObj.addData("enData", ciphertext_base64);
+        retObj.addData("data", encode_outPuttext);
         return retObj.toChar();
     } 
     
     retJsonObj.code = retJsonObj.CODE_FAILED;
-    retJsonObj.msg = "create key napi failed!";
+    retJsonObj.msg = "decrypt napi failed!";
     return retJsonObj.toChar();
-    
 }
