@@ -91,73 +91,71 @@ struct RetJsonObj
 };
 
 
-extern "C" char* Decrypt_napi(int intMechanism, char* key, char* plaintext)
+extern "C" char* GenerateDataKey_napi(int intMechanism, char* master_key_blob)
 {
-    ehsm_status_t rv = EH_FUNCTION_FAILED;
+    ehsm_status_t ret = EH_OK;
     RetJsonObj retJsonObj;
-    ehsm_data_t plain_text;
-    ehsm_data_t outPuttext;
-    ehsm_data_t aad;
     ehsm_keyblob_t cmk;
+    ehsm_data_t aad;
+    ehsm_data_t plaint_datakey;
+    ehsm_data_t cipher_datakey;
 
-    std::string KeyInput = key;
-    std::string decode_KeyInput;
-    decode_KeyInput = base64_decode(KeyInput);
+    std::string masterKeyInput = master_key_blob;
+    std::string decode_masterKeyInput;
+    decode_masterKeyInput = base64_decode(masterKeyInput);
     cmk.keybloblen = EH_AES_CRE_KEY_SIZE;
-    cmk.keyblob = (unsigned char *)decode_KeyInput.c_str();
+    cmk.keyblob = (unsigned char *)decode_masterKeyInput.c_str();
     cmk.metadata.keyspec = (ehsm_keyspec_t)intMechanism;
-
-    std::string plaintextInput = plaintext;
-    std::string decode_plaintext;
-    decode_plaintext = base64_decode(plaintextInput);
-    plain_text.datalen = decode_plaintext.size();
-    plain_text.data = (unsigned char *)decode_plaintext.c_str();
-    
-    printf("========== Decrypt_napi start==========\n");
-
-    rv = Initialize();
-    if (rv != EH_OK) {
-        retJsonObj.code = retJsonObj.CODE_FAILED;
-        retJsonObj.msg = "decrypt failed!";
-        return retJsonObj.toChar();
-    }
-    printf("Initialize done\n");
-
-    aad.datalen = 0;
+    cmk.metadata.origin = EH_INTERNAL_KEY;
+    printf("============GenerateDataKey_napi start==========\n");
     aad.data = NULL;
-    outPuttext.datalen = 0;
+    aad.datalen = 0;
 
-    rv = Decrypt(&cmk, &plain_text, &aad, &outPuttext);
-    if (rv != EH_OK) {
+    plaint_datakey.datalen = 16;
+    plaint_datakey.data = (uint8_t*)malloc(plaint_datakey.datalen);
+    if (plaint_datakey.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
         retJsonObj.code = retJsonObj.CODE_FAILED;
-        retJsonObj.msg = "decrypt failed!";
+        retJsonObj.msg = "generate data key failed!";
         return retJsonObj.toChar();
     }
-    outPuttext.data = (uint8_t*)malloc(outPuttext.datalen);
-    if (outPuttext.data == nullptr) {
-        rv = EH_DEVICE_MEMORY;
+    
+    cipher_datakey.datalen = 0;
+    ret = GenerateDataKey(&cmk, &aad, &plaint_datakey, &cipher_datakey);
+    if (ret != EH_OK) {
         retJsonObj.code = retJsonObj.CODE_FAILED;
-        retJsonObj.msg = "decrypt failed!";
+        retJsonObj.msg = "generate data key failed!";
         return retJsonObj.toChar();
     }
 
-    rv = Decrypt(&cmk, &plain_text, &aad, &outPuttext);
-    if (rv != EH_OK) {
+    cipher_datakey.data = (uint8_t*)malloc(cipher_datakey.datalen);
+    if (cipher_datakey.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
         retJsonObj.code = retJsonObj.CODE_FAILED;
-        retJsonObj.msg = "decrypt failed!";
+        retJsonObj.msg = "generate data key failed!";
         return retJsonObj.toChar();
     }
-    std::string encode_outPuttext;
-    encode_outPuttext = base64_encode(outPuttext.data, outPuttext.datalen);
 
-    printf("========== Decrypt_napi done==========\n");
-    if(outPuttext.data != nullptr){
-        RetJsonObj retObj;
-        retObj.addData("data", encode_outPuttext);
+    ret = GenerateDataKey(&cmk, &aad, &plaint_datakey, &cipher_datakey);
+    if (ret != EH_OK) {
+        retJsonObj.code = retJsonObj.CODE_FAILED;
+        retJsonObj.msg = "generate data key failed!";
+        return retJsonObj.toChar();
+    }
+    printf("============GenerateDataKey_napi done==========\n");
+    std::string encode_plaintdatakey;
+    encode_plaintdatakey = base64_encode(plaint_datakey.data, plaint_datakey.datalen);
+    std::string encode_cipherdatakey;
+    encode_cipherdatakey = base64_encode(cipher_datakey.data, cipher_datakey.datalen);
+
+    RetJsonObj retObj;
+    if(plaint_datakey.data != nullptr && cipher_datakey.data != nullptr){
+        retObj.addData("dataKey", encode_plaintdatakey);
+        retObj.addData("enKey", encode_cipherdatakey);
         return retObj.toChar();
     } 
-    
+
     retJsonObj.code = retJsonObj.CODE_FAILED;
-    retJsonObj.msg = "decrypt napi failed!";
+    retJsonObj.msg = "generate data key napi failed!";
     return retJsonObj.toChar();
 }
