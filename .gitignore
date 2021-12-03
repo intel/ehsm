@@ -15,6 +15,12 @@ core/Enclave/*.o
 
 bin/
 
+core/Napi/*.o
+
+ehsmservice/node_modules/
+ehsmservice/package-lock.json
+ehsmservice/logs/*/
+
 
 
 
