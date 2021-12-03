@@ -34,6 +34,7 @@ include ../buildenv.mk
 App_Name := ehsm-core
 Enclave_Name := libenclave-$(App_Name).so
 Signed_Enclave_Name := libenclave-$(App_Name).signed.so
+Napi_Name := libehsmnapi.so
 
 Enclave_Config_File := Enclave/enclave.config.xml
 Enclave_Signing_Key := Enclave/enclave_private_test.pem
@@ -112,22 +113,42 @@ Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 
 Enclave_Config_File := Enclave/enclave_config/enclave_hsm.config.xml
 
+######## NAPI Settings ########
+Napi_Cpp_Files := $(wildcard Napi/*.cpp)
+Napi_Include_Paths := \
+	-I$(SGX_SDK)/include \
+	-IInclude \
+	-IApp \
+	-I$(TOPDIR)/include
+
+Napi_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+Napi_Cpp_Flags := $(Napi_C_Flags) -std=c++11
+Napi_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -nostartfiles -Wl,--export-dynamic -shared
+
+ifneq ($(SGX_MODE), HW)
+	Napi_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
+else
+	Napi_Link_Flags += -lsgx_epid -lsgx_quote_ex
+endif
+
+Napi_Cpp_Objects := $(Napi_Cpp_Files:.cpp=.o)
+
 
 ######## Build Settings ########
 .PHONY: all target clean
 all: target
 	@$(MAKE) target
 	@mkdir -p $(OUT)
-	@mv $(App_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
+	@mv $(App_Name) $(Napi_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
 
 ifeq ($(Build_Mode), HW_RELEASE)
-target: $(App_Name) $(Enclave_Name)
+target: $(App_Name) $(Napi_Name) $(Enclave_Name)
 else
-target: $(App_Name) $(Signed_Enclave_Name)
+target: $(App_Name) $(Napi_Name) $(Signed_Enclave_Name)
 endif
 
 clean:
-	@rm -f $(App_Cpp_Objects) $(Enclave_Cpp_Objects) App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
+	@rm -f $(App_Cpp_Objects) $(Napi_Cpp_Objects) $(Enclave_Cpp_Objects) App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
 	@rm -rf $(OUT)
 
 
@@ -170,3 +191,12 @@ $(Enclave_Name): Enclave/enclave_hsm_t.o $(Enclave_Cpp_Objects)
 $(Signed_Enclave_Name): $(Enclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key Enclave/enclave_config/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
+
+######## NAPI Objects ########
+Napi/%.o: Napi/%.cpp
+	@$(CXX) $(Napi_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+$(Napi_Name): $(Napi_Cpp_Objects) $(App_Cpp_Objects) App/enclave_hsm_u.o
+	$(CXX) $^ -o $@ $(Napi_Link_Flags)
+	@echo "LINK =>  $@"
