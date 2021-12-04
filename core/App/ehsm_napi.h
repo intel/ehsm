@@ -88,17 +88,16 @@ char* NAPI_AsymmetricDecrypt(const char* cmk,
 [char*] ciphertext -- the cipher datakey
 */
 char* NAPI_GenerateDataKey(const char* cmk,
-        const char* aad,
-        char* plaintext,
-        char* *ciphertext);
+        const uint32_t keylen,
+        const char* aad);
 
 /*
 @return
 [char*] ciphertext -- the cipher datakey
 */
 char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk,
-        const char* aad,
-        const char* plaintext);
+        const uint32_t keylen,
+        const char* aad);
 
 /*
 @return
