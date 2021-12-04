@@ -73,6 +73,8 @@ RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
 
 # Install ehsm-service dependence packages
 WORKDIR /opt/intel/ehsm/ehsmservice
+RUN cp /opt/intel/ehsm/bin/ehsm-core/* .
+
 RUN npm install
 
 # image port
