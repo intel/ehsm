@@ -36,53 +36,71 @@
 using namespace std;
 using namespace EHsmProvider;
 
-static char* StringToChar(string str)
-{
-    char *retChar = NULL;
-    if (str.size() > 0) {
-        int len = str.size();
-        retChar = (char *)malloc(len * sizeof(uint8_t));
-        if(retChar != nullptr){
-            memset(retChar, 0, len);
-            memcpy(retChar, str.c_str(), len);
-        }
-    }
-    return retChar;
-}
-typedef struct {
-    const int CODE_SUCCESS = 200;
-    const int CODE_FAILED = 500;
-    int code = CODE_SUCCESS;
-    std::string msg = "success!";
-    std::string jsonStr;
-	
-	void setCode(int code){code = code;};
-	void setMessage(string message){msg = message;};
-	void addData(string key, uint32_t data) {
-        if(jsonStr.size() > 0){
-            jsonStr += ",";
-        }
-        jsonStr += "\""+key+"\" : " + "\""+std::to_string(data)+"\"";
+class RetJsonObj {
+
+public:
+    RetJsonObj() {
+        m_code = CODE_FAILED;
+        m_msg = "Server exception.";
     };
-	void addData(string key, string data) {
-        if(jsonStr.size() > 0){
-            jsonStr += ",";
+
+    RetJsonObj(int code, string message) {
+        m_code = code;
+        m_msg = message;
+    };
+
+    virtual ~RetJsonObj(){};
+
+    void setCode(int code, string message) {
+        m_code = code;
+        m_msg = message;
+    };
+
+    void addData(string key, uint32_t data) {
+        if (m_jsonStr.size() > 0) {
+            m_jsonStr += ",";
         }
-        jsonStr += "\""+key+"\" : " + "\""+data+"\"";
+        m_jsonStr += "\"" + key + "\" : " + "\"" + std::to_string(data) + "\"";
+    };
+
+    void addData(string key, string data) {
+        if (m_jsonStr.size() > 0) {
+            m_jsonStr += ",";
+        }
+        m_jsonStr += "\"" + key + "\" : " + "\"" + data + "\"";
     };
 
     char* toChar() {
         std::string retString = "{";
-        retString += "\"code\":" + std::to_string(code);
-        retString += ",\"message\":\"" + msg;
+        retString += "\"code\":" + std::to_string(m_code);
+        retString += ",\"message\":\"" + m_msg;
         retString += "\"";
-        retString += ",\"result\":{"+jsonStr+"}";
+        retString += ",\"result\":{" + m_jsonStr + "}";
         retString += "}";
-		return StringToChar(retString);
-	};
-} RetJsonObj;
+        return StringToChar(retString);
+    };
 
-extern "C" {
+private:
+    char* StringToChar(string str)
+    {
+        int len = str.size();
+        char *retChar = (char *)malloc(len + 1);
+        if (retChar != nullptr) {
+            str.copy(retChar, len, 0);
+            retChar[len] = '\0';
+        }
+        return retChar;
+    }
+
+public:
+    const int CODE_SUCCESS = 200;
+    const int CODE_FAILED = 500;
+
+private:
+    int m_code;
+    std::string m_msg;
+    std::string m_jsonStr;
+};
 
 /*
 @return
@@ -112,46 +130,33 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
 
     int rv = Initialize();
     if (rv != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         return retJsonObj.toChar();
     }
 
     ret = CreateKey(&master_key);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     master_key.keyblob = (uint8_t*)malloc(master_key.keybloblen);
     if (master_key.keyblob == NULL) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     ret = CreateKey(&master_key);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     ret = ehsm_serialize_cmk(&master_key, &resp, &resp_len);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     cmk_base64 = base64_encode(resp, resp_len);
-    if(cmk_base64.size() > 0){
+    if (cmk_base64.size() > 0) {
         retJsonObj.addData("cmk_base64", cmk_base64);
-        SAFE_FREE(master_key.keyblob);
-        SAFE_FREE(resp);
-        Finalize();
-        return retJsonObj.toChar();
+        retJsonObj.setCode(retJsonObj.CODE_SUCCESS, "Success.");
     }
 
 out:
@@ -191,8 +196,6 @@ char* NAPI_Encrypt(const char* cmk_base64,
 
     int rv = Initialize();
     if (rv != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         return retJsonObj.toChar();
     }
 
@@ -200,8 +203,6 @@ char* NAPI_Encrypt(const char* cmk_base64,
 
     ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)decode_str.data(), decode_str.size());
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
@@ -214,32 +215,23 @@ char* NAPI_Encrypt(const char* cmk_base64,
     cipher_data.datalen = 0;
     ret = Encrypt(&masterkey, &plaint_data, &aad_data, &cipher_data);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     cipher_data.data = (uint8_t*)malloc(cipher_data.datalen);
     if (cipher_data.data == NULL) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     ret = Encrypt(&masterkey, &plaint_data, &aad_data, &cipher_data);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     cipherText_base64 = base64_encode(cipher_data.data, cipher_data.datalen);
-    if(cipherText_base64.size() > 0){
+    if (cipherText_base64.size() > 0) {
         retJsonObj.addData("ciphertext_base64", cipherText_base64);
-        SAFE_FREE(masterkey.keyblob);
-        SAFE_FREE(cipher_data.data);
-        Finalize();
-        return retJsonObj.toChar();
+        retJsonObj.setCode(retJsonObj.CODE_SUCCESS, "Success.");
     }
 
 out:
@@ -279,19 +271,14 @@ char* NAPI_Decrypt(const char* cmk_base64,
 
     int rv = Initialize();
     if (rv != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         return retJsonObj.toChar();
     }
 
     decode_cmk = base64_decode(cmk_base64);
-
     decode_cipher = base64_decode(ciphertext_base64);
 
     ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)decode_cmk.data(), decode_cmk.size());
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
@@ -304,33 +291,25 @@ char* NAPI_Decrypt(const char* cmk_base64,
     plaint_data.datalen = 0;
     ret = Decrypt(&masterkey, &cipher_data, &aad_data, &plaint_data);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     plaint_data.data = (uint8_t*)malloc(plaint_data.datalen);
     if (plaint_data.data == NULL) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     ret = Decrypt(&masterkey, &cipher_data, &aad_data, &plaint_data);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     plaintext_base64 = base64_encode(plaint_data.data, plaint_data.datalen);
-    if(plaintext_base64.size() > 0){
+    if (plaintext_base64.size() > 0) {
         retJsonObj.addData("plaintext_base64", plaintext_base64);
-        SAFE_FREE(masterkey.keyblob);
-        SAFE_FREE(plaint_data.data);
-        Finalize();
-        return retJsonObj.toChar();
+        retJsonObj.setCode(retJsonObj.CODE_SUCCESS, "Success.");
     }
+
 out:
     SAFE_FREE(masterkey.keyblob);
     SAFE_FREE(plaint_data.data);
@@ -369,8 +348,6 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
     
     int rv = Initialize();
     if (rv != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         return retJsonObj.toChar();
     }
 
@@ -378,8 +355,6 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
 
     ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)decode_str.data(), decode_str.size());
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
@@ -389,52 +364,35 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
     plaint_datakey.datalen = keylen;
     plaint_datakey.data = (uint8_t*)malloc(plaint_datakey.datalen);
     if (plaint_datakey.data == NULL) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
+
     ret = GenerateDataKey(&masterkey, &aad_data, &plaint_datakey, &cipher_datakey);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     plaint_datakey.data = (uint8_t*)malloc(plaint_datakey.datalen);
     if (plaint_datakey.data == nullptr) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out; 
     }
 
     cipher_datakey.data = (uint8_t*)malloc(cipher_datakey.datalen);
     if (cipher_datakey.data == nullptr) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     ret = GenerateDataKey(&masterkey, &aad_data, &plaint_datakey, &cipher_datakey);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
     plaintext_base64 = base64_encode(plaint_datakey.data, plaint_datakey.datalen);
     ciphertext_base64 = base64_encode(cipher_datakey.data, cipher_datakey.datalen);
-    if(plaintext_base64.size() > 0 ){
+    if (plaintext_base64.size() > 0 && ciphertext_base64.size() > 0) {
         retJsonObj.addData("plaintext_base64", plaintext_base64);
-
-        if(ciphertext_base64.size() > 0){
-            retJsonObj.addData("ciphertext_base64", ciphertext_base64);
-
-            SAFE_FREE(masterkey.keyblob);
-            SAFE_FREE(plaint_datakey.data);
-            SAFE_FREE(cipher_datakey.data);
-            Finalize();
-            return retJsonObj.toChar();
-        }
+        retJsonObj.addData("ciphertext_base64", ciphertext_base64);
+        retJsonObj.setCode(retJsonObj.CODE_SUCCESS, "Success.");
     } 
     
 out:
@@ -446,5 +404,3 @@ out:
 }
 
 //TODO: add the implementation of each ehsm napi
-
-}  // extern "C"
