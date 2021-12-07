@@ -35,11 +35,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <cstdint>
-
 #include "ehsm_provider.h"
 #include "base64.h"
-
 #include "ehsm_napi.h"
+#include "dsohandle.h"
 
 using namespace EHsmProvider;
 
@@ -166,8 +165,6 @@ cleanup:
 
     return ret;
 }
-
-
 
 ehsm_status_t testRSA()
 {
@@ -307,8 +304,6 @@ cleanup:
     printf("============testRSA done==========\n");
     return ret;
 }
-
-
 
 ehsm_status_t testGenerateDataKey()
 {
@@ -619,39 +614,6 @@ cleanup:
     return ret;
 }
 
-int test_NAPI_AES()
-{
-    int ret = EH_OK;
-
-    char* cmk;
-    char* plaintext = "AAAAA";
-    char* aad = "challenge";
-    char* ciphertext;
-    char* plaintext2;
-    printf("============test_NAPI_AES start==========\n");
-    /*
-    todo: the api will return a json string, need to add a parser to parse it and
-    pass the correct prameters into the APIs.
-    currently, it now use a workaround, return the encoded cmk string instead of the
-    json string when created successfuly.
-    */
-    cmk = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
-    printf("cmk=%s\n", cmk);
-
-    ciphertext = NAPI_Encrypt(cmk, plaintext, aad);
-    printf("ciphertext=%s\n", ciphertext);
-
-    plaintext2 = NAPI_Decrypt(cmk, ciphertext, aad);
-    printf("plaintext2=%s\n", plaintext2);
-
-cleanup:
-    SAFE_FREE(cmk);
-    SAFE_FREE(ciphertext);
-    SAFE_FREE(plaintext2);
-    printf("============test_NAPI_AES end==========\n");
-    return ret;
-}
-
 int main(int argc, char* argv[])
 {
     ehsm_status_t ret = EH_OK;
@@ -670,8 +632,6 @@ int main(int argc, char* argv[])
     testRSA();
 
     testExportDataKey();
-
-    test_NAPI_AES();
 
     Finalize();
 

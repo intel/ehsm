@@ -48,13 +48,27 @@ char* NAPI_Finalize();
 
 /*
 @return
-[char*] cmk -- the customer master key.
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string,
+        }
+    }
 */
 char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin);
 
 /*
 @return
-[char*] ciphertext -- the encrypted datas
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cipherText_base64 : string,
+        }
+    }
 */
 char* NAPI_Encrypt(const char* cmk,
         const char* plaintext,
@@ -62,7 +76,14 @@ char* NAPI_Encrypt(const char* cmk,
 
 /*
 @return
-[char*] plaintext -- the plaintext datas
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            plaintext_base64 : string,
+        }
+    }
 */
 char* NAPI_Decrypt(const char* cmk,
         const char* ciphertext,
@@ -84,10 +105,17 @@ char* NAPI_AsymmetricDecrypt(const char* cmk,
 
 /*
 @return
-[char*] plaintext --the plaintext datakey
-[char*] ciphertext -- the cipher datakey
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            plaintext_base64 : string,
+            cipherText_base64 : string,
+        }
+    }
 */
-char* NAPI_GenerateDataKey(const char* cmk,
+char* NAPI_GenerateDataKey(const char* cmk_base64,
         const uint32_t keylen,
         const char* aad);
 
