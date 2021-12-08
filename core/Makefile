@@ -32,6 +32,7 @@
 include ../buildenv.mk
 
 App_Name := ehsm-core
+App_Test_Name := ehsm_core_test
 Enclave_Name := libenclave-$(App_Name).so
 Signed_Enclave_Name := libenclave-$(App_Name).signed.so
 Napi_Name := libehsmnapi.so
@@ -137,12 +138,12 @@ Napi_Cpp_Objects := $(Napi_Cpp_Files:.cpp=.o)
 all: target
 	@$(MAKE) target
 	@mkdir -p $(OUT)
-	@mv $(App_Name) $(Napi_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
+	@mv $(App_Test_Name) $(Napi_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
 
 ifeq ($(Build_Mode), HW_RELEASE)
-target: $(App_Name) $(Napi_Name) $(Enclave_Name)
+target: $(App_Test_Name) $(Napi_Name) $(Enclave_Name)
 else
-target: $(App_Name) $(Napi_Name) $(Signed_Enclave_Name)
+target: $(App_Test_Name) $(Napi_Name) $(Signed_Enclave_Name)
 endif
 
 clean:
@@ -164,7 +165,7 @@ App/%.o: App/%.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): App/enclave_hsm_u.o $(App_Cpp_Objects)
+$(App_Test_Name): App/enclave_hsm_u.o $(App_Cpp_Objects)
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
