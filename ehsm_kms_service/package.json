@@ -11,6 +11,7 @@
     "ehsm"
   ],
   "author": "intel",
+  "license": "BSD",
   "dependencies": {
     "express": "^4.17.1",
     "ffi-napi": "^4.0.3",
