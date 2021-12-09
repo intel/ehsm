@@ -186,8 +186,20 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
    */
   'NAPI_GenerateDataKey': ['string',['string', 'int', 'string']],
 
+  /*
+  create the enclave
+  */
+
+  'NAPI_Initialize':['string',[]],
+  
+  /*
+  destory the enclave
+  */
+  'NAPI_Finalize':['string', []],
+
 });
 
+ehsm_napi.NAPI_Initialize();
 
 // base64 encode
 const base64_encode = (str) => new Buffer.from(str).toString('base64')
