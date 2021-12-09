@@ -36,15 +36,84 @@ using namespace std;
 
 extern "C" {
 
+static char* StringToChar(string str)
+{
+    char *retChar = NULL;
+    if (str.size() > 0) {
+        int len = str.size() + 1;
+        retChar = (char *)malloc(len * sizeof(uint8_t));
+        if(retChar != nullptr){
+            memset(retChar, 0, len);
+            memcpy(retChar, str.c_str(), len);
+        }
+    }
+    return retChar;
+}
+
+typedef struct {
+    const int CODE_SUCCESS = 200;
+    const int CODE_FAILED = 500;
+    int code = CODE_SUCCESS;
+    std::string msg = "success!";
+    std::string jsonStr;
+	
+	void setCode(int code){code = code;};
+	void setMessage(string message){msg = message;};
+	void addData(string key, uint32_t data) {
+        if(jsonStr.size() > 0){
+            jsonStr += ",";
+        }
+        jsonStr += "\""+key+"\":" + "\""+std::to_string(data)+"\"";
+    };
+	void addData(string key, string data) {
+        if(jsonStr.size() > 0){
+            jsonStr += ",";
+        }
+        jsonStr += "\""+key+"\":" + "\""+data+"\"";
+    };
+
+  char* toChar() {
+        std::string retString = "{";
+        retString += "\"code\":" + std::to_string(code);
+        retString += ",\"message\":\"" + msg;
+        retString += "\"";
+        retString += ",\"result\":{"+jsonStr+"}";
+        retString += "}";
+        return StringToChar(retString);
+	};
+ 
+  char* parseStringData(char* jsonChar, std::string key) const{
+        std::string retVal;
+        std::string jsonString = jsonChar;
+        key = "\"" + key + "\"";
+
+        int startIndex = jsonString.find(key) + key.size() + 1;
+        std::string subStr = jsonString.substr(startIndex);
+
+        if(subStr[0] == '\"'){
+            int endIndex = subStr.find_first_of("\"",1) - 1;
+            retVal = subStr.substr(1,endIndex);
+        }
+        return StringToChar(retVal);
+	};
+} RetJsonObj;
+
 /*
 create the enclave
+@return
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {}
+    }
 */
 char* NAPI_Initialize();
 
 /*
 destory the enclave
 */
-char* NAPI_Finalize();
+void NAPI_Finalize();
 
 /*
 @return
