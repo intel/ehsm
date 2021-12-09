@@ -80,6 +80,22 @@ typedef struct {
         retString += "}";
 		return StringToChar(retString);
 	};
+
+    char* parseStringData(char* jsonChar, std::string key) const{
+        std::string retVal;
+        std::string jsonString = jsonChar;
+        key = "\"" + key + "\"";
+
+        int startIndex = jsonString.find(key) + key.size() + 1;
+        std::string subStr = jsonString.substr(startIndex);
+
+        if(subStr[0] == '\"'){
+            int endIndex = subStr.find_first_of("\"",1) - 1;
+            retVal = subStr.substr(1,endIndex);
+        }
+        return StringToChar(retVal);
+	};
+    
 } RetJsonObj;
 
 extern "C" {
