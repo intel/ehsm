@@ -258,5 +258,7 @@ app.post('/ehsm', function (req, res) {
   }
 })
 
-app.listen(port, () => {})
+app.listen(port, () => {
+  console.log(`ehsm_ksm_service application listening at http://localhost:${port}`)
+})
 
