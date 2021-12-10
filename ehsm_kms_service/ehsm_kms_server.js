@@ -186,8 +186,20 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
    */
   'NAPI_GenerateDataKey': ['string',['string', 'int', 'string']],
 
+  /*
+  create the enclave
+  */
+
+  'NAPI_Initialize':['string',[]],
+  
+  /*
+  destory the enclave
+  */
+  'NAPI_Finalize':['string', []],
+
 });
 
+ehsm_napi.NAPI_Initialize();
 
 // base64 encode
 const base64_encode = (str) => new Buffer.from(str).toString('base64')
@@ -257,6 +269,12 @@ app.post('/ehsm', function (req, res) {
     res.send(result(404, 'fail', {}));
   }
 })
+
+process.on('SIGINT', function() {
+  console.log('ehsm kms service exit')
+  ehsm_napi.NAPI_Finalize();
+	process.exit(0);
+});
 
 app.listen(port, () => {})
 
