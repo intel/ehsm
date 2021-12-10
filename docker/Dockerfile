@@ -51,18 +51,35 @@ RUN apt-get update &&apt-get install -y \
     libsgx-ra-network \
     libsgx-ra-uefi
 
-# The prebuild app
-WORKDIR /home/ehsm/ehsm-core
-COPY bin/ehsm-core/ehsm-core /home/ehsm/ehsm-core/ehsm-core
-COPY bin/ehsm-core/libenclave-ehsm-core.signed.so /home/ehsm/ehsm-core/libenclave-ehsm-core.signed.so
 
 # Build App from source
-#RUN git clone https://github.com/intel/ehsm.git \
-#    && cd ehsm \
-#    && make
+WORKDIR /home
+RUN git clone https://github.com/intel/ehsm.git \
+   && cd ehsm \
+   && make
+
+# Install node & npm packages
+RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
+    && tar xf  node-v16.13.0-linux-x64.tar.xz \
+    && mv node-v16.13.0-linux-x64/ /usr/local/nodejs \
+    && ln -s /usr/local/nodejs/bin/node /usr/local/bin \
+    && ln -s /usr/local/nodejs/bin/npm /usr/local/bin
+
+
+# Install ehsm-service dependence packages
+WORKDIR /home/ehsm/ehsm_kms_service
+RUN cp /home/ehsm/bin/ehsm-core/libehsmnapi.so . \
+    && cp /home/ehsm/bin/ehsm-core/libenclave-ehsm-core.signed.so .
+RUN npm install
+
+# image port
+EXPOSE 3000
+
+# run ehsm_kms_service
+CMD ["node","ehsm_kms_server.js"]
 
 
 #RUN adduser -q --disabled-password --gecos "" --no-create-home sgxuser
 #USER sgxuser
 
-CMD tail -f /dev/null
+# CMD tail -f /dev/null
