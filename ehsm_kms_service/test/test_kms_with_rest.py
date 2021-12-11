@@ -2,6 +2,58 @@ import requests
 import json
 import argparse
 import base64
+
+def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
+    print('====================test_GenerateDataKeyWithoutPlaintext start===========================')
+    create_req = {
+        "appid":"t123",
+        "nonce":"t123",
+        "timestamp":"t123",
+        "sign":"t123",
+        "payload":{
+            "keyspec":"EH_AES_GCM_128",
+            "origin":"EH_INTERNAL_KEY"
+        }
+    }
+
+    print('CreateKey req:\n%s\n' %(create_req))
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(create_req), headers=headers)
+    print('CreateKey resp:\n%s\n' %(create_resp.text))
+
+        # test GenerateDataKey
+    generateDataKeyWithoutPlaintext_req = {
+        "appid":"t123",
+        "nonce":"t123",
+        "timestamp":"t123",
+        "sign":"t123",
+        "payload":{
+            "cmk_base64":json.loads(create_resp.text)['result']['cmk_base64'],
+            "keylen": 16,
+            "aad": "test",
+        }
+    }
+    print('GenerateDataKeyWithoutPlaintext req:\n%s\n' %(generateDataKeyWithoutPlaintext_req))
+    generateDataKeyWithoutPlaintext_resp = requests.post(url=base_url + "GenerateDataKey", data=json.dumps(generateDataKeyWithoutPlaintext_req), headers=headers)
+    print('GenerateDataKeyWithoutPlaintext resp:\n%s\n' %(generateDataKeyWithoutPlaintext_resp.text))
+
+    # test Decrypt(cipher_datakey)
+    decrypt_req = {
+        "appid":"t123",
+        "nonce":"t123",
+        "timestamp":"t123",
+        "sign":"t123",
+        "payload":{
+            "cmk_base64":json.loads(create_resp.text)['result']['cmk_base64'],
+            "ciphertext":json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext_base64'],
+            "aad":"test",
+        }
+    }
+    print('Decrypt req:\n%s\n' %(decrypt_req))
+    decrypt_res = requests.post(url=base_url + "Decrypt", data=json.dumps(decrypt_req), headers=headers)
+    print('Decrypt resp:\n%s\n' %(decrypt_res.text))
+
+    print('====================test_GenerateDataKeyWithoutPlaintext end===========================')
+
 def test_GenerateDataKey(base_url, headers):
     print('====================test_GenerateDataKey start===========================')
     create_req = {
@@ -126,3 +178,5 @@ if __name__ == "__main__":
     test_AES128(base_url, headers)
 
     test_GenerateDataKey(base_url, headers)
+
+    test_GenerateDataKeyWithoutPlaintext(base_url, headers)
