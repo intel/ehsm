@@ -190,9 +190,16 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
 
 /*
 @return
-[char*] ciphertext -- the cipher datakey
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            ciphertext_base64 : string,
+        }
+    }
 */
-char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk,
+char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
         const uint32_t keylen,
         const char* aad);
 
