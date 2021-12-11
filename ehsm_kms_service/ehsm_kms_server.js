@@ -171,7 +171,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
 
     params 
      - cmk_base64: string
-     - keylen： string
+     - keylen： number
      - aad: string
      
     return json
@@ -196,6 +196,29 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
   destory the enclave
   */
   'NAPI_Finalize':['string', []],
+
+  /*
+    NAPI_GenerateDataKeyWithoutPlaintext
+    Description:
+    The same as GenerateDataKey, but doesn’t return plaintext of generated DataKey.
+
+    params 
+     - cmk_base64: string
+     - keylen： number
+     - aad: string
+     
+    return json
+     {
+       code: int,
+       message: string,
+       result: {
+         plaintext_base64 : string,
+         ciphertext_base64 : string,
+       }
+    }
+
+  */
+  'NAPI_GenerateDataKeyWithoutPlaintext': ['string', ['string', 'int', 'string']],
 
 });
 
@@ -265,11 +288,16 @@ app.post('/ehsm', function (req, res) {
    */
     const { cmk_base64,keylen, aad } = PAYLOAD;
     napi_result(ACTION ,res, [cmk_base64, keylen, aad]);
+  } else if(ACTION === apis.GenerateDataKeyWithoutPlaintext) {
+  /**
+   * GenerateDataKeyWithoutPlaintext
+   */
+    const { cmk_base64,keylen, aad } = PAYLOAD;
+    napi_result(ACTION ,res, [cmk_base64, keylen, aad]);
   } else {
     res.send(result(404, 'fail', {}));
   }
 })
-
 process.on('SIGINT', function() {
   console.log('ehsm kms service exit')
   ehsm_napi.NAPI_Finalize();
