@@ -446,6 +446,126 @@ out:
     return retJsonObj.toChar();
 }
 
+
+/*
+@return
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            signature_base64 : string,
+        }
+    }
+*/
+char* NAPI_Sign(const char* cmk_base64,
+        const char* digest)
+{    
+    RetJsonObj retJsonObj;
+    string cmk_str;
+    ehsm_keyblob_t masterkey;
+    ehsm_status_t ret = EH_OK;
+    ehsm_data_t digest_data;
+    ehsm_data_t signature;
+    string signature_base64;
+
+    cmk_str = base64_decode(cmk_base64);
+    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    digest_data.datalen = strlen(digest);
+    digest_data.data = (uint8_t*)digest;
+
+    signature.datalen = 0;
+    ret = Sign(&masterkey, &digest_data, &signature);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    signature.data = (uint8_t*)malloc(signature.datalen);
+    if (signature.data == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    ret = Sign(&masterkey, &digest_data, &signature);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    signature_base64 = base64_encode(signature.data, signature.datalen);
+    if(signature_base64.size() > 0){
+        retJsonObj.addData("signature_base64", signature_base64);
+    }
+
+out:
+    SAFE_FREE(masterkey.keyblob);    
+    SAFE_FREE(signature.data);
+    return retJsonObj.toChar();
+    
+}
+
+/*
+@return
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            result : bool,
+        }
+    }
+*/
+char* NAPI_Verify(const char* cmk_base64,
+        const char* digest,
+        const char* signature_base64)
+{
+    RetJsonObj retJsonObj;
+    string cmk_str;
+    string signatur_str;
+    ehsm_status_t ret = EH_OK;
+    ehsm_data_t digest_data;
+    ehsm_data_t signature_data;
+    ehsm_keyblob_t masterkey;
+    bool result  = false;
+
+    cmk_str = base64_decode(cmk_base64);
+    signatur_str = base64_decode(signature_base64);
+    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    digest_data.datalen = strlen(digest);
+    digest_data.data = (uint8_t*)digest;
+
+    signature_data.datalen = signatur_str.size();
+    signature_data.data = (uint8_t*)signatur_str.data();
+
+    ret = Verify(&masterkey, &digest_data, &signature_data, &result);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+    retJsonObj.addData("result", result);
+
+out:
+    SAFE_FREE(masterkey.keyblob);
+    return retJsonObj.toChar();
+}
+
 //TODO: add the implementation of each ehsm napi
 
 }  // extern "C"

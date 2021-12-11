@@ -72,6 +72,48 @@ const ehsm_kms_params = {
     },
     aad,
   },
+  GenerateDataKeyWithoutPlaintext: {
+    cmk_base64: {
+      type: 'string',
+      maxLength: 1024,
+      minLength: 1
+    },
+    keylen: {
+      type: 'int',
+      maxNum: 1024,
+      minNum: 1
+    },
+    aad,
+  },
+  Sign: {
+    cmk_base64: {
+      type: 'string',
+      maxLength: 1024,
+      minLength: 1
+    },
+    digest: {
+      type: 'string',
+      maxLength: _6kb_length,
+      minLength: 1
+    },
+  },
+  Verify: {
+    cmk_base64: {
+      type: 'string',
+      maxLength: 1024,
+      minLength: 1
+    },
+    digest: {
+      type: 'string',
+      maxLength: _6kb_length,
+      minLength: 1
+    },
+    signature_base64:{
+      type: 'string',
+      maxLength: _6kb_length,
+      minLength: 1
+    },
+  }
  
 }
 module.exports = { ehsm_kms_params, ehsm_keyspec_t, ehsm_keyorigin_t };

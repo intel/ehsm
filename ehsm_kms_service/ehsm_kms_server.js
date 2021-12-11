@@ -53,6 +53,10 @@ const _checkSign = function (req,res,next){
    const action = req.query.Action;
   const { payload } = req.body;
   const currentPayLoad = ehsm_kms_params[action];
+  if (!currentPayLoad) {
+    res.send(result(404, 'Not Fount'));
+    return;
+  }
   for (const key in currentPayLoad) {
     if (payload[key] == undefined) {
       res.send(result(400, 'The payload parameter is incomplete'));
@@ -220,6 +224,44 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
   */
   'NAPI_GenerateDataKeyWithoutPlaintext': ['string', ['string', 'int', 'string']],
 
+  /*
+    Description:
+    Performs sign operation using the cmk(only support asymmetric keyspec).
+
+    params:
+     - cmk_base64: string
+     - digest: string
+
+    return json
+     {
+       code: int,
+       message: string,
+       result: {
+         signature_base64: string
+       }
+    }
+  */
+  'NAPI_Sign':['string', ['string', 'string']],
+
+  /*
+    Description:
+    Performs verify operation using the cmk(only support asymmetric keyspec).
+
+    params:
+     - cmk_base64: string
+     - digest string
+     - signature: string
+
+    return json
+     {
+       code: int,
+       message: string,
+       result: {
+         result: bool
+       }
+    }
+  */
+  'NAPI_Verify':['string', ['string', 'string', 'string']],
 });
 
 const NAPI_Initialize = ehsm_napi.NAPI_Initialize();
@@ -286,16 +328,28 @@ app.post('/ehsm', function (req, res) {
   /**
    * GenerateDataKey
    */
-    const { cmk_base64,keylen, aad } = PAYLOAD;
+    const { cmk_base64, keylen, aad } = PAYLOAD;
     napi_result(ACTION ,res, [cmk_base64, keylen, aad]);
   } else if(ACTION === apis.GenerateDataKeyWithoutPlaintext) {
   /**
    * GenerateDataKeyWithoutPlaintext
    */
-    const { cmk_base64,keylen, aad } = PAYLOAD;
+    const { cmk_base64, keylen, aad } = PAYLOAD;
     napi_result(ACTION ,res, [cmk_base64, keylen, aad]);
-  } else {
-    res.send(result(404, 'fail', {}));
+  } else if(ACTION === apis.Sign) {
+    /**
+     * Sign
+     */
+      const { cmk_base64, digest } = PAYLOAD;
+      napi_result(ACTION ,res, [cmk_base64, digest]);
+  } else if(ACTION === apis.Verify) {
+    /**
+     * Verify
+     */
+      const { cmk_base64, digest, signature_base64 } = PAYLOAD;
+      napi_result(ACTION ,res, [cmk_base64, digest, signature_base64]);
+  }else {
+    res.send(result(404, 'Not Fount', {}));
   }
 })
 process.on('SIGINT', function() {
