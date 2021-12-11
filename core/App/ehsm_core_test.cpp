@@ -68,103 +68,64 @@ static void dump_data(uint8_t *data, uint32_t datalen) {
 #endif
 }
 
-ehsm_status_t testAES()
+/*
+
+step1. generate an aes-gcm-128 key as the CM(customer master key)
+
+step2. encrypt a plaintext by the CMK
+
+step3. decrypt the cipher text by CMK correctly
+
+*/
+void test_AES128()
 {
-    ehsm_status_t ret = EH_OK;
+    char* returnJsonChar;
+    char* plaintext = "Test1234-AES128";
+    char* aad = "challenge";
+    printf("============test_AES128 start==========\n");
+    
+    char* cmk_base64;
+    char* ciphertext_base64;
+    char* plaintext_base64;
 
-    ehsm_keyblob_t cmk;
-    ehsm_data_t aad;
-    ehsm_data_t plaintext;
-    ehsm_data_t ciphertext;
-    ehsm_data_t plaintext2;
-
-    cmk.metadata.origin = EH_INTERNAL_KEY;
-    cmk.metadata.keyspec = EH_AES_GCM_128;
-    cmk.keybloblen = 0;
-
-    printf("============testAES start==========\n");
-
-    ret = CreateKey(&cmk);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to get the data size of CreateKey with AES key!\n", ret);
-        goto cleanup;
-    }
-
-    cmk.keyblob = (uint8_t*)malloc(cmk.keybloblen);
-    if (cmk.keyblob == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
-
-    ret = CreateKey(&cmk);
-    if (ret != EH_OK) {
+    returnJsonChar = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
+    if(returnJsonChar == nullptr){
         printf("Createkey with aes-gcm-128 failed!\n");
-        goto cleanup;
+        goto cleanup;  
     }
+    printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     printf("Create CMK with AES-128 SUCCESSFULLY!\n");
-    dump_data(cmk.keyblob, cmk.keybloblen);
 
-    plaintext.datalen = 16;
-    plaintext.data = (uint8_t*)malloc(plaintext.datalen);
-    if (plaintext.data == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
-    memset(plaintext.data, 'A', plaintext.datalen);
-    dump_data(plaintext.data, plaintext.datalen);
+    cmk_base64 = RetJsonObj::readData(returnJsonChar, "cmk_base64");
 
-    aad.datalen = 0;
-    aad.data = NULL;
-    ciphertext.datalen = 0;
-    ret = Encrypt(&cmk, &plaintext, &aad, &ciphertext);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to get data size of Encrypt!\n", ret);
-        goto cleanup;
+    returnJsonChar = NAPI_Encrypt(cmk_base64, plaintext, aad);
+    if(returnJsonChar == nullptr){
+        printf("Failed to Encrypt the plaittext data\n");
+        goto cleanup; 
     }
-
-    ciphertext.data = (uint8_t*)malloc(ciphertext.datalen);
-    if (ciphertext.data == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
-
-    ret = Encrypt(&cmk, &plaintext, &aad, &ciphertext);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to Encrypt the plaittext data\n", ret);
-        goto cleanup;
-    }
+    printf("NAPI_Encrypt json = %s\n", returnJsonChar);
     printf("Encrypt data SUCCESSFULLY!\n");
-    dump_data(ciphertext.data, ciphertext.datalen);
 
-    plaintext2.datalen = 0;
-    ret = Decrypt(&cmk, &ciphertext, &aad, &plaintext2);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to get data size of Decrypt!\n", ret);
-        goto cleanup;
-    }
-    plaintext2.data = (uint8_t*)malloc(plaintext2.datalen);
-    if (plaintext2.data == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
+    ciphertext_base64 = RetJsonObj::readData(returnJsonChar, "ciphertext_base64");
 
-    ret = Decrypt(&cmk, &ciphertext, &aad, &plaintext2);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to Decrypt the data\n", ret);
-        goto cleanup;
+    returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_base64, aad);
+    if(returnJsonChar == nullptr){
+        printf("Failed to Decrypt the data\n");
+        goto cleanup; 
     }
+    printf("NAPI_Decrypt json = %s\n", returnJsonChar);
+    plaintext_base64 = RetJsonObj::readData(returnJsonChar, "plaintext_base64");
+    printf("plaintext = %s\n",base64_decode(plaintext_base64).c_str());
     printf("Decrypt data SUCCESSFULLY!\n");
-    dump_data(plaintext2.data, plaintext2.datalen);
+    
 cleanup:
-    SAFE_FREE(cmk.keyblob);
-    SAFE_FREE(plaintext.data);
-    SAFE_FREE(ciphertext.data);
-    SAFE_FREE(plaintext2.data);
-
-    printf("============testAES Done==========\n");
-
-    return ret;
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_AES128 end==========\n");
 }
+
 
 ehsm_status_t testRSA()
 {
@@ -625,7 +586,7 @@ int main(int argc, char* argv[])
     }
     printf("Initialize done\n");
 
-    testAES();
+    test_AES128();
 
     testGenerateDataKey();
 
@@ -639,4 +600,3 @@ int main(int argc, char* argv[])
 
     return ret;
 }
-

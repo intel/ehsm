@@ -186,8 +186,25 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
    */
   'NAPI_GenerateDataKey': ['string',['string', 'int', 'string']],
 
+  /*
+  create the enclave
+  */
+
+  'NAPI_Initialize':['string',[]],
+  
+  /*
+  destory the enclave
+  */
+  'NAPI_Finalize':['string', []],
+
 });
 
+const NAPI_Initialize = ehsm_napi.NAPI_Initialize();
+
+if(JSON.parse(NAPI_Initialize)['code'] != 200) {
+  console.log('service Initialize exception!')
+	process.exit(0);
+}
 
 // base64 encode
 const base64_encode = (str) => new Buffer.from(str).toString('base64')
@@ -206,12 +223,7 @@ const napi_result = (action, res, params) => {
   try {
     // r : NAPI_(*) Return results
     const r = JSON.parse(ehsm_napi[`NAPI_${action}`](...params));
-    if(action == apis.Decrypt && r.code == 200){
-      r.result.plaintext_base64 = base64_decode(r.result.plaintext_base64);
-      res.send(r)
-    } else {
-      res.send(r);
-    }
+    res.send(r);
   } catch (e) {
     res.send(result(400, e))
   }
@@ -257,6 +269,12 @@ app.post('/ehsm', function (req, res) {
     res.send(result(404, 'fail', {}));
   }
 })
+
+process.on('SIGINT', function() {
+  console.log('ehsm kms service exit')
+  ehsm_napi.NAPI_Finalize();
+	process.exit(0);
+});
 
 const  getIPAdress = () => {
   var interfaces = require('os').networkInterfaces();　　
