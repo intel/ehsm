@@ -96,7 +96,7 @@ void test_AES128()
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     printf("Create CMK with AES-128 SUCCESSFULLY!\n");
 
-    cmk_base64 = RetJsonObj::readData(returnJsonChar, "cmk_base64");
+    cmk_base64 = RetJsonObj::readData_string(returnJsonChar, "cmk_base64");
 
     returnJsonChar = NAPI_Encrypt(cmk_base64, plaintext, aad);
     if(returnJsonChar == nullptr){
@@ -106,7 +106,7 @@ void test_AES128()
     printf("NAPI_Encrypt json = %s\n", returnJsonChar);
     printf("Encrypt data SUCCESSFULLY!\n");
 
-    ciphertext_base64 = RetJsonObj::readData(returnJsonChar, "ciphertext_base64");
+    ciphertext_base64 =RetJsonObj::readData_string(returnJsonChar, "ciphertext_base64");
 
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_base64, aad);
     if(returnJsonChar == nullptr){
@@ -114,7 +114,7 @@ void test_AES128()
         goto cleanup; 
     }
     printf("NAPI_Decrypt json = %s\n", returnJsonChar);
-    plaintext_base64 = RetJsonObj::readData(returnJsonChar, "plaintext_base64");
+    plaintext_base64 = RetJsonObj::readData_string(returnJsonChar, "plaintext_base64");
     printf("plaintext = %s\n",base64_decode(plaintext_base64).c_str());
     printf("Decrypt data SUCCESSFULLY!\n");
     
@@ -266,6 +266,71 @@ cleanup:
     return ret;
 }
 
+
+/*
+
+step1. generate an rsa 3072 key as the CM(customer master key)
+
+step2. Sign the digest
+
+step3. Verify the signature
+
+*/
+void test_RSA3072_sign_verify()
+{
+    printf("============test_RSA3072_sign_verify start==========\n");
+    ehsm_status_t ret = EH_OK;
+    char* returnJsonChar = nullptr;
+    ehsm_data_t digest;
+
+    char* cmk_base64 = nullptr;
+    char* signature_base64 = nullptr;
+    bool result = false;
+
+
+    returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
+    if(returnJsonChar == nullptr){
+        printf("NAPI_CreateKey failed!\n");
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = RetJsonObj::readData_string(returnJsonChar, "cmk_base64");
+
+    digest.datalen = 64;
+    digest.data = (uint8_t*)malloc(digest.datalen);
+    if (digest.data == NULL) {
+    }
+    memset(digest.data, 'B', digest.datalen);
+
+    returnJsonChar = NAPI_Sign(cmk_base64, (char*)digest.data);
+    if (returnJsonChar == nullptr) {
+        printf("NAPI_Sign failed!\n");
+        goto cleanup;
+    }
+    printf("NAPI_Sign Json = %s\n", returnJsonChar);
+    signature_base64 = RetJsonObj::readData_string(returnJsonChar, "signature_base64");
+    printf("Sign data SUCCESSFULLY!\n");
+
+    returnJsonChar = NAPI_Verify(cmk_base64, (char*)digest.data, signature_base64);
+    if (returnJsonChar == NULL) {
+        printf("NAPI_Verify failed!\n");
+        goto cleanup;
+    }
+    printf("NAPI_Verify Json = %s\n", returnJsonChar);
+    result = RetJsonObj::readData_bool(returnJsonChar, "result");
+    printf("Verify result : %d\n", result);
+    printf("Verify signature SUCCESSFULLY!\n");
+
+cleanup:
+    SAFE_FREE(signature_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(digest.data);
+    SAFE_FREE(returnJsonChar);
+
+}
+
 /*
 
 step1. generate an aes-gcm-128 key as the CM(customer master key)
@@ -300,7 +365,7 @@ void test_generate_datakey()
     printf("Create CMK with AES-128 SUCCESSFULLY!\n");
 
     /* generate a 16 bytes random data key and with plaint text returned */
-    cmk_base64 = RetJsonObj::readData(returnJsonChar, "cmk_base64");
+    cmk_base64 = RetJsonObj::readData_string(returnJsonChar, "cmk_base64");
     returnJsonChar = NAPI_GenerateDataKey(cmk_base64, len_gdk, aad);
     if(returnJsonChar == nullptr){
         printf("GenerateDataKey Failed!\n");
@@ -308,7 +373,7 @@ void test_generate_datakey()
     }
     printf("GenerateDataKey_Json = %s\n", returnJsonChar);
 	
-    ciphertext_base64 = RetJsonObj::readData(returnJsonChar, "ciphertext_base64");
+    ciphertext_base64 = RetJsonObj::readData_string(returnJsonChar, "ciphertext_base64");
     printf("GenerateDataKey SUCCESSFULLY!\n");
 	
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_base64, aad);
@@ -327,7 +392,7 @@ void test_generate_datakey()
     }
     printf("GenerateDataKeyWithoutPlaintext_Json = %s\n", returnJsonChar);
 	
-    ciphertext_without_base64 = RetJsonObj::readData(returnJsonChar, "ciphertext_base64");
+    ciphertext_without_base64 = RetJsonObj::readData_string(returnJsonChar, "ciphertext_base64");
     printf("GenerateDataKeyWithoutPlaintext SUCCESSFULLY!\n");
 
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_without_base64, aad);
@@ -520,6 +585,8 @@ int main(int argc, char* argv[])
     printf("Initialize done\n");
 
     test_AES128();
+
+    test_RSA3072_sign_verify();
 
     test_generate_datakey();
 

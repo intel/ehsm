@@ -1,5 +1,6 @@
 const express = require('express')
 const ffi = require('ffi-napi');
+const crypto = require('crypto')
 const app = express();
 const logger = require('./logs/logger');
 const { ehsm_kms_params, ehsm_keyspec_t, ehsm_keyorigin_t} = require('./ehsm_kms_params.js')
@@ -29,6 +30,11 @@ const apis= {
   Verify: 'Verify',
 }
 
+// base64 encode
+const base64_encode = (str) => new Buffer.from(str).toString('base64');
+// base64 decode
+const base64_decode =(base64_str) =>new Buffer.from(base64_str, 'base64').toString();
+
 /**
  * check sign
  */
@@ -43,7 +49,24 @@ const _checkSign = function (req,res,next){
     res.send(result(400,'Missing required parameters'));
     return;
   }
-  // todo sign 
+  let test_app_key = '202112345678';
+
+  let str = '';
+  let sign_parmas = {appid, nonce, timestamp} 
+  for(var k in sign_parmas){
+    if(!str) {
+      str += k + '=' + sign_parmas[k]
+    } else{
+      str += '&' + k + '=' + sign_parmas[k]
+    }
+  }
+  str += '&app_key=' + test_app_key;
+  let local_sign = crypto.createHmac('sha256',test_app_key).update(str, 'utf8').digest('base64');
+  if(sign != local_sign) {
+    res.send(result(400,'sign error'));
+    return;
+  }
+
   next();
 }
 /**
@@ -212,7 +235,6 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
        code: int,
        message: string,
        result: {
-         plaintext_base64 : string,
          ciphertext_base64 : string,
        }
     }
@@ -220,6 +242,44 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
   */
   'NAPI_GenerateDataKeyWithoutPlaintext': ['string', ['string', 'int', 'string']],
 
+  /*
+    Description:
+    Performs sign operation using the cmk(only support asymmetric keyspec).
+
+    params:
+     - cmk_base64: string
+     - digest: string
+
+    return json
+     {
+       code: int,
+       message: string,
+       result: {
+         signature_base64: string
+       }
+    }
+  */
+  'NAPI_Sign':['string', ['string', 'string']],
+
+  /*
+    Description:
+    Performs verify operation using the cmk(only support asymmetric keyspec).
+
+    params:
+     - cmk_base64: string
+     - digest string
+     - signature: string
+
+    return json
+     {
+       code: int,
+       message: string,
+       result: {
+         result: bool
+       }
+    }
+  */
+  'NAPI_Verify':['string', ['string', 'string', 'string']],
 });
 
 const NAPI_Initialize = ehsm_napi.NAPI_Initialize();
@@ -229,10 +289,7 @@ if(JSON.parse(NAPI_Initialize)['code'] != 200) {
 	process.exit(0);
 }
 
-// base64 encode
-const base64_encode = (str) => new Buffer.from(str).toString('base64')
-// base64 decode
-const base64_decode =(base64_str) =>new Buffer.from(base64_str, 'base64').toString()
+
 
 /**
  * ehsm napi result
@@ -286,16 +343,28 @@ app.post('/ehsm', function (req, res) {
   /**
    * GenerateDataKey
    */
-    const { cmk_base64,keylen, aad } = PAYLOAD;
+    const { cmk_base64, keylen, aad } = PAYLOAD;
     napi_result(ACTION ,res, [cmk_base64, keylen, aad]);
   } else if(ACTION === apis.GenerateDataKeyWithoutPlaintext) {
   /**
    * GenerateDataKeyWithoutPlaintext
    */
-    const { cmk_base64,keylen, aad } = PAYLOAD;
+    const { cmk_base64, keylen, aad } = PAYLOAD;
     napi_result(ACTION ,res, [cmk_base64, keylen, aad]);
-  } else {
-    res.send(result(404, 'fail', {}));
+  } else if(ACTION === apis.Sign) {
+    /**
+     * Sign
+     */
+      const { cmk_base64, digest } = PAYLOAD;
+      napi_result(ACTION ,res, [cmk_base64, digest]);
+  } else if(ACTION === apis.Verify) {
+    /**
+     * Verify
+     */
+      const { cmk_base64, digest, signature_base64 } = PAYLOAD;
+      napi_result(ACTION ,res, [cmk_base64, digest, signature_base64]);
+  }else {
+    res.send(result(404, 'Not Fount', {}));
   }
 })
 process.on('SIGINT', function() {

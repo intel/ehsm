@@ -15,7 +15,6 @@ const ehsm_keyorigin_t = {
 }
 
 const _6kb_length = 6 * 1024;
-
 const aad = {
   type: 'string',
   maxLength: 32,
@@ -36,7 +35,6 @@ const ehsm_kms_params = {
   Encrypt: {
     cmk_base64: {
       type: 'string',
-      maxLength: _6kb_length,
       minLength: 1
     },
     plaintext: {
@@ -49,7 +47,6 @@ const ehsm_kms_params = {
   Decrypt: {
     cmk_base64: {
       type: 'string',
-      maxLength: _6kb_length,
       minLength: 1
     },
     ciphertext: {
@@ -62,7 +59,6 @@ const ehsm_kms_params = {
   GenerateDataKey: {
     cmk_base64: {
       type: 'string',
-      maxLength: 1024,
       minLength: 1
     },
     keylen: {
@@ -72,6 +68,45 @@ const ehsm_kms_params = {
     },
     aad,
   },
+  GenerateDataKeyWithoutPlaintext: {
+    cmk_base64: {
+      type: 'string',
+      minLength: 1
+    },
+    keylen: {
+      type: 'int',
+      maxNum: 1024,
+      minNum: 1
+    },
+    aad,
+  },
+  Sign: {
+    cmk_base64: {
+      type: 'string',
+      minLength: 1
+    },
+    digest: {
+      type: 'string',
+      maxLength: _6kb_length,
+      minLength: 1
+    },
+  },
+  Verify: {
+    cmk_base64: {
+      type: 'string',
+      minLength: 1
+    },
+    digest: {
+      type: 'string',
+      maxLength: _6kb_length,
+      minLength: 1
+    },
+    signature_base64:{
+      type: 'string',
+      maxLength: _6kb_length,
+      minLength: 1
+    },
+  }
  
 }
 module.exports = { ehsm_kms_params, ehsm_keyspec_t, ehsm_keyorigin_t };

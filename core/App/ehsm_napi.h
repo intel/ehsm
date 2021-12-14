@@ -53,11 +53,12 @@ static char* StringToChar(string str)
 typedef struct {
     const int CODE_SUCCESS = 200;
     const int CODE_FAILED = 500;
+
     int code = CODE_SUCCESS;
     std::string msg = "success!";
     std::string jsonStr;
 	
-	void setCode(int code){code = code;};
+	void setCode(int newCode){code = newCode;};
 	void setMessage(string message){msg = message;};
 	void addData(string key, uint32_t data) {
         if(jsonStr.size() > 0){
@@ -71,8 +72,18 @@ typedef struct {
         }
         jsonStr += "\""+key+"\":" + "\""+data+"\"";
     };
+	void addData(string key, bool data) {
+        if(jsonStr.size() > 0){
+            jsonStr += ",";
+        }
+        if(data){
+            jsonStr += "\""+key+"\":true";
+        } else {
+            jsonStr += "\""+key+"\":false";
+        }
+    };
 
-  char* toChar() {
+    char* toChar() {
         std::string retString = "{";
         retString += "\"code\":" + std::to_string(code);
         retString += ",\"message\":\"" + msg;
@@ -82,19 +93,40 @@ typedef struct {
         return StringToChar(retString);
 	};
  
-  static char* readData(char* jsonChar, std::string key){
+    static char* readData_string(char* jsonChar, std::string key){
         std::string retVal;
         std::string jsonString = jsonChar;
         key = "\"" + key + "\"";
 
-        int startIndex = jsonString.find(key) + key.size() + 1;
-        std::string subStr = jsonString.substr(startIndex);
+        int resultIndex = jsonString.find("\"result\"") + strlen("\"result\":");
+        std::string resultStr = jsonString.substr(resultIndex);
+
+        int startIndex = resultStr.find(key) + key.size() + 1;
+        std::string subStr = resultStr.substr(startIndex);
 
         if(subStr[0] == '\"'){
             int endIndex = subStr.find_first_of("\"",1) - 1;
             retVal = subStr.substr(1,endIndex);
         }
         return StringToChar(retVal);
+	};
+ 
+    static bool readData_bool(char* jsonChar, std::string key){
+        std::string retVal;
+        std::string jsonString = jsonChar;
+        key = "\"" + key + "\"";
+
+        int resultIndex = jsonString.find("\"result\"") + strlen("\"result\":");
+        std::string resultStr = jsonString.substr(resultIndex);
+
+        int startIndex = resultStr.find(key) + key.size() + 1;
+        std::string subStr = resultStr.substr(startIndex);
+
+        if(subStr[0] == 't'){
+            return true;
+        } else {
+            return false;
+        }
 	};
 } RetJsonObj;
 
@@ -122,7 +154,7 @@ void NAPI_Finalize();
         code: int,
         message: string,
         result: {
-            cmk_base64 : string,
+            cmk_base64 : string
         }
     }
 */
@@ -135,11 +167,11 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin);
         code: int,
         message: string,
         result: {
-            cipherText_base64 : string,
+            cipherText_base64 : string
         }
     }
 */
-char* NAPI_Encrypt(const char* cmk,
+char* NAPI_Encrypt(const char* cmk_base64,
         const char* plaintext,
         const char* aad);
 
@@ -150,27 +182,27 @@ char* NAPI_Encrypt(const char* cmk,
         code: int,
         message: string,
         result: {
-            plaintext_base64 : string,
+            plaintext_base64 : string
         }
     }
 */
-char* NAPI_Decrypt(const char* cmk,
-        const char* ciphertext,
+char* NAPI_Decrypt(const char* cmk_base64,
+        const char* ciphertext_base64,
         const char* aad);
 
 /*
 @return
 [char*] ciphertext -- the encrypted datas
 */
-char* NAPI_AsymmetricEncrypt(const char* cmk,
+char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
     const char* plaintext);
 
 /*
 @return
 [char*] plaintext -- the plaintext datas
 */
-char* NAPI_AsymmetricDecrypt(const char* cmk,
-        const char* ciphertext);
+char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
+        const char* ciphertext_base64);
 
 /*
 @return
@@ -180,7 +212,7 @@ char* NAPI_AsymmetricDecrypt(const char* cmk,
         message: string,
         result: {
             plaintext_base64 : string,
-            cipherText_base64 : string,
+            cipherText_base64 : string
         }
     }
 */
@@ -195,7 +227,7 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
         code: int,
         message: string,
         result: {
-            ciphertext_base64 : string,
+            ciphertext_base64 : string
         }
     }
 */
@@ -214,18 +246,32 @@ char* NAPI_ExportDataKey(const char* cmk,
 
 /*
 @return
-[char*] signature -- the signature of the digest
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            signature_base64 : string
+        }
+    }
 */
-char* NAPI_Sign(const char* cmk,
+char* NAPI_Sign(const char* cmk_base64,
         const char* digest);
 
 /*
 @return
-[bool] result -- the result (true/false) of verification
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            result : bool
+        }
+    }
 */
-char* NAPI_Verify(const char* cmk,
+char* NAPI_Verify(const char* cmk_base64,
         const char* digest,
-        const char* signature);
+        const char* signature_base64);
 
 
 }  // extern "C"
