@@ -192,14 +192,28 @@ char* NAPI_Decrypt(const char* cmk_base64,
 
 /*
 @return
-[char*] ciphertext -- the encrypted datas
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            ciphertext_base64 : string,
+        }
+    }
 */
 char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
     const char* plaintext);
 
 /*
 @return
-[char*] plaintext -- the plaintext datas
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            plaintext_base64 : string,
+        }
+    }
 */
 char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
         const char* ciphertext_base64);

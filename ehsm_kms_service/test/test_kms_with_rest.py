@@ -28,6 +28,38 @@ def test_params(payload):
     params["payload"] = payload
     return params
 
+def test_RSA3072_encrypt_decrypt(base_url, headers):
+
+    print('====================test_RSA3072_encrypt_decrypt start===========================')
+    params=test_params({
+            "keyspec":"EH_RSA_3072",
+            "origin":"EH_INTERNAL_KEY"
+        })
+    print('CreateKey req:\n%s\n' %(params))
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    print('CreateKey resp:\n%s\n' %(create_resp.text))
+
+    # test AsymmetricEncrypt("123456")
+    params=test_params({
+            "cmk_base64":json.loads(create_resp.text)['result']['cmk_base64'],
+            "plaintext":"123456"
+        })
+    print('AsymmetricEncrypt req:\n%s\n' %(params))
+    asymmetricEncrypt_resp = requests.post(url=base_url + "AsymmetricEncrypt", data=json.dumps(params), headers=headers)
+    print('AsymmetricEncrypt resp:\n%s\n' %(asymmetricEncrypt_resp.text))
+
+    # test AsymmetricDecrypt(ciphertext)
+    params=test_params({
+            "cmk_base64":json.loads(create_resp.text)['result']['cmk_base64'],
+            "ciphertext_base64":json.loads(asymmetricEncrypt_resp.text)['result']['ciphertext_base64']
+        })
+    print('AsymmetricDecrypt req:\n%s\n' %(params))
+    asymmetricDecrypt_res = requests.post(url=base_url + "AsymmetricDecrypt", data=json.dumps(params), headers=headers)
+    print('AsymmetricDecrypt resp:\n%s\n' %(asymmetricDecrypt_res.text))
+    plaintext = str(base64.b64decode(json.loads(asymmetricDecrypt_res.text)['result']['plaintext_base64']), 'utf-8')
+    print('AsymmetricDecrypt plaintext:\n%s\n' %(plaintext))
+    print('====================test_RSA3072_encrypt_decrypt end===========================')
+
 def test_Stest_RSA3072_sign_verify(base_url, headers):
     print('====================test_Stest_RSA3072_sign_verify start===========================')
     params=test_params({
@@ -181,3 +213,5 @@ if __name__ == "__main__":
     test_GenerateDataKeyWithoutPlaintext(base_url, headers)
 
     test_Stest_RSA3072_sign_verify(base_url, headers)
+
+    test_RSA3072_encrypt_decrypt(base_url, headers)

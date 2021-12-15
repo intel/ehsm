@@ -73,7 +73,7 @@ RUN cp /home/ehsm/bin/ehsm-core/libehsmnapi.so . \
 RUN npm install
 
 # image port
-EXPOSE 3000
+EXPOSE 9000
 
 # run ehsm_kms_service
 CMD ["node","ehsm_kms_server.js"]

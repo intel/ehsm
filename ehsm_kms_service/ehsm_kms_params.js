@@ -106,7 +106,29 @@ const ehsm_kms_params = {
       maxLength: _6kb_length,
       minLength: 1
     },
-  }
+  },
+  AsymmetricEncrypt: {
+    cmk_base64: {
+      type: 'string',
+      minLength: 1
+    },
+    plaintext: {
+      type: 'string',
+      maxLength: _6kb_length,
+      minLength: 1
+    },
+  },
+  AsymmetricDecrypt: {
+    cmk_base64: {
+      type: 'string',
+      minLength: 1
+    },
+    ciphertext_base64: {
+      type: 'string',
+      maxLength: _6kb_length,
+      minLength: 1
+    },
+  },
  
 }
 module.exports = { ehsm_kms_params, ehsm_keyspec_t, ehsm_keyorigin_t };
