@@ -79,18 +79,19 @@ step3. decrypt the cipher text by CMK correctly
 */
 void test_AES128()
 {
-    char* returnJsonChar;
+    char* returnJsonChar = nullptr;
     char* plaintext = "Test1234-AES128";
     char* aad = "challenge";
     printf("============test_AES128 start==========\n");
     
-    char* cmk_base64;
-    char* ciphertext_base64;
-    char* plaintext_base64;
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
 
     returnJsonChar = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
-    if(returnJsonChar == nullptr){
-        printf("Createkey with aes-gcm-128 failed!\n");
+
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("Createkey with aes-gcm-128 failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;  
     }
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
@@ -99,8 +100,8 @@ void test_AES128()
     cmk_base64 = RetJsonObj::readData_string(returnJsonChar, "cmk_base64");
 
     returnJsonChar = NAPI_Encrypt(cmk_base64, plaintext, aad);
-    if(returnJsonChar == nullptr){
-        printf("Failed to Encrypt the plaittext data\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("Failed to Encrypt the plaittext data, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup; 
     }
     printf("NAPI_Encrypt json = %s\n", returnJsonChar);
@@ -109,13 +110,13 @@ void test_AES128()
     ciphertext_base64 =RetJsonObj::readData_string(returnJsonChar, "ciphertext_base64");
 
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_base64, aad);
-    if(returnJsonChar == nullptr){
-        printf("Failed to Decrypt the data\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("Failed to Decrypt the data, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup; 
     }
     printf("NAPI_Decrypt json = %s\n", returnJsonChar);
     plaintext_base64 = RetJsonObj::readData_string(returnJsonChar, "plaintext_base64");
-    printf("plaintext = %s\n",base64_decode(plaintext_base64).c_str());
+    printf("Decrypted plaintext = %s\n",base64_decode(plaintext_base64).c_str());
     printf("Decrypt data SUCCESSFULLY!\n");
     
 cleanup:
@@ -126,144 +127,52 @@ cleanup:
     printf("============test_AES128 end==========\n");
 }
 
-
-ehsm_status_t testRSA()
+void test_RSA3072_encrypt_decrypt()
 {
-    ehsm_status_t ret = EH_OK;
+    char* returnJsonChar = nullptr;
+    char* plaintext = "TestRSA-3072";
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
 
-    ehsm_keyblob_t cmk;
-    ehsm_data_t aad;
-    ehsm_data_t plaintext;
-    ehsm_data_t ciphertext;
-    ehsm_data_t plaintext2;
+    printf("============test_RSA3072_encrypt_decrypt start==========\n");
 
-    ehsm_data_t digest;
-    ehsm_data_t signature;
-    bool result = false;
-
-    printf("============testRSA start==========\n");
-
-    cmk.metadata.origin = EH_INTERNAL_KEY;
-    cmk.metadata.keyspec = EH_RSA_3072;
-    cmk.keybloblen = 0;
-
-    ret = CreateKey(&cmk);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to get the data size of CreateKey with RSA-3072 key!\n", ret);
+    returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
+    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
 
-    cmk.keyblob = (uint8_t*)malloc(cmk.keybloblen);
-    if (cmk.keyblob == NULL) {
-        ret = EH_DEVICE_MEMORY;
+    cmk_base64 = RetJsonObj::readData_string(returnJsonChar, "cmk_base64");
+
+    returnJsonChar = NAPI_AsymmetricEncrypt(cmk_base64, plaintext);
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
+    printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
+    printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
 
-    ret = CreateKey(&cmk);
-    if (ret != EH_OK) {
-        printf("Createkey with RSA-3072 failed!\n");
+    ciphertext_base64 = RetJsonObj::readData_string(returnJsonChar, "ciphertext_base64");
+    returnJsonChar = NAPI_AsymmetricDecrypt(cmk_base64, ciphertext_base64);
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
-    printf("Create CMK with RSA-3072 SUCCESSFULLY!\n");
-    dump_data(cmk.keyblob, cmk.keybloblen);
-
-
-    plaintext.datalen = 16;
-    plaintext.data = (uint8_t*)malloc(plaintext.datalen);
-    if (plaintext.data == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
-    memset(plaintext.data, 'A', plaintext.datalen);
-    dump_data(plaintext.data, plaintext.datalen);
-
-    ciphertext.datalen = 0;
-    ret = AsymmetricEncrypt(&cmk, &plaintext, &ciphertext);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to get data size of AsymmetricEncrypt!\n", ret);
-        goto cleanup;
-    }
-
-    ciphertext.data = (uint8_t*)malloc(ciphertext.datalen);
-    if (ciphertext.data == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
-
-    ret = AsymmetricEncrypt(&cmk, &plaintext, &ciphertext);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to AsymmetricEncrypt data!\n", ret);
-        goto cleanup;
-    }
-    printf("AsymmetricEncrypt data SUCCESSFULLY!\n");
-    dump_data(ciphertext.data, ciphertext.datalen);
-
-    plaintext2.datalen = 0;
-    ret = AsymmetricDecrypt(&cmk, &ciphertext, &plaintext2);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to get data size of AsymmetricDecrypt!\n", ret);
-        goto cleanup;
-    }
-    plaintext2.data = (uint8_t*)malloc(plaintext2.datalen);
-    if (plaintext2.data == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
-
-    ret = AsymmetricDecrypt(&cmk, &ciphertext, &plaintext2);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to AsymmetricDecrypt the data\n", ret);
-        goto cleanup;
-    }
-    printf("AsymmetricDecrypt data SUCCESSFULLY!\n");
-    dump_data(plaintext2.data, plaintext2.datalen);
-
-    digest.datalen = 64;
-    digest.data = (uint8_t*)malloc(digest.datalen);
-    if (digest.data == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
-    memset(digest.data, 'B', digest.datalen);
-    dump_data(digest.data, digest.datalen);
-
-    signature.datalen = 0;
-    ret = Sign(&cmk, &digest, &signature);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to get data size of Sign!\n", ret);
-        goto cleanup;
-    }
-
-    signature.data = (uint8_t*)malloc(signature.datalen);
-    if (signature.data == NULL) {
-        ret = EH_DEVICE_MEMORY;
-        goto cleanup;
-    }
-
-    ret = Sign(&cmk, &digest, &signature);
-    if (ret != EH_OK) {
-        printf("Failed(%d) to Sign the digest!\n", ret);
-        goto cleanup;
-    }
-    printf("Sign data SUCCESSFULLY!\n");
-    dump_data(signature.data, signature.datalen);
-
-    ret = Verify(&cmk, &digest, &signature, &result);
-    if (ret != EH_OK || !result) {
-        printf("Failed(%d) to Verify the signature!\n", ret);
-        goto cleanup;
-    }
-    printf("Verify signature SUCCESSFULLY!\n");
+    printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
+    plaintext_base64 = RetJsonObj::readData_string(returnJsonChar, "plaintext_base64");
+    printf("Decrypted plaintext : %s\n",base64_decode(plaintext_base64).c_str());
+    printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
 
 cleanup:
-    SAFE_FREE(cmk.keyblob);
-    SAFE_FREE(plaintext.data);
-    SAFE_FREE(ciphertext.data);
-    SAFE_FREE(plaintext2.data);
-    SAFE_FREE(signature.data);
+        SAFE_FREE(cmk_base64);
+        SAFE_FREE(ciphertext_base64);
+        SAFE_FREE(plaintext_base64);
+        SAFE_FREE(returnJsonChar);
+        printf("============test_RSA3072_encrypt_decrypt End==========\n");
 
-    printf("============testRSA done==========\n");
-    return ret;
 }
 
 
@@ -289,8 +198,8 @@ void test_RSA3072_sign_verify()
 
 
     returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
-    if(returnJsonChar == nullptr){
-        printf("NAPI_CreateKey failed!\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
@@ -305,8 +214,8 @@ void test_RSA3072_sign_verify()
     memset(digest.data, 'B', digest.datalen);
 
     returnJsonChar = NAPI_Sign(cmk_base64, (char*)digest.data);
-    if (returnJsonChar == nullptr) {
-        printf("NAPI_Sign failed!\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("NAPI_Sign failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
     printf("NAPI_Sign Json = %s\n", returnJsonChar);
@@ -314,8 +223,8 @@ void test_RSA3072_sign_verify()
     printf("Sign data SUCCESSFULLY!\n");
 
     returnJsonChar = NAPI_Verify(cmk_base64, (char*)digest.data, signature_base64);
-    if (returnJsonChar == NULL) {
-        printf("NAPI_Verify failed!\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("NAPI_Verify failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
     printf("NAPI_Verify Json = %s\n", returnJsonChar);
@@ -357,8 +266,8 @@ void test_generate_datakey()
     int len_gdk_without = 48;
 	
     returnJsonChar = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
-    if(returnJsonChar == nullptr){
-        printf("Createkey with aes-gcm-128 failed!\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("Createkey with aes-gcm-128 failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
     printf("ckReturn_Json = %s\n", returnJsonChar);
@@ -367,8 +276,8 @@ void test_generate_datakey()
     /* generate a 16 bytes random data key and with plaint text returned */
     cmk_base64 = RetJsonObj::readData_string(returnJsonChar, "cmk_base64");
     returnJsonChar = NAPI_GenerateDataKey(cmk_base64, len_gdk, aad);
-    if(returnJsonChar == nullptr){
-        printf("GenerateDataKey Failed!\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("GenerateDataKey Failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
     printf("GenerateDataKey_Json = %s\n", returnJsonChar);
@@ -377,8 +286,8 @@ void test_generate_datakey()
     printf("GenerateDataKey SUCCESSFULLY!\n");
 	
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_base64, aad);
-    if(returnJsonChar == nullptr){
-        printf("Failed to Decrypt the data\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("Failed to Decrypt the data, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
     printf("step1 Decrypt_Json = %s\n", returnJsonChar);
@@ -386,8 +295,8 @@ void test_generate_datakey()
 
     /* generate a 48 bytes random data key and without plaint text returned */
     returnJsonChar = NAPI_GenerateDataKeyWithoutPlaintext(cmk_base64, len_gdk_without, aad);
-    if(returnJsonChar == nullptr){
-        printf("NAPI_GenerateDataKeyWithoutPlaintext Failed!\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("NAPI_GenerateDataKeyWithoutPlaintext Failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
     printf("GenerateDataKeyWithoutPlaintext_Json = %s\n", returnJsonChar);
@@ -396,8 +305,8 @@ void test_generate_datakey()
     printf("GenerateDataKeyWithoutPlaintext SUCCESSFULLY!\n");
 
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_without_base64, aad);
-    if(returnJsonChar == nullptr){
-        printf("Failed to Decrypt the data\n");
+    if(RetJsonObj::getCode(returnJsonChar) != 200){
+        printf("Failed to Decrypt the data, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup;
     }
     printf("step2 Decrypt_Json = %s\n", returnJsonChar);
@@ -586,11 +495,11 @@ int main(int argc, char* argv[])
 
     test_AES128();
 
+    test_RSA3072_encrypt_decrypt();
+
     test_RSA3072_sign_verify();
 
     test_generate_datakey();
-
-    testRSA();
 
     testExportDataKey();
 

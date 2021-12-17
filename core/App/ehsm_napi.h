@@ -92,6 +92,32 @@ typedef struct {
         retString += "}";
         return StringToChar(retString);
 	};
+
+    static int getCode(char* jsonChar){
+        int retCode = 500;
+        if(jsonChar != nullptr){
+            std::string jsonString = jsonChar;
+
+            int startIndex = jsonString.find("\"code\"") + strlen("\"code\":");
+            int endIndex = jsonString.find_first_of(",", startIndex);
+
+            std::string code_str = jsonString.substr(startIndex, (endIndex - startIndex));
+            retCode = atoi(code_str.c_str());
+        }
+        return retCode;
+    }
+
+    static std::string getMessage(char* jsonChar){
+        std::string retStr = "";
+        if(jsonChar != nullptr){
+            std::string jsonString = jsonChar;
+
+            int startIndex = jsonString.find("\"message\"") + strlen("\"message\":\"");
+            int endIndex = jsonString.find_first_of("\"", startIndex);
+            retStr = jsonString.substr(startIndex, (endIndex - startIndex));
+        }
+        return retStr;
+    }
  
     static char* readData_string(char* jsonChar, std::string key){
         std::string retVal;
@@ -192,14 +218,28 @@ char* NAPI_Decrypt(const char* cmk_base64,
 
 /*
 @return
-[char*] ciphertext -- the encrypted datas
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            ciphertext_base64 : string,
+        }
+    }
 */
 char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
     const char* plaintext);
 
 /*
 @return
-[char*] plaintext -- the plaintext datas
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            plaintext_base64 : string,
+        }
+    }
 */
 char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
         const char* ciphertext_base64);
