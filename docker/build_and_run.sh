@@ -56,7 +56,7 @@ function run {
 	RUN_ARG="$RUN_ARG --device=/dev/sgx/enclave -v aesmd-socket:/var/run/aesmd"
 
 	# run the container
-	docker run -d $RUN_ARG -it -P $EHSM_DOCKER_IMAGE_NAME
+	docker run -d $RUN_ARG -it -p 9000:9000 $EHSM_DOCKER_IMAGE_NAME
 }
 
 function delete {
