@@ -27,6 +27,56 @@ def test_params(payload):
     params["sign"] = sign
     params["payload"] = payload
     return params
+    
+def test_export_datakey(base_url, headers):
+    print('====================test_export_datakey start===========================')
+    params=test_params({
+            "keyspec":"EH_AES_GCM_128",
+            "origin":"EH_INTERNAL_KEY"
+        })
+    print('CreateKey req:\n%s\n' %(params))
+    create_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_res, 'CreateKey', 'test_export_datakey') == False):
+        return
+    print('CreateKey resp(EH_AES_GCM_128):\n%s\n' %(create_res.text))
+
+    params=test_params({
+            "keyspec":"EH_RSA_3072",
+            "origin":"EH_INTERNAL_KEY"
+        })
+    print('CreateKey req:\n%s\n' %(params))
+    create_ukey_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_ukey_res, 'CreateKey', 'test_export_datakey') == False):
+        return
+    print('CreateKey resp(EH_RSA_3072):\n%s\n' %(create_ukey_res.text))
+
+
+    # test GenerateDataKeyWithoutPlaintext
+    params=test_params({
+            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
+            "keylen": 48,
+            "aad": "test",
+        })
+    print('GenerateDataKeyWithoutPlaintext req:\n%s\n' %(params))
+    generateDataKeyWithoutPlaintext_res = requests.post(url=base_url + "GenerateDataKeyWithoutPlaintext", data=json.dumps(params), headers=headers)
+    if(check_result(generateDataKeyWithoutPlaintext_res, 'GenerateDataKeyWithoutPlaintext', 'test_export_datakey') == False):
+        return
+    print('GenerateDataKeyWithoutPlaintext resp:\n%s\n' %(generateDataKeyWithoutPlaintext_res.text))
+
+    # test ExportDataKey
+    params=test_params({
+            "cmk_base64":json.loads(create_res.text)['result']['cmk_base64'],
+            "ukey_base64":json.loads(create_ukey_res.text)['result']['cmk_base64'],
+            "aad":"test",
+            "olddatakey_base":json.loads(generateDataKeyWithoutPlaintext_res.text)['result']['ciphertext_base64'],
+        })
+    print('ExportDataKey req:\n%s\n' %(params))
+    exportDataKey_res = requests.post(url=base_url + "ExportDataKey", data=json.dumps(params), headers=headers)
+    if(check_result(exportDataKey_res, 'ExportDataKey', 'test_export_datakey') == False):
+        return
+    print('ExportDataKey resp:\n%s\n' %(exportDataKey_res.text))
+
+    print('====================test_export_datakey end===========================')
 
 def test_RSA3072_encrypt_decrypt(base_url, headers):
     print('====================test_RSA3072_encrypt_decrypt start===========================')
@@ -118,7 +168,7 @@ def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
     # test GenerateDataKeyWithoutPlaintext
     params=test_params({
             "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
-            "keylen": 16,
+            "keylen": 48,
             "aad": "test",
         })
     print('GenerateDataKeyWithoutPlaintext req:\n%s\n' %(params))
@@ -256,3 +306,5 @@ if __name__ == "__main__":
     test_Stest_RSA3072_sign_verify(base_url, headers)
 
     test_RSA3072_encrypt_decrypt(base_url, headers)
+
+    test_export_datakey(base_url, headers)

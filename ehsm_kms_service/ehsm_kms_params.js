@@ -128,6 +128,21 @@ const ehsm_kms_params = {
       maxLength: 384,
       minLength: 1
     },
-  }
+  },
+  ExportDataKey: {
+    cmk_base64: {
+      type: 'string',
+      minLength: 1
+    },
+    ukey_base64: {
+      type: 'string',
+      minLength: 1
+    },
+    aad,
+    olddatakey_base: {
+      type: 'string',
+      minLength: 1
+    },
+  },
 }
 module.exports = { ehsm_kms_params, ehsm_keyspec_t, ehsm_keyorigin_t };

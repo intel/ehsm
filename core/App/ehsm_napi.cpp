@@ -701,6 +701,85 @@ out:
     return retJsonObj.toChar();
 }
 
-//TODO: add the implementation of each ehsm napi
+/*
+@return
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            newdatakey_base64 : string,
+        }
+    }
+*/
+char* NAPI_ExportDataKey(const char* cmk_base64,
+        const char* ukey_base64,
+        const char* aad,
+        const char* olddatakey_base64)
+{
+    RetJsonObj retJsonObj;
+    ehsm_status_t ret = EH_OK;
+    string cmk_str;
+    string ukey_str;
+    ehsm_keyblob_t cmk;
+    ehsm_keyblob_t ukey;
+    string cipher_str;
+    ehsm_data_t olddatakey_data;
+    ehsm_data_t aad_data;
+    ehsm_data_t cipher_datakey_new;
+    string newdatakey_base64;   
+    
+    cmk_str = base64_decode(cmk_base64);
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    ukey_str = base64_decode(ukey_base64);
+    ret = ehsm_deserialize_cmk(&ukey, (const uint8_t*)ukey_str.data(), ukey_str.size());
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    cipher_str = base64_decode(olddatakey_base64);
+    olddatakey_data.datalen = cipher_str.size();
+    olddatakey_data.data = (uint8_t*)cipher_str.data();
+    
+    aad_data.datalen = strlen(aad);
+    aad_data.data = (uint8_t*)aad;
+
+    cipher_datakey_new.datalen = 0;
+    ret = ExportDataKey(&cmk, &ukey, &aad_data, &olddatakey_data, &cipher_datakey_new);
+    if (ret != EH_OK) {
+        printf("Failed to get the data size of ExportDataKey!\n");
+        goto out;
+    }
+
+    cipher_datakey_new.data = (uint8_t*)malloc(cipher_datakey_new.datalen);
+    if (cipher_datakey_new.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto out;
+    }
+
+    ret = ExportDataKey(&cmk, &ukey, &aad_data, &olddatakey_data, &cipher_datakey_new);
+    if (ret != EH_OK) {
+        printf("Failed to ExportDataKey with ukey!\n");
+        goto out;
+    }
+
+    newdatakey_base64 = base64_encode(cipher_datakey_new.data, cipher_datakey_new.datalen);
+    if(newdatakey_base64.size() > 0){
+        retJsonObj.addData("newdatakey_base64", newdatakey_base64);
+    }
+out:
+    SAFE_FREE(cmk.keyblob);
+    SAFE_FREE(ukey.keyblob);
+    SAFE_FREE(cipher_datakey_new.data);
+    return retJsonObj.toChar();
+}
 
 }  // extern "C"
