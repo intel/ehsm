@@ -244,6 +244,36 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
     SM2PKE_MAX_ENCRYPTION_SIZE                      6047
   */
   'NAPI_AsymmetricDecrypt': ['string', ['string', 'string']],
+
+  /**
+  NAPI_ExportDataKey
+  Description:
+    ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK to get the
+    plaintext of DataKey, then use the user-supplied Public key to encrypt this DataKey
+    (aka ExportedDataKey). This ExportedDataKey (ciphertext) will be returned to caller.
+  params:
+    - cmk_base64:
+        des: A symmetric cmk
+        type: string
+    - ukey_base64:
+        des: An asymmetric key
+        type: string
+    - aad: 
+        des: some extra datas input by the user, which could help to to ensure data integrity
+        type: string
+    - olddatakey_base:
+        des: the ciphertext of the datakey wrapped by the cmk
+        type: string
+  return json
+    {
+      code: int,
+      message: string,
+      result: {
+        cipher_datakey_new_base64: string
+      }
+    }
+  */
+  'NAPI_ExportDataKey': ['string', ['string', 'string', 'string', 'string']]
 });
 
 module.exports = ehsm_napi;

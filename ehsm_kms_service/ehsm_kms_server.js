@@ -187,6 +187,12 @@ app.post('/ehsm', function (req, res) {
    */
     const { cmk_base64, ciphertext_base64 } = PAYLOAD;
     napi_result(ACTION ,res, [cmk_base64, ciphertext_base64]);
+  } else if(ACTION === apis.ExportDataKey) {
+  /**
+   * ExportDataKey
+   */
+    const { cmk_base64, ukey_base64, aad, olddatakey_base } = PAYLOAD;
+    napi_result(ACTION ,res, [cmk_base64, ukey_base64, aad, olddatakey_base]);
   } else {
     res.send(result(404, 'Not Fount', {}));
   }

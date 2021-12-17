@@ -277,12 +277,19 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
 
 /*
 @return
-[char*] newdatakey -- the newdatakey wrapped by the ukey
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            newdatakey_base64 : string,
+        }
+    }
 */
-char* NAPI_ExportDataKey(const char* cmk,
-        const char* ukey,
+char* NAPI_ExportDataKey(const char* cmk_base64,
+        const char* ukey_base64,
         const char* aad,
-        const char* olddatakey);
+        const char* olddatakey_base64);
 
 /*
 @return
