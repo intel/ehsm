@@ -1,0 +1,277 @@
+{
+	"info": {
+		"_postman_id": "91fd749d-5877-4272-8518-ab06af5aecf6",
+		"name": "intel/ehsm:test_RSA3072_sign_verify",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "CreateKey",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var appid = pm.environment.get(\"appid\");\r",
+							"var appkey = pm.environment.get(\"appkey\");\r",
+							"var timestamp = pm.environment.get(\"timestamp\");\r",
+							"\r",
+							"var payload = {\r",
+							"    \"keyspec\":\"EH_RSA_3072\",\r",
+							"    \"origin\":\"EH_INTERNAL_KEY\"\r",
+							"}\r",
+							"let sign_parmass = {appid, payload, timestamp} \r",
+							"const params_sort_str = (sign_parmas) => {\r",
+							"    let str = '';\r",
+							"    const sort_params_key_arr = Object.keys(sign_parmas).sort();\r",
+							"    for(var k of sort_params_key_arr) {\r",
+							"        if(sign_parmas[k] != '' && sign_parmas[k] != undefined && sign_parmas[k] != null) {\r",
+							"            str += (str&& ('&' + '')) + k + '=' + (typeof sign_parmas[k] == 'object' ? params_sort_str(sign_parmas[k]) : sign_parmas[k])\r",
+							"        }\r",
+							"    }\r",
+							"    return str\r",
+							"}\r",
+							"let sign_string = params_sort_str(sign_parmass);\r",
+							"let sign = CryptoJS.HmacSHA256(sign_string, appkey);\r",
+							"sign = CryptoJS.enc.Base64.stringify(sign);\r",
+							"pm.environment.set(\"sign\", sign);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var data=JSON.parse(responseBody);\r",
+							"var cmk_base64=data.result.cmk_base64;\r",
+							"pm.environment.set(\"cmk_base64\", cmk_base64)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"appid\":\"{{appid}}\",\r\n    \"nonce\":\"{{nonce}}\",\r\n    \"timestamp\":\"{{timestamp}}\",\r\n    \"sign\":\"{{sign}}\",\r\n    \"payload\":{\r\n        \"keyspec\":\"EH_RSA_3072\",\r\n        \"origin\":\"EH_INTERNAL_KEY\"\r\n    }\r\n}"
+				},
+				"url": {
+					"raw": "{{ip}}:{{port}}/ehsm?Action=CreateKey",
+					"host": [
+						"{{ip}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"ehsm"
+					],
+					"query": [
+						{
+							"key": "Action",
+							"value": "CreateKey"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Sign",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var appid = pm.environment.get(\"appid\");\r",
+							"var appkey = pm.environment.get(\"appkey\");\r",
+							"var timestamp = pm.environment.get(\"timestamp\");\r",
+							"\r",
+							"var payload = {\r",
+							"    \"cmk_base64\": pm.environment.get(\"cmk_base64\"),\r",
+							"    \"digest\": \"test\"\r",
+							"}\r",
+							"let sign_parmass = {appid, payload, timestamp} \r",
+							"const params_sort_str = (sign_parmas) => {\r",
+							"    let str = '';\r",
+							"    const sort_params_key_arr = Object.keys(sign_parmas).sort();\r",
+							"    for(var k of sort_params_key_arr) {\r",
+							"        if(sign_parmas[k] != '' && sign_parmas[k] != undefined && sign_parmas[k] != null) {\r",
+							"            str += (str&& ('&' + '')) + k + '=' + (typeof sign_parmas[k] == 'object' ? params_sort_str(sign_parmas[k]) : sign_parmas[k])\r",
+							"        }\r",
+							"    }\r",
+							"    return str\r",
+							"}\r",
+							"let sign_string = params_sort_str(sign_parmass);\r",
+							"let sign = CryptoJS.HmacSHA256(sign_string, appkey);\r",
+							"sign = CryptoJS.enc.Base64.stringify(sign);\r",
+							"pm.environment.set(\"sign\", sign);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var data=JSON.parse(responseBody);\r",
+							"var signature_base64=data.result.signature_base64;\r",
+							"pm.environment.set(\"signature_base64\", signature_base64)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"appid\":\"{{appid}}\",\r\n    \"nonce\":\"{{nonce}}\",\r\n    \"timestamp\":\"{{timestamp}}\",\r\n    \"sign\":\"{{sign}}\",\r\n    \"payload\":{\r\n        \"cmk_base64\": \"{{cmk_base64}}\",\r\n        \"digest\": \"test\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{ip}}:{{port}}/ehsm?Action=Sign",
+					"host": [
+						"{{ip}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"ehsm"
+					],
+					"query": [
+						{
+							"key": "Action",
+							"value": "Sign"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Verify",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var appid = pm.environment.get(\"appid\");\r",
+							"var appkey = pm.environment.get(\"appkey\");\r",
+							"var timestamp = pm.environment.get(\"timestamp\");\r",
+							"\r",
+							"var payload = {\r",
+							"    \"cmk_base64\": pm.environment.get(\"cmk_base64\"),\r",
+							"    \"signature_base64\": pm.environment.get(\"signature_base64\"), \r",
+							"    \"digest\":\"test\"\r",
+							"}\r",
+							"let sign_parmass = {appid, payload, timestamp} \r",
+							"const params_sort_str = (sign_parmas) => {\r",
+							"    let str = '';\r",
+							"    const sort_params_key_arr = Object.keys(sign_parmas).sort();\r",
+							"    for(var k of sort_params_key_arr) {\r",
+							"        if(sign_parmas[k] != '' && sign_parmas[k] != undefined && sign_parmas[k] != null) {\r",
+							"            str += (str&& ('&' + '')) + k + '=' + (typeof sign_parmas[k] == 'object' ? params_sort_str(sign_parmas[k]) : sign_parmas[k])\r",
+							"        }\r",
+							"    }\r",
+							"    return str\r",
+							"}\r",
+							"let sign_string = params_sort_str(sign_parmass);\r",
+							"let sign = CryptoJS.HmacSHA256(sign_string, appkey);\r",
+							"sign = CryptoJS.enc.Base64.stringify(sign);\r",
+							"pm.environment.set(\"sign\", sign);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"\r",
+							"\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"appid\":\"{{appid}}\",\r\n    \"nonce\":\"{{nonce}}\",\r\n    \"timestamp\":\"{{timestamp}}\",\r\n    \"sign\":\"{{sign}}\",\r\n    \"payload\":{\r\n        \"cmk_base64\": \"{{cmk_base64}}\",\r\n        \"signature_base64\":\"{{signature_base64}}\",\r\n        \"digest\":\"test\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{ip}}:{{port}}/ehsm?Action=Verify",
+					"host": [
+						"{{ip}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"ehsm"
+					],
+					"query": [
+						{
+							"key": "Action",
+							"value": "Verify"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"var d = new Date();",
+					"var timestamp= d.getTime();",
+					"pm.environment.set(\"timestamp\", timestamp);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}

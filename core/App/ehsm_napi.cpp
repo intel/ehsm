@@ -81,11 +81,13 @@ void NAPI_Finalize(){
 */
 char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
 {
+    RetJsonObj retJsonObj;
     ehsm_status_t ret = EH_OK;
     ehsm_keyblob_t master_key;
 
+    memset(&master_key, 0, sizeof(master_key));
+
     string cmk_base64;
-    RetJsonObj retJsonObj;
 
     uint8_t *resp = NULL;
     uint32_t resp_len = 0;
@@ -110,8 +112,13 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
 
     ret = CreateKey(&master_key);
     if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        if(ret == EH_KEYSPEC_INVALID){
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's keyspec is invalid.");
+        } else {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+        }
         goto out;
     }
 
@@ -150,34 +157,67 @@ char* NAPI_Encrypt(const char* cmk_base64,
         const char* aad)
 {
     RetJsonObj retJsonObj;
-    string decode_str;
-    string cipherText_base64;
+    if (cmk_base64 == NULL || plaintext == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    if(aad == NULL){
+        aad = "";
+    }
 
     ehsm_status_t ret = EH_OK;
-
-    ehsm_keyblob_t masterkey;
-
+    ehsm_keyblob_t cmk;
     ehsm_data_t plaint_data;
     ehsm_data_t aad_data;
     ehsm_data_t cipher_data;
 
-    decode_str = base64_decode(cmk_base64);
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&plaint_data, 0, sizeof(plaint_data));
+    memset(&aad_data, 0, sizeof(aad_data));
+    memset(&cipher_data, 0, sizeof(cipher_data));
 
-    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)decode_str.data(), decode_str.size());
+    string cmk_str = base64_decode(cmk_base64);
+    string cipherText_base64;
+    int cmk_len = cmk_str.size();
+    int plaintext_len = strlen(plaintext);
+    int aad_len = strlen(aad);
+
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+    if(plaintext_len == 0 || plaintext_len > EH_ENCRYPT_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The plaintext's length is invalid.");
+        goto out;
+    }
+    if(aad_len > EH_AAD_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The aad's length is invalid.");
+        goto out;
+    }
+
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    plaint_data.datalen = strlen(plaintext);
+    plaint_data.datalen = plaintext_len;
     plaint_data.data = (uint8_t*)plaintext;
 
-    aad_data.datalen = strlen(aad);
-    aad_data.data = (uint8_t*)aad;
-
+    aad_data.datalen = aad_len;
+    if(aad_len > 0){
+        aad_data.data = (uint8_t*)aad;
+    } else {
+        aad_data.data = NULL; 
+    }
+    
     cipher_data.datalen = 0;
-    ret = Encrypt(&masterkey, &plaint_data, &aad_data, &cipher_data);
+    ret = Encrypt(&cmk, &plaint_data, &aad_data, &cipher_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -191,7 +231,7 @@ char* NAPI_Encrypt(const char* cmk_base64,
         goto out;
     }
 
-    ret = Encrypt(&masterkey, &plaint_data, &aad_data, &cipher_data);
+    ret = Encrypt(&cmk, &plaint_data, &aad_data, &cipher_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -204,7 +244,7 @@ char* NAPI_Encrypt(const char* cmk_base64,
     }
 
 out:
-    SAFE_FREE(masterkey.keyblob);
+    SAFE_FREE(cmk.keyblob);
     SAFE_FREE(cipher_data.data);
     return retJsonObj.toChar();
 }
@@ -224,41 +264,72 @@ char* NAPI_Decrypt(const char* cmk_base64,
         const char* ciphertext_base64,
         const char* aad)
 {
-    string decode_cmk;
-    string decode_cipher;
-    string plaintext_base64;
-
     RetJsonObj retJsonObj;
+    if (cmk_base64 == NULL || ciphertext_base64 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    if(aad == NULL){
+        aad = "";
+    }
+
     ehsm_status_t ret = EH_OK;
-
-    ehsm_keyblob_t masterkey;
-
+    ehsm_keyblob_t cmk;
     ehsm_data_t plaint_data;
     ehsm_data_t aad_data;
     ehsm_data_t cipher_data;
+    string plaintext_base64;
+    
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&plaint_data, 0, sizeof(plaint_data));
+    memset(&aad_data, 0, sizeof(aad_data));
+    memset(&cipher_data, 0, sizeof(cipher_data));
+    
+    string cmk_str = base64_decode(cmk_base64);
+    string ciphertext_str = base64_decode(ciphertext_base64);
+    int cmk_len = cmk_str.size();
+    int ciphertext_len = ciphertext_str.size();
+    int aad_len = strlen(aad);
 
-    decode_cmk = base64_decode(cmk_base64);
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+    if(ciphertext_len == 0 || ciphertext_len > EH_ENCRYPT_MAX_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The ciphertext's length is invalid.");
+        goto out;
+    }
+    if(aad_len > EH_AAD_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The aad's length is invalid.");
+        goto out;
+    }
 
-    decode_cipher = base64_decode(ciphertext_base64);
-
-    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)decode_cmk.data(), decode_cmk.size());
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    cipher_data.datalen = decode_cipher.size();
-    cipher_data.data = (uint8_t*)decode_cipher.data();
+    cipher_data.datalen = ciphertext_len;
+    cipher_data.data = (uint8_t*)ciphertext_str.data();
 
-    aad_data.datalen = strlen(aad);
-    aad_data.data = (uint8_t*)aad;
+    aad_data.datalen = aad_len;
+    if(aad_len > 0){
+        aad_data.data = (uint8_t*)aad;
+    }else{
+        aad_data.data = NULL; 
+    }
 
     plaint_data.datalen = 0;
-    ret = Decrypt(&masterkey, &cipher_data, &aad_data, &plaint_data);
+    ret = Decrypt(&cmk, &cipher_data, &aad_data, &plaint_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception");
         goto out;
     }
 
@@ -269,10 +340,15 @@ char* NAPI_Decrypt(const char* cmk_base64,
         goto out;
     }
 
-    ret = Decrypt(&masterkey, &cipher_data, &aad_data, &plaint_data);
-    if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+    ret = Decrypt(&cmk, &cipher_data, &aad_data, &plaint_data);
+    if (ret != EH_OK){
+        if(ret == EH_FUNCTION_FAILED){
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("Decryption failed, Please confirm that your parameters are correct.");
+        } else {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+        }
         goto out;
     }
 
@@ -281,7 +357,7 @@ char* NAPI_Decrypt(const char* cmk_base64,
         retJsonObj.addData("plaintext_base64", plaintext_base64);
     }
 out:
-    SAFE_FREE(masterkey.keyblob);
+    SAFE_FREE(cmk.keyblob);
     SAFE_FREE(plaint_data.data);
     return retJsonObj.toChar();
 }
@@ -302,29 +378,62 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
         const uint32_t keylen,
         const char* aad)
 {
-    string cmk_str;
-    ehsm_status_t ret = EH_OK;
     RetJsonObj retJsonObj;
-    ehsm_keyblob_t masterkey;
+    if (cmk_base64 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    if(aad == NULL){
+        aad = "";
+    }
 
-    ehsm_data_t plaint_datakey;
+    ehsm_status_t ret = EH_OK;
+    ehsm_keyblob_t cmk;
     ehsm_data_t aad_data;
+    ehsm_data_t plaint_datakey;
     ehsm_data_t cipher_datakey;
+    
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&aad_data, 0, sizeof(aad_data));
+    memset(&plaint_datakey, 0, sizeof(plaint_datakey));
+    memset(&cipher_datakey, 0, sizeof(cipher_datakey));
 
+    string cmk_str = base64_decode(cmk_base64);
     string plaintext_base64;
     string ciphertext_base64;
-    
-    cmk_str = base64_decode(cmk_base64);
+    int cmk_len = cmk_str.size();
+    int aad_len = strlen(aad);
 
-    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+    if(keylen == 0 || keylen > EH_DATA_KEY_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The keylen's length is invalid.");
+        goto out;
+    }
+    if(aad_len > EH_AAD_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The aad's length is invalid.");
+        goto out;
+    }
+
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    aad_data.datalen = strlen(aad);
-    aad_data.data = (uint8_t*)aad;
+    aad_data.datalen = aad_len;
+    if(aad_len > 0){
+        aad_data.data = (uint8_t*)aad;
+    }else{
+        aad_data.data = NULL; 
+    }
 
     plaint_datakey.datalen = keylen;
     plaint_datakey.data = (uint8_t*)malloc(plaint_datakey.datalen);
@@ -334,7 +443,7 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
         goto out;
     }
 	cipher_datakey.datalen = 0;
-    ret = GenerateDataKey(&masterkey, &aad_data, &plaint_datakey, &cipher_datakey);
+    ret = GenerateDataKey(&cmk, &aad_data, &plaint_datakey, &cipher_datakey);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -355,10 +464,15 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
         goto out;
     }
 
-    ret = GenerateDataKey(&masterkey, &aad_data, &plaint_datakey, &cipher_datakey);
-    if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+    ret = GenerateDataKey(&cmk, &aad_data, &plaint_datakey, &cipher_datakey);
+    if (ret != EH_OK){
+        if(ret == EH_ARGUMENTS_BAD){
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("Failed, Please confirm that your parameters are correct.");
+        } else {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+        }
         goto out;
     }
 
@@ -370,7 +484,7 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
     }
     
 out:
-    SAFE_FREE(masterkey.keyblob);
+    SAFE_FREE(cmk.keyblob);
     SAFE_FREE(plaint_datakey.data);
     SAFE_FREE(cipher_datakey.data);
     return retJsonObj.toChar();
@@ -392,28 +506,60 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
         const char* aad)
 {
     RetJsonObj retJsonObj;
-    string cmk_str;
+    if (cmk_base64 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    if(aad == NULL){
+        aad = "";
+    }
+
     ehsm_status_t ret = EH_OK;
-    ehsm_keyblob_t masterkey;
-    ehsm_data_t plaint_datakey;
+    ehsm_keyblob_t cmk;
     ehsm_data_t aad_data;
+    ehsm_data_t plaint_datakey;
     ehsm_data_t cipher_datakey;
-    string ciphertext_base64;
     
-    cmk_str = base64_decode(cmk_base64);
-    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&aad_data, 0, sizeof(aad_data));
+    memset(&plaint_datakey, 0, sizeof(plaint_datakey));
+    memset(&cipher_datakey, 0, sizeof(cipher_datakey));
+
+    string cmk_str = base64_decode(cmk_base64);
+    string ciphertext_base64;
+    int cmk_len = cmk_str.size();
+    int aad_len = strlen(aad);
+
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+    if(keylen == 0 || keylen > EH_DATA_KEY_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The keylen's length is invalid.");
+        goto out;
+    }
+    if(aad_len > EH_AAD_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The aad's length is invalid.");
+        goto out;
+    }	
+	
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    aad_data.datalen = strlen(aad);
+    aad_data.datalen = aad_len;
     aad_data.data = (uint8_t*)aad;
     plaint_datakey.datalen = keylen;
     plaint_datakey.data = NULL;
     cipher_datakey.datalen = 0;
-    ret = GenerateDataKeyWithoutPlaintext(&masterkey, &aad_data, &plaint_datakey, &cipher_datakey);
+    ret = GenerateDataKeyWithoutPlaintext(&cmk, &aad_data, &plaint_datakey, &cipher_datakey);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -427,10 +573,15 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
         goto out;
     }
 
-    ret = GenerateDataKeyWithoutPlaintext(&masterkey, &aad_data, &plaint_datakey, &cipher_datakey);
-    if (ret != EH_OK) {
-        retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+    ret = GenerateDataKeyWithoutPlaintext(&cmk, &aad_data, &plaint_datakey, &cipher_datakey);
+    if (ret != EH_OK){
+        if(ret == EH_ARGUMENTS_BAD){
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("Failed, Please confirm that your parameters are correct.");
+        } else {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+        }
         goto out;
     }
 
@@ -440,7 +591,7 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
     }
 
 out:
-    SAFE_FREE(masterkey.keyblob);
+    SAFE_FREE(cmk.keyblob);
     SAFE_FREE(plaint_datakey.data);
     SAFE_FREE(cipher_datakey.data);
     return retJsonObj.toChar();
@@ -462,26 +613,49 @@ char* NAPI_Sign(const char* cmk_base64,
         const char* digest)
 {    
     RetJsonObj retJsonObj;
-    string cmk_str;
-    ehsm_keyblob_t masterkey;
+    if (cmk_base64 == NULL || digest == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+
     ehsm_status_t ret = EH_OK;
+    ehsm_keyblob_t cmk;
     ehsm_data_t digest_data;
     ehsm_data_t signature;
-    string signature_base64;
+    
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&digest_data, 0, sizeof(digest_data));
+    memset(&signature, 0, sizeof(signature));
 
-    cmk_str = base64_decode(cmk_base64);
-    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    string cmk_str = base64_decode(cmk_base64);
+    string signature_base64;
+    int cmk_len = cmk_str.size();
+    int digest_len = strlen(digest);
+
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+    if(digest_len == 0 || digest_len > RSA_OAEP_3072_DIGEST_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The digest's length is invalid.");
+        goto out;
+    }
+
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    digest_data.datalen = strlen(digest);
+    digest_data.datalen = digest_len;
     digest_data.data = (uint8_t*)digest;
 
     signature.datalen = 0;
-    ret = Sign(&masterkey, &digest_data, &signature);
+    ret = Sign(&cmk, &digest_data, &signature);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -495,7 +669,7 @@ char* NAPI_Sign(const char* cmk_base64,
         goto out;
     }
 
-    ret = Sign(&masterkey, &digest_data, &signature);
+    ret = Sign(&cmk, &digest_data, &signature);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -508,7 +682,7 @@ char* NAPI_Sign(const char* cmk_base64,
     }
 
 out:
-    SAFE_FREE(masterkey.keyblob);    
+    SAFE_FREE(cmk.keyblob);    
     SAFE_FREE(signature.data);
     return retJsonObj.toChar();
     
@@ -530,30 +704,58 @@ char* NAPI_Verify(const char* cmk_base64,
         const char* signature_base64)
 {
     RetJsonObj retJsonObj;
-    string cmk_str;
-    string signatur_str;
+    if (cmk_base64 == NULL || digest == NULL || signature_base64 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+
     ehsm_status_t ret = EH_OK;
+    ehsm_keyblob_t cmk;
     ehsm_data_t digest_data;
     ehsm_data_t signature_data;
-    ehsm_keyblob_t masterkey;
-    bool result  = false;
+    
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&digest_data, 0, sizeof(digest_data));
+    memset(&signature_data, 0, sizeof(signature_data));
 
-    cmk_str = base64_decode(cmk_base64);
-    signatur_str = base64_decode(signature_base64);
-    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    bool result  = false;
+    string cmk_str = base64_decode(cmk_base64);
+    string signatur_str = base64_decode(signature_base64);
+    int cmk_len = cmk_str.size();
+    int digest_len = strlen(digest);
+    int signature_len = signatur_str.size();
+
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+    if(digest_len == 0 || digest_len > RSA_OAEP_3072_DIGEST_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The digest's length is invalid.");
+        goto out;
+    }
+    if(signature_len == 0 || signature_len > RSA_OAEP_3072_SIGNATURE_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The signature's length is invalid.");
+        goto out;
+    }
+
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    digest_data.datalen = strlen(digest);
+    digest_data.datalen = digest_len;
     digest_data.data = (uint8_t*)digest;
 
-    signature_data.datalen = signatur_str.size();
+    signature_data.datalen = signature_len;
     signature_data.data = (uint8_t*)signatur_str.data();
 
-    ret = Verify(&masterkey, &digest_data, &signature_data, &result);
+    ret = Verify(&cmk, &digest_data, &signature_data, &result);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -562,7 +764,7 @@ char* NAPI_Verify(const char* cmk_base64,
     retJsonObj.addData("result", result);
 
 out:
-    SAFE_FREE(masterkey.keyblob);
+    SAFE_FREE(cmk.keyblob);
     return retJsonObj.toChar();
 }
 
@@ -582,26 +784,74 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
         const char* plaintext)
 {
     RetJsonObj retJsonObj;
-    string cmk_str;
-    string cipherText_base64;
+    if (cmk_base64 == NULL || plaintext == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+
     ehsm_status_t ret = EH_OK;
-    ehsm_keyblob_t masterkey;
+    ehsm_keyblob_t cmk;
     ehsm_data_t plaint_data;
     ehsm_data_t cipher_data;
+    
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&plaint_data, 0, sizeof(plaint_data));
+    memset(&cipher_data, 0, sizeof(cipher_data));
+    
+    string cmk_str = base64_decode(cmk_base64);
+    string cipherText_base64;
+    int cmk_len = cmk_str.size();
+    int plaintext_len = strlen(plaintext);
+    int plaintext_maxLen = 0;
 
-    cmk_str = base64_decode(cmk_base64);
-    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_str.size());
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    plaint_data.datalen = strlen(plaintext);
+    switch (cmk.metadata.keyspec)
+    {
+        case EH_RSA_2048:
+            // TODO
+            break;
+        case EH_RSA_3072:
+            plaintext_maxLen = RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE;
+            break;
+        case EH_EC_P256:
+            // TODO
+            break;
+        case EH_EC_P512:
+            // TODO
+            break;
+        case EH_EC_SM2:
+            // TODO
+            break;
+        default:
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's keyspec is invalid.");
+            goto out;
+    }
+    
+    if(plaintext_len == 0 || plaintext_len > plaintext_maxLen){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The plaintext's length is invalid.");
+        goto out;
+    }
+
+    plaint_data.datalen = plaintext_len;
     plaint_data.data = (uint8_t*)plaintext;
 
     cipher_data.datalen = 0;
-    ret = AsymmetricEncrypt(&masterkey, &plaint_data, &cipher_data);
+    ret = AsymmetricEncrypt(&cmk, &plaint_data, &cipher_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -615,7 +865,7 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
         goto out;
     }
 
-    ret = AsymmetricEncrypt(&masterkey, &plaint_data, &cipher_data);
+    ret = AsymmetricEncrypt(&cmk, &plaint_data, &cipher_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -628,7 +878,7 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
     }
 
 out:
-    SAFE_FREE(masterkey.keyblob);
+    SAFE_FREE(cmk.keyblob);
     SAFE_FREE(cipher_data.data);
     return retJsonObj.toChar();
 }
@@ -647,30 +897,76 @@ out:
 char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
         const char* ciphertext_base64)
 {
-    string cmk_str;
-    string decode_cipher;
-    string plaintext_base64;
-    string plaintest_str;
     RetJsonObj retJsonObj;
-    ehsm_status_t ret = EH_OK;
-    ehsm_keyblob_t masterkey;
-    ehsm_data_t plaint_data;
-    ehsm_data_t cipher_data;
+    if (cmk_base64 == NULL || ciphertext_base64 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
 
-    cmk_str = base64_decode(cmk_base64);
-    decode_cipher = base64_decode(ciphertext_base64);
-    ret = ehsm_deserialize_cmk(&masterkey, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    ehsm_status_t ret = EH_OK;
+    ehsm_keyblob_t cmk;
+    ehsm_data_t cipher_data;
+    ehsm_data_t plaint_data;
+    
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&cipher_data, 0, sizeof(cipher_data));
+    memset(&plaint_data, 0, sizeof(plaint_data));
+
+    string cmk_str = base64_decode(cmk_base64);
+    string ciphertext_str = base64_decode(ciphertext_base64);
+    string plaintext_base64;
+    int cmk_len = cmk_str.size();
+    int ciphertext_len = ciphertext_str.size();
+    int ciphertext_maxLen = 0;
+
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    cipher_data.datalen = decode_cipher.size();
-    cipher_data.data = (uint8_t*)decode_cipher.data();
+    switch (cmk.metadata.keyspec)
+    {
+        case EH_RSA_2048:
+            // TODO
+            break;
+        case EH_RSA_3072:
+            ciphertext_maxLen = RSA_OAEP_3072_CIPHER_LENGTH;
+            break;
+        case EH_EC_P256:
+            // TODO
+            break;
+        case EH_EC_P512:
+            // TODO
+            break;
+        case EH_EC_SM2:
+            // TODO
+            break;
+        default:
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's keyspec is invalid.");
+            goto out;
+    }
+    
+    if(ciphertext_len == 0 || ciphertext_len > ciphertext_maxLen){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The ciphertext's length is invalid.");
+        goto out;
+    }
+
+    cipher_data.datalen = ciphertext_len;
+    cipher_data.data = (uint8_t*)ciphertext_str.data();
 
     plaint_data.datalen = 0;
-    ret = AsymmetricDecrypt(&masterkey, &cipher_data, &plaint_data);
+    ret = AsymmetricDecrypt(&cmk, &cipher_data, &plaint_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -684,7 +980,7 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
         goto out;
     }
 
-    ret = AsymmetricDecrypt(&masterkey, &cipher_data, &plaint_data);
+    ret = AsymmetricDecrypt(&cmk, &cipher_data, &plaint_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -696,7 +992,7 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
         retJsonObj.addData("plaintext_base64", plaintext_base64);
     }
 out:
-    SAFE_FREE(masterkey.keyblob);
+    SAFE_FREE(cmk.keyblob);
     SAFE_FREE(plaint_data.data);
     return retJsonObj.toChar();
 }
@@ -718,44 +1014,84 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
         const char* olddatakey_base64)
 {
     RetJsonObj retJsonObj;
+    if (cmk_base64 == NULL || ukey_base64 == NULL || olddatakey_base64 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    if(aad == NULL){
+        aad = "";
+    }
+
     ehsm_status_t ret = EH_OK;
-    string cmk_str;
-    string ukey_str;
     ehsm_keyblob_t cmk;
     ehsm_keyblob_t ukey;
-    string cipher_str;
-    ehsm_data_t olddatakey_data;
     ehsm_data_t aad_data;
+    ehsm_data_t olddatakey_data;
     ehsm_data_t cipher_datakey_new;
+    
+    memset(&cmk, 0, sizeof(cmk));
+    memset(&ukey, 0, sizeof(ukey));
+    memset(&aad_data, 0, sizeof(aad_data));
+    memset(&olddatakey_data, 0, sizeof(olddatakey_data));
+    memset(&cipher_datakey_new, 0, sizeof(cipher_datakey_new));
+
+    string cmk_str = base64_decode(cmk_base64);
+    string ukey_str = base64_decode(ukey_base64);
+    string olddatakey_str = base64_decode(olddatakey_base64);
     string newdatakey_base64;   
+    int cmk_len = cmk_str.size();
+    int ukey_len = ukey_str.size();
+    int aad_len = strlen(aad);
+    int olddatakey_len = olddatakey_str.size();
+
     
-    cmk_str = base64_decode(cmk_base64);
-    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_str.size());
+    if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The cmk's length is invalid.");
+        goto out;
+    }
+    if(ukey_len == 0 || ukey_len > EH_CMK_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The ukey's length is invalid.");
+        goto out;
+    }
+    if(aad_len > EH_AAD_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The aad's length is invalid.");
+        goto out;
+    }
+    if(olddatakey_len == 0 || olddatakey_len > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The olddatakey's length is invalid.");
+        goto out;
+    }
+
+    ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    ukey_str = base64_decode(ukey_base64);
-    ret = ehsm_deserialize_cmk(&ukey, (const uint8_t*)ukey_str.data(), ukey_str.size());
+    ret = ehsm_deserialize_cmk(&ukey, (const uint8_t*)ukey_str.data(), ukey_len);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
-    cipher_str = base64_decode(olddatakey_base64);
-    olddatakey_data.datalen = cipher_str.size();
-    olddatakey_data.data = (uint8_t*)cipher_str.data();
+    olddatakey_data.datalen = olddatakey_len;
+    olddatakey_data.data = (uint8_t*)olddatakey_str.data();
     
-    aad_data.datalen = strlen(aad);
+    aad_data.datalen = aad_len;
     aad_data.data = (uint8_t*)aad;
 
     cipher_datakey_new.datalen = 0;
     ret = ExportDataKey(&cmk, &ukey, &aad_data, &olddatakey_data, &cipher_datakey_new);
     if (ret != EH_OK) {
-        printf("Failed to get the data size of ExportDataKey!\n");
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
         goto out;
     }
 
@@ -766,8 +1102,14 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
     }
 
     ret = ExportDataKey(&cmk, &ukey, &aad_data, &olddatakey_data, &cipher_datakey_new);
-    if (ret != EH_OK) {
-        printf("Failed to ExportDataKey with ukey!\n");
+    if (ret != EH_OK){
+        if(ret == EH_ARGUMENTS_BAD){
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("Failed, Please confirm that your parameters are correct.");
+        } else {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+        }
         goto out;
     }
 

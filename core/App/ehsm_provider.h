@@ -40,6 +40,10 @@
 
 #define EH_ENCRYPT_MAX_SIZE (6*1024)
 
+#define EH_AAD_MAX_SIZE (8*1024)
+
+#define EH_CMK_MAX_SIZE (4*1024)
+
 #define EH_DATA_KEY_MAX_SIZE 1024
 
 #define EH_AES_GCM_IV_SIZE  12
@@ -55,6 +59,7 @@
 
 #define RSA_OAEP_3072_CIPHER_LENGTH       384
 #define RSA_OAEP_3072_SIGNATURE_SIZE      384
+#define RSA_OAEP_3072_DIGEST_SIZE         256
 
 typedef enum {
     EH_OK                           = 0,

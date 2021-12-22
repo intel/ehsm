@@ -5,6 +5,9 @@ set -e
 WORKDIR=$PWD
 EHSM_DOCKER_FILE_NAME="ehsm_kms_service.tar.gz"
 EHSM_DOCKER_IMAGE_NAME="ehsm_kms_service:latest"
+EHSM_DOCKER_IMAGE_NAME_NO_VERSION="ehsm_kms_service"
+HOST_PORT=9000
+DOCKER_PORT=9000
 
 
 function build {
@@ -56,7 +59,7 @@ function run {
 	RUN_ARG="$RUN_ARG --device=/dev/sgx/enclave -v aesmd-socket:/var/run/aesmd"
 
 	# run the container
-	docker run -d $RUN_ARG -it -p 9000:9000 $EHSM_DOCKER_IMAGE_NAME
+	docker run -d $RUN_ARG -it -p $HOST_PORT:$DOCKER_PORT $EHSM_DOCKER_IMAGE_NAME
 }
 
 function delete {
@@ -66,7 +69,7 @@ function delete {
 		docker rm -f $container_id
 	fi
 
-	img_id=$(docker images | grep -E $EHSM_DOCKER_IMAGE_NAME |awk '{print $3}')
+	img_id=$(docker images | grep -E $EHSM_DOCKER_IMAGE_NAME_NO_VERSION |awk '{print $3}')
 	if [ ! -z "$img_id" ]; then
 		echo "rm docker image..."
 		docker rmi -f $img_id

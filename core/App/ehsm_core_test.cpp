@@ -67,7 +67,7 @@ void test_AES128()
 
     if(RetJsonObj::getCode(returnJsonChar) != 200){
         printf("Createkey with aes-gcm-128 failed, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
-        goto cleanup;  
+        goto cleanup;
     }
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     printf("Create CMK with AES-128 SUCCESSFULLY!\n");
@@ -75,6 +75,7 @@ void test_AES128()
     cmk_base64 = RetJsonObj::readData_string(returnJsonChar, "cmk_base64");
 
     returnJsonChar = NAPI_Encrypt(cmk_base64, plaintext, aad);
+
     if(RetJsonObj::getCode(returnJsonChar) != 200){
         printf("Failed to Encrypt the plaittext data, error message: %s \n", RetJsonObj::getMessage(returnJsonChar).c_str());
         goto cleanup; 
@@ -149,7 +150,6 @@ cleanup:
         SAFE_FREE(plaintext_base64);
         SAFE_FREE(returnJsonChar);
         printf("============test_RSA3072_encrypt_decrypt End==========\n");
-
 }
 
 

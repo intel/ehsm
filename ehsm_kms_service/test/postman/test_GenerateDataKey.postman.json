@@ -12,28 +12,29 @@
 					"listen": "prerequest",
 					"script": {
 						"exec": [
-							"var appid = '202112100001';\r",
-							"var timestamp=(new Date).getTime();\r",
-							"var nonce = timestamp;\r",
-							"var appkey = '202112345678'\r",
-							"pm.environment.set(\"appid\", appid);\r",
-							"pm.environment.set(\"timestamp\", timestamp);\r",
-							"pm.environment.set(\"nonce\", nonce);\r",
+							"var appid = pm.environment.get(\"appid\");\r",
+							"var appkey = pm.environment.get(\"appkey\");\r",
+							"var timestamp = pm.environment.get(\"timestamp\");\r",
 							"\r",
-							"let str = '';\r",
-							"let sign_parmas = {appid, nonce, timestamp} \r",
-							"for(var k in sign_parmas){\r",
-							"if(!str) {\r",
-							"    str += k + '=' + sign_parmas[k]\r",
-							"} else{\r",
-							"    str += '&' + k + '=' + sign_parmas[k]\r",
+							"var payload = {\r",
+							"    \"keyspec\":\"EH_AES_GCM_128\",\r",
+							"    \"origin\":\"EH_INTERNAL_KEY\"\r",
 							"}\r",
+							"let sign_parmass = {appid, payload, timestamp} \r",
+							"const params_sort_str = (sign_parmas) => {\r",
+							"    let str = '';\r",
+							"    const sort_params_key_arr = Object.keys(sign_parmas).sort();\r",
+							"    for(var k of sort_params_key_arr) {\r",
+							"        if(sign_parmas[k] != '' && sign_parmas[k] != undefined && sign_parmas[k] != null) {\r",
+							"            str += (str&& ('&' + '')) + k + '=' + (typeof sign_parmas[k] == 'object' ? params_sort_str(sign_parmas[k]) : sign_parmas[k])\r",
+							"        }\r",
+							"    }\r",
+							"    return str\r",
 							"}\r",
-							"str += '&app_key=' + appkey;\r",
-							"let sign = CryptoJS.HmacSHA256(str, appkey);\r",
-							"console.log(sign)\r",
-							"sign = CryptoJS.enc.Base64.stringify(sign)\r",
-							"pm.environment.set(\"sign\", sign)"
+							"let sign_string = params_sort_str(sign_parmass);\r",
+							"let sign = CryptoJS.HmacSHA256(sign_string, appkey);\r",
+							"sign = CryptoJS.enc.Base64.stringify(sign);\r",
+							"pm.environment.set(\"sign\", sign);"
 						],
 						"type": "text/javascript"
 					}
@@ -64,14 +65,11 @@
 					"raw": "{\r\n    \"appid\":\"{{appid}}\",\r\n    \"nonce\":\"{{nonce}}\",\r\n    \"timestamp\":\"{{timestamp}}\",\r\n    \"sign\":\"{{sign}}\",\r\n    \"payload\":{\r\n        \"keyspec\":\"EH_AES_GCM_128\",\r\n        \"origin\":\"EH_INTERNAL_KEY\"\r\n    }\r\n}"
 				},
 				"url": {
-					"raw": "10.239.127.69:3000/ehsm?Action=CreateKey",
+					"raw": "{{ip}}:{{port}}/ehsm?Action=CreateKey",
 					"host": [
-						"10",
-						"239",
-						"127",
-						"69"
+						"{{ip}}"
 					],
-					"port": "3000",
+					"port": "{{port}}",
 					"path": [
 						"ehsm"
 					],
@@ -92,28 +90,30 @@
 					"listen": "prerequest",
 					"script": {
 						"exec": [
-							"var appid = '202112100001';\r",
-							"var timestamp=(new Date).getTime();\r",
-							"var nonce = timestamp;\r",
-							"var appkey = '202112345678'\r",
-							"pm.environment.set(\"appid\", appid);\r",
-							"pm.environment.set(\"timestamp\", timestamp);\r",
-							"pm.environment.set(\"nonce\", nonce);\r",
+							"var appid = pm.environment.get(\"appid\");\r",
+							"var appkey = pm.environment.get(\"appkey\");\r",
+							"var timestamp = pm.environment.get(\"timestamp\");\r",
 							"\r",
-							"let str = '';\r",
-							"let sign_parmas = {appid, nonce, timestamp} \r",
-							"for(var k in sign_parmas){\r",
-							"if(!str) {\r",
-							"    str += k + '=' + sign_parmas[k]\r",
-							"} else{\r",
-							"    str += '&' + k + '=' + sign_parmas[k]\r",
+							"var payload = {\r",
+							"    \"cmk_base64\": pm.environment.get(\"cmk_base64\"),\r",
+							"    \"keylen\":16,\r",
+							"    \"aad\":\"test\"\r",
 							"}\r",
+							"let sign_parmass = {appid, payload, timestamp} \r",
+							"const params_sort_str = (sign_parmas) => {\r",
+							"    let str = '';\r",
+							"    const sort_params_key_arr = Object.keys(sign_parmas).sort();\r",
+							"    for(var k of sort_params_key_arr) {\r",
+							"        if(sign_parmas[k] != '' && sign_parmas[k] != undefined && sign_parmas[k] != null) {\r",
+							"            str += (str&& ('&' + '')) + k + '=' + (typeof sign_parmas[k] == 'object' ? params_sort_str(sign_parmas[k]) : sign_parmas[k])\r",
+							"        }\r",
+							"    }\r",
+							"    return str\r",
 							"}\r",
-							"str += '&app_key=' + appkey;\r",
-							"let sign = CryptoJS.HmacSHA256(str, appkey);\r",
-							"console.log(sign)\r",
-							"sign = CryptoJS.enc.Base64.stringify(sign)\r",
-							"pm.environment.set(\"sign\", sign)"
+							"let sign_string = params_sort_str(sign_parmass);\r",
+							"let sign = CryptoJS.HmacSHA256(sign_string, appkey);\r",
+							"sign = CryptoJS.enc.Base64.stringify(sign);\r",
+							"pm.environment.set(\"sign\", sign);"
 						],
 						"type": "text/javascript"
 					}
@@ -154,14 +154,11 @@
 					}
 				},
 				"url": {
-					"raw": "10.239.127.69:3000/ehsm?Action=GenerateDataKey",
+					"raw": "{{ip}}:{{port}}/ehsm?Action=GenerateDataKey",
 					"host": [
-						"10",
-						"239",
-						"127",
-						"69"
+						"{{ip}}"
 					],
-					"port": "3000",
+					"port": "{{port}}",
 					"path": [
 						"ehsm"
 					],
@@ -182,28 +179,30 @@
 					"listen": "prerequest",
 					"script": {
 						"exec": [
-							"var appid = '202112100001';\r",
-							"var timestamp=(new Date).getTime();\r",
-							"var nonce = timestamp;\r",
-							"var appkey = '202112345678'\r",
-							"pm.environment.set(\"appid\", appid);\r",
-							"pm.environment.set(\"timestamp\", timestamp);\r",
-							"pm.environment.set(\"nonce\", nonce);\r",
+							"var appid = pm.environment.get(\"appid\");\r",
+							"var appkey = pm.environment.get(\"appkey\");\r",
+							"var timestamp = pm.environment.get(\"timestamp\");\r",
 							"\r",
-							"let str = '';\r",
-							"let sign_parmas = {appid, nonce, timestamp} \r",
-							"for(var k in sign_parmas){\r",
-							"if(!str) {\r",
-							"    str += k + '=' + sign_parmas[k]\r",
-							"} else{\r",
-							"    str += '&' + k + '=' + sign_parmas[k]\r",
+							"var payload = {\r",
+							"        \"cmk_base64\": pm.environment.get(\"cmk_base64\"),\r",
+							"        \"ciphertext\": pm.environment.get(\"ciphertext_base64\"),\r",
+							"        \"aad\":\"test\"\r",
+							"    }\r",
+							"let sign_parmass = {appid, payload, timestamp} \r",
+							"const params_sort_str = (sign_parmas) => {\r",
+							"    let str = '';\r",
+							"    const sort_params_key_arr = Object.keys(sign_parmas).sort();\r",
+							"    for(var k of sort_params_key_arr) {\r",
+							"        if(sign_parmas[k] != '' && sign_parmas[k] != undefined && sign_parmas[k] != null) {\r",
+							"            str += (str&& ('&' + '')) + k + '=' + (typeof sign_parmas[k] == 'object' ? params_sort_str(sign_parmas[k]) : sign_parmas[k])\r",
+							"        }\r",
+							"    }\r",
+							"    return str\r",
 							"}\r",
-							"}\r",
-							"str += '&app_key=' + appkey;\r",
-							"let sign = CryptoJS.HmacSHA256(str, appkey);\r",
-							"console.log(sign)\r",
-							"sign = CryptoJS.enc.Base64.stringify(sign)\r",
-							"pm.environment.set(\"sign\", sign)"
+							"let sign_string = params_sort_str(sign_parmass);\r",
+							"let sign = CryptoJS.HmacSHA256(sign_string, appkey);\r",
+							"sign = CryptoJS.enc.Base64.stringify(sign);\r",
+							"pm.environment.set(\"sign\", sign);"
 						],
 						"type": "text/javascript"
 					}
@@ -243,14 +242,11 @@
 					}
 				},
 				"url": {
-					"raw": "10.239.127.69:3000/ehsm?Action=Decrypt",
+					"raw": "{{ip}}:{{port}}/ehsm?Action=Decrypt",
 					"host": [
-						"10",
-						"239",
-						"127",
-						"69"
+						"{{ip}}"
 					],
-					"port": "3000",
+					"port": "{{port}}",
 					"path": [
 						"ehsm"
 					],
@@ -263,6 +259,28 @@
 				}
 			},
 			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"var d = new Date();",
+					"var timestamp= d.getTime();",
+					"pm.environment.set(\"timestamp\", timestamp);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
 		}
 	]
 }

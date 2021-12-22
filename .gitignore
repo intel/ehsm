@@ -18,5 +18,6 @@ bin/
 ehsm_kms_service/node_modules/
 ehsm_kms_service/package-lock.json
 ehsm_kms_service/logs/*/
+ehsm_kms_service/*.so
 
 

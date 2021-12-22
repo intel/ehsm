@@ -474,7 +474,7 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
             //TODO
             return EH_OK;
         case EH_RSA_3072:
-            if (digest->datalen > 256) {
+            if (digest->datalen > RSA_OAEP_3072_DIGEST_SIZE) {
                 printf("rsa 3072 sign requires a <=256B digest.\n");
                 return EH_ARGUMENTS_BAD;
             }
@@ -544,7 +544,7 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
         case EH_RSA_3072:
             if (signature->data == NULL || signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE)
                 return EH_ARGUMENTS_BAD;
-            if (digest->data == NULL || digest->datalen > 256)
+            if (digest->data == NULL || digest->datalen > RSA_OAEP_3072_DIGEST_SIZE)
                 return EH_ARGUMENTS_BAD;
             ret = enclave_rsa_verify(g_enclave_id,
                                  &sgxStatus,

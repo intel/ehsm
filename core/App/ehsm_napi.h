@@ -52,6 +52,7 @@ static char* StringToChar(string str)
 
 typedef struct {
     const int CODE_SUCCESS = 200;
+    const int CODE_BAD_REQUEST = 400;
     const int CODE_FAILED = 500;
 
     int code = CODE_SUCCESS;
