@@ -6,7 +6,6 @@ import time
 import random
 import hmac
 from hashlib import sha256
-import os
 from collections import OrderedDict
 import urllib.parse
 
@@ -15,17 +14,13 @@ appkey = '202112345678'
 
 def test_params(payload):
     params = OrderedDict()
-
     params["appid"] = appid
-    params["nonce"] = str(int.from_bytes(os.urandom(16), "big"))
-    params["timestamp"] = int(time.time())
-
-    query_string = urllib.parse.urlencode(params)
-    query_string += '&app_key=' + appkey
-    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), query_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
-
-    params["sign"] = sign
+    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     params["payload"] = payload
+    params["sign"] = sign
     return params
     
 def test_export_datakey(base_url, headers):
@@ -35,46 +30,46 @@ def test_export_datakey(base_url, headers):
             "origin":"EH_INTERNAL_KEY"
         })
     print('CreateKey req:\n%s\n' %(params))
-    create_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
-    if(check_result(create_res, 'CreateKey', 'test_export_datakey') == False):
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_resp, 'CreateKey', 'test_export_datakey') == False):
         return
-    print('CreateKey resp(EH_AES_GCM_128):\n%s\n' %(create_res.text))
+    print('CreateKey resp(EH_AES_GCM_128):\n%s\n' %(create_resp.text))
 
     params=test_params({
             "keyspec":"EH_RSA_3072",
             "origin":"EH_INTERNAL_KEY"
         })
     print('CreateKey req:\n%s\n' %(params))
-    create_ukey_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
-    if(check_result(create_ukey_res, 'CreateKey', 'test_export_datakey') == False):
+    create_ukey_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_ukey_resp, 'CreateKey', 'test_export_datakey') == False):
         return
-    print('CreateKey resp(EH_RSA_3072):\n%s\n' %(create_ukey_res.text))
+    print('CreateKey resp(EH_RSA_3072):\n%s\n' %(create_ukey_resp.text))
 
 
     # test GenerateDataKeyWithoutPlaintext
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
-            "keylen": 48,
             "aad": "test",
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
+            "keylen": 48,
         })
     print('GenerateDataKeyWithoutPlaintext req:\n%s\n' %(params))
-    generateDataKeyWithoutPlaintext_res = requests.post(url=base_url + "GenerateDataKeyWithoutPlaintext", data=json.dumps(params), headers=headers)
-    if(check_result(generateDataKeyWithoutPlaintext_res, 'GenerateDataKeyWithoutPlaintext', 'test_export_datakey') == False):
+    generateDataKeyWithoutPlaintext_resp = requests.post(url=base_url + "GenerateDataKeyWithoutPlaintext", data=json.dumps(params), headers=headers)
+    if(check_result(generateDataKeyWithoutPlaintext_resp, 'GenerateDataKeyWithoutPlaintext', 'test_export_datakey') == False):
         return
-    print('GenerateDataKeyWithoutPlaintext resp:\n%s\n' %(generateDataKeyWithoutPlaintext_res.text))
+    print('GenerateDataKeyWithoutPlaintext resp:\n%s\n' %(generateDataKeyWithoutPlaintext_resp.text))
 
     # test ExportDataKey
     params=test_params({
-            "cmk_base64":json.loads(create_res.text)['result']['cmk_base64'],
-            "ukey_base64":json.loads(create_ukey_res.text)['result']['cmk_base64'],
             "aad":"test",
-            "olddatakey_base":json.loads(generateDataKeyWithoutPlaintext_res.text)['result']['ciphertext_base64'],
+            "cmk_base64":json.loads(create_resp.text)['result']['cmk_base64'],
+            "olddatakey_base":json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext_base64'],
+            "ukey_base64":json.loads(create_ukey_resp.text)['result']['cmk_base64'],
         })
     print('ExportDataKey req:\n%s\n' %(params))
-    exportDataKey_res = requests.post(url=base_url + "ExportDataKey", data=json.dumps(params), headers=headers)
-    if(check_result(exportDataKey_res, 'ExportDataKey', 'test_export_datakey') == False):
+    exportDataKey_resp = requests.post(url=base_url + "ExportDataKey", data=json.dumps(params), headers=headers)
+    if(check_result(exportDataKey_resp, 'ExportDataKey', 'test_export_datakey') == False):
         return
-    print('ExportDataKey resp:\n%s\n' %(exportDataKey_res.text))
+    print('ExportDataKey resp:\n%s\n' %(exportDataKey_resp.text))
 
     print('====================test_export_datakey end===========================')
 
@@ -85,34 +80,34 @@ def test_RSA3072_encrypt_decrypt(base_url, headers):
             "origin":"EH_INTERNAL_KEY"
         })
     print('CreateKey req:\n%s\n' %(params))
-    create_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
-    if(check_result(create_res, 'CreateKey', 'test_RSA3072_encrypt_decrypt') == False):
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_resp, 'CreateKey', 'test_RSA3072_encrypt_decrypt') == False):
         return
-    print('CreateKey resp:\n%s\n' %(create_res.text))
+    print('CreateKey resp:\n%s\n' %(create_resp.text))
 
     # test AsymmetricEncrypt("123456")
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
             "plaintext": "123456"
         })
     print('AsymmetricEncrypt req:\n%s\n' %(params))
-    asymmetricEncrypt_res = requests.post(url=base_url + "AsymmetricEncrypt", data=json.dumps(params), headers=headers)
-    if(check_result(asymmetricEncrypt_res, 'AsymmetricEncrypt', 'test_RSA3072_encrypt_decrypt') == False):
+    asymmetricEncrypt_resp = requests.post(url=base_url + "AsymmetricEncrypt", data=json.dumps(params), headers=headers)
+    if(check_result(asymmetricEncrypt_resp, 'AsymmetricEncrypt', 'test_RSA3072_encrypt_decrypt') == False):
         return
-    print('AsymmetricEncrypt resp:\n%s\n' %(asymmetricEncrypt_res.text))
+    print('AsymmetricEncrypt resp:\n%s\n' %(asymmetricEncrypt_resp.text))
 
     # test AsymmetricDecrypt(ciphertext)
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
-            "ciphertext_base64": json.loads(asymmetricEncrypt_res.text)['result']['ciphertext_base64']
+            "ciphertext_base64": json.loads(asymmetricEncrypt_resp.text)['result']['ciphertext_base64'],
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
         })
     print('AsymmetricDecrypt req:\n%s\n' %(params))
-    asymmetricDecrypt_res = requests.post(url=base_url + "AsymmetricDecrypt", data=json.dumps(params), headers=headers)
-    if(check_result(asymmetricDecrypt_res, 'AsymmetricDecrypt', 'test_RSA3072_encrypt_decrypt') == False):
+    asymmetricDecrypt_resp = requests.post(url=base_url + "AsymmetricDecrypt", data=json.dumps(params), headers=headers)
+    if(check_result(asymmetricDecrypt_resp, 'AsymmetricDecrypt', 'test_RSA3072_encrypt_decrypt') == False):
         return
-    print('AsymmetricDecrypt resp:\n%s\n' %(asymmetricDecrypt_res.text))
+    print('AsymmetricDecrypt resp:\n%s\n' %(asymmetricDecrypt_resp.text))
 
-    plaintext = str(base64.b64decode(json.loads(asymmetricDecrypt_res.text)['result']['plaintext_base64']), 'utf-8').strip(b"\x00".decode())
+    plaintext = str(base64.b64decode(json.loads(asymmetricDecrypt_resp.text)['result']['plaintext_base64']), 'utf-8').strip(b"\x00".decode())
     print('AsymmetricDecrypt plaintext:\n%s\n' %(plaintext))
     print('====================test_RSA3072_encrypt_decrypt end===========================')
 
@@ -123,33 +118,33 @@ def test_Stest_RSA3072_sign_verify(base_url, headers):
             "origin": "EH_INTERNAL_KEY"
         })
     print('CreateKey req:\n%s\n' %(params))
-    create_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
-    if(check_result(create_res, 'CreateKey', 'test_Stest_RSA3072_sign_verify') == False):
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_resp, 'CreateKey', 'test_Stest_RSA3072_sign_verify') == False):
         return
-    print('CreateKey resp:\n%s\n' %(create_res.text))
+    print('CreateKey resp:\n%s\n' %(create_resp.text))
 
     # test Sign
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
             "digest": "test"
         })
     print('Sign req:\n%s\n' %(params))
-    sign_res = requests.post(url=base_url + "Sign", data=json.dumps(params), headers=headers)
-    if(check_result(sign_res, 'Sign', 'test_Stest_RSA3072_sign_verify') == False):
+    sign_resp = requests.post(url=base_url + "Sign", data=json.dumps(params), headers=headers)
+    if(check_result(sign_resp, 'Sign', 'test_Stest_RSA3072_sign_verify') == False):
         return
-    print('Sign resp:\n%s\n' %(sign_res.text))
+    print('Sign resp:\n%s\n' %(sign_resp.text))
 
     # test Verify
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
             "digest": "test",
-            "signature_base64": json.loads(sign_res.text)['result']['signature_base64'],
+            "signature_base64": json.loads(sign_resp.text)['result']['signature_base64'],
         })
     print('Verify req:\n%s\n' %(params))
-    verify_res = requests.post(url=base_url + "Verify", data=json.dumps(params), headers=headers)
-    if(check_result(verify_res, 'Verify', 'test_Stest_RSA3072_sign_verify') == False):
+    verify_resp = requests.post(url=base_url + "Verify", data=json.dumps(params), headers=headers)
+    if(check_result(verify_resp, 'Verify', 'test_Stest_RSA3072_sign_verify') == False):
         return
-    print('Verify resp:\n%s\n' %(verify_res.text))
+    print('Verify resp:\n%s\n' %(verify_resp.text))
 
     print('====================test_Stest_RSA3072_sign_verify end===========================')
 
@@ -160,34 +155,34 @@ def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
             "origin": "EH_INTERNAL_KEY"
         })
     print('CreateKey req:\n%s\n' %(params))
-    create_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
-    if(check_result(create_res, 'CreateKey', 'test_GenerateDataKeyWithoutPlaintext') == False):
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_resp, 'CreateKey', 'test_GenerateDataKeyWithoutPlaintext') == False):
         return
-    print('CreateKey resp:\n%s\n' %(create_res.text))
+    print('CreateKey resp:\n%s\n' %(create_resp.text))
 
     # test GenerateDataKeyWithoutPlaintext
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
-            "keylen": 48,
             "aad": "test",
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
+            "keylen": 48,
         })
     print('GenerateDataKeyWithoutPlaintext req:\n%s\n' %(params))
-    generateDataKeyWithoutPlaintext_res = requests.post(url=base_url + "GenerateDataKeyWithoutPlaintext", data=json.dumps(params), headers=headers)
-    if(check_result(generateDataKeyWithoutPlaintext_res, 'GenerateDataKeyWithoutPlaintext', 'test_GenerateDataKeyWithoutPlaintext') == False):
+    generateDataKeyWithoutPlaintext_resp = requests.post(url=base_url + "GenerateDataKeyWithoutPlaintext", data=json.dumps(params), headers=headers)
+    if(check_result(generateDataKeyWithoutPlaintext_resp, 'GenerateDataKeyWithoutPlaintext', 'test_GenerateDataKeyWithoutPlaintext') == False):
         return
-    print('GenerateDataKeyWithoutPlaintext resp:\n%s\n' %(generateDataKeyWithoutPlaintext_res.text))
+    print('GenerateDataKeyWithoutPlaintext resp:\n%s\n' %(generateDataKeyWithoutPlaintext_resp.text))
 
     # test Decrypt(cipher_datakey)
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
-            "ciphertext": json.loads(generateDataKeyWithoutPlaintext_res.text)['result']['ciphertext_base64'],
             "aad": "test",
+            "ciphertext": json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext_base64'],
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
         })
     print('Decrypt req:\n%s\n' %(params))
-    decrypt_res = requests.post(url=base_url + "Decrypt", data=json.dumps(params), headers=headers)
-    if(check_result(decrypt_res, 'Decrypt', 'test_GenerateDataKeyWithoutPlaintext') == False):
+    decrypt_resp = requests.post(url=base_url + "Decrypt", data=json.dumps(params), headers=headers)
+    if(check_result(decrypt_resp, 'Decrypt', 'test_GenerateDataKeyWithoutPlaintext') == False):
         return
-    print('Decrypt resp:\n%s\n' %(decrypt_res.text))
+    print('Decrypt resp:\n%s\n' %(decrypt_resp.text))
 
     print('====================test_GenerateDataKeyWithoutPlaintext end===========================')
 
@@ -198,34 +193,34 @@ def test_GenerateDataKey(base_url, headers):
             "origin":"EH_INTERNAL_KEY"
         })
     print('CreateKey req:\n%s\n' %(params))
-    create_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
-    if(check_result(create_res, 'CreateKey', 'test_GenerateDataKey') == False):
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_resp, 'CreateKey', 'test_GenerateDataKey') == False):
         return
-    print('CreateKey resp:\n%s\n' %(create_res.text))
+    print('CreateKey resp:\n%s\n' %(create_resp.text))
 
     # test GenerateDataKey
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
-            "keylen": 16,
             "aad": "test",
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
+            "keylen": 16,
         })
     print('GenerateDataKey req:\n%s\n' %(params))
-    generatedatakey_res = requests.post(url=base_url + "GenerateDataKey", data=json.dumps(params), headers=headers)
-    if(check_result(generatedatakey_res, 'GenerateDataKey', 'test_GenerateDataKey') == False):
+    generatedatakey_resp = requests.post(url=base_url + "GenerateDataKey", data=json.dumps(params), headers=headers)
+    if(check_result(generatedatakey_resp, 'GenerateDataKey', 'test_GenerateDataKey') == False):
         return
-    print('GenerateDataKey resp:\n%s\n' %(generatedatakey_res.text))
+    print('GenerateDataKey resp:\n%s\n' %(generatedatakey_resp.text))
 
     # test Decrypt(cipher_datakey)
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
-            "ciphertext": json.loads(generatedatakey_res.text)['result']['ciphertext_base64'],
             "aad": "test",
+            "ciphertext": json.loads(generatedatakey_resp.text)['result']['ciphertext_base64'],
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
         })
     print('Decrypt req:\n%s\n' %(params))
-    decrypt_res = requests.post(url=base_url + "Decrypt", data=json.dumps(params), headers=headers)
-    if(check_result(decrypt_res, 'Decrypt', 'test_GenerateDataKey') == False):
+    decrypt_resp = requests.post(url=base_url + "Decrypt", data=json.dumps(params), headers=headers)
+    if(check_result(decrypt_resp, 'Decrypt', 'test_GenerateDataKey') == False):
         return
-    print('Decrypt resp:\n%s\n' %(decrypt_res.text))
+    print('Decrypt resp:\n%s\n' %(decrypt_resp.text))
 
     print('====================test_GenerateDataKey end===========================')
 
@@ -236,36 +231,36 @@ def test_AES128(base_url, headers):
             "origin": "EH_INTERNAL_KEY"
         })
     print('CreateKey req:\n%s\n' %(params))
-    create_res = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
-    if(check_result(create_res, 'CreateKey', 'test_AES128') == False):
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_resp, 'CreateKey', 'test_AES128') == False):
         return
-    print('CreateKey resp:\n%s\n' %(create_res.text))
+    print('CreateKey resp:\n%s\n' %(create_resp.text))
 
     # test Encrypt("123456")
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
+            "aad": "test",
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
             "plaintext": "123456",
-            "aad": "test"
         })
     print('Encrypt req:\n%s\n' %(params))
-    encrypt_res = requests.post(url=base_url + "Encrypt", data=json.dumps(params), headers=headers)
-    if(check_result(encrypt_res, 'Encrypt', 'test_AES128') == False):
+    encrypt_resp = requests.post(url=base_url + "Encrypt", data=json.dumps(params), headers=headers)
+    if(check_result(encrypt_resp, 'Encrypt', 'test_AES128') == False):
         return
-    print('Encrypt resp:\n%s\n' %(encrypt_res.text))
+    print('Encrypt resp:\n%s\n' %(encrypt_resp.text))
 
     # test Decrypt(ciphertext)
     params=test_params({
-            "cmk_base64": json.loads(create_res.text)['result']['cmk_base64'],
-            "ciphertext": json.loads(encrypt_res.text)['result']['ciphertext_base64'],
             "aad": "test",
+            "ciphertext": json.loads(encrypt_resp.text)['result']['ciphertext_base64'],
+            "cmk_base64": json.loads(create_resp.text)['result']['cmk_base64'],
         })
     print('Decrypt req:\n%s\n' %(params))
-    decrypt_res = requests.post(url=base_url + "Decrypt", data=json.dumps(params), headers=headers)
-    if(check_result(decrypt_res, 'Decrypt', 'test_AES128') == False):
+    decrypt_resp = requests.post(url=base_url + "Decrypt", data=json.dumps(params), headers=headers)
+    if(check_result(decrypt_resp, 'Decrypt', 'test_AES128') == False):
         return
-    print('Decrypt resp:\n%s\n' %(decrypt_res.text))
+    print('Decrypt resp:\n%s\n' %(decrypt_resp.text))
     
-    plaintext = str(base64.b64decode(json.loads(decrypt_res.text)['result']['plaintext_base64']), 'utf-8')
+    plaintext = str(base64.b64decode(json.loads(decrypt_resp.text)['result']['plaintext_base64']), 'utf-8')
     print('Decrypt plaintext:\n%s\n' %(plaintext))
     print('check Decrypt plaintext result with %s: %s\n' %('123456', plaintext == '123456'))
 
@@ -295,7 +290,6 @@ if __name__ == "__main__":
     ip,port = get_args()
 
     base_url = "http://" + ip + ":" + port + "/ehsm?Action="
-    #print(base_url)
 
     test_AES128(base_url, headers)
 
