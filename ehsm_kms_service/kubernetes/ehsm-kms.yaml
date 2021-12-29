@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: intel-ehsm-deployment
+  namespace: intel-ehsm
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: intel-ehsm
+  template:
+    metadata:
+      labels:
+        app: intel-ehsm
+    spec:
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-aesmd
+        hostPath:
+          path: aesmd-socket
+      containers:
+      - name: intel-ehsm
+        image: ehsm_kms_service:latest
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
+        env:
+        - name: EHSM_CONFIG_COUCHDB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ehsm-secret
+              key: couch-root-username
+        - name: EHSM_CONFIG_COUCHDB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ehsm-secret
+              key: couch-root-password
+        - name: EHSM_CONFIG_COUCHDB_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_url
+        - name: EHSM_CONFIG_COUCHDB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_port
+        - name: EHSM_CONFIG_COUCHDB_DB
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_name
+        ports:
+        - name: intel-ehsm
+          containerPort: 9000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: intel-ehsm-service
+  namespace: intel-ehsm
+spec:
+  type: LoadBalancer
+  selector:
+    app: intel-ehsm
+  ports:
+    - name: intel-ehsm
+      protocol: TCP
+      port: 9000
+      targetPort: 9000
+      nodePort: 30000
+  externalIPs:
+  - 10.112.240.188

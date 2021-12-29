@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ehsm-configmap
+  namespace: intel-ehsm
+data:
+  database_url: "couchdb-0.couchdb"
+  database_port: "5984"
+  database_name: "ehsm_kms_db"

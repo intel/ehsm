@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: couchdb
+  namespace: intel-ehsm
+  labels:
+    app: couchdb
+spec:
+  ports:
+    - name: couchdb
+      port: 5984
+      targetPort: 5984
+  selector:
+    app: couchdb
+  clusterIP: None 
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: couchdb
+  namespace: intel-ehsm
+spec:
+  selector:
+    matchLabels:
+      app: couchdb
+  serviceName: "couchdb"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: couchdb
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: couchdb
+        image: couchdb:latest
+        ports: 
+        - containerPort: 5984
+        volumeMounts:
+        - name: couch-persistent-storage
+          mountPath: /opt/couchdb/data
+        env:
+          - name: COUCHDB_USER
+            valueFrom:
+              secretKeyRef:
+                name: ehsm-secret
+                key: couch-root-username
+          - name: COUCHDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ehsm-secret
+                key: couch-root-password
+
+  volumeClaimTemplates:
+  - metadata:
+      name: couch-persistent-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "nfs"
+      resources:
+        requests:
+          storage: 1Gi
