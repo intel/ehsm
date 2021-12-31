@@ -1124,4 +1124,64 @@ out:
     return retJsonObj.toChar();
 }
 
+char* NAPI_RA_HANDSHAKE_MSG0(const char* request)
+{
+    //initialize the ra session
+    ret = enclave_init_ra(g_enclave_id,
+                          &status,
+                          false,
+                          &context);
+
+
+    //get the msg1 from core-enclave
+    sgx_ra_get_msg1_ex(&selected_key_id, context, g_enclave_id, sgx_ra_get_ga,
+                             (sgx_ra_msg1_t*)((uint8_t*)p_msg1_full
+                             + sizeof(ra_samp_request_header_t)));
+
+    // return the msg1 to enroll_app
+    msg1 = "base64(ga || challenge)";
+    return msg1;
+}
+
+char* NAPI_RA_HANDSHAKE_MSG2(const char* request)
+{
+    //process the msg2 and get the msg3 from core-enclave
+    ret = sgx_ra_proc_msg2_ex(&selected_key_id,
+                           context,
+                           g_enclave_id,
+                           sgx_ra_proc_msg2_trusted,
+                           sgx_ra_get_msg3_trusted,
+                           p_msg2_body,
+                           p_msg2_full->size,
+                           &p_msg3,
+                           &msg3_size);
+    
+    // return the msg3 to enroll_app
+    msg3 = "base64(ga || QUOTE(SHA256(ga|gb|VK))  || CMAC-SMK(ga || QUOTE(SHA256(ga|gb|VK))))";
+    return msg3;
+}
+
+char* NAPI_RA_GET_API_KEY(const char* request)
+{
+    // verify the attestation result
+    ret = enclave_verify_att_result_mac(g_enclave_id,
+            &status,
+            context,
+            (uint8_t*)&p_att_result_msg_body->platform_info_blob,
+            sizeof(ias_platform_info_blob_t),
+            (uint8_t*)&p_att_result_msg_body->mac,
+            sizeof(sgx_mac_t));
+
+    // generate unique appid and apikey from core-enclave
+    ret = enclave_generate_appid_and_apikey(g_enclave_id,
+            &status,
+            context,
+            appid,
+            apikey);
+
+    // return msg5 to enroll_app
+    msg5 = base64(nonce || (APPID || APIKey) || (APPID || APIKey)SK);
+    return msg5;
+}
+
 }  // extern "C"

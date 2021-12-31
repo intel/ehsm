@@ -322,6 +322,12 @@ char* NAPI_Verify(const char* cmk_base64,
         const char* signature_base64);
 
 
+char* NAPI_RA_HANDSHAKE_MSG0(const char* request);
+
+char* NAPI_RA_HANDSHAKE_MSG2(const char* request);
+
+char* NAPI_RA_GET_API_KEY(const char* request);
+
 }  // extern "C"
 
 
