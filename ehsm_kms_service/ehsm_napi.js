@@ -1,16 +1,16 @@
-const ffi = require('ffi-napi');
+const ffi = require('ffi-napi')
 
-const ehsm_napi = ffi.Library('./libehsmnapi',{
+const ehsm_napi = ffi.Library('./libehsmnapi', {
   /**
     create the enclave
   */
-  'NAPI_Initialize':['string',[]],
-  
+  NAPI_Initialize: ['string', []],
+
   /**
     destory the enclave
   */
-  'NAPI_Finalize':['string', []],
-  
+  NAPI_Finalize: ['string', []],
+
   /**
     NAPI_CreateKey
     Description:
@@ -52,8 +52,8 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
         }
       }
   */
-  'NAPI_CreateKey': ['string',['int', 'int']],
-  
+  NAPI_CreateKey: ['string', ['int', 'int']],
+
   /**
     NAPI_Encrypt 
     Description:
@@ -73,8 +73,8 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
         }
       }
   */
-  'NAPI_Encrypt': ['string',['string', 'string', 'string']],
-  
+  NAPI_Encrypt: ['string', ['string', 'string', 'string']],
+
   /**
     NAPI_Decrypt 
     Description:
@@ -94,7 +94,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
         }
       }
   */
-  'NAPI_Decrypt': ['string',['string', 'string', 'string']],
+  NAPI_Decrypt: ['string', ['string', 'string', 'string']],
 
   /**
     NAPI_GenerateDataKey 
@@ -123,8 +123,8 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
         }
       }
   */
-  'NAPI_GenerateDataKey': ['string',['string', 'int', 'string']],
-  
+  NAPI_GenerateDataKey: ['string', ['string', 'int', 'string']],
+
   /**
     NAPI_GenerateDataKeyWithoutPlaintext
     Description:
@@ -144,7 +144,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
         }
       }
   */
-  'NAPI_GenerateDataKeyWithoutPlaintext': ['string', ['string', 'int', 'string']],
+  NAPI_GenerateDataKeyWithoutPlaintext: ['string', ['string', 'int', 'string']],
 
   /**
     NAPI_Sign
@@ -164,7 +164,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
         }
       }
   */
-  'NAPI_Sign': ['string', ['string', 'string']],
+  NAPI_Sign: ['string', ['string', 'string']],
 
   /**
   NAPI_Verify
@@ -185,7 +185,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
       }
     }
   */
-  'NAPI_Verify': ['string', ['string', 'string', 'string']],
+  NAPI_Verify: ['string', ['string', 'string', 'string']],
 
   /**
     NAPI_AsymmetricEncrypt
@@ -214,8 +214,8 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
 
     SM2PKE_MAX_ENCRYPTION_SIZE                      6047
   */
-  'NAPI_AsymmetricEncrypt': ['string', ['string', 'string']],
-  
+  NAPI_AsymmetricEncrypt: ['string', ['string', 'string']],
+
   /**
     NAPI_AsymmetricDecrypt
     Description:
@@ -243,7 +243,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
 
     SM2PKE_MAX_ENCRYPTION_SIZE                      6047
   */
-  'NAPI_AsymmetricDecrypt': ['string', ['string', 'string']],
+  NAPI_AsymmetricDecrypt: ['string', ['string', 'string']],
 
   /**
   NAPI_ExportDataKey
@@ -273,7 +273,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi',{
       }
     }
   */
-  'NAPI_ExportDataKey': ['string', ['string', 'string', 'string', 'string']]
-});
+  NAPI_ExportDataKey: ['string', ['string', 'string', 'string', 'string']],
+})
 
-module.exports = ehsm_napi;
+module.exports = ehsm_napi

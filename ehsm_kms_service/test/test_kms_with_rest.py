@@ -9,8 +9,21 @@ from hashlib import sha256
 from collections import OrderedDict
 import urllib.parse
 
-appid = '202112101919'
-appkey = '202112345678'
+appid=''
+appkey = ''
+
+def test_creat_app_info(base_url, headers):
+    print('====================test_creat_app_info start===========================')
+    creat_app_info_resp = requests.post(url=base_url + "RA_GET_API_KEY", data=json.dumps({}), headers=headers)
+    if(check_result(creat_app_info_resp, 'RA_GET_API_KEY', 'test_creat_app_info') == False):
+        return
+    global appid 
+    global appkey 
+    appid = json.loads(creat_app_info_resp.text)['result']['appid']
+    appkey = json.loads(creat_app_info_resp.text)['result']['appkey']
+    print('CreateKey resp(EH_AES_GCM_128):\n%s\n' %(creat_app_info_resp.text))
+    print('====================test_creat_app_info end===========================')
+
 
 def test_params(payload):
     params = OrderedDict()
@@ -290,6 +303,8 @@ if __name__ == "__main__":
     ip,port = get_args()
 
     base_url = "http://" + ip + ":" + port + "/ehsm?Action="
+
+    test_creat_app_info(base_url, headers)
 
     test_AES128(base_url, headers)
 
