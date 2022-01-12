@@ -15,6 +15,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "ffi-napi": "^4.0.3",
-    "log4js": "^6.3.0"
+    "log4js": "^6.3.0",
+    "nano": "^9.0.5"
   }
 }
