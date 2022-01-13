@@ -52,11 +52,19 @@ RUN apt-get update &&apt-get install -y \
     libsgx-ra-uefi
 
 
-# Build App from source
+#  Install jsoncpp && Build App from source
 WORKDIR /home
-RUN git clone https://github.com/intel/ehsm.git \
-   && cd ehsm \
-   && make
+RUN git clone https://github.com/microsoft/vcpkg.git \
+    && git clone -b enroll_M0 https://github.com/Liang1XZhao/ehsm.git \
+    && cd vcpkg \
+    && ./bootstrap-vcpkg.sh \
+    && ./vcpkg integrate install \
+    && ./vcpkg install jsoncpp \
+    && cp ./installed/x64-linux/lib/libjsoncpp.a /usr/local/lib \
+    && cp -r ./installed/x64-linux/include/json /home/ehsm/include \
+    && cp -r /usr/include/x86_64-linux-gnu/curl /home/ehsm/include \
+    && cd ../ehsm \
+    && make
 
 # Install node & npm packages
 RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \

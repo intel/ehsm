@@ -32,10 +32,12 @@
 #include "base64.h"
 #include "ehsm_napi.h"
 #include "serialize.h"
+#include "enclave_hsm_u.h"
 
 using namespace std;
 using namespace EHsmProvider;
 
+sgx_enclave_id_t g_enclave_id;
 
 extern "C" {
 
@@ -1121,6 +1123,75 @@ out:
     SAFE_FREE(cmk.keyblob);
     SAFE_FREE(ukey.keyblob);
     SAFE_FREE(cipher_datakey_new.data);
+    return retJsonObj.toChar();
+}
+
+bool isDebug = true;
+char* NAPI_RA_HANDSHAKE_MSG0(const char* request)
+{
+    if(isDebug){
+        printf("Debug_ehsm_napi_cpp NAPI_RA_HANDSHAKE_MSG0: ******** in  NAPI_RA_HANDSHAKE_MSG0 \n");
+    }
+    int ret = -1;
+    RetJsonObj retJsonObj;
+    sgx_status_t status = SGX_SUCCESS;
+    int enclave_lost_retry_time = 1;
+    sgx_ra_context_t context = INT_MAX;
+    ra_samp_request_header_t *p_msg1_full = NULL;
+    sgx_att_key_id_t selected_key_id = {0};
+    if(isDebug){
+        printf("Debug_ehsm_napi_cpp NAPI_RA_HANDSHAKE_MSG0: request => %s.\n", request);
+    }
+    string challenge;
+    if(request != nullptr){
+        Json::CharReaderBuilder builder;
+        const unique_ptr<Json::CharReader> reader(builder.newCharReader());
+        string err;
+        string msg0 = request;
+        Json::Value msg0_json;
+        if (reader->parse(msg0.c_str(), msg0.c_str()+msg0.size(), &msg0_json, &err)) {
+            challenge = msg0_json["challenge"].asString();
+        }
+    }else{
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        goto out;
+    }
+
+    //initialize the ra session
+    do {
+        ret = enclave_init_ra(g_enclave_id, &status, false, &context);
+     //Ideally, this check would be around the full attestation flow.
+    } while (SGX_ERROR_ENCLAVE_LOST == ret && enclave_lost_retry_time--);
+
+    /* Allocate MSG1 buf to call libukey_exchange API to retrieve MSG1 */
+    p_msg1_full = (ra_samp_request_header_t*)
+                 malloc(sizeof(ra_samp_request_header_t)
+                        + sizeof(sgx_ra_msg1_t));
+    if(nullptr == p_msg1_full) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    p_msg1_full->type = TYPE_RA_MSG1;
+    p_msg1_full->size = sizeof(sgx_ra_msg1_t);
+    //get the msg1 from core-enclave
+    sgx_ra_get_msg1_ex(&selected_key_id, context, g_enclave_id, sgx_ra_get_ga,
+                             (sgx_ra_msg1_t*)((uint8_t*)p_msg1_full
+                             + sizeof(ra_samp_request_header_t)));
+
+    retJsonObj.addData("ga_base64", base64_encode(p_msg1_full->body, p_msg1_full->size));
+    retJsonObj.addData("challenge_base64", base64_encode(challenge.c_str(), challenge.size()));
+    
+out:
+    if(isDebug){
+        printf("Debug_ehsm_napi_cpp NAPI_RA_HANDSHAKE_MSG0: NAPI_RA_HANDSHAKE_MSG0 return json => %s.\n", retJsonObj.toChar());
+    }
+    SAFE_FREE(p_msg1_full);
+    if(isDebug){
+        printf("Debug_ehsm_napi_cpp NAPI_RA_HANDSHAKE_MSG0: ******** out  NAPI_RA_HANDSHAKE_MSG0 \n");
+    }
     return retJsonObj.toChar();
 }
 

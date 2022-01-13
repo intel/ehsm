@@ -32,6 +32,15 @@
 #ifndef _EHSM_NAPI_H
 #define _EHSM_NAPI_H
 
+#include "../../dkeycache/App/sample_ra_msg.h"
+// Needed to create enclave and do ecall.
+#include "sgx_urts.h"
+#include "datatypes.h"
+// Needed to call untrusted key exchange library APIs, i.e. sgx_ra_proc_msg2.
+#include "sgx_ukey_exchange.h"
+#include "sgx_tkey_exchange.h"
+#include <json/json.h>
+
 using namespace std;
 
 extern "C" {
@@ -50,112 +59,73 @@ static char* StringToChar(string str)
     return retChar;
 }
 
-typedef struct {
+struct RetJsonObj{
     const int CODE_SUCCESS = 200;
     const int CODE_BAD_REQUEST = 400;
     const int CODE_FAILED = 500;
 
-    int code = CODE_SUCCESS;
-    std::string msg = "success!";
-    std::string jsonStr;
+    Json::Value m_json;
+    Json::Value result_json;
+
+public:
+    RetJsonObj(){
+        m_json["code"] = CODE_SUCCESS;
+        m_json["message"] = "success!";
+    }
 	
-	void setCode(int newCode){code = newCode;};
-	void setMessage(string message){msg = message;};
-	void addData(string key, uint32_t data) {
-        if(jsonStr.size() > 0){
-            jsonStr += ",";
-        }
-        jsonStr += "\""+key+"\":" + "\""+std::to_string(data)+"\"";
-    };
-	void addData(string key, string data) {
-        if(jsonStr.size() > 0){
-            jsonStr += ",";
-        }
-        jsonStr += "\""+key+"\":" + "\""+data+"\"";
-    };
+	void setCode(int code){m_json["code"] = code;};
+	void setMessage(string message){m_json["message"] = message;};
+
 	void addData(string key, bool data) {
-        if(jsonStr.size() > 0){
-            jsonStr += ",";
-        }
-        if(data){
-            jsonStr += "\""+key+"\":true";
-        } else {
-            jsonStr += "\""+key+"\":false";
-        }
+        result_json[key] = data;
     };
+    
+	void addData(string key, int data) {
+        result_json[key] = data;
+    };
+
+	void addData(string key, string data) {
+        result_json[key] = data;
+    };
+
 
     char* toChar() {
-        std::string retString = "{";
-        retString += "\"code\":" + std::to_string(code);
-        retString += ",\"message\":\"" + msg;
-        retString += "\"";
-        retString += ",\"result\":{"+jsonStr+"}";
-        retString += "}";
-        return StringToChar(retString);
+        m_json["result"] = result_json;
+        return StringToChar(m_json.toStyledString());
 	};
 
-    static int getCode(char* jsonChar){
-        int retCode = 500;
-        if(jsonChar != nullptr){
-            std::string jsonString = jsonChar;
-
-            int startIndex = jsonString.find("\"code\"") + strlen("\"code\":");
-            int endIndex = jsonString.find_first_of(",", startIndex);
-
-            std::string code_str = jsonString.substr(startIndex, (endIndex - startIndex));
-            retCode = atoi(code_str.c_str());
+    void parse(std::string jsonStr){
+        Json::CharReaderBuilder builder;
+        const unique_ptr<Json::CharReader> reader(builder.newCharReader());
+        string err;
+        bool res = reader->parse(jsonStr.c_str(), jsonStr.c_str()+jsonStr.size(), &m_json, &err);
+        if (!res || !err.empty()) {
+            printf("Error: can't parse response json.%s\n", err.c_str());
         }
-        return retCode;
     }
 
-    static std::string getMessage(char* jsonChar){
-        std::string retStr = "";
-        if(jsonChar != nullptr){
-            std::string jsonString = jsonChar;
+    void parse(char* jsonChar){
+        string jsonStr = jsonChar;
+        return parse(jsonStr);
+    }
 
-            int startIndex = jsonString.find("\"message\"") + strlen("\"message\":\"");
-            int endIndex = jsonString.find_first_of("\"", startIndex);
-            retStr = jsonString.substr(startIndex, (endIndex - startIndex));
-        }
-        return retStr;
+
+    int getCode(){
+        return m_json["code"].asInt();
+    }
+
+    std::string getMessage(){
+        return m_json["message"].asString();
     }
  
-    static char* readData_string(char* jsonChar, std::string key){
-        std::string retVal;
-        std::string jsonString = jsonChar;
-        key = "\"" + key + "\"";
-
-        int resultIndex = jsonString.find("\"result\"") + strlen("\"result\":");
-        std::string resultStr = jsonString.substr(resultIndex);
-
-        int startIndex = resultStr.find(key) + key.size() + 1;
-        std::string subStr = resultStr.substr(startIndex);
-
-        if(subStr[0] == '\"'){
-            int endIndex = subStr.find_first_of("\"",1) - 1;
-            retVal = subStr.substr(1,endIndex);
-        }
-        return StringToChar(retVal);
+    char* readData_string(std::string key){
+        return StringToChar(result_json[key].asString());
 	};
  
-    static bool readData_bool(char* jsonChar, std::string key){
-        std::string retVal;
-        std::string jsonString = jsonChar;
-        key = "\"" + key + "\"";
-
-        int resultIndex = jsonString.find("\"result\"") + strlen("\"result\":");
-        std::string resultStr = jsonString.substr(resultIndex);
-
-        int startIndex = resultStr.find(key) + key.size() + 1;
-        std::string subStr = resultStr.substr(startIndex);
-
-        if(subStr[0] == 't'){
-            return true;
-        } else {
-            return false;
-        }
+    bool readData_bool(std::string key){
+        return result_json[key].asBool();
 	};
-} RetJsonObj;
+} ;
 
 /*
 create the enclave
@@ -321,6 +291,12 @@ char* NAPI_Verify(const char* cmk_base64,
         const char* digest,
         const char* signature_base64);
 
+
+char* NAPI_RA_HANDSHAKE_MSG0(const char* request);
+
+// char* NAPI_RA_HANDSHAKE_MSG2(const char* request);
+
+// char* NAPI_RA_GET_API_KEY(const char* request);
 
 }  // extern "C"
 
