@@ -3,129 +3,92 @@
 Cloud KMS (Key Management System) is a hardware-software combined system that provides customers
 with capabilities to create and manage cryptographic keys and control their use for cloud services.
 
-Typically, it is backed with HSM (Hardware Security Module). However,the existing hardware HSM solution
-is very expensive and complex to manage. So, many CSPs will provide Cloud HSM solutions to alleviate the
+Typically, the KMS (Key Manangement Service) is backed with HSM (Hardware Security Module). However,the existing hardware HSM solution
+is very expensive and complex to manage. Although many CSPs will provide Cloud HSM solutions to alleviate the
 problem of the scalability and availability issues, but they are still depend on the dedicated external
 hardware devices, and currently there's no opensource with low cost and scalable secure HSM solution for
 Cloud KSM scenario.
 
-This project is called eHSM, which is provided as a reference code based on Intel Software Guard Extensions(SGX)
-technology. It's designed to be protected from processes running at higher privilege levels, like OS kernel,
-hypervisor, BIOS firmware.
+This project is named eHSM-KMS, which provides a reference to help the users setup a customized KMS (Key Management System) with the capabilities to create and manage cryptographic keys.
 
-And Compared with the traditional solution,eHSM is an open source solution with low cost, high scalability,
-and high availability and could provide the equivalent protection level of cryptographic functionalities,
-including key generation, management, use etc. in the SGX enclave.
-
-It is intended to be deployed into Cloud Environment as an alternative solution for the Cloud KMS product.
-
-## Overview of the KMS & HSM
-the below diagram depicts the high level relationships between KMS and HSM,
-
-![kms&hsm](./docs/diagrams/kms&hsm.png)
-
-## Architecture of eHSM
-
-The below diagram depicts the high level architecture of the eHSM,
-
-![ehsm-arch](./docs/diagrams/ehsm-arch.png)
-
-## Components and Services
-
-### ehsm-dkeyserver
-It will be deployed in an HSM-equipped platform or an SGX-capable platform, and runs as a TCP/IP socket server.
-
-- Responsible for generating DK(domainkey) and protecting it in the HSM or enclave.
-
-- Respond to the connection request from ehsm-dkeycache agent and deploy the DK to it via a remote secure channel
-based on the SGX remote attestation.
-
-- It may also provide some eHSM Configuration interfaces to the Customer Operator Panel to manage the domains.
-(depending on the requirements, and not implemented yet.)
+It's based on Intel SGX (Software Guard eXtensions) technology that could provide the equivalent protection level of cryptographic functionalities including key generation, management inside the SGX enclave.
 
 
-### ehsm-dkeycache
-It will be deployed in the SGX worker node(1:1 map with ehsm-core in a Pod), and runs as a proxy agent service.
+The Customers could deploy the total solution on their own private cloud or deploy it on a public cloud like Alibaba Cloud ECS SGX instances which we have already verified.
 
-- Responsible for retrieving the DK from the ehsm-dkeyserver via remote secure channel and then distributing to
-ehsm-core instance via local secure channel.
+---
+
+## Overview of the eHSM-KMS
+This below diagram depicts the high-level architecture of the eHSM-KMS,
+
+![arch-of-ehsm-kms](./docs/diagrams/arch-of-ehsm-kms.PNG)
+
+- eHSM-Core Enclave
+    - The main functional component that provides cryptographic operations based on SGX SDK Crypto APIs (openssl/Intel ipp libaray).
+    - The plaintext of keys are used/processed only inside this Enclave.
+
+- The eHSM-KMS manager
+    - A webservice hosted with the nodejs framework, which will send requests to eHSM-core enclave for cryptographic operations through the ffi native interfaces.
+    - Provide public cryptographic APIs via [RESTFUL interfaces](./docs/API_Reference.md) to the users. key generation, key importing/export, encryption/decryption, sign/verify, etc.
+    - Provide API access KEY and APP ID enrollment APIs.
+    - Manage key properties, store/retrieve those info to/from DB. (WIP)
+        - Storing CMK Keyblobs, Key Versions and CMK rotation management.
+        - KeyId mapping, Alias name, Origin, KeySpec, Key usage.
+---
+
+## APPID and APIKey Enrollment
+Since only the user with valid APPID and APIKey could request the public cryptographic restful APIs, eHSM-KMS provides a new Enroll APP which is used to retrieve the APPID and APIKey from the eHSM-core enclave via the remote secure channel (based on the SGX remote attestation).
+
+The below diagram depicts the flow how to enroll a valid APPID and APIKey for the user,
+![apikey-and-appid-enrollment](./docs/diagrams/apikey-and-appid-enrollment.PNG)
+
+For more details about each cryptographic APIs, please refer to the doc [API_Reference.md](./docs/API_Reference.md).
+
+---
+
+## Introduction to Keys used in eHSM-KMS
+
+eHSM-KMS will provide different kinds of keys, but none of them will be exposed outside of the SGX enclave.
+The below diagram depicts the overview of the keys used in the eHSM-KMS,
+![keys-in-ehsm-kms](./docs/diagrams/keys-in-ehsm-kms.PNG)
+
+ - DK (DomainKey) is an AES key that is used to protect/wrap all the CMKs in a domain (region).
+    - It must be securely distributed/provisioned cross all SGX-capable machines (or nodes) in a domain.
+ - CMK (Customer Master Key) could be symmetric or asymmetric keys.
+    - Symmetric CMK mainly used to wrap the DataKey, also can be used to encrypted an arbitrary set of bytes data(<6KB).
+    - Asymmetric CMK mainly used to sign/verify or asymmetric encrypt/decrypt data (not for the DataKey.)
+ - DataKey is a symmetric key with random size of bytes.
+    - The plaintext of the DataKey is used to encrypt data locally, which should be cleared from memory once been used as soon as possible.
+    - When a user wants to obtain the plaintext of DataKey again, it needs to call the Decrypt with the CMK to get the plaintext of DataKey.
 
 
-### ehsm-core
-It will be deployed in the SGX worker node(1:1 map with ehsm-dkeycache in a Pod), and runs as a service to provide
-main KMS functionality interfaces implementation to the Customer KMS Manager.
+## Domain and Worker Nodes
+The below diagram shows the definitions of the domain and worker nodes in the eHSM-KMS,
+    ![domain-and-nodes](./docs/diagrams/domain-and-nodes.PNG)
 
-Currently, it now support the following cryptographic functionalities:
-- CreateKey
-    - AES_128 (GCM)
-    - RSA_3072
-- ImportKey
-- Encrypt/ Decrypt
-    - AES_GCM128
-    - RSA_3072 (Padding: RSAES_OAEP_SHA_256)
-- Sign/Verify
-    - RSA_3072 (Padding: RSA_PKCS1_SHA_256)
-- GenerateDataKey
-- GenerateDataKeyWithoutPlaintext
-- ExportDataKey
+  - All the SGX Nodes (SGX-capable platforms) in a Domain can equivalently & seamlessly provide KMS services for users. 
 
+  - eHSM-core Enclave in each node should be provisioned with the capability of retrieving the cleartext of DomainKey. (DomainKey sharing across all the members in one domain)
+  - Each node may be offline/down. New node may be joined to or removed from a specific domain.
 
+---
+
+## DomainKey Provisioning
+eHSM-KMS provides a protocol based the SGX attestation to securely provision the DomainKey to each eHSM-core Enclave which is illustrated in the following diagram.
+![domainkey-provisioning](./docs/diagrams/domainkey-provisioning.PNG)
+
+ - The centralized deployment node could be an HSM-equipped platform or an SGX-capable platform.
+ - eHSM-dkeyserver runs as a TCP/IP socket server, and it’s responsible for generating DK and protecting it in the HSM or enclave and provisioning it to each SGX members in this domain.
+ - eHSM-dkeycache runs as a proxy agent in each SGX Node (only need one instance for each node). And it’s responsible for retrieving the DK from the ehsm-dkeyserver via remote secure channel and then distributing to each ehsm-core instance via local secure channel.
+ - Whenever a new node is joined or refreshed into the domain, the ehsm-dkeycache service will try to connect the ehsm-dkeyserver to retrieve the DK and distribute it to each ehsm-core instances via the secure channel.
+ - The plaintext of DK will never be exposed outside of the enclaves.
+
+---
 
 ## Build Instructions
+For more details please refer to [build-instructions](./docs/build-instrctions.md).
 
-```shell
-# make
-
-The binary will be generated in the bin folder.
-bin/
-├── ehsm-core
-│   ├── ehsm-core
-│   ├── libenclave-ehsm-core.signed.so
-│   └── libenclave-ehsm-core.so
-├── ehsm-dkeycache
-│   ├── ehsm-dkeycache
-│   ├── libenclave-ehsm-dkeycache.signed.so
-│   └── libenclave-ehsm-dkeycache.so
-└── ehsm-dkeyserver
-    ├── ehsm-dkeyserver
-    ├── libenclave-ehsm-dkeyserver.signed.so
-    └── libenclave-ehsm-dkeyserver.so
-
-```
+---
 
 ## Deployment
-To simply demonstrate the eHSM system, the below steps try to deploy the above three components in a single SGX worker node.
-But for the real product, the user need to deploy them into different platform according with the above desciptions.
-
-- Setup the DCAP server
-    - following the wiki [intel-software-guard-extensions-data-center-attestation-primitives-quick-install-guide](https://software.intel.com/content/www/us/en/develop/articles/intel-software-guard-extensions-data-center-attestation-primitives-quick-install-guide.html)
-- Start the service of ehsm-dkeyserver
-    ```shell
-    # cd bin/ehsm-dkeyserver
-    # sudo ./ehsm-dkeyserver
-    it will create a socket server and wait the connection request from ehsm-dkeycache agent and deploy the DK to it via a remote secure channel based
-    on the SGX remote attestation. (The PCCS server is  the above step)
-    ```
-***Note**** It's Recommend that the ehsm-dkeycache and ehsm-core should be deployed into one Pod with 1:1 mapping
-- Start the service of ehsm-dkeycache
-    ```shell
-    # cd bin/ehsm-dkeycache
-    # sudo ./ehsm-dkeycache
-
-    It will try connect to the deployserver to retrieve the DK via the secure remote channel estabilished by the remote attestation. Then it will create another new
-    socket to wait the connection from ehsm-core service.
-    A local secure channel based the local attestation protocol will be setup which used to transfer the DK between dkeycache and ehsm-core.
-
-    ```
-- Start the service of ehsm-core
-    ```shell
-    # cd bin/ehsm-core
-    # sudo ./ehsm-core
-
-    It will try connect to the dkeycache to retrieve the DK via the local secure remote channel, then keep it in the SGX enclave.
-
-    When the DK provisioning is done, each key materials generated/imported/exported from the ehsm-core service will be encrypted by the DK, only the cipher text will
-    be returned to the caller.
-    A local secure channel based the local attestation will be setup which used to transfer the DK between dkeycache and ehsm-core.
-
-    ```
+For more details please refer to [deployment-instructions](./docs/deployment-instrctions.md).
