@@ -86,9 +86,9 @@ eHSM-KMS provides a protocol based the SGX attestation to securely provision the
 ---
 
 ## Build Instructions
-For more details please refer to [build-instructions](./docs/build-instrctions.md).
+For more details please refer to [build-instructions](./docs/build-instructions.md).
 
 ---
 
 ## Deployment
-For more details please refer to [deployment-instructions](./docs/deployment-instrctions.md).
+For more details please refer to [deployment-instructions](./docs/deployment-instructions.md).
