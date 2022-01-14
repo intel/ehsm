@@ -24,7 +24,8 @@ RUN apt-get update && apt-get install -y \
     libssl1.1 \
     make \
     module-init-tools \
-    g++
+    g++ \
+    libjsoncpp-dev
 
 # Install the SDK
 WORKDIR /opt/intel

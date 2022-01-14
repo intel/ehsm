@@ -32,6 +32,7 @@
 #include "base64.h"
 #include "ehsm_napi.h"
 #include "serialize.h"
+#include "json_utils.h"
 
 using namespace std;
 using namespace EHsmProvider;
