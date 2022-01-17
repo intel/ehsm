@@ -1,0 +1,209 @@
+# ehsm-kms Secret
+apiVersion: v1
+kind: Secret
+metadata:
+    name: ehsm-secret
+    namespace: ehsm-kms
+type: Opaque
+data:
+    couch_root_username: YWRtaW4=
+    couch_root_password: cGFzc3dvcmQ=
+
+---
+# ehsm-kms ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ehsm-configmap
+  namespace: ehsm-kms
+data:
+  database_url: "couchdb-0.couchdb"
+  database_port: "5984"
+  database_name: "ehsm_kms_db"
+
+---
+# ehsm-kms PersistentVolume for CouchDB
+apiVersion: v1
+kind: PersistentVolume 
+metadata:
+  name: ehsm-pv-nfs
+spec:
+  capacity:
+    storage: 10Gi 
+  accessModes:
+    - ReadWriteOnce 
+  persistentVolumeReclaimPolicy: Retain 
+  storageClassName: nfs
+  nfs:
+    # This path is the folder path on your NFS server
+    path: /nfs_ehsm_db
+    # you need adjust 1.2.3.4 to your NFS IP.
+    server: 1.2.3.4
+
+---
+# ehsm-kms CouchDB
+apiVersion: v1
+kind: Service
+metadata:
+  name: couchdb
+  namespace: ehsm-kms
+  labels:
+    app: couchdb
+spec:
+  ports:
+    - name: couchdb
+      port: 5984
+      targetPort: 5984
+  selector:
+    app: couchdb
+  clusterIP: None 
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: couchdb
+  namespace: ehsm-kms
+spec:
+  selector:
+    matchLabels:
+      app: couchdb
+  serviceName: "couchdb"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: couchdb
+    spec:
+      containers:
+      - name: couchdb
+        image: couchdb:3.2
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          httpGet:
+            port: couchdb-port
+            path: /
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        ports: 
+        - containerPort: 5984
+          name: couchdb-port
+        volumeMounts:
+        - name: couch-persistent-storage
+          mountPath: /opt/couchdb/data
+        env:
+          - name: COUCHDB_USER
+            valueFrom:
+              secretKeyRef:
+                name: ehsm-secret
+                key: couch_root_username
+          - name: COUCHDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ehsm-secret
+                key: couch_root_password
+
+  volumeClaimTemplates:
+  - metadata:
+      name: couch-persistent-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "nfs"
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+# ehsm-kms service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ehsm-kms-deployment
+  namespace: ehsm-kms
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ehsm-kms
+  template:
+    metadata:
+      labels:
+        app: ehsm-kms
+    spec:
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-aesmd
+        hostPath:
+          path: aesmd-socket
+      containers:
+      - name: ehsm-kms
+        # You need to tag the ehsm-kms container image with this name on each worker node or change it to point to a docker hub to get the container image.
+        image: intel/ehsm_kms_service:latest
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "curl http://${EHSM_CONFIG_COUCHDB_SERVER}:${EHSM_CONFIG_COUCHDB_PORT}/"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
+        env:
+        - name: EHSM_CONFIG_COUCHDB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ehsm-secret
+              key: couch_root_username
+        - name: EHSM_CONFIG_COUCHDB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ehsm-secret
+              key: couch_root_password
+        - name: EHSM_CONFIG_COUCHDB_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_url
+        - name: EHSM_CONFIG_COUCHDB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_port
+        - name: EHSM_CONFIG_COUCHDB_DB
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_name
+        ports:
+        - name: ehsm-kms
+          containerPort: 9000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ehsm-kms-service
+  namespace: ehsm-kms
+spec:
+  type: LoadBalancer
+  selector:
+    app: ehsm-kms
+  ports:
+    - name: ehsm-kms
+      protocol: TCP
+      # This port is ehsm_kms_service access port,you can change it to what you want.
+      port: 9000
+      targetPort: 9000
+      nodePort: 30000
+  sessionAffinity: ClientIP
+  externalIPs:
+  # This IP is ehsm_kms_service access IP, You need to adjust 1.2.3.4 to the service IP you want to expose
+  - 1.2.3.4
+
