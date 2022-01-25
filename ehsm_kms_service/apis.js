@@ -4,11 +4,11 @@ const cryptographic_apis = {
   Decrypt: 'Decrypt',
   GenerateDataKey: 'GenerateDataKey',
   GenerateDataKeyWithoutPlaintext: 'GenerateDataKeyWithoutPlaintext',
-  ExportDataKey: 'ExportDataKey',
   Sign: 'Sign',
   Verify: 'Verify',
   AsymmetricEncrypt: 'AsymmetricEncrypt',
   AsymmetricDecrypt: 'AsymmetricDecrypt',
+  ExportDataKey: 'ExportDataKey',
 }
 
 const enroll_apis = {

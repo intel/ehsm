@@ -1,5 +1,4 @@
 const nano = require('nano')
-const logger = require('./logger')
 
 const {
   EHSM_CONFIG_COUCHDB_USERNAME,
@@ -9,18 +8,31 @@ const {
   EHSM_CONFIG_COUCHDB_DB,
 } = process.env
 
-let dburl = `http://${EHSM_CONFIG_COUCHDB_USERNAME}:${EHSM_CONFIG_COUCHDB_PASSWORD}@${EHSM_CONFIG_COUCHDB_SERVER}:${EHSM_CONFIG_COUCHDB_PORT}`
-
-const nanoDb = nano(dburl)
-
-async function couchDB(server) {
-  try {
-    await nanoDb.db.create(EHSM_CONFIG_COUCHDB_DB)
-  } catch (error) {
-    console.log('Database connection exception', error)
+async function connectDB(server) {
+  if (
+    !EHSM_CONFIG_COUCHDB_USERNAME ||
+    !EHSM_CONFIG_COUCHDB_PASSWORD ||
+    !EHSM_CONFIG_COUCHDB_SERVER ||
+    !EHSM_CONFIG_COUCHDB_PORT ||
+    !EHSM_CONFIG_COUCHDB_DB
+  ) {
+    console.log('couchdb url error')
+  } else {
+    let dburl = `http://${EHSM_CONFIG_COUCHDB_USERNAME}:${EHSM_CONFIG_COUCHDB_PASSWORD}@${EHSM_CONFIG_COUCHDB_SERVER}:${EHSM_CONFIG_COUCHDB_PORT}`
+    const nanoDb = nano(dburl)
+    let DB
+    try {
+      await nanoDb.db.create(EHSM_CONFIG_COUCHDB_DB, { partitioned: true })
+      DB = await nanoDb.use(EHSM_CONFIG_COUCHDB_DB)
+    } catch (e) {
+      DB = await nanoDb.use(EHSM_CONFIG_COUCHDB_DB)
+    }
+    if (DB) {
+      server(DB)
+    } else {
+      console.log('couchdb connect error')
+    }
   }
-  const DB = await nanoDb.use(EHSM_CONFIG_COUCHDB_DB)
-  server(DB)
 }
 
-module.exports = couchDB
+module.exports = connectDB
