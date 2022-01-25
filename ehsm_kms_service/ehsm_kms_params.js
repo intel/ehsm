@@ -1,9 +1,8 @@
-
-const ehsm_keyspec_t = {
+const ehsm_keySpec_t = {
   EH_AES_GCM_128: 0,
   EH_AES_GCM_256: 1,
   EH_RSA_2048: 2,
-  EH_RSA_3072:3,
+  EH_RSA_3072: 3,
   EH_EC_P256: 4,
   EH_EC_P512: 5,
   EH_EC_SM2: 6,
@@ -14,9 +13,9 @@ const ehsm_keyorigin_t = {
   EXTERNAL_KEY: 1,
 }
 
-const MAX_LENGTH = 8192;
+const MAX_LENGTH = 8192
 
-const cmk_base64 = {
+const keyid = {
   type: 'string',
   minLength: 1,
   maxLength: MAX_LENGTH,
@@ -25,26 +24,26 @@ const cmk_base64 = {
 const aad = {
   type: 'string',
   maxLength: 32,
-  required: false
+  required: false,
 }
 
 const ehsm_kms_params = {
   CreateKey: {
     keyspec: {
-      type : 'const',
-      arr: Object.keys(ehsm_keyspec_t),
-      errortext: "The keyspec type is incorrect",
+      type: 'const',
+      arr: Object.keys(ehsm_keySpec_t),
+      errortext: 'The keyspec type is incorrect',
       required: true,
     },
     origin: {
-      type : 'const',
+      type: 'const',
       arr: Object.keys(ehsm_keyorigin_t),
-      errortext: "The origin type is incorrect",
+      errortext: 'The origin type is incorrect',
       required: true,
-    }
+    },
   },
   Encrypt: {
-    cmk_base64,
+    keyid,
     plaintext: {
       type: 'string',
       maxLength: MAX_LENGTH,
@@ -54,7 +53,7 @@ const ehsm_kms_params = {
     aad,
   },
   Decrypt: {
-    cmk_base64,
+    keyid,
     ciphertext: {
       type: 'string',
       maxLength: MAX_LENGTH,
@@ -64,7 +63,7 @@ const ehsm_kms_params = {
     aad,
   },
   GenerateDataKey: {
-    cmk_base64,
+    keyid,
     keylen: {
       type: 'int',
       maxNum: 1024,
@@ -74,7 +73,7 @@ const ehsm_kms_params = {
     aad,
   },
   GenerateDataKeyWithoutPlaintext: {
-    cmk_base64,
+    keyid,
     keylen: {
       type: 'int',
       maxNum: 1024,
@@ -84,7 +83,7 @@ const ehsm_kms_params = {
     aad,
   },
   Sign: {
-    cmk_base64,
+    keyid,
     digest: {
       type: 'string',
       maxLength: MAX_LENGTH,
@@ -93,14 +92,14 @@ const ehsm_kms_params = {
     },
   },
   Verify: {
-    cmk_base64,
+    keyid,
     digest: {
       type: 'string',
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
     },
-    signature_base64:{
+    signature_base64: {
       type: 'string',
       maxLength: MAX_LENGTH,
       minLength: 1,
@@ -108,7 +107,7 @@ const ehsm_kms_params = {
     },
   },
   AsymmetricEncrypt: {
-    cmk_base64,
+    keyid,
     plaintext: {
       type: 'string',
       maxLength: MAX_LENGTH,
@@ -117,7 +116,7 @@ const ehsm_kms_params = {
     },
   },
   AsymmetricDecrypt: {
-    cmk_base64,
+    keyid,
     ciphertext_base64: {
       type: 'string',
       maxLength: MAX_LENGTH,
@@ -126,8 +125,8 @@ const ehsm_kms_params = {
     },
   },
   ExportDataKey: {
-    cmk_base64,
-    ukey_base64: {
+    keyid,
+    ukeyid: {
       type: 'string',
       minLength: 1,
       maxLength: MAX_LENGTH,
@@ -142,4 +141,9 @@ const ehsm_kms_params = {
     },
   },
 }
-module.exports = { ehsm_kms_params, ehsm_keyspec_t, ehsm_keyorigin_t };
+
+module.exports = {
+  ehsm_kms_params,
+  ehsm_keySpec_t,
+  ehsm_keyorigin_t,
+}

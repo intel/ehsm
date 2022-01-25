@@ -1,0 +1,161 @@
+const { ehsm_keySpec_t, ehsm_keyorigin_t } = require('./ehsm_kms_params.js')
+const { cryptographic_apis, enroll_apis } = require('./apis')
+const logger = require('./logger')
+const {
+  napi_result,
+  _result,
+  create_user_info,
+  store_cmk,
+} = require('./function')
+
+/**
+ *
+ * @param {string} id (keyid|ukeyid)
+ * @returns query (keyid|ukeyid) parameter
+ *
+ */
+const cmk_db_query = (id) => {
+  return {
+    selector: {
+      _id: `cmk:${id}`,
+    },
+    fields: ['keyBlob', 'creator', 'expireTime'],
+    limit: 1,
+  }
+}
+/**
+ * Verify whether the request parameter appid is equal to creator in the database .
+ * Verify expireTime , the expiration time cannot be less than the current time
+ * @param {string} appid
+ * @param {string} keyid
+ * @param {object} res
+ * @param {object} DB
+ * @returns cmk_base64
+ */
+const find_cmk_by_keyid = async (appid, keyid, res, DB) => {
+  const query = cmk_db_query(keyid)
+  const cmk = await DB.partitionedFind('cmk', query)
+  if (cmk.docs.length == 0) {
+    res.send(_result(400, 'keyid error'))
+    return false
+  }
+  if (appid != cmk.docs[0].creator) {
+    res.send(_result(400, 'appid error'))
+    return false
+  }
+  if (new Date().getTime() > cmk.docs[0].expireTime) {
+    res.send(_result(400, 'keyid expire'))
+    return
+  }
+  return cmk.docs[0].keyBlob
+}
+
+const router = async (p) => {
+  const { req, res, DB } = p
+  const { appid, payload } = req.body
+  const action = req.query.Action
+  switch (action) {
+    case enroll_apis.RA_GET_API_KEY:
+      create_user_info(DB, res)
+      break
+    case cryptographic_apis.CreateKey:
+      try {
+        let { keyspec, origin } = payload
+        /**
+         * keyspec、origin convert to enum type
+         * enum in thie ehsm_kms_params.js file
+         */
+        keyspec = ehsm_keySpec_t[keyspec]
+        origin = ehsm_keyorigin_t[origin]
+        const napi_res = napi_result(action, res, [keyspec, origin])
+        napi_res && store_cmk(napi_res, res, appid, payload, DB)
+      } catch (error) {}
+      break
+    case cryptographic_apis.Encrypt:
+      try {
+        const { keyid, plaintext, aad = '' } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        const napi_res = napi_result(action, res, [cmk_base64, plaintext, aad])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case cryptographic_apis.Decrypt:
+      try {
+        const { keyid, ciphertext, aad = '' } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, [cmk_base64, ciphertext, aad])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case cryptographic_apis.GenerateDataKey:
+      try {
+        const { keyid, keylen, aad = '' } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, [cmk_base64, keylen, aad])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case cryptographic_apis.GenerateDataKeyWithoutPlaintext:
+      try {
+        const { keyid, keylen, aad = '' } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, [cmk_base64, keylen, aad])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case cryptographic_apis.Sign:
+      try {
+        const { keyid, digest } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, [cmk_base64, digest])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case cryptographic_apis.Verify:
+      try {
+        const { keyid, digest, signature_base64 } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, [
+          cmk_base64,
+          digest,
+          signature_base64,
+        ])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case cryptographic_apis.AsymmetricEncrypt:
+      try {
+        const { keyid, plaintext } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, [cmk_base64, plaintext])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case cryptographic_apis.AsymmetricDecrypt:
+      try {
+        const { keyid, ciphertext_base64 } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, [cmk_base64, ciphertext_base64])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case cryptographic_apis.ExportDataKey:
+      try {
+        const { keyid, ukeyid, aad = '', olddatakey_base } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        const ukey_base64 = await find_cmk_by_keyid(appid, ukeyid, res, DB)
+        napi_res = napi_result(action, res, [
+          cmk_base64,
+          ukey_base64,
+          aad,
+          olddatakey_base,
+        ])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    default:
+      res.send(_result(404, 'Not Fount', {}))
+      break
+  }
+}
+module.exports = router
