@@ -126,7 +126,7 @@ const _cmk_cache_timer = (DB) => {
 function store_cmk(napi_res, res, appid, payload, DB) {
   try {
     const creationDate = new Date().getTime()
-    const keyid = uuidv4().replace(/-/g, '')
+    const keyid = uuidv4()
     let { keyspec, origin } = payload
 
     DB.insert({
@@ -451,7 +451,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
         }
       })
       .catch((e) => {
-        res.send(_result(400, 'databse error'))
+        res.send(_result(400, 'database error'))
       })
   } catch (error) {
     res.send(_result(404, 'Not Fount', {}))
