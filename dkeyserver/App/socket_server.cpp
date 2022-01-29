@@ -609,7 +609,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         //set nonce
         get_drng_support();
         if (0 != get_random(rand_nonce, sizeof(rand_nonce))) {
-            fprintf(stderr,"\nfailed to get random.\n", __FUNCTION__);
+            fprintf(stderr,"\nfailed to get random.\n");
             ret = SP_INTERNAL_ERROR;
             break;
         }

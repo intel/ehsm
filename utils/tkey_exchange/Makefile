@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2011-2020 Intel Corporation. All rights reserved.
+# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,34 +28,47 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #
+include ../../buildenv.mk
 
-include buildenv.mk
+LIBNAME := libra_tkey_exchange.a
 
-SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver
+OUT = $(TOPDIR)/$(OUTLIB_DIR)
 
-.PHONY: all clean
+Include_Paths := \
+	-I$(TOPDIR)/include \
+	-I$(TOPDIR)/include/key_exchange \
+	-I$(SGX_SDK)/include \
+	-I$(SGX_SDK)/include/tlibc \
+	-I$(SGX_SDK)/include/libcxx
 
-all:
-	for dir in $(SUB_DIR); do \
-		$(MAKE) -C $$dir; \
-	done
+CXXFLAGS += $(ENCLAVE_CXXFLAGS) $(Include_Paths)
 
-ifeq ($(Build_Mode), HW_DEBUG)
-	@echo "The project has been built in hardware debug mode."
-else ifeq ($(Build_Mode), HW_RELEAESE)
-	@echo "The project has been built in hardware release mode."
-else ifeq ($(Build_Mode), HW_PRERELEAESE)
-	@echo "The project has been built in hardware pre-release mode."
-else ifeq ($(Build_Mode), SIM_DEBUG)
-	@echo "The project has been built in simulation debug mode."
-else ifeq ($(Build_Mode), SIM_RELEAESE)
-	@echo "The project has been built in simulation release mode."
-else ifeq ($(Build_Mode), SIM_PRERELEAESE)
-	@echo "The project has been built in simulation pre-release mode."
-endif
+SRC := $(wildcard *.cpp)
 
+OBJ := $(sort $(SRC:.cpp=.o))
+
+.PHONY: all
+all: $(LIBNAME)
+	@mkdir -p $(OUT)
+	@mv $< $(OUT)
+
+sgx_tkey_exchange_t.c: $(SGX_EDGER8R) sgx_tkey_exchange.edl
+	@$(SGX_EDGER8R) sgx_tkey_exchange.edl --search-path .
+	@echo "GEN  =>  $@"
+
+tkey_exchange.o: sgx_tkey_exchange_t.c
+	@$(CC) $(CXXFLAGS) -c $< -o $@
+	@echo "CC   <=  $<"
+
+$(OBJ): %.o :%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(LIBNAME): $(OBJ)
+	$(AR) rcsD $@ $^
+
+.PHONY: clean
 clean:
-	@rm -rf $(OUTDIR)
-	for dir in $(SUB_DIR); do \
-		$(MAKE) -C $$dir clean; \
-	done
+	@$(RM) $(OBJ)
+	@$(RM) sgx_tkey_exchange_t.* sgx_tkey_exchange_u.*
+	@$(RM) $(LIBNAME)
+

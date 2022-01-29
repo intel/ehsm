@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2011-2020 Intel Corporation. All rights reserved.
+# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,33 +29,43 @@
 #
 #
 
-include buildenv.mk
+include ../../buildenv.mk
 
-SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver
+LIBNAME := libra_ukey_exchange.a
 
-.PHONY: all clean
+OUT = $(TOPDIR)/$(OUTLIB_DIR)
+CURDIR= $(PWD)
+Include_Paths := \
+	-I$(TOPDIR)/include \
+	-I$(TOPDIR)/include/key_exchange \
+	-I$(SGX_SDK)/include \
 
-all:
-	for dir in $(SUB_DIR); do \
-		$(MAKE) -C $$dir; \
-	done
+KE_DEFINITIONS = 
+CXXFLAGS += $(SGX_COMMON_CXXFLAGS) -Wno-attributes -fPIC -fno-exceptions -fno-rtti $(KE_DEFINITIONS) $(Include_Paths)
+CFLAGS += $(SGX_COMMON_CFLAGS) -fPIC $(KE_DEFINITIONS) $(Include_Paths)
 
-ifeq ($(Build_Mode), HW_DEBUG)
-	@echo "The project has been built in hardware debug mode."
-else ifeq ($(Build_Mode), HW_RELEAESE)
-	@echo "The project has been built in hardware release mode."
-else ifeq ($(Build_Mode), HW_PRERELEAESE)
-	@echo "The project has been built in hardware pre-release mode."
-else ifeq ($(Build_Mode), SIM_DEBUG)
-	@echo "The project has been built in simulation debug mode."
-else ifeq ($(Build_Mode), SIM_RELEAESE)
-	@echo "The project has been built in simulation release mode."
-else ifeq ($(Build_Mode), SIM_PRERELEAESE)
-	@echo "The project has been built in simulation pre-release mode."
-endif
+SRC := $(wildcard *.cpp)
 
+OBJ := $(sort $(SRC:.cpp=.o))
+
+OBJ_C := se_thread.o
+
+.PHONY: all
+all: $(LIBNAME)
+	@mkdir -p $(OUT)
+	@mv $< $(OUT)
+
+$(OBJ_C): se_thread.c
+	@$(CC) $(CFLAGS) -c $< -o $@
+	@echo "CC   <=  $<"
+
+$(OBJ): %.o :%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(LIBNAME): $(OBJ) $(OBJ_C)
+	$(AR) rcsD $@ $^
+
+.PHONY: clean
 clean:
-	@rm -rf $(OUTDIR)
-	for dir in $(SUB_DIR); do \
-		$(MAKE) -C $$dir clean; \
-	done
+	@$(RM) $(OBJ) $(OBJ_C)
+	@$(RM) $(LIBNAME)
