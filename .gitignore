@@ -25,4 +25,4 @@ ehsm_kms_service/package-lock.json
 ehsm_kms_service/logs/*/
 ehsm_kms_service/*.so
 
-
+ehsm_kms_service/test/cli/__pycache__
