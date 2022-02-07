@@ -43,7 +43,6 @@
 #include "simple_vector.h"
 #include "se_cdefs.h"
 
-
 // Add a version to tkey_exchange.
 SGX_ACCESS_VERSION(tkey_exchange, 1)
 
@@ -383,7 +382,6 @@ extern "C" sgx_status_t sgx_ra_proc_msg2_trusted(
     return se_ret;
 }
 
-
 /* the caller is supposed to fill the quote field in emp_msg3 before calling
  * this function.*/
 extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
@@ -392,8 +390,10 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
     sgx_report_t* qe_report,
     sgx_ra_msg3_t *emp_msg3,    //(mac||g_a||ps_sec_prop||quote)
     uint32_t msg3_size)
+
 {
-    if(vector_size(&g_ra_db) <= context ||!quote_size || !qe_report || !emp_msg3)
+    UNUSED(qe_report);
+    if(vector_size(&g_ra_db) <= context ||!quote_size || !emp_msg3)
         return SGX_ERROR_INVALID_PARAMETER;
 
     ra_db_item_t* item = NULL;
@@ -424,29 +424,12 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
 
     sgx_status_t se_ret = SGX_ERROR_UNEXPECTED;
 
-    //verify qe report
-    se_ret = sgx_verify_report(qe_report);
-    if(se_ret != SGX_SUCCESS)
-    {
-        if (SGX_ERROR_MAC_MISMATCH != se_ret &&
-            SGX_ERROR_OUT_OF_MEMORY != se_ret)
-            se_ret = SGX_ERROR_UNEXPECTED;
-        return se_ret;
-    }
-
     sgx_spin_lock(&item->item_lock);
     //sgx_ra_proc_msg2_trusted must have been called
     if (item->state != ra_proc_msg2ed)
     {
         sgx_spin_unlock(&item->item_lock);
         return SGX_ERROR_INVALID_STATE;
-    }
-    //verify qe_report attributes and mr_enclave same as quoting enclave
-    if( memcmp( &qe_report->body.attributes, &item->qe_target.attributes, sizeof(sgx_attributes_t)) ||
-        memcmp( &qe_report->body.mr_enclave, &item->qe_target.mr_enclave, sizeof(sgx_measurement_t)) )
-    {
-        sgx_spin_unlock(&item->item_lock);
-        return SGX_ERROR_INVALID_PARAMETER;
     }
 
     sgx_ra_msg3_t msg3_except_quote_in;
@@ -457,35 +440,10 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
     memcpy(&smk_key, &item->smk_key, sizeof(smk_key));
     sgx_spin_unlock(&item->item_lock);
 
-    sgx_sha_state_handle_t sha_handle = NULL;
     sgx_cmac_state_handle_t cmac_handle = NULL;
 
-
-    //SHA256(NONCE || emp_quote)
-    sgx_sha256_hash_t hash = {0};
-    se_ret = sgx_sha256_init(&sha_handle);
-    if (SGX_SUCCESS != se_ret)
-    {
-        if(SGX_ERROR_OUT_OF_MEMORY != se_ret)
-            se_ret = SGX_ERROR_UNEXPECTED;
-        return se_ret;
-    }
-    if (NULL == sha_handle)
-        {
-            return SGX_ERROR_UNEXPECTED;
-        }
     do
     {
-        se_ret = sgx_sha256_update((uint8_t *)&item->quote_nonce,
-            sizeof(item->quote_nonce),
-            sha_handle);
-        if (SGX_SUCCESS != se_ret)
-        {
-            if(SGX_ERROR_OUT_OF_MEMORY != se_ret)
-                se_ret = SGX_ERROR_UNEXPECTED;
-            break;
-        }
-
          //cmac   M := ga || PS_SEC_PROP_DESC(all zero if unused) ||emp_quote
         sgx_cmac_128bit_tag_t mac;
         se_ret = sgx_cmac128_init(&smk_key, &cmac_handle);
@@ -517,7 +475,7 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
             break;
         }
 
-        // sha256 and cmac quote
+        // cmac quote
         uint8_t quote_piece[32];
         const uint8_t* emp_quote_piecemeal = emp_msg3->quote;
         uint32_t quote_piece_size = static_cast<uint32_t>(sizeof(quote_piece));
@@ -528,15 +486,7 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
             if (static_cast<uint32_t>(emp_msg3->quote + quote_size - emp_quote_piecemeal) < quote_piece_size)
                 quote_piece_size = static_cast<uint32_t>(emp_msg3->quote - emp_quote_piecemeal) + quote_size ;
             memcpy(quote_piece, emp_quote_piecemeal, quote_piece_size);
-            se_ret = sgx_sha256_update(quote_piece,
-                                    quote_piece_size,
-                                    sha_handle);
-           if (SGX_SUCCESS != se_ret)
-           {
-               if(SGX_ERROR_OUT_OF_MEMORY != se_ret)
-                   se_ret = SGX_ERROR_UNEXPECTED;
-              break;
-           }
+
            se_ret = sgx_cmac128_update(quote_piece,
                                     quote_piece_size,
                                     cmac_handle);
@@ -550,15 +500,6 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
         }
         ERROR_BREAK(se_ret);
 
-        //get sha256 hash value
-        se_ret = sgx_sha256_get_hash(sha_handle, &hash);
-        if (SGX_SUCCESS != se_ret)
-        {
-            if(SGX_ERROR_OUT_OF_MEMORY != se_ret)
-                se_ret = SGX_ERROR_UNEXPECTED;
-            break;
-        }
-
         //get cmac value
         se_ret = sgx_cmac128_final(cmac_handle, &mac);
         if (SGX_SUCCESS != se_ret)
@@ -568,19 +509,12 @@ extern "C" sgx_status_t sgx_ra_get_msg3_trusted(
             break;
         }
 
-        //verify qe_report->body.report_data == SHA256(NONCE || emp_quote)
-        if(0 != memcmp(&qe_report->body.report_data, &hash, sizeof(hash)))
-        {
-            se_ret = SGX_ERROR_MAC_MISMATCH;
-            break;
-        }
-
         memcpy(&msg3_except_quote_in.mac, mac, sizeof(mac));
         memcpy(emp_msg3, &msg3_except_quote_in, offsetof(sgx_ra_msg3_t, quote));
         se_ret = SGX_SUCCESS;
     }while(0);
     memset_s(&smk_key, sizeof(smk_key), 0, sizeof(smk_key));
-    (void)sgx_sha256_close(sha_handle);
+
     if(cmac_handle != NULL)
         sgx_cmac128_close(cmac_handle);
     return se_ret;

@@ -48,6 +48,10 @@
 #include "se_lock.hpp"
 
 #include "se_cdefs.h"
+#include <stdio.h>
+#include "sgx_quote_3.h"
+#include "sgx_ql_lib_common.h"
+#include "sgx_dcap_ql_wrapper.h"
 
 SGX_ACCESS_VERSION(ukey_exchange, 1)
 
@@ -222,7 +226,6 @@ CLEANUP:
     return ret;
 }
 
-
 sgx_status_t SGXAPI sgx_ra_get_msg1_ex(
 	const sgx_att_key_id_t *p_att_key_id,
 	sgx_ra_context_t context,
@@ -230,32 +233,23 @@ sgx_status_t SGXAPI sgx_ra_get_msg1_ex(
 	sgx_ecall_get_ga_trusted_t p_get_ga,
     sgx_ra_msg1_t *p_msg1)
 {
+    sgx_status_t ret = SGX_SUCCESS;
+    quote3_error_t qe3_ret = SGX_QL_SUCCESS;
+
     if(!p_msg1 || !p_get_ga || !p_att_key_id)
         return SGX_ERROR_INVALID_PARAMETER;
-    size_t pub_key_id_size = 0;
+
     sgx_target_info_t qe_target_info;
 
     memset(&qe_target_info, 0, sizeof(qe_target_info));
-    sgx_status_t ret = sgx_init_quote_ex(p_att_key_id, &qe_target_info, &pub_key_id_size, NULL);
-    if(SGX_SUCCESS != ret)
-        return ret;
-    uint8_t *p_pub_key_id = (uint8_t *)malloc(pub_key_id_size);
-    if (NULL == p_pub_key_id)
-        return SGX_ERROR_OUT_OF_MEMORY;
-    ret = sgx_init_quote_ex(p_att_key_id, &qe_target_info, &pub_key_id_size, p_pub_key_id);
-    if(SGX_SUCCESS != ret)
-    {
-        free(p_pub_key_id);
+    qe3_ret = sgx_qe_get_target_info(&qe_target_info);
+    if (SGX_QL_SUCCESS != qe3_ret) {
+        printf("Error in sgx_qe_get_target_info. 0x%04x\n", qe3_ret);
+        ret = SGX_ERROR_UNEXPECTED;
         return ret;
     }
-    free(p_pub_key_id);
+
     g_ukey_spin_lock.lock();
-    if(memcpy_s(&g_att_key_id, sizeof(*p_att_key_id),
-             p_att_key_id, sizeof(*p_att_key_id)) != 0)
-    {
-        g_ukey_spin_lock.unlock();
-        return SGX_ERROR_UNEXPECTED;
-    }
     if(memcpy_s(&g_qe_target_info, sizeof(g_qe_target_info),
              &qe_target_info, sizeof(qe_target_info)) != 0)
     {
@@ -295,12 +289,13 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
     if(msg2_size != sizeof(sgx_ra_msg2_t) + p_msg2->sig_rl_size)
         return SGX_ERROR_INVALID_PARAMETER;
 
+    uint32_t quote_size = 0;
+    quote3_error_t qe3_ret = SGX_QL_SUCCESS;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     sgx_report_t report;
     sgx_ra_msg3_t *p_msg3 = NULL;
 
     memset(&report, 0, sizeof(report));
-
     {
         sgx_quote_nonce_t nonce;
         sgx_target_info_t qe_target_info;
@@ -323,6 +318,7 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
             goto CLEANUP;
         }
         g_ukey_spin_lock.unlock();
+
         ret = p_proc_msg2(eid, &status, context, p_msg2, &qe_target_info,
                           &report, &nonce);
         if(SGX_SUCCESS!=ret)
@@ -335,10 +331,10 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
             goto CLEANUP;
         }
 
-        uint32_t quote_size = 0;
-        ret = sgx_get_quote_size_ex(p_att_key_id, &quote_size);
-        if(SGX_SUCCESS!=ret)
-        {
+        qe3_ret = sgx_qe_get_quote_size(&quote_size);
+        if (SGX_QL_SUCCESS != qe3_ret) {
+            printf("Error in sgx_qe_get_quote_size. 0x%04x\n", qe3_ret);
+            ret =SGX_ERROR_UNEXPECTED;
             goto CLEANUP;
         }
 
@@ -357,29 +353,15 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
         }
         memset(p_msg3, 0, msg3_size);
 
-        sgx_qe_report_info_t qe_report_info;
-        memset(&qe_report_info.app_enclave_target_info, 0, sizeof(qe_report_info.app_enclave_target_info));
-        memcpy_s(&(qe_report_info.app_enclave_target_info.attributes),
-                sizeof(qe_report_info.app_enclave_target_info.attributes),
-                &report.body.attributes,
-                sizeof(report.body.attributes));
-        memcpy_s(&(qe_report_info.app_enclave_target_info.mr_enclave),
-                sizeof(qe_report_info.app_enclave_target_info.mr_enclave),
-                &report.body.mr_enclave,
-                sizeof(report.body.mr_enclave));
-        memcpy_s(&(qe_report_info.app_enclave_target_info.misc_select),
-                sizeof(qe_report_info.app_enclave_target_info.misc_select),
-                &report.body.misc_select,
-                sizeof(report.body.misc_select));
-        memcpy_s(&qe_report_info.nonce, sizeof(qe_report_info.nonce), &nonce, sizeof(nonce));
-        ret = sgx_get_quote_ex(&report, p_att_key_id, &qe_report_info, p_msg3->quote, quote_size);
-        if(SGX_SUCCESS!=ret)
-        {
+        qe3_ret = sgx_qe_get_quote(&report, quote_size, p_msg3->quote);
+        if (SGX_QL_SUCCESS != qe3_ret) {
+            printf( "Error in sgx_qe_get_quote. 0x%04x\n", qe3_ret);
+            ret = SGX_ERROR_UNEXPECTED;
             goto CLEANUP;
         }
 
-        ret = p_get_msg3(eid, &status, context, quote_size, &qe_report_info.qe_report,
-                         p_msg3, msg3_size);
+        //sgx_report_t* qe_report is NULL for ECDSA
+        ret = p_get_msg3(eid, &status, context, quote_size, NULL, p_msg3, msg3_size);
         if(SGX_SUCCESS!=ret)
         {
             goto CLEANUP;
@@ -389,6 +371,7 @@ sgx_status_t SGXAPI sgx_ra_proc_msg2_ex(
             ret = status;
             goto CLEANUP;
         }
+
         *pp_msg3 = p_msg3;
         *p_msg3_size = msg3_size;
     }
