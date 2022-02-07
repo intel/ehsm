@@ -31,7 +31,7 @@
 
 include buildenv.mk
 
-SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver
+SUB_DIR := core dkeycache dkeyserver
 
 .PHONY: all clean
 

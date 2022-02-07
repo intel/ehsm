@@ -50,9 +50,9 @@ ifneq ($(words $(subst :, ,$(ROOT_DIR))), 1)
 endif
 
 ######## Output Settings ########
+BIN_DIR := bin
 TOPDIR = $(ROOT_DIR)
-OUTDIR := out
-OUTLIB_DIR := $(OUTDIR)/lib
+OUTDIR := $(BIN_DIR)
 
 ######## Compiler Settings ########
 CP = cp
