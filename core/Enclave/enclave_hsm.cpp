@@ -770,3 +770,26 @@ out:
 
     return ret;
 }
+
+sgx_status_t enclave_generate_apikey(uint8_t *p_apikey, uint32_t apikey_len)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (p_apikey == NULL || apikey_len != EH_API_KEY_SIZE)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    std::string psw_chars = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+    
+    uint8_t temp[apikey_len];
+    ret = sgx_read_rand(temp, apikey_len);
+    if (ret != SGX_SUCCESS) {
+        return ret;
+    }
+    for (int i = 0; i < apikey_len; i++) {
+        p_apikey[i] = psw_chars[temp[i] % psw_chars.length()];
+    }
+
+    memset_s(temp, apikey_len, 0, apikey_len);
+    return ret;
+}

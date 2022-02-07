@@ -30,16 +30,24 @@
  */
 
 
-#ifndef _REST_UTILS_H
-#define _REST_UTILS_H
+#ifndef _ENROLL_APP_REST_UTILS_H
+#define _ENROLL_APP_REST_UTILS_H
 
 #include <stdio.h>
 #include <curl/curl.h>
 #include <iostream>
 
+#include "json_utils.h"
 
+
+/*
+* base post
+*/
 std::string post(std::string url, std::string content);
-size_t req_callback(void *ptr, size_t size, size_t nmem, void *stream);
+/*
+* KMS server post
+*/
+void post_KMS(std::string url, std::string content, RetJsonObj *retJsonObj);
 
 #endif
 

@@ -69,7 +69,7 @@ ifeq (true, $(EHSM_DEFAULT_DOMAIN_KEY_FALLBACK))
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -ljsoncpp
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -ljsoncpp -luuid
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -122,7 +122,7 @@ Napi_Include_Paths := \
 
 Napi_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 Napi_Cpp_Flags := $(Napi_C_Flags) -std=c++11
-Napi_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -ljsoncpp -nostartfiles -Wl,--export-dynamic -shared
+Napi_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -ljsoncpp -luuid -nostartfiles -Wl,--export-dynamic -shared
 
 ifneq ($(SGX_MODE), HW)
 	Napi_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
