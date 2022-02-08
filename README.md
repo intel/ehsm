@@ -1,20 +1,14 @@
 # eHSM (SGX Enclave Based Hardware Security Module)
 
-Cloud KMS (Key Management System) is a hardware-software combined system that provides customers
-with capabilities to create and manage cryptographic keys and control their use for cloud services.
+Cloud KMS (Key Management System) is a hardware-software combined system that provides customers with capabilities to create and manage cryptographic keys and control their use for their cloud services.
 
-Typically, the KMS (Key Manangement Service) is backed with HSM (Hardware Security Module). However,the existing hardware HSM solution
-is very expensive and complex to manage. Although many CSPs will provide Cloud HSM solutions to alleviate the
-problem of the scalability and availability issues, but they are still depend on the dedicated external
-hardware devices, and currently there's no opensource with low cost and scalable secure HSM solution for
-Cloud KSM scenario.
+Typically, the KMS (Key Management Service) is backed with dedicated HSM (Hardware Security Module). However, the existing hardware HSM solution is quite expensive and complex to extend on business demand. Although there are some commercial cloud HSM solutions to alleviate the problem of the scalability and availability, they still rely on the dedicated external hardware devices, and also currently there's no opensource product with low cost and scalable secure HSM solution deployed in cloud KMS use scenarios.
 
-This project is named eHSM-KMS, which provides a reference to help the users setup a customized KMS (Key Management System) with the capabilities to create and manage cryptographic keys.
+This project is named as eHSM-KMS, which provides a product-quality reference to help the customers setup a customized KMS (Key Management System) with the capabilities to create and manage cryptographic keys in their cloud environments.
 
-It's based on Intel SGX (Software Guard eXtensions) technology that could provide the equivalent protection level of cryptographic functionalities including key generation, management inside the SGX enclave.
+It's based on Intel SGX (Software Guard eXtensions) technology that provides the near-equivalent hardware protection level of cryptographic functionalities including key generation, management inside the SGX enclave.
 
-
-The Customers could deploy the total solution on their own private cloud or deploy it on a public cloud like Alibaba Cloud ECS SGX instances which we have already verified.
+The Customers could deploy this total solution on their own private cloud or deploy it on a public cloud like Alibaba Cloud ECS SGX instances in which we have already verified.
 
 ---
 
