@@ -556,7 +556,11 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
     }
 
     aad_data.datalen = aad_len;
-    aad_data.data = (uint8_t*)aad;
+    if(aad_len > 0){
+        aad_data.data = (uint8_t*)aad;
+    }else{
+        aad_data.data = NULL; 
+    }
     plaint_datakey.datalen = keylen;
     plaint_datakey.data = NULL;
     cipher_datakey.datalen = 0;
@@ -1086,7 +1090,11 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
     olddatakey_data.data = (uint8_t*)olddatakey_str.data();
     
     aad_data.datalen = aad_len;
-    aad_data.data = (uint8_t*)aad;
+    if(aad_len > 0){
+        aad_data.data = (uint8_t*)aad;
+    }else{
+        aad_data.data = NULL; 
+    }
 
     cipher_datakey_new.datalen = 0;
     ret = ExportDataKey(&cmk, &ukey, &aad_data, &olddatakey_data, &cipher_datakey_new);
