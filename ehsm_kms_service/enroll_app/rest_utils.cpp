@@ -31,6 +31,16 @@
 #include <cstdlib>
 #include "rest_utils.h"
 
+size_t post_callback(void *ptr, size_t size, size_t nmemb, void *stream)
+{
+    std::string *str = (std::string*)stream;
+	(*str).append((char*)ptr, size*nmemb);
+	return size * nmemb;
+}
+
+/*
+* base post
+*/
 std::string post(std::string url, std::string content){
     struct curl_slist* header_list = nullptr;
     // use curl post.
@@ -46,7 +56,7 @@ std::string post(std::string url, std::string content){
     curl_easy_setopt(curl, CURLOPT_URL, url.data());
     header_list = curl_slist_append(header_list, "Content-Type:application/json; charset=UTF-8");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, req_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, post_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&response);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -63,11 +73,11 @@ out:
     return response;
 }
 
-size_t req_callback(void *ptr, size_t size, size_t nmemb, void *stream)
-{
-    std::string *str = (std::string*)stream;
-	(*str).append((char*)ptr, size*nmemb);
-	return size * nmemb;
+/*
+* KMS server post
+*/
+void post_KMS(std::string url, std::string content, RetJsonObj *retJsonObj){
+    std::string json_str = post(url, content);
+    retJsonObj->parse(json_str);
 }
-
 

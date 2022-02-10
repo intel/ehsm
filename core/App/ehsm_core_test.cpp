@@ -73,7 +73,7 @@ void test_AES128()
     }
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     printf("Create CMK with AES-128 SUCCESSFULLY!\n");
-    cmk_base64 = retJsonObj.readData_string("cmk_base64");
+    cmk_base64 = retJsonObj.readData_cstr("cmk_base64");
 
     returnJsonChar = NAPI_Encrypt(cmk_base64, plaintext, aad);
     retJsonObj.parse(returnJsonChar);
@@ -85,7 +85,7 @@ void test_AES128()
     printf("NAPI_Encrypt json = %s\n", returnJsonChar);
     printf("Encrypt data SUCCESSFULLY!\n");
 
-    ciphertext_base64 =retJsonObj.readData_string("ciphertext_base64");
+    ciphertext_base64 =retJsonObj.readData_cstr("ciphertext_base64");
 
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_base64, aad);
     retJsonObj.parse(returnJsonChar);
@@ -95,7 +95,7 @@ void test_AES128()
         goto cleanup; 
     }
     printf("NAPI_Decrypt json = %s\n", returnJsonChar);
-    plaintext_base64 = retJsonObj.readData_string("plaintext_base64");
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext_base64");
     plaintext_decrypt = base64_decode(plaintext_base64);
     printf("Decrypted plaintext = %s\n", plaintext_decrypt.c_str());
     printf("Check decrypt plaintext result with %s: %s\n", plaintext, (plaintext_decrypt == plaintext) ? "true" : "false");
@@ -129,7 +129,7 @@ void test_RSA3072_encrypt_decrypt()
     printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
     printf("Create CMK with RAS SUCCESSFULLY!\n");
 
-    cmk_base64 = retJsonObj.readData_string("cmk_base64");
+    cmk_base64 = retJsonObj.readData_cstr("cmk_base64");
 
     returnJsonChar = NAPI_AsymmetricEncrypt(cmk_base64, plaintext);
     retJsonObj.parse(returnJsonChar);
@@ -140,7 +140,7 @@ void test_RSA3072_encrypt_decrypt()
     printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
     printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
 
-    ciphertext_base64 = retJsonObj.readData_string("ciphertext_base64");
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext_base64");
     returnJsonChar = NAPI_AsymmetricDecrypt(cmk_base64, ciphertext_base64);
     retJsonObj.parse(returnJsonChar);
     if(retJsonObj.getCode() != 200){
@@ -148,7 +148,7 @@ void test_RSA3072_encrypt_decrypt()
         goto cleanup;
     }
     printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
-    plaintext_base64 = retJsonObj.readData_string("plaintext_base64");
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext_base64");
     printf("Decrypted plaintext : %s\n",base64_decode(plaintext_base64).c_str());
     printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
 
@@ -192,7 +192,7 @@ void test_RSA3072_sign_verify()
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     printf("Create CMK with RAS SUCCESSFULLY!\n");
 
-    cmk_base64 = retJsonObj.readData_string("cmk_base64");
+    cmk_base64 = retJsonObj.readData_cstr("cmk_base64");
 
     digest.datalen = 64;
     digest.data = (uint8_t*)malloc(digest.datalen);
@@ -207,7 +207,7 @@ void test_RSA3072_sign_verify()
         goto cleanup;
     }
     printf("NAPI_Sign Json = %s\n", returnJsonChar);
-    signature_base64 = retJsonObj.readData_string("signature_base64");
+    signature_base64 = retJsonObj.readData_cstr("signature_base64");
     printf("Sign data SUCCESSFULLY!\n");
 
     returnJsonChar = NAPI_Verify(cmk_base64, (char*)digest.data, signature_base64);
@@ -265,7 +265,7 @@ void test_generate_datakey()
     printf("Create CMK with AES-128 SUCCESSFULLY!\n");
 
     /* generate a 16 bytes random data key and with plaint text returned */
-    cmk_base64 = retJsonObj.readData_string("cmk_base64");
+    cmk_base64 = retJsonObj.readData_cstr("cmk_base64");
     returnJsonChar = NAPI_GenerateDataKey(cmk_base64, len_gdk, aad);
     retJsonObj.parse(returnJsonChar);
     if(retJsonObj.getCode() != 200){
@@ -274,7 +274,7 @@ void test_generate_datakey()
     }
     printf("GenerateDataKey_Json = %s\n", returnJsonChar);
 	
-    ciphertext_base64 = retJsonObj.readData_string("ciphertext_base64");
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext_base64");
     printf("GenerateDataKey SUCCESSFULLY!\n");
 	
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_base64, aad);
@@ -295,7 +295,7 @@ void test_generate_datakey()
     }
     printf("GenerateDataKeyWithoutPlaintext_Json = %s\n", returnJsonChar);
 	
-    ciphertext_without_base64 = retJsonObj.readData_string("ciphertext_base64");
+    ciphertext_without_base64 = retJsonObj.readData_cstr("ciphertext_base64");
     printf("GenerateDataKeyWithoutPlaintext SUCCESSFULLY!\n");
 
     returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_without_base64, aad);
@@ -353,7 +353,7 @@ void test_export_datakey()
         printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    cmk_base64 = retJsonObj.readData_string("cmk_base64");
+    cmk_base64 = retJsonObj.readData_cstr("cmk_base64");
     printf("cmk_base64 : %s\n", cmk_base64);
     printf("Create CMK with AES 128 SUCCESSFULLY!\n");
 
@@ -364,7 +364,7 @@ void test_export_datakey()
         printf("NAPI_GenerateDataKeyWithoutPlaintext Failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    olddatakey_base64 = retJsonObj.readData_string("ciphertext_base64");
+    olddatakey_base64 = retJsonObj.readData_cstr("ciphertext_base64");
     printf("olddatakey_base64 : %s\n", olddatakey_base64);
     printf("NAPI_GenerateDataKeyWithoutPlaintext SUCCESSFULLY!\n");
 
@@ -375,7 +375,7 @@ void test_export_datakey()
         printf("Failed to NAPI_Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    plaintext_base64 = retJsonObj.readData_string("plaintext_base64");
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext_base64");
     printf("Decrypted plaintext_base64 : %s\n", plaintext_base64);
     printf("NAPI_Decrypt data SUCCESSFULLY!\n");
 
@@ -386,7 +386,7 @@ void test_export_datakey()
         printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    ukey_base64 = retJsonObj.readData_string("cmk_base64");
+    ukey_base64 = retJsonObj.readData_cstr("cmk_base64");
     printf("ukey_base64 : %s\n", ukey_base64);
     printf("NAPI_CreateKey CMK with RSA SUCCESSFULLY!\n");
 

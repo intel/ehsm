@@ -29,10 +29,15 @@
  *
  */
 #include <cstring>
+#include <uuid/uuid.h>
+
 #include "base64.h"
 #include "ehsm_napi.h"
 #include "serialize.h"
 #include "json_utils.h"
+#include "log_utils.h"
+#include "datatypes.h"
+
 
 using namespace std;
 using namespace EHsmProvider;
@@ -132,7 +137,7 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
 
     cmk_base64 = base64_encode(resp, resp_len);
     if(cmk_base64.size() > 0){
-        retJsonObj.addData("cmk_base64", cmk_base64);
+        retJsonObj.addData_string("cmk_base64", cmk_base64);
     }
 
 out:
@@ -241,7 +246,7 @@ char* NAPI_Encrypt(const char* cmk_base64,
 
     cipherText_base64 = base64_encode(cipher_data.data, cipher_data.datalen);
     if(cipherText_base64.size() > 0){
-        retJsonObj.addData("ciphertext_base64", cipherText_base64);
+        retJsonObj.addData_string("ciphertext_base64", cipherText_base64);
     }
 
 out:
@@ -355,7 +360,7 @@ char* NAPI_Decrypt(const char* cmk_base64,
 
     plaintext_base64 = base64_encode(plaint_data.data, plaint_data.datalen);
     if(plaintext_base64.size() > 0){
-        retJsonObj.addData("plaintext_base64", plaintext_base64);
+        retJsonObj.addData_string("plaintext_base64", plaintext_base64);
     }
 out:
     SAFE_FREE(cmk.keyblob);
@@ -480,8 +485,8 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
     plaintext_base64 = base64_encode(plaint_datakey.data, plaint_datakey.datalen);
     ciphertext_base64 = base64_encode(cipher_datakey.data, cipher_datakey.datalen);
     if((plaintext_base64.size() > 0) && (ciphertext_base64.size() > 0) ){
-        retJsonObj.addData("plaintext_base64", plaintext_base64); 
-        retJsonObj.addData("ciphertext_base64", ciphertext_base64);
+        retJsonObj.addData_string("plaintext_base64", plaintext_base64); 
+        retJsonObj.addData_string("ciphertext_base64", ciphertext_base64);
     }
     
 out:
@@ -592,7 +597,7 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
 
     ciphertext_base64 = base64_encode(cipher_datakey.data, cipher_datakey.datalen);
     if(ciphertext_base64.size() > 0){
-        retJsonObj.addData("ciphertext_base64", ciphertext_base64);
+        retJsonObj.addData_string("ciphertext_base64", ciphertext_base64);
     }
 
 out:
@@ -683,7 +688,7 @@ char* NAPI_Sign(const char* cmk_base64,
 
     signature_base64 = base64_encode(signature.data, signature.datalen);
     if(signature_base64.size() > 0){
-        retJsonObj.addData("signature_base64", signature_base64);
+        retJsonObj.addData_string("signature_base64", signature_base64);
     }
 
 out:
@@ -766,7 +771,7 @@ char* NAPI_Verify(const char* cmk_base64,
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
-    retJsonObj.addData("result", result);
+    retJsonObj.addData_bool("result", result);
 
 out:
     SAFE_FREE(cmk.keyblob);
@@ -879,7 +884,7 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
 
     cipherText_base64 = base64_encode(cipher_data.data, cipher_data.datalen);
     if(cipherText_base64.size() > 0){
-        retJsonObj.addData("ciphertext_base64", cipherText_base64);
+        retJsonObj.addData_string("ciphertext_base64", cipherText_base64);
     }
 
 out:
@@ -994,7 +999,7 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
     
     plaintext_base64 = base64_encode(plaint_data.data, plaint_data.datalen);
     if(plaintext_base64.size() > 0){
-        retJsonObj.addData("plaintext_base64", plaintext_base64);
+        retJsonObj.addData_string("plaintext_base64", plaintext_base64);
     }
 out:
     SAFE_FREE(cmk.keyblob);
@@ -1124,12 +1129,123 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
 
     newdatakey_base64 = base64_encode(cipher_datakey_new.data, cipher_datakey_new.datalen);
     if(newdatakey_base64.size() > 0){
-        retJsonObj.addData("newdatakey_base64", newdatakey_base64);
+        retJsonObj.addData_string("newdatakey_base64", newdatakey_base64);
     }
 out:
     SAFE_FREE(cmk.keyblob);
     SAFE_FREE(ukey.keyblob);
     SAFE_FREE(cipher_datakey_new.data);
+    return retJsonObj.toChar();
+}
+
+/*
+@return
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            challenge_base64 : string,
+            ga_base64 : string
+        }
+    }
+*/
+char *NAPI_RA_HANDSHAKE_MSG0(const char *p_msg0)
+{
+    log_d("***NAPI_RA_HANDSHAKE_MSG0 start.");
+
+    log_d("msg0: \n %s", p_msg0);
+    std::string challenge_base64 = "challenge_base64";
+    std::string ga_base64 = "ga_base64";
+
+    RetJsonObj retJsonObj;
+    
+    retJsonObj.addData_string("challenge_base64", challenge_base64);
+    retJsonObj.addData_string("ga_base64", ga_base64);
+    log_d("msg1: \n%s",retJsonObj.toChar());
+
+    log_d("***NAPI_RA_HANDSHAKE_MSG0 end.");
+    return retJsonObj.toChar();
+}
+
+/*
+@return
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            msg3_base64 : string
+        }
+    }
+*/
+char *NAPI_RA_HANDSHAKE_MSG2(const char *p_msg2)
+{
+    log_d("***NAPI_RA_HANDSHAKE_MSG2 start.");
+
+    log_d("msg2: \n %s", p_msg2);
+    std::string msg3_base64 = "msg3_base64";
+
+    RetJsonObj retJsonObj;
+    retJsonObj.addData_string("msg3_base64", msg3_base64);
+    log_d("msg3: \n%s",retJsonObj.toChar());
+
+    log_d("***NAPI_RA_HANDSHAKE_MSG2 end.");
+    return retJsonObj.toChar();
+}
+
+/*
+@return
+[string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            appid : string
+            apikey : string
+        }
+    }
+*/
+char *NAPI_RA_GET_API_KEY(const char *p_msg4)
+{
+    log_d("***NAPI_RA_GET_API_KEY start.");
+    ehsm_status_t ret = EH_OK;
+    RetJsonObj retJsonObj;
+
+    char p_appid[UUID_STR_LEN] = {0};
+    ehsm_data_t p_apikey;
+
+    log_d("msg4: \n %s", p_msg4);
+
+    // create appid
+    uuid_t uu;
+    uuid_generate(uu);
+    uuid_unparse(uu, p_appid);
+
+    // create apikey
+    p_apikey.datalen = EH_API_KEY_SIZE;
+    p_apikey.data = (uint8_t*)calloc(p_apikey.datalen + 1, sizeof(uint8_t));
+    if (p_apikey.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto OUT;
+    }
+
+    ret = generate_apikey(&p_apikey);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto OUT;
+    }
+
+    retJsonObj.addData_string("appid", p_appid);
+    retJsonObj.addData_string("apikey", (char*)p_apikey.data);
+
+    log_d("msg7: \n%s",retJsonObj.toChar());
+    log_d("***NAPI_RA_GET_API_KEY end.");
+
+OUT:
+    explicit_bzero(p_apikey.data, p_apikey.datalen);
+    SAFE_FREE(p_apikey.data);
     return retJsonObj.toChar();
 }
 

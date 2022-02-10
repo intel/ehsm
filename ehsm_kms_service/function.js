@@ -12,7 +12,7 @@ const {
   CMK_LOOP_CLEAR_EXECUTION_TIME,
 } = require('./constant')
 const { ehsm_kms_params } = require('./ehsm_kms_params.js')
-const { enroll_apis } = require('./apis')
+const { enroll_apis, cryptographic_apis } = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
 
 const _result = (code, msg, data = {}) => {
@@ -182,22 +182,38 @@ function napi_result(action, res, params) {
  * @param {object} DB
  * @param {object} res
  * Fields contained in the user_info document:
- * _id | appid | appkey | cmk
+ * _id | appid | apikey | cmk
  */
-const create_user_info = (DB, res) => {
-  const appid = new Date().getTime() + ''
-  DB.insert({
-    _id: `user_info:${appid}`,
-    appid: appid,
-    appkey: appid,
-    cmk: '_',
-  })
-    .then((r) => {
-      res.send(_result(200, 'successful', { appid: appid, appkey: appid }))
-    })
-    .catch((e) => {
-      res.send(_result(400, 'create app info faild', e))
-    })
+const create_user_info = (action, DB, res, req) => {
+  const json_str_params = JSON.stringify({ ...req.body })
+  let napi_res = napi_result(action, res, [json_str_params])
+  if (napi_res) {
+    const { appid, apikey } = napi_res.result
+    let cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
+    if (cmk_res) {
+      const { cmk_base64 } = cmk_res.result
+      let apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [
+        cmk_base64,
+        apikey,
+        '',
+      ])
+      if (apikey_encrypt_res) {
+        const { ciphertext_base64 } = apikey_encrypt_res.result
+        DB.insert({
+          _id: `user_info:${appid}`,
+          appid,
+          apikey: ciphertext_base64,
+          cmk: cmk_base64,
+        })
+          .then((r) => {
+            res.send(_result(200, 'successful', { appid, apikey }))
+          })
+          .catch((e) => {
+            res.send(_result(400, 'create app info faild', e))
+          })
+      }
+    }
+  }
 }
 /**
  * The parameters of non empty parameter values in set sign_params are sorted from small
@@ -360,7 +376,8 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
     logger.info(JSON.stringify(_logData))
     if (
       ACTION === enroll_apis.RA_GET_API_KEY ||
-      ACTION === enroll_apis.RA_HANDSHAKE_MSG0
+      ACTION === enroll_apis.RA_HANDSHAKE_MSG0 ||
+      ACTION === enroll_apis.RA_HANDSHAKE_MSG2
     ) {
       next()
       return
@@ -429,22 +446,31 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       selector: {
         _id: `user_info:${appid}`,
       },
-      fields: ['appid', 'appkey'],
+      fields: ['appid', 'apikey', 'cmk'],
       limit: 1,
     }
     DB.partitionedFind('user_info', db_query)
       .then((r) => {
         if (r.docs[0]) {
-          let local_sign = crypto
-            .createHmac('sha256', r.docs[0].appkey)
-            .update(sign_string, 'utf8')
-            .digest('base64')
-            .toLocaleUpperCase()
-          if (sign != local_sign) {
-            res.send(_result(400, 'sign error'))
-            return
-          } else {
-            next()
+          let { cmk, apikey } = r.docs[0]
+          let apikey_Decrypt_res = napi_result(
+            cryptographic_apis.Decrypt,
+            res,
+            [cmk, apikey, '']
+          )
+          if (apikey_Decrypt_res) {
+            apikey = base64_decode(apikey_Decrypt_res.result.plaintext_base64)
+            let local_sign = crypto
+              .createHmac('sha256', apikey)
+              .update(sign_string, 'utf8')
+              .digest('base64')
+              .toLocaleUpperCase()
+            if (sign != local_sign) {
+              res.send(_result(400, 'sign error'))
+              return
+            } else {
+              next()
+            }
           }
         } else {
           res.send(_result(400, 'Appid not found'))

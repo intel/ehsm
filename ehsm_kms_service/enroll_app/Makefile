@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2011-2020 Intel Corporation. All rights reserved.
+# Copyright (C) 2020-2021 Intel Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,33 +29,49 @@
 #
 #
 
-include buildenv.mk
+include ../../buildenv.mk
 
-SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver ehsm_kms_service/enroll_app
+App_Name := ehsm-kms_enroll_app
 
-.PHONY: all clean
+OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 
-all:
-	for dir in $(SUB_DIR); do \
-		$(MAKE) -C $$dir; \
-	done
+######## App Settings ########
+App_Cpp_Files := $(wildcard ./*.cpp)
+App_Include_Paths := \
+	-I$(SGX_SDK)/include \
+	-I$(TOPDIR)/include
 
-ifeq ($(Build_Mode), HW_DEBUG)
-	@echo "The project has been built in hardware debug mode."
-else ifeq ($(Build_Mode), HW_RELEAESE)
-	@echo "The project has been built in hardware release mode."
-else ifeq ($(Build_Mode), HW_PRERELEAESE)
-	@echo "The project has been built in hardware pre-release mode."
-else ifeq ($(Build_Mode), SIM_DEBUG)
-	@echo "The project has been built in simulation debug mode."
-else ifeq ($(Build_Mode), SIM_RELEAESE)
-	@echo "The project has been built in simulation release mode."
-else ifeq ($(Build_Mode), SIM_PRERELEAESE)
-	@echo "The project has been built in simulation pre-release mode."
-endif
+App_Cpp_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -std=c++14
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
+		-L. \
+		-lpthread \
+		-lsgx_dcap_quoteverify \
+		-ldl \
+		-lsample_libcrypto \
+		-ljsoncpp \
+		-lcurl
+
+App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
+
+
+######## Build Settings ########
+.PHONY: all target clean
+
+all: target
+	@$(MAKE) target
+	@mkdir -p $(OUT) && mv $(App_Name) $(OUT)
+
+target: $(App_Name)
 
 clean:
-	@rm -rf $(OUTDIR)
-	for dir in $(SUB_DIR); do \
-		$(MAKE) -C $$dir clean; \
-	done
+	@rm -f $(App_Cpp_Objects)
+	@rm -rf $(OUT)
+
+######## AppObjects ########
+%.o: %.cpp
+	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+	
+$(App_Name): $(App_Cpp_Objects)
+	@$(CXX) $^ -o $@ $(App_Link_Flags)
+	@echo :"Link =>  $@"

@@ -31,47 +31,59 @@
 #ifndef _JSON_UTILS_H
 #define _JSON_UTILS_H
 
+#include <cstring>
 #include <jsoncpp/json/json.h>
 
-class RetJsonObj{
+class RetJsonObj
+{
 public:
     const int CODE_SUCCESS = 200;
     const int CODE_BAD_REQUEST = 400;
     const int CODE_FAILED = 500;
+
 private:
     Json::Value m_json;
     Json::Value m_result_json;
 
 public:
-    RetJsonObj(){
+    RetJsonObj()
+    {
         m_json["code"] = CODE_SUCCESS;
         m_json["message"] = "success!";
     }
     virtual ~RetJsonObj(){};
-     
-    void setCode(int code){
+
+    void setCode(int code)
+    {
         m_json["code"] = code;
     }
-    void setMessage(std::string message){
+    void setMessage(std::string message)
+    {
         m_json["message"] = message;
     }
-    void addData(std::string key, bool data){
+
+    void addData_string(std::string key, std::string data)
+    {
         m_result_json[key] = data;
     }
-    void addData(std::string key, int data){
+    void addData_bool(std::string key, bool data)
+    {
         m_result_json[key] = data;
     }
-    void addData(std::string key, std::string data){
+    void addData_int(std::string key, int data)
+    {
         m_result_json[key] = data;
     }
 
-    char* StringToChar(std::string str)
+    char *StringToChar(std::string str)
     {
         char *retChar = NULL;
-        if (str.size() > 0) {
+        if (str.size() > 0)
+        {
             int len = str.size() + 1;
             retChar = (char *)malloc(len * sizeof(uint8_t));
-            if(retChar != nullptr){
+            if (retChar != nullptr)
+            {
                 memset(retChar, 0, len);
                 memcpy(retChar, str.c_str(), len);
             }
@@ -79,39 +91,69 @@ public:
         return retChar;
     }
 
-    char* toChar() {
+    std::string toString()
+    {
         m_json["result"] = m_result_json;
-        return StringToChar(m_json.toStyledString());
+        return m_json.toStyledString();
     }
 
-    void parse(std::string jsonStr){
+    char *toChar()
+    {
+        return StringToChar(toString());
+    }
+
+    void parse(std::string jsonStr)
+    {
         Json::Reader *pJsonParser = new Json::Reader();
         bool res = pJsonParser->parse(jsonStr, m_json);
         m_result_json = m_json["result"];
-        if (!res) {
+        if (!res || m_json["code"].asInt() == 0)
+        {
             printf("Error: can't parse json string :  %s \n", jsonStr.c_str());
+            setCode(CODE_BAD_REQUEST);
+            setMessage("The returned JSON is malformed.");
         }
     }
 
-    void parse(char* jsonChar){
+    void parse(char *jsonChar)
+    {
         std::string jsonStr = jsonChar;
         parse(jsonStr);
     }
 
-    int getCode(){
+    int getCode()
+    {
         return m_json["code"].asInt();
     }
 
-    std::string getMessage(){
+    bool isSuccess()
+    {
+        return getCode() == CODE_SUCCESS;
+    }
+
+    std::string getMessage()
+    {
         return m_json["message"].asString();
     }
- 
-    char* readData_string(std::string key){
+
+    char *readData_cstr(std::string key)
+    {
         return StringToChar(m_result_json[key].asString());
     }
- 
-    bool readData_bool(std::string key){
+
+    std::string readData_string(std::string key)
+    {
+        return StringToChar(m_result_json[key].asString());
+    }
+
+    bool readData_bool(std::string key)
+    {
         return m_result_json[key].asBool();
+    }
+
+    uint32_t readData_int(std::string key)
+    {
+        return m_result_json[key].asInt();
     }
 };
 

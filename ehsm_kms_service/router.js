@@ -56,7 +56,7 @@ const router = async (p) => {
   const action = req.query.Action
   switch (action) {
     case enroll_apis.RA_GET_API_KEY:
-      create_user_info(DB, res)
+      create_user_info(action, DB, res, req)
       break
     case cryptographic_apis.CreateKey:
       try {
@@ -150,6 +150,20 @@ const router = async (p) => {
           aad,
           olddatakey_base,
         ])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case enroll_apis.RA_HANDSHAKE_MSG0:
+      try {
+        const json_str_params = JSON.stringify({ ...req.body })
+        napi_res = napi_result(action, res, [json_str_params])
+        napi_res && res.send(napi_res)
+      } catch (error) {}
+      break
+    case enroll_apis.RA_HANDSHAKE_MSG2:
+      try {
+        const json_str_params = JSON.stringify({ ...req.body })
+        napi_res = napi_result(action, res, [json_str_params])
         napi_res && res.send(napi_res)
       } catch (error) {}
       break
