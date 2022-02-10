@@ -47,7 +47,6 @@ App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
 		-lpthread \
 		-lsgx_dcap_quoteverify \
 		-ldl \
-		-lsample_libcrypto \
 		-ljsoncpp \
 		-lcurl
 
