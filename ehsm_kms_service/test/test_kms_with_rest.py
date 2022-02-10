@@ -10,7 +10,7 @@ from collections import OrderedDict
 import urllib.parse
 
 appid=''
-appkey = ''
+apikey = ''
 
 def test_creat_app_info(base_url, headers):
     print('====================test_creat_app_info start===========================')
@@ -18,9 +18,9 @@ def test_creat_app_info(base_url, headers):
     if(check_result(creat_app_info_resp, 'RA_GET_API_KEY', 'test_creat_app_info') == False):
         return
     global appid 
-    global appkey 
+    global apikey 
     appid = json.loads(creat_app_info_resp.text)['result']['appid']
-    appkey = json.loads(creat_app_info_resp.text)['result']['appkey']
+    apikey = json.loads(creat_app_info_resp.text)['result']['apikey']
     print('CreateKey resp(EH_AES_GCM_128):\n%s\n' %(creat_app_info_resp.text))
     print('====================test_creat_app_info end===========================')
 
@@ -31,7 +31,7 @@ def test_params(payload):
     params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
     sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
-    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+    sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
     params["payload"] = payload
     params["sign"] = sign
     return params

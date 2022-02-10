@@ -105,6 +105,8 @@ enclave {
                                             [out, size=plaintext_len] uint8_t *plaintext, uint32_t plaintext_len,
                                             [out] uint32_t *req_plaintext_len);
 
+        public sgx_status_t enclave_generate_apikey([out, size=apikey_len] uint8_t *p_apikey,
+                                                uint32_t apikey_len);
 
        /* Interfaces used to create local secure channel based on local attestation */
        public uint32_t enclave_la_create_session();

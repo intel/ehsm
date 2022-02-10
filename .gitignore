@@ -26,3 +26,6 @@ ehsm_kms_service/logs/*/
 ehsm_kms_service/*.so
 
 ehsm_kms_service/test/cli/__pycache__
+
+.history/
+.vscode/

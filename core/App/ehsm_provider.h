@@ -345,5 +345,12 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
              ehsm_data_t *digest,
              ehsm_data_t *signature,
              bool* result);
+
+/*
+*  Description:
+*   Generate a 32-bit random character
+*/
+ehsm_status_t generate_apikey(ehsm_data_t *apikey);
+
 }
 #endif

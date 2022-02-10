@@ -25,7 +25,8 @@ RUN apt-get update && apt-get install -y \
     make \
     module-init-tools \
     g++ \
-    libjsoncpp-dev
+    libjsoncpp-dev\
+    uuid-dev
 
 # Install the SDK
 WORKDIR /opt/intel
