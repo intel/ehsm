@@ -16,4 +16,10 @@ const enroll_apis = {
   RA_HANDSHAKE_MSG0: 'RA_HANDSHAKE_MSG0',
   RA_HANDSHAKE_MSG2: 'RA_HANDSHAKE_MSG2',
 }
-module.exports = { cryptographic_apis, enroll_apis }
+
+const key_management_apis = {
+  ListKey: 'ListKey',
+  DeleteKey: 'DeleteKey',
+  DeleteAllKey: 'DeleteAllKey',
+}
+module.exports = { cryptographic_apis, enroll_apis, key_management_apis }

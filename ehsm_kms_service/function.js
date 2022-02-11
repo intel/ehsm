@@ -12,7 +12,11 @@ const {
   CMK_LOOP_CLEAR_EXECUTION_TIME,
 } = require('./constant')
 const { ehsm_kms_params } = require('./ehsm_kms_params.js')
-const { enroll_apis, cryptographic_apis } = require('./apis')
+const {
+  enroll_apis,
+  cryptographic_apis,
+  key_management_apis,
+} = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
 
 const _result = (code, msg, data = {}) => {
@@ -92,13 +96,15 @@ const _cmk_cache_timer = (DB) => {
         }
         DB.partitionedFind('cmk', query) // Query expired cmks
           .then((cmks_res) => {
-            for (const cmk_item of cmks_res.docs) {
-              cmk_item._deleted = true
+            if (cmks_res.docs.length > 0) {
+              for (const cmk_item of cmks_res.docs) {
+                cmk_item._deleted = true
+              }
+              DB.bulk({ docs: cmks_res.docs }) // Batch delete expired cmks
+                .catch((err) => {
+                  console.log(err)
+                })
             }
-            DB.bulk({ docs: cmks_res.docs }) // Batch delete expired cmks
-              .catch((err) => {
-                console.log(err)
-              })
           })
           .catch((err) => {
             console.log(err)
@@ -119,7 +125,7 @@ const _cmk_cache_timer = (DB) => {
  * @param {object} DB
  * @param {object} payload
  * Fields contained in the cmk document:
- *    _id | keyid | keyBlob | creator | creationDate | expireTime | alias | keyspec | origin
+ *    _id | keyid | keyBlob | creator | creationDate | expireTime | alias | keyspec | origin | keyState
  *
  * After storing cmk successfully, return the keyid to the user
  */
@@ -139,6 +145,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
       alias: '',
       keyspec,
       origin,
+      keyState: true,
     })
       .then((r) => {
         delete napi_res.result.cmk_base64 // Delete cmk_base64 in NaPi result
@@ -146,10 +153,10 @@ function store_cmk(napi_res, res, appid, payload, DB) {
         res.send(napi_res)
       })
       .catch((e) => {
-        res.send(_result(400, 'create cmk faild', e))
+        res.send(_result(400, 'create cmk failed', e))
       })
   } catch (e) {
-    res.send(_result(400, 'create cmk faild', e))
+    res.send(_result(400, 'create cmk failed', e))
   }
 }
 
@@ -383,15 +390,19 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       return
     }
     const { appid, timestamp: nonce, timestamp, sign, payload } = req.body
-    if (!appid || !nonce || !timestamp || !sign || !payload) {
+    if (
+      !appid ||
+      !timestamp ||
+      !sign ||
+      (ACTION !== key_management_apis[ACTION] && !payload)
+    ) {
       res.send(_result(400, 'Missing required parameters'))
       return
     }
     if (
       typeof appid != 'string' ||
-      typeof nonce != 'string' ||
       typeof timestamp != 'string' ||
-      typeof payload != 'object' ||
+      (payload && typeof payload != 'object') ||
       typeof sign != 'string'
     ) {
       res.send(_result(400, 'param type error'))
@@ -431,10 +442,13 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
     } else {
       nonce_database[appid].unshift(nonce_data)
     }
-    // check payload
-    const _checkPayload_res = _checkPayload(req, res, next)
-    if (!_checkPayload_res) {
-      return
+
+    if (ACTION !== key_management_apis[ACTION]) {
+      // check payload
+      const _checkPayload_res = _checkPayload(req, res, next)
+      if (!_checkPayload_res) {
+        return
+      }
     }
 
     // check sign

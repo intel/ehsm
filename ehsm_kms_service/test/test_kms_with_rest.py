@@ -8,9 +8,37 @@ import hmac
 from hashlib import sha256
 from collections import OrderedDict
 import urllib.parse
+appid= ''
+apikey= ''
+keyid= ''
+def test_deleteKey(base_url, headers):
+    payload = OrderedDict()
+    payload["keyid"] = keyid
+    params=test_params(payload)
+    print('DeleteKey req:\n%s\n' %(params))
+    deleteKey_resp = requests.post(url=base_url + "DeleteKey", data=json.dumps(params), headers=headers)
+    if(check_result(deleteKey_resp, 'DeleteKey', 'test_deleteKey') == False):
+        return
+    print('DeleteKey resp:\n%s\n' %(deleteKey_resp.text))
 
-appid=''
-apikey = ''
+def test_deleteAllKey(base_url, headers):
+    params=test_params(False)
+    print('DeleteAllKey req:\n%s\n' %(params))
+    deleteAllKey_resp = requests.post(url=base_url + "DeleteAllKey", data=json.dumps(params), headers=headers)
+    if(check_result(deleteAllKey_resp, 'DeleteAllKey', 'test_deleteAllKey') == False):
+        return
+    print('DeleteAllKey resp:\n%s\n' %(deleteAllKey_resp.text))
+    
+def test_listKey(base_url, headers):
+    params=test_params(False)
+    print('ListKey req:\n%s\n' %(params))
+    listKey_resp = requests.post(url=base_url + "ListKey", data=json.dumps(params), headers=headers)
+    if(check_result(listKey_resp, 'ListKey', 'test_listKey') == False):
+        return
+    print('ListKey resp: \n%s\n' %(listKey_resp.text))
+
+    global keyid 
+    keyid = json.loads(listKey_resp.text)['result']['list'][0]['keyid']
 
 def test_creat_app_info(base_url, headers):
     print('====================test_creat_app_info start===========================')
@@ -28,11 +56,13 @@ def test_creat_app_info(base_url, headers):
 def test_params(payload):
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    if payload!=False:
+        params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
     sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
-    params["payload"] = payload
+    if payload!=False:
+        params["payload"] = payload
     params["sign"] = sign
     return params
     
@@ -315,3 +345,10 @@ if __name__ == "__main__":
     test_RSA3072_encrypt_decrypt(base_url, headers)
 
     test_export_datakey(base_url, headers)
+
+    test_listKey(base_url, headers)
+
+    test_deleteKey(base_url, headers)
+
+    test_deleteAllKey(base_url, headers)
+
