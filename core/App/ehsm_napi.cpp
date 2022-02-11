@@ -1145,8 +1145,12 @@ out:
         code: int,
         message: string,
         result: {
-            challenge_base64 : string,
-            ga_base64 : string
+            challenge : string,
+            g_a : Json::Value
+                {
+                    gx : array(int),
+                    gy : array(int)
+                }
         }
     }
 */
@@ -1155,15 +1159,54 @@ char *NAPI_RA_HANDSHAKE_MSG0(const char *p_msg0)
     log_d("***NAPI_RA_HANDSHAKE_MSG0 start.");
 
     log_d("msg0: \n %s", p_msg0);
-    std::string challenge_base64 = "challenge_base64";
-    std::string ga_base64 = "ga_base64";
-
     RetJsonObj retJsonObj;
-    
-    retJsonObj.addData_string("challenge_base64", challenge_base64);
-    retJsonObj.addData_string("ga_base64", ga_base64);
-    log_d("msg1: \n%s",retJsonObj.toChar());
+    ehsm_status_t ret = EH_OK;
+    sgx_ra_msg1_t *p_msg1;
 
+    memset(&p_msg1, 0, sizeof(p_msg1));
+
+    std::string challenge;
+    if (p_msg0 != nullptr)
+    {
+        Json::Value msg0_json;
+        Json::CharReaderBuilder builder;
+        Json::CharReader *reader(builder.newCharReader());
+        std::string err;
+        std::string response = p_msg0;
+        if (reader->parse(response.c_str(), response.c_str() + response.size(), &msg0_json, &err))
+        {
+            challenge = msg0_json["challenge"].asString();
+        }
+    }
+    if(challenge.empty()){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        goto out;
+    }
+
+    retJsonObj.addData_string("challenge", challenge);
+
+    p_msg1 = (sgx_ra_msg1_t *)malloc(sizeof(sgx_ra_msg1_t));
+    if (p_msg1 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    ret = ra_get_msg1(p_msg1);
+    if (ret != EH_OK)
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    retJsonObj.addSubData_uint8Array("g_a", "gx", p_msg1->g_a.gx, SGX_ECP256_KEY_SIZE);
+    retJsonObj.addSubData_uint8Array("g_a", "gy", p_msg1->g_a.gy, SGX_ECP256_KEY_SIZE);
+    
+out:
+    SAFE_FREE(p_msg1);
+    log_d("msg1: \n%s",retJsonObj.toChar());
     log_d("***NAPI_RA_HANDSHAKE_MSG0 end.");
     return retJsonObj.toChar();
 }

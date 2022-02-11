@@ -34,6 +34,9 @@
 
 #include <stdint.h>
 
+#include "sgx_ukey_exchange.h"
+#include "sgx_tkey_exchange.h"
+
 #define _T(x) x
 
 #define ENCLAVE_PATH "libenclave-ehsm-core.signed.so"
@@ -351,6 +354,15 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
 *   Generate a 32-bit random character
 */
 ehsm_status_t generate_apikey(ehsm_data_t *apikey);
+
+/*
+Description:
+is used to get the remote attestation and key exchange
+
+Output:
+msg1 -- the msg1 has g_a
+*/
+ehsm_status_t ra_get_msg1(sgx_ra_msg1_t *msg1);
 
 }
 #endif

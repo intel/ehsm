@@ -44,7 +44,7 @@
 */
 #define log_i(format, args...)                                           \
     {                                                                      \
-        printf("INFO [%d]\t[%s -> %s]: ", __LINE__, __FILE__, __FUNCTION__); \
+        printf("INFO [%s(%d) -> %s]: ", __FILE__, __LINE__, __FUNCTION__); \
         printf(format, ##args);                                            \
         printf("\n");                                                      \
     }
@@ -55,7 +55,7 @@
     {                                                                           \
         if (IS_DEBUG)                                                           \
         {                                                                       \
-            printf("DEBUG [%d]\t[%s -> %s]: ", __LINE__, __FILE__, __FUNCTION__); \
+            printf("DEBUG [%s(%d) -> %s]: ", __FILE__, __LINE__, __FUNCTION__); \
             printf(format, ##args);                                             \
             printf("\n");                                                       \
         }                                                                       \
@@ -65,7 +65,7 @@
 */
 #define log_w(format, args...)                                           \
     {                                                                      \
-        printf("WARN [%d]\t[%s -> %s]: ", __LINE__, __FILE__, __FUNCTION__); \
+        printf("WARN [%s(%d) -> %s]: ", __FILE__, __LINE__, __FUNCTION__); \
         printf(format, ##args);                                            \
         printf("\n");                                                      \
     }
@@ -74,7 +74,7 @@
 */
 #define log_e(format, args...)                                            \
     {                                                                       \
-        printf("ERROR [%d]\t[%s -> %s]: ", __LINE__, __FILE__, __FUNCTION__); \
+        printf("ERROR [%s(%d) -> %s]: ", __FILE__, __LINE__, __FUNCTION__); \
         printf(format, ##args);                                             \
         printf("\n");                                                       \
     }

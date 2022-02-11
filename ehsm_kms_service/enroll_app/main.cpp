@@ -38,52 +38,7 @@ using namespace std;
 
 #include "log_utils.h"
 #include "rest_utils.h"
-
-typedef enum
-{
-    ENL_OK = 0,
-    ENL_CONFIG_INVALID = -1,
-    ENL_POST_EXCEPTION = -2,
-    ENL_NAPI_EXCEPTION = -3,
-    ENL_SERIALIZE_FAILED = -4,
-    ENL_DESERIALIZE_FAILED = -5,
-    ENL_CHALLENGE_NO_COMPARE = -6,
-    ENL_PARSE_MSG1_EXCEPTION = -7,
-    ENL_HANDLE_MSG1_FAILED = -8
-} enroll_status_t;
-
-std::string g_challenge;
-
-enroll_status_t ra_get_msg0(std::string *p_msg0)
-{
-    enroll_status_t ret = ENL_OK;
-    Json::Value msg0_json;
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    g_challenge = std::to_string(tv.tv_sec) + std::to_string(tv.tv_usec);
-    msg0_json["challenge"] = g_challenge;
-    *p_msg0 = msg0_json.toStyledString();
-    return ret;
-}
-
-enroll_status_t ra_proc_msg1_get_msg2(RetJsonObj retJsonObj_msg1, std::string *p_msg2)
-{
-    enroll_status_t ret = ENL_OK;
-    Json::Value msg2_json;
-    msg2_json["msg2_base64"] = "msg2_base64";
-    *p_msg2 = msg2_json.toStyledString();
-    return ret;
-}
-
-enroll_status_t ra_proc_msg3_get_msg4(RetJsonObj retJsonObj_msg3, std::string *p_msg4)
-{
-    enroll_status_t ret = ENL_OK;
-    Json::Value msg4_json;
-    msg4_json["msg4_base64"] = "msg4_base64";
-    *p_msg4 = msg4_json.toStyledString();
-    return ret;
-}
+#include "enroll_msg.h"
 
 int main(int argc, char *argv[])
 {
@@ -104,7 +59,7 @@ int main(int argc, char *argv[])
     }
     if (ehsm_kms_url.empty())
     {
-        log_e("ehsm_kms_url undefined.Please add ehsm_kms_url after the command.");
+        printf("\nusage: ehsm-kms_enroll_app [http://1.2.3.4:9009/ehsm/]\n\n");
         ret = ENL_CONFIG_INVALID;
         goto OUT;
     }

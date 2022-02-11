@@ -103,3 +103,4 @@ ehsm_status_t ehsm_deserialize_cmk(ehsm_keyblob_t *cmk, const uint8_t* data, uin
 
     return EH_OK;
 }
+

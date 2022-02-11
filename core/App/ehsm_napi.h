@@ -206,8 +206,12 @@ char* NAPI_Verify(const char* cmk_base64,
         code: int,
         message: string,
         result: {
-            challenge_base64 : string,
-            ga_base64 : string
+            challenge : string,
+            g_a : Json::Value
+                {
+                    gx : array(int),
+                    gy : array(int)
+                }
         }
     }
 */

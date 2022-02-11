@@ -45,6 +45,8 @@
 
 #include "enclave_hsm_u.h"
 #include "ehsm_provider.h"
+#include "sgx_ukey_exchange.h"
+#include "sgx_dcap_ql_wrapper.h"
 
 
 void ocall_print_string(const char *str)
@@ -54,6 +56,8 @@ void ocall_print_string(const char *str)
 
 namespace EHsmProvider
 {
+
+sgx_ra_context_t g_context = INT_MAX;
 
 sgx_enclave_id_t g_enclave_id;
 
@@ -833,6 +837,38 @@ ehsm_status_t generate_apikey(ehsm_data_t *apikey)
     {
         return EH_OK;
     }
+}
+
+ehsm_status_t ra_get_msg1(sgx_ra_msg1_t *msg1)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (msg1 == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    //initialize the ra session
+    sgx_status_t sgxStatus = SGX_SUCCESS;
+    int enclave_lost_retry_time = 1;
+    do {
+        ret = enclave_init_ra(g_enclave_id, &sgxStatus, false, &g_context);
+        //Ideally, this check would be around the full attestation flow.
+    } while (SGX_ERROR_ENCLAVE_LOST == ret && enclave_lost_retry_time--);
+
+    if(SGX_SUCCESS != ret || sgxStatus){
+        printf("Error, call enclave_init_ra fail [%s].\n", __FUNCTION__);
+       return EH_FUNCTION_FAILED;
+    }
+    printf("Call enclave_init_ra success.\n");
+
+    //get the msg1 from core-enclave 
+    sgx_att_key_id_t selected_key_id = {0};
+    ret = sgx_ra_get_msg1_ex(&selected_key_id, g_context, g_enclave_id, sgx_ra_get_ga, msg1);
+    if(SGX_SUCCESS != ret) {
+        printf("Error, call sgx_ra_get_msg1_ex failed(%#x)\n", ret);
+        return EH_FUNCTION_FAILED;
+    }
+    return EH_OK;
 }
 
 }

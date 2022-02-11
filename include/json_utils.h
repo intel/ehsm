@@ -75,6 +75,16 @@ public:
         m_result_json[key] = data;
     }
 
+    void addSubData_uint8Array(std::string parent_key, std::string sub_key, uint8_t *data, uint32_t data_len)
+    {
+        Json::Value jsonArray;
+        for (int i = 0; i < data_len; i++)
+        {
+            jsonArray.append(data[i]);
+        }
+        m_result_json[parent_key][sub_key] = jsonArray;
+    }
+
     char *StringToChar(std::string str)
     {
         char *retChar = NULL;
@@ -154,6 +164,15 @@ public:
     uint32_t readData_int(std::string key)
     {
         return m_result_json[key].asInt();
+    }
+    void readSubData_uint8Array(std::string parent_key, std::string sub_key, uint8_t *data)
+    {
+        if(data != NULL){
+            for (int i = 0; i < m_result_json[parent_key][sub_key].size(); i++)
+            {
+                data[i] = (uint8_t)m_result_json[parent_key][sub_key][i].asInt();
+            }
+        }
     }
 };
 

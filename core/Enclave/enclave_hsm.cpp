@@ -37,6 +37,8 @@
 #include <stdbool.h>
 #include <mbusafecrt.h>
 
+#include "sgx_tkey_exchange.h"
+
 typedef enum {
     EH_AES_GCM_128 = 0x00000000UL,
     EH_AES_GCM_256,
@@ -77,6 +79,22 @@ typedef enum {
 
 // Used to store the secret passed by the SP in the sample code.
 sgx_aes_gcm_128bit_key_t g_domain_key = {0};
+
+static const sgx_ec256_public_t g_sp_pub_key = {
+    {
+        0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
+        0x85, 0xd0, 0x3a, 0x62, 0x37, 0x30, 0xae, 0xad,
+        0x3e, 0x3d, 0xaa, 0xee, 0x9c, 0x60, 0x73, 0x1d,
+        0xb0, 0x5b, 0xe8, 0x62, 0x1c, 0x4b, 0xeb, 0x38
+    },
+    {
+        0xd4, 0x81, 0x40, 0xd9, 0x50, 0xe2, 0x57, 0x7b,
+        0x26, 0xee, 0xb7, 0x41, 0xe7, 0xc6, 0x14, 0xe2,
+        0x24, 0xb7, 0xbd, 0xc9, 0x03, 0xf2, 0x9a, 0x28,
+        0xa8, 0x3c, 0xc8, 0x10, 0x11, 0x14, 0x5e, 0x06
+    }
+
+};
 
 void printf(const char *fmt, ...)
 {
@@ -791,5 +809,33 @@ sgx_status_t enclave_generate_apikey(uint8_t *p_apikey, uint32_t apikey_len)
     }
 
     memset_s(temp, apikey_len, 0, apikey_len);
+    return ret;
+}
+
+
+// This ecall is a wrapper of sgx_ra_init to create the trusted
+// KE exchange key context needed for the remote attestation
+// SIGMA API's. Input pointers aren't checked since the trusted stubs
+// copy them into EPC memory.
+//
+// @param b_pse Indicates whether the ISV app is using the
+//              platform services.
+// @param p_context Pointer to the location where the returned
+//                  key context is to be copied.
+//
+// @return Any error returned from the trusted key exchange API
+//         for creating a key context.
+
+sgx_status_t enclave_init_ra(
+    int b_pse,
+    sgx_ra_context_t *p_context)
+{
+    // isv enclave call to trusted key exchange library.
+    sgx_status_t ret;
+#ifdef SUPPLIED_KEY_DERIVATION
+    ret = sgx_ra_init_ex(&g_sp_pub_key, b_pse, key_derivation, p_context);
+#else
+    ret = sgx_ra_init(&g_sp_pub_key, b_pse, p_context);
+#endif
     return ret;
 }

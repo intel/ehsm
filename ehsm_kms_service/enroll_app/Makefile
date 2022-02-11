@@ -39,7 +39,8 @@ OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 App_Cpp_Files := $(wildcard ./*.cpp)
 App_Include_Paths := \
 	-I$(SGX_SDK)/include \
-	-I$(TOPDIR)/include
+	-I$(TOPDIR)/include \
+	-Isample_libcrypto
 
 App_Cpp_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -std=c++14
 App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
@@ -48,7 +49,8 @@ App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
 		-lsgx_dcap_quoteverify \
 		-ldl \
 		-ljsoncpp \
-		-lcurl
+		-lcurl \
+		-lsample_libcrypto -Lsample_libcrypto -Wl,-rpath=$(CURDIR)/sample_libcrypto
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
