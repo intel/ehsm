@@ -1,5 +1,9 @@
 const { ehsm_keySpec_t, ehsm_keyorigin_t } = require('./ehsm_kms_params.js')
-const { cryptographic_apis, enroll_apis } = require('./apis')
+const {
+  cryptographic_apis,
+  enroll_apis,
+  key_management_apis,
+} = require('./apis')
 const logger = require('./logger')
 const {
   napi_result,
@@ -7,6 +11,7 @@ const {
   create_user_info,
   store_cmk,
 } = require('./function')
+const { listKey, deleteALLKey, deleteKey } = require('./key_management_apis')
 
 /**
  *
@@ -166,6 +171,14 @@ const router = async (p) => {
         napi_res = napi_result(action, res, [json_str_params])
         napi_res && res.send(napi_res)
       } catch (error) {}
+    case key_management_apis.ListKey:
+      listKey(appid, res, DB)
+      break
+    case key_management_apis.DeleteKey:
+      deleteKey(payload, res, DB)
+      break
+    case key_management_apis.DeleteAllKey:
+      deleteALLKey(appid, res, DB)
       break
     default:
       res.send(_result(404, 'Not Fount', {}))
