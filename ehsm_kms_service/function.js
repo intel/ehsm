@@ -37,13 +37,17 @@ const base64_decode = (base64_str) =>
 
 /**
  * Clear nonce cache for more than <NONCE_CACHE_TIME> minutes
- * @returns nonce_cache_timer
+ * nonce_database[appid]
+ *  - type: array
+ *  - sort: [new timestamp, old timestamp, ...]
+ * @returns nonce_cache_timer, nonce_database
  */
 const _nonce_cache_timer = () => {
   const nonce_database = {}
   const timer = setInterval(() => {
     try {
       for (const appid in nonce_database) {
+        // slice_index  Index of the cache that exceeded the maximum time
         let slice_index =
           nonce_database[appid] &&
           nonce_database[appid].findIndex((nonce_data) => {
@@ -52,9 +56,11 @@ const _nonce_cache_timer = () => {
               NONCE_CACHE_TIME
             )
           })
+        // keep unexpired data
         if (slice_index > 0) {
-          nonce_database[appid] = nonce_database[appid].slice(slice_index)
+          nonce_database[appid] = nonce_database[appid].slice(0, slice_index)
         }
+        // All data expired
         if (slice_index == 0) {
           delete nonce_database[appid]
         }
