@@ -51,14 +51,15 @@ RUN apt-get update &&apt-get install -y \
     libsgx-quote-ex-dev  \
     libsgx-uae-service \
     libsgx-ra-network \
-    libsgx-ra-uefi
+    libsgx-ra-uefi \
+    libsgx-dcap-ql-dev 
 
 
 # Build App from source
 WORKDIR /home
 RUN git clone https://github.com/intel/ehsm.git \
-   && cd ehsm \
-   && make
+    && cd ehsm \
+    && make
 
 # Install node & npm packages
 RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
@@ -70,8 +71,8 @@ RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
 
 # Install ehsm-service dependence packages
 WORKDIR /home/ehsm/ehsm_kms_service
-RUN cp /home/ehsm/bin/ehsm-core/libehsmnapi.so . \
-    && cp /home/ehsm/bin/ehsm-core/libenclave-ehsm-core.signed.so .
+RUN cp /home/ehsm/out/ehsm-core/libehsmnapi.so . \
+    && cp /home/ehsm/out/ehsm-core/libenclave-ehsm-core.signed.so .
 RUN npm install
 
 # image port
