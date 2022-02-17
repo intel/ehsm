@@ -28,59 +28,53 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <cstdlib>
-#include "rest_utils.h"
 
-size_t post_callback(void *ptr, size_t size, size_t nmemb, void *stream)
-{
-    std::string *str = (std::string *)stream;
-    (*str).append((char *)ptr, size * nmemb);
-    return size * nmemb;
-}
+#ifndef _EHSM_MARSHAL_H_
+#define _EHSM_MARSHAL_H_
 
-/*
- * base post
- */
-std::string post(std::string url, std::string content)
-{
-    struct curl_slist *header_list = nullptr;
-    // use curl post.
-    std::string response;
-    CURLcode res;
-    CURL *curl = nullptr;
-    curl = curl_easy_init();
-    if (nullptr == curl)
-    {
-        printf("Error: curl init error\n");
-        goto out;
-    }
 
-    curl_easy_setopt(curl, CURLOPT_URL, url.data());
-    header_list = curl_slist_append(header_list, "Content-Type:application/json; charset=UTF-8");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, post_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&response);
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(curl, CURLOPT_POST, 1);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, content.data());
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, content.size());
+#include "serialize.h"
+#include "sample_ra_msg.h"
+#include "json_utils.h"
 
-    res = curl_easy_perform(curl);
-    if (res != CURLE_OK)
-    {
-        printf("Error: curl easy perform error res = %d.\n", res);
-        goto out;
-    }
-out:
-    curl_easy_cleanup(curl);
-    return response;
-}
+#include <string>
 
 /*
- * KMS server post
+ * process receive msg2 json string to sgx_ra_msg2_t
+ *  @param ra_msg2 : receive msg2 json string
+ *  @param req_msg2 : return sgx_ra_msg2_t
+ *  @param msg2_size : return sgx_ra_msg2_t real size
  */
-void post_KMS(std::string url, std::string content, RetJsonObj *retJsonObj)
-{
-    std::string json_str = post(url, content);
-    retJsonObj->parse(json_str);
-}
+ehsm_status_t unmarshal_msg2_from_json(std::string ra_msg2, sgx_ra_msg2_t *req_msg2, uint32_t *msg2_size);
+
+/*
+ * process will be return to Enroll APP msg3 json
+ *  @param p_msg3 : will be parse sgx_ra_msg3_t
+ *  @param quote_size : quote size
+ *  @param retJsonObj : return msg3 json object
+ *  retJsonObj : RetJsonObj
+ *      {
+ *          "mac" : array(int),
+ *          "g_a" : Json::Value
+ *              {
+ *                  gx : array(int),
+ *                  gy : array(int)
+ *              },
+ *          "ps_sec_prop" : Json::Value
+ *              {
+ *                  sgx_ps_sec_prop_desc : array(int)
+ *              },
+ *          "quote_size" : int,
+ *          "quote" : array(int)
+ *      }
+ */
+ehsm_status_t marshal_msg3_to_json(sgx_ra_msg3_t *p_msg3, RetJsonObj *retJsonObj, uint32_t quote_size);
+
+/*
+ * process receive att_result_msg json
+ *  @param ra_att_result_msg : receive att_result_msg json string
+ *  @param req_att_result_msg : return sample_ra_att_result_msg_t
+ */
+ehsm_status_t unmarshal_att_result_msg_from_json(std::string ra_att_result_msg, sample_ra_att_result_msg_t *req_att_result_msg);
+
+#endif

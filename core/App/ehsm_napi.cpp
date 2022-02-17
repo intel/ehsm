@@ -38,6 +38,10 @@
 #include "log_utils.h"
 #include "datatypes.h"
 
+#include "sample_ra_msg.h"
+#include "sgx_dcap_ql_wrapper.h"
+
+#include "ehsm_marshal.h"
 
 using namespace std;
 using namespace EHsmProvider;
@@ -1139,83 +1143,219 @@ out:
 }
 
 /*
-@return
-[string] json string
-    {
-        code: int,
-        message: string,
-        result: {
-            challenge_base64 : string,
-            ga_base64 : string
-        }
-    }
-*/
+ *  @param p_msg0 : msg0 json string
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              "challenge" : string,
+ *              "g_a" : Json::Value
+ *                  {
+ *                      gx : array(int),
+ *                      gy : array(int)
+ *                  }
+ *          }
+ *      }
+ */
 char *NAPI_RA_HANDSHAKE_MSG0(const char *p_msg0)
 {
-    log_d("***NAPI_RA_HANDSHAKE_MSG0 start.");
-
-    log_d("msg0: \n %s", p_msg0);
-    std::string challenge_base64 = "challenge_base64";
-    std::string ga_base64 = "ga_base64";
-
     RetJsonObj retJsonObj;
-    
-    retJsonObj.addData_string("challenge_base64", challenge_base64);
-    retJsonObj.addData_string("ga_base64", ga_base64);
-    log_d("msg1: \n%s",retJsonObj.toChar());
+    log_d("***NAPI_RA_HANDSHAKE_MSG0 start.");
+    if (p_msg0 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    log_d("msg0: \n %s", p_msg0);
 
+    ehsm_status_t ret = EH_OK;
+    sgx_ra_msg1_t *p_msg1;
+    JsonObj msg0_json;
+
+    std::string json_key;
+
+    memset(&p_msg1, 0, sizeof(p_msg1));
+
+    std::string challenge;
+    if (p_msg0 != nullptr)
+    {
+        std::string response = p_msg0;
+        msg0_json.parse(response);
+        challenge = msg0_json.readData_string("challenge");
+    }
+    if(challenge.empty()){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        goto out;
+    }
+
+    retJsonObj.addData_string("challenge", challenge);
+
+    p_msg1 = (sgx_ra_msg1_t *)malloc(sizeof(sgx_ra_msg1_t));
+    if (p_msg1 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    ret = ra_get_msg1(p_msg1);
+    if (ret != EH_OK)
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    json_key.clear();
+    json_key = json_key + "g_a" + LAYERED_CHARACTER + "gx";
+    retJsonObj.addData_uint8Array(json_key, p_msg1->g_a.gx, SGX_ECP256_KEY_SIZE);
+    json_key.clear();
+    json_key = json_key + "g_a" + LAYERED_CHARACTER + "gy";
+    retJsonObj.addData_uint8Array(json_key, p_msg1->g_a.gy, SGX_ECP256_KEY_SIZE);
+    
+out:
+    SAFE_FREE(p_msg1);
+    log_d("msg1: \n%s",retJsonObj.toChar());
     log_d("***NAPI_RA_HANDSHAKE_MSG0 end.");
     return retJsonObj.toChar();
 }
 
 /*
-@return
-[string] json string
-    {
-        code: int,
-        message: string,
-        result: {
-            msg3_base64 : string
-        }
-    }
-*/
+ *  @param p_msg2 : msg2 json string
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              msg3_base64 : string
+ *          }
+ *      }
+ */
 char *NAPI_RA_HANDSHAKE_MSG2(const char *p_msg2)
 {
-    log_d("***NAPI_RA_HANDSHAKE_MSG2 start.");
-
-    log_d("msg2: \n %s", p_msg2);
-    std::string msg3_base64 = "msg3_base64";
-
     RetJsonObj retJsonObj;
-    retJsonObj.addData_string("msg3_base64", msg3_base64);
-    log_d("msg3: \n%s",retJsonObj.toChar());
+    log_d("***NAPI_RA_HANDSHAKE_MSG2 start.");
+    if (p_msg2 == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    log_d("msg2: \n %s", p_msg2);
 
+    ehsm_status_t ret = EH_OK;
+    sgx_ra_msg2_t ra_msg2;
+    std::string msg2_str;
+    uint32_t msg2_size = 0;
+
+    quote3_error_t qe3_ret;
+    sgx_ra_msg3_t *p_msg3;
+    uint32_t quote_size = 0;
+    uint32_t p_msg3_size = 0;
+
+    // process msg2
+    msg2_str = p_msg2;
+    ret = unmarshal_msg2_from_json(msg2_str, &ra_msg2, &msg2_size);
+    if (ret != EH_OK)
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    // build msg3
+    qe3_ret = sgx_qe_get_quote_size(&quote_size);
+    if (SGX_QL_SUCCESS != qe3_ret) 
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+    p_msg3_size = static_cast<uint32_t>(sizeof(sgx_ra_msg3_t)) + quote_size;
+    ret = ra_get_msg3(&ra_msg2, msg2_size, &p_msg3, p_msg3_size);
+    if (ret != EH_OK)
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+    
+    ret = marshal_msg3_to_json(p_msg3, &retJsonObj, quote_size);
+    if (ret != EH_OK)
+    {
+        log_e("ra_proc_msg2 failed(%d).", ret);
+        goto out;
+    }
+
+out:
+    SAFE_FREE(p_msg3);
+    log_d("msg3: \n%s",retJsonObj.toChar());
     log_d("***NAPI_RA_HANDSHAKE_MSG2 end.");
     return retJsonObj.toChar();
 }
 
 /*
-@return
-[string] json string
-    {
-        code: int,
-        message: string,
-        result: {
-            appid : string
-            apikey : string
-        }
-    }
-*/
-char *NAPI_RA_GET_API_KEY(const char *p_msg4)
+ *  @param p_att_result_msg : att_result_msg json string
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              appid : string
+ *              apikey : string
+ *          }
+ *      }
+ */
+char *NAPI_RA_GET_API_KEY(const char *p_att_result_msg)
 {
-    log_d("***NAPI_RA_GET_API_KEY start.");
-    ehsm_status_t ret = EH_OK;
     RetJsonObj retJsonObj;
+    log_d("***NAPI_RA_GET_API_KEY start.");
+    if (p_att_result_msg == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    log_d("att_result_msg: \n %s", p_att_result_msg);
+
+    ehsm_status_t ret = EH_OK;
+    sample_ra_att_result_msg_t *pt_att_result_msg;
+    std::string att_result_msg_str;
 
     char p_appid[UUID_STR_LEN] = {0};
     ehsm_data_t p_apikey;
 
-    log_d("msg4: \n %s", p_msg4);
+    memset(&pt_att_result_msg, 0, sizeof(pt_att_result_msg));
+
+
+    // process att_result_msg
+    uint32_t att_result_msg_size = sizeof(sample_ra_att_result_msg_t) + SGX_DOMAIN_KEY_SIZE;
+    pt_att_result_msg = (sample_ra_att_result_msg_t *)malloc(att_result_msg_size);
+    if (pt_att_result_msg == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto OUT;
+    }
+
+    att_result_msg_str = p_att_result_msg;
+    ret = unmarshal_att_result_msg_from_json(att_result_msg_str, pt_att_result_msg);
+    if (ret != EH_OK)
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto OUT;
+    }
+
+    // Verify att_result_msg
+    ret = verify_att_result_msg(pt_att_result_msg);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("Verify att_result_msg failed.");
+        goto OUT;
+    }
+    log_d("Verify att_result_msg SUCCESS.");
 
     // create appid
     uuid_t uu;
@@ -1237,14 +1377,16 @@ char *NAPI_RA_GET_API_KEY(const char *p_msg4)
         goto OUT;
     }
 
+    retJsonObj.addData_uint8Array("nonce", pt_att_result_msg->platform_info_blob.nonce.rand, 16);
     retJsonObj.addData_string("appid", p_appid);
     retJsonObj.addData_string("apikey", (char*)p_apikey.data);
 
-    log_d("msg7: \n%s",retJsonObj.toChar());
+    log_d("apikey_result_msg: \n%s",retJsonObj.toChar());
     log_d("***NAPI_RA_GET_API_KEY end.");
 
 OUT:
     explicit_bzero(p_apikey.data, p_apikey.datalen);
+    SAFE_FREE(pt_att_result_msg);
     SAFE_FREE(p_apikey.data);
     return retJsonObj.toChar();
 }

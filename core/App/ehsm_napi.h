@@ -200,44 +200,51 @@ char* NAPI_Verify(const char* cmk_base64,
         const char* signature_base64);
 
 /*
-@return
-[string] json string
-    {
-        code: int,
-        message: string,
-        result: {
-            challenge_base64 : string,
-            ga_base64 : string
-        }
-    }
-*/
+ *  @param p_msg0 : msg0 json string
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              "challenge" : string,
+ *              "g_a" : Json::Value
+ *                  {
+ *                      gx : array(int),
+ *                      gy : array(int)
+ *                  }
+ *          }
+ *      }
+ */
 char* NAPI_RA_HANDSHAKE_MSG0(const char *p_msg0);
 
 /*
-@return
-[string] json string
-    {
-        code: int,
-        message: string,
-        result: {
-            msg3_base64 : string
-        }
-    }
-*/
+ *  @param p_msg2 : msg2 json string
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              msg3_base64 : string
+ *          }
+ *      }
+ */
 char* NAPI_RA_HANDSHAKE_MSG2(const char *p_msg2);
 
 /*
-@return
-[string] json string
-    {
-        code: int,
-        message: string,
-        result: {
-            appid : string
-            apikey : string
-        }
-    }
-*/
+ *  @param p_msg4 : msg4 json string
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              appid : string
+ *              apikey : string
+ *          }
+ *      }
+ */
 char* NAPI_RA_GET_API_KEY(const char *p_msg4);
 
 }  // extern "C"

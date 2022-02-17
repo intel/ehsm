@@ -34,6 +34,10 @@
 
 #include <stdint.h>
 
+#include "sgx_ukey_exchange.h"
+#include "sgx_tkey_exchange.h"
+#include "sample_ra_msg.h"
+
 #define _T(x) x
 
 #define ENCLAVE_PATH "libenclave-ehsm-core.signed.so"
@@ -352,5 +356,24 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
 */
 ehsm_status_t generate_apikey(ehsm_data_t *apikey);
 
+/*
+Description:
+is used to get the remote attestation and key exchange
+
+Output:
+msg1 -- the msg1 has g_a
+*/
+ehsm_status_t ra_get_msg1(sgx_ra_msg1_t *msg1);
+
+/*
+Description:
+is used to get the remote attestation and key exchange
+
+Output:
+msg3 -- the msg3 has ga || QUOTE(SHA256(ga|gb|VK))  || CMACSMK(ga || QUOTE(SHA256(ga|gb|VK)))
+*/
+ehsm_status_t ra_get_msg3(sgx_ra_msg2_t *p_msg2, uint32_t msg2_size, sgx_ra_msg3_t **p_msg3, uint32_t p_msg3_size);
+
+ehsm_status_t verify_att_result_msg(sample_ra_att_result_msg_t *p_att_result_msg);
 }
 #endif
