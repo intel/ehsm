@@ -38,62 +38,17 @@ using namespace std;
 
 #include "log_utils.h"
 #include "rest_utils.h"
-
-typedef enum
-{
-    ENL_OK = 0,
-    ENL_CONFIG_INVALID = -1,
-    ENL_POST_EXCEPTION = -2,
-    ENL_NAPI_EXCEPTION = -3,
-    ENL_SERIALIZE_FAILED = -4,
-    ENL_DESERIALIZE_FAILED = -5,
-    ENL_CHALLENGE_NO_COMPARE = -6,
-    ENL_PARSE_MSG1_EXCEPTION = -7,
-    ENL_HANDLE_MSG1_FAILED = -8
-} enroll_status_t;
-
-std::string g_challenge;
-
-enroll_status_t ra_get_msg0(std::string *p_msg0)
-{
-    enroll_status_t ret = ENL_OK;
-    Json::Value msg0_json;
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    g_challenge = std::to_string(tv.tv_sec) + std::to_string(tv.tv_usec);
-    msg0_json["challenge"] = g_challenge;
-    *p_msg0 = msg0_json.toStyledString();
-    return ret;
-}
-
-enroll_status_t ra_proc_msg1_get_msg2(RetJsonObj retJsonObj_msg1, std::string *p_msg2)
-{
-    enroll_status_t ret = ENL_OK;
-    Json::Value msg2_json;
-    msg2_json["msg2_base64"] = "msg2_base64";
-    *p_msg2 = msg2_json.toStyledString();
-    return ret;
-}
-
-enroll_status_t ra_proc_msg3_get_msg4(RetJsonObj retJsonObj_msg3, std::string *p_msg4)
-{
-    enroll_status_t ret = ENL_OK;
-    Json::Value msg4_json;
-    msg4_json["msg4_base64"] = "msg4_base64";
-    *p_msg4 = msg4_json.toStyledString();
-    return ret;
-}
+#include "enroll_msg.h"
 
 int main(int argc, char *argv[])
 {
-    log_d("***enroll app start.");
+    log_i("ehsm-kms enroll app start.");
     enroll_status_t ret = ENL_OK;
     RetJsonObj retJsonObj;
 
     std::string msg0_str;
     std::string msg2_str;
-    std::string msg4_str;
+    std::string att_result_msg_str;
 
     log_d("=> reading ehsm_kms_url .....");
     // only one parameter, it is ehsm_kms_url
@@ -104,13 +59,13 @@ int main(int argc, char *argv[])
     }
     if (ehsm_kms_url.empty())
     {
-        log_e("ehsm_kms_url undefined.Please add ehsm_kms_url after the command.");
+        printf("\nusage: ehsm-kms_enroll_app [http://1.2.3.4:9009/ehsm/]\n\n");
         ret = ENL_CONFIG_INVALID;
         goto OUT;
     }
     log_d("ehsm_kms_url : %s", ehsm_kms_url.c_str());
 
-    log_d("=> First handle send msg0,return msg1.");
+    log_i("First handle:  send msg0 and get msg1.");
     ret = ra_get_msg0(&msg0_str);
     log_d("msg0 : \n%s", msg0_str.c_str());
 
@@ -123,9 +78,9 @@ int main(int argc, char *argv[])
         goto OUT;
     }
     log_d("post success msg1 : \n%s", retJsonObj.toString().c_str());
-    log_d("First handle success.");
+    log_i("First handle success.");
 
-    log_d("=> Second handle send msg2,return msg3.");
+    log_i("Second handle:  send msg2 and get msg3.");
     ret = ra_proc_msg1_get_msg2(retJsonObj, &msg2_str);
     if (ret != ENL_OK || msg2_str.empty())
     {
@@ -142,34 +97,42 @@ int main(int argc, char *argv[])
         goto OUT;
     }
     log_d("post success msg3 : \n%s", retJsonObj.toString().c_str());
-    log_d("Second handle success.");
+    log_i("Second handle success.");
 
-    log_d("=> Third handle send msg4,return msg7.");
-    ret = ra_proc_msg3_get_msg4(retJsonObj, &msg4_str);
-    if (ret != ENL_OK || msg4_str.empty())
+    log_i("Third handle:  send att_result_msg and get ciphertext of the APP ID and API Key.");
+    ret = ra_proc_msg3_get_att_result_msg(retJsonObj, &att_result_msg_str);
+    if (ret != ENL_OK || att_result_msg_str.empty())
     {
         log_e("ra_proc_msg1_get_msg2 failed. error code [%d]\n", ret);
         ret = ENL_NAPI_EXCEPTION;
         goto OUT;
     }
-    log_d("msg4 : \n%s", msg4_str.c_str());
+    log_d("att_result_msg : \n%s", att_result_msg_str.c_str());
 
-    post_KMS(ehsm_kms_url + "?Action=RA_GET_API_KEY", msg4_str, &retJsonObj);
+    post_KMS(ehsm_kms_url + "?Action=RA_GET_API_KEY", att_result_msg_str, &retJsonObj);
     if (!retJsonObj.isSuccess())
     {
         log_e("NAPI Exception: %s", retJsonObj.getMessage().c_str());
         ret = ENL_NAPI_EXCEPTION;
         goto OUT;
     }
-    log_d("post success msg7 : \n%s", retJsonObj.toString().c_str());
+    log_d("post success apikey_result_msg : \n%s", retJsonObj.toString().c_str());
 
-    printf("\n**************** Enroll APP **********************");
-    printf("\n\nappid: %s", retJsonObj.readData_cstr("appid"));
-    printf("\n\napikey: %s", retJsonObj.readData_cstr("apikey"));
-    printf("\n\n**************************************************\n\n");
+    ret = verify_apikey_result_msg(retJsonObj);
+    if (ret != ENL_OK)
+    {
+        log_e("verify apikey_result_msg failed. error code [%d]\n", ret);
+        ret = ENL_ERROR_VERIFY_NONCE_FAILED;
+        goto OUT;
+    }
+    // TODO: decrypt APP ID and API Key
+    log_i("decrypt APP ID and API Key success.");
+    log_i("Third handle success.");
 
-    log_d("Third handle success.");
+    printf("\nappid: %s\n", retJsonObj.readData_cstr("appid"));
+    printf("\napikey: %s\n\n", retJsonObj.readData_cstr("apikey"));
+
 OUT:
-    log_d("***enroll app end.");
+    log_i("ehsm-kms enroll app end.");
     return ret;
 }

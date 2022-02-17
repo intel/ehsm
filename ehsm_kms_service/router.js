@@ -171,6 +171,7 @@ const router = async (p) => {
         napi_res = napi_result(action, res, [json_str_params])
         napi_res && res.send(napi_res)
       } catch (error) {}
+      break
     case key_management_apis.ListKey:
       listKey(appid, res, DB)
       break

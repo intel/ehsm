@@ -45,6 +45,8 @@
 
 #include "enclave_hsm_u.h"
 #include "ehsm_provider.h"
+#include "sgx_ukey_exchange.h"
+#include "sgx_dcap_ql_wrapper.h"
 
 
 void ocall_print_string(const char *str)
@@ -54,6 +56,8 @@ void ocall_print_string(const char *str)
 
 namespace EHsmProvider
 {
+
+sgx_ra_context_t g_context = INT_MAX;
 
 sgx_enclave_id_t g_enclave_id;
 
@@ -833,6 +837,112 @@ ehsm_status_t generate_apikey(ehsm_data_t *apikey)
     {
         return EH_OK;
     }
+}
+
+ehsm_status_t ra_get_msg1(sgx_ra_msg1_t *msg1)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (msg1 == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    //initialize the ra session
+    sgx_status_t sgxStatus = SGX_SUCCESS;
+    int enclave_lost_retry_time = 1;
+    do {
+        ret = enclave_init_ra(g_enclave_id, &sgxStatus, false, &g_context);
+        //Ideally, this check would be around the full attestation flow.
+    } while (SGX_ERROR_ENCLAVE_LOST == ret && enclave_lost_retry_time--);
+
+    if(SGX_SUCCESS != ret || sgxStatus){
+        printf("Error, call enclave_init_ra fail [%s].\n", __FUNCTION__);
+       return EH_FUNCTION_FAILED;
+    }
+
+    //get the msg1 from core-enclave 
+    sgx_att_key_id_t selected_key_id = {0};
+    ret = sgx_ra_get_msg1_ex(&selected_key_id, g_context, g_enclave_id, sgx_ra_get_ga, msg1);
+    if(SGX_SUCCESS != ret) {
+        printf("Error, call sgx_ra_get_msg1_ex failed(%#x)\n", ret);
+        return EH_FUNCTION_FAILED;
+    }
+    return EH_OK;
+}
+
+ehsm_status_t ra_get_msg3(sgx_ra_msg2_t *p_msg2, uint32_t msg2_size, sgx_ra_msg3_t **pp_msg3, uint32_t pp_msg3_size)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int enclave_lost_retry_time = 1;
+    
+    if (p_msg2 == nullptr || !msg2_size || pp_msg3 == NULL || !pp_msg3_size) {
+        return EH_ARGUMENTS_BAD;
+    }
+    /* Call lib key_u(t)exchange(sgx_ra_proc_msg2_ex) to process the MSG2 and retrieve MSG3 back. */
+    // p_msg2 = (sgx_ra_msg2_t*)((uint8_t*)msg2_full + sizeof(ra_ehsm_response_header_t));
+    //process the msg2 and get the msg3 from core-enclave
+    sgx_att_key_id_t selected_key_id = {0};
+    
+    uint32_t p_msg3_size = 0;
+    sgx_ra_msg3_t *p_msg3 = NULL;
+    p_msg3 = (sgx_ra_msg3_t *)malloc(pp_msg3_size);
+    if(!p_msg3)
+    {
+        return EH_FUNCTION_FAILED;
+    }
+    do
+    {
+        ret = sgx_ra_proc_msg2_ex(&selected_key_id,
+                           g_context,
+                           g_enclave_id,
+                           sgx_ra_proc_msg2_trusted,
+                           sgx_ra_get_msg3_trusted,
+                           p_msg2,
+                           msg2_size,
+                           &p_msg3,
+                           &p_msg3_size);
+    } while (SGX_ERROR_BUSY == ret && enclave_lost_retry_time--);
+
+    if(!p_msg3)
+    {
+        printf("Error, call sgx_ra_proc_msg2_ex failed(0x%#x) p_msg3 = 0x%p\n", ret, p_msg3);
+        return EH_FUNCTION_FAILED;
+    }
+    if(SGX_SUCCESS != (sgx_status_t)ret)
+    {
+        printf("Error, call sgx_ra_proc_msg2_ex failed(0x%#x)\n", ret);
+        return EH_FUNCTION_FAILED;
+    }
+
+    *pp_msg3 = p_msg3;
+
+    return EH_OK;
+}
+
+ehsm_status_t verify_att_result_msg(sample_ra_att_result_msg_t *p_att_result_msg)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    if (p_att_result_msg == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+    
+    /*
+    * Check the MAC using MK on the attestation result message.
+    * The format of the attestation result message is specific(sample_ra_att_result_msg_t).
+    */
+    ret = enclave_verify_att_result_mac(g_enclave_id,
+            &sgxStatus,
+            g_context,
+            (uint8_t*)&p_att_result_msg->platform_info_blob,
+            sizeof(ias_platform_info_blob_t),
+            (uint8_t*)&p_att_result_msg->mac,
+            sizeof(sgx_mac_t));
+    if((SGX_SUCCESS != ret) || (SGX_SUCCESS != sgxStatus)) {
+        printf("Error: Attestation result MSG's MK based cmac check failed\n");
+        return EH_FUNCTION_FAILED;
+    }
+    return EH_OK; 
 }
 
 }

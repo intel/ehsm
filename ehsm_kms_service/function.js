@@ -200,6 +200,7 @@ function napi_result(action, res, params) {
 const create_user_info = (action, DB, res, req) => {
   const json_str_params = JSON.stringify({ ...req.body })
   let napi_res = napi_result(action, res, [json_str_params])
+
   if (napi_res) {
     const { appid, apikey } = napi_res.result
     let cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
@@ -219,7 +220,7 @@ const create_user_info = (action, DB, res, req) => {
           cmk: cmk_base64,
         })
           .then((r) => {
-            res.send(_result(200, 'successful', { appid, apikey }))
+            res.send(_result(200, 'successful', { ...napi_res.result }))
           })
           .catch((e) => {
             res.send(_result(400, 'create app info faild', e))
