@@ -17,6 +17,13 @@ Currently, the eHSM-KMS-Service now provides the following restful APIs to the c
   - [GenerateDataKey](#GenerateDataKey)
   - [GenerateDataKeyWithoutPlaintext](#GenerateDataKeyWithoutPlaintext)
   - [ExportDataKey](#ExportDataKey)
+- **Key Management APIs**<br>
+  Notes: These below Rest APIs are used to manage CMK functionalities for users.
+  - [ListKey](#ListKey)
+  - [DeleteKey](#DeleteKey)
+  - [DeleteALLKey](#DeleteALLKey)
+  - [EnableKey](#EnableKey)
+  - [DisableKey](#DisableKey)
 
 ## Common Prameters
 This section describes the parameters that are common to all API requests and responses.
@@ -57,9 +64,9 @@ Create a customer master key(CMK) for the user, which can be a symmetric or an a
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["keyspec"] = "EH_RSA_3072"
-    paylod["origin"] = "EH_INTERNAL_KEY"
+    payload = OrderedDict()
+    payload["keyspec"] = "EH_RSA_3072"
+    payload["origin"] = "EH_INTERNAL_KEY"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -116,10 +123,10 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["aad"] = "challenge"
-    paylod["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
-    paylod["plaintext"] = "plaintext***"
+    payload = OrderedDict()
+    payload["aad"] = "challenge"
+    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["plaintext"] = "plaintext***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -177,10 +184,10 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["aad"] = "challenge"
-    paylod["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
-    paylod["ciphertext_base64"] = "uSDos6NLWNVp4sQZS2+mzLvDw***"
+    payload = OrderedDict()
+    payload["aad"] = "challenge"
+    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["ciphertext_base64"] = "uSDos6NLWNVp4sQZS2+mzLvDw***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -237,9 +244,9 @@ Encrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
-    paylod["plaintext"] = "plaintext***"
+    payload = OrderedDict()
+    payload["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["plaintext"] = "plaintext***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -296,9 +303,9 @@ Decrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
-    paylod["ciphertext_base64"] = "EhGpx8pMYFRDr28xT4dJvrMg5***"
+    payload = OrderedDict()
+    payload["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["ciphertext_base64"] = "EhGpx8pMYFRDr28xT4dJvrMg5***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -355,9 +362,9 @@ Performs sign operation using the cmk(only support asymmetric keyspec).
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
-    paylod["digest"] = "digest***"
+    payload = OrderedDict()
+    payload["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["digest"] = "digest***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -415,10 +422,10 @@ Performs verify operation using the cmk(only support asymmetric keyspec).
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
-    paylod["digest"] = "digest***"
-    paylod["signature_base64"] = "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***"
+    payload = OrderedDict()
+    payload["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["digest"] = "digest***"
+    payload["signature_base64"] = "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -482,10 +489,10 @@ when you want to obtain the plaintext of datakey again, you can call the Decrypt
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["aad"] = "challenge"
-    paylod["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
-    paylod["keylen"] = 16
+    payload = OrderedDict()
+    payload["aad"] = "challenge"
+    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["keylen"] = 16
 
     params = OrderedDict()
     params["appid"] = appid
@@ -544,10 +551,10 @@ The same as GenerateDataKey, but it doesn’t return plaintext of generated Data
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["aad"] = "challenge"
-    paylod["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
-    paylod["keylen"] = 16
+    payload = OrderedDict()
+    payload["aad"] = "challenge"
+    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["keylen"] = 16
 
     params = OrderedDict()
     params["appid"] = appid
@@ -606,11 +613,11 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
 - **Example**
 	- Request sample in python
   ```python
-    paylod = OrderedDict()
-    paylod["aad"] = "challenge"
-    paylod["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
-    paylod["olddatakey_base64"] = "J/qC8IwEnhsjFjzIf***"
-    paylod["ukey_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload = OrderedDict()
+    payload["aad"] = "challenge"
+    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["olddatakey_base64"] = "J/qC8IwEnhsjFjzIf***"
+    payload["ukey_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -637,4 +644,262 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
     }
   ```
   *(return to the [Cryptographic Functionalities APIs](#eHSM-REST-API-Reference).)*
+---
+
+## ListKey
+Query all the CMKs generated by the current account.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=ListKey
+
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200  | The result of the method call, 200 is success, others are fail. |
+  | message | String  | "success" | The description of result. |
+  | list | JsonArray | [<br/>&emsp;{<br/>&emsp;&emsp;"keyid": "2de54366-30f9-6829-8391-c4eba&lowast;&lowast;&lowast;", <br/>&emsp;&emsp;"creationDate": 1645152619225, <br/>&emsp;&emsp;"expireTime": 1676688619225, <br/>&emsp;&emsp;"alias": "alias_name", <br/>&emsp;&emsp;"keyspec": "EH_RSA_3072", <br/>&emsp;&emsp;"keyState": 1<br/>&emsp;}<br/>] | <br/>The information of each CMK is a JsonObject.<br/>&emsp;keyid: ID of CMK<br/>&emsp;creationDate: Creation date of CMK<br/>&emsp;expireTime: Expire time of CMK<br/>&emsp;alias: Alias of CMK<br/>&emsp;keyspec: keyspec of CMK<br/>&emsp;keyState: State of CMK, 1 (Enable) &#124; 0 (Disable). |
+
+- **Example**
+  - Request sample in python
+  ```python
+    params = OrderedDict()
+    params["appid"] = appid
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=ListKey", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {
+         "list": [
+             {
+                "keyid": "2de54366-30f9-6829-8391-c4eba***", 
+                "creationDate": 1645152619225, 
+                "expireTime": 1676688619225, 
+                "alias": "alias_name", 
+                "keyspec": "EH_RSA_3072", 
+                "keyState": 1
+             }
+         ]
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+## DeleteKey
+Delete a specific CMK generated by the current account.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=DeleteKey
+
+
+- **Request Payload:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | keyid | String | "2de54366-30f9-6829-8391-c4eba&lowast;&lowast;&lowast;" | ID of the CMK you want to delete |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "success" | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["keyid"] = "2de54366-30f9-6829-8391-c4eba***"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=DeleteKey", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {}
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+## DeleteALLKey
+Delete all the CMKs generated by the current account.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=DeleteALLKey
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "success" | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    params = OrderedDict()
+    params["appid"] = appid
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=DeleteALLKey", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {}
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+## EnableKey
+Enable a CMK for the current account.<br/>
+Only when the CMK is enabled, it could be used to perform cryptographic operations.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=EnableKey
+
+
+- **Request Payload:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | keyid | String | "2de54366-30f9-6829-8391-c4eba&lowast;&lowast;&lowast;" | ID of the CMK you want to enable |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "success" | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["keyid"] = "2de54366-30f9-6829-8391-c4eba***"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=EnableKey", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {}
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+## DisableKey
+Disables a specified CMK.<br/>
+If a CMK is disabled, it can't be used until you re-enable it by the EnableKey API.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=DisableKey
+
+
+- **Request Payload:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | keyid | String | "2de54366-30f9-6829-8391-c4eba&lowast;&lowast;&lowast;" | ID of the CMK you want to disable |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "success" | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["keyid"] = "2de54366-30f9-6829-8391-c4eba***"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=DisableKey", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {}
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
 ---
