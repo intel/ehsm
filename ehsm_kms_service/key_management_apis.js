@@ -1,5 +1,19 @@
 const { _result } = require('./function')
 
+const cmkFileds = [
+  '_id',
+  '_rev',
+  'keyid',
+  'keyBlob',
+  'creator',
+  'creationDate',
+  'expireTime',
+  'alias',
+  'keyspec',
+  'origin',
+  'keyState',
+]
+
 const listKey = async (appid, res, DB) => {
   const query = {
     selector: {
@@ -82,8 +96,70 @@ const deleteKey = (payload, res, DB) => {
     })
 }
 
+const enableKey = (appid, payload, res, DB) => {
+  const query = {
+    selector: {
+      _id: `cmk:${payload.keyid}`,
+      creator: appid,
+    },
+    fields: cmkFileds,
+    limit: 1,
+  }
+  DB.partitionedFind('cmk', query)
+    .then((cmks_res) => {
+      if (cmks_res.docs.length > 0) {
+        cmks_res.docs[0].keyState = 1
+        DB.insert(cmks_res.docs[0])
+          .then(() => {
+            res.send(_result(200, 'successful'))
+          })
+          .catch((err) => {
+            res.send(_result(400, 'enableKey failed', { err }))
+          })
+      } else {
+        res.send(_result(400, 'not find this keyid'))
+      }
+    })
+    .catch((err) => {
+      res.send(_result(400, 'enableKey failed', { err }))
+    })
+}
+
+const disableKey = (appid, payload, res, DB) => {
+  const query = {
+    selector: {
+      _id: `cmk:${payload.keyid}`,
+      creator: appid,
+    },
+    fields: cmkFileds,
+    limit: 1,
+  }
+  DB.partitionedFind('cmk', query)
+    .then((cmks_res) => {
+      if (cmks_res.docs.length > 0) {
+        cmks_res.docs[0].keyState = 0
+        DB.insert(cmks_res.docs[0])
+          .then(() => {
+            res.send(_result(200, 'successful'))
+          })
+          .catch((err) => {
+            res.send(_result(400, 'disableKey failed', { err }))
+          })
+      } else {
+        res.send(_result(400, 'not find this keyid'))
+      }
+    })
+    .catch((err) => {
+      res.send(_result(400, 'disableKey failed', { err }))
+    })
+}
+/**
+ *
+ */
 module.exports = {
   listKey,
   deleteKey,
   deleteALLKey,
+  enableKey,
+  disableKey,
 }

@@ -11,6 +11,27 @@ import urllib.parse
 appid= ''
 apikey= ''
 keyid= ''
+
+def test_disableKey(base_url, headers):
+    payload = OrderedDict()
+    payload["keyid"] = keyid
+    params=test_params(payload)
+    print('DisableKey req:\n%s\n' %(params))
+    disableKey_resp = requests.post(url=base_url + "DisableKey", data=json.dumps(params), headers=headers)
+    if(check_result(disableKey_resp, 'DisableKey', 'test_disableKey') == False):
+        return
+    print('DisableKey resp:\n%s\n' %(disableKey_resp.text))
+
+def test_enableKey(base_url, headers):
+    payload = OrderedDict()
+    payload["keyid"] = keyid
+    params=test_params(payload)
+    print('EnableKey req:\n%s\n' %(params))
+    enableKey_resp = requests.post(url=base_url + "EnableKey", data=json.dumps(params), headers=headers)
+    if(check_result(enableKey_resp, 'EnableKey', 'test_enableKey') == False):
+        return
+    print('EnableKey resp:\n%s\n' %(enableKey_resp.text))
+
 def test_deleteKey(base_url, headers):
     payload = OrderedDict()
     payload["keyid"] = keyid
@@ -348,7 +369,12 @@ if __name__ == "__main__":
 
     test_listKey(base_url, headers)
 
+    test_disableKey(base_url, headers)
+
+    test_enableKey(base_url, headers)
+
     test_deleteKey(base_url, headers)
 
     test_deleteAllKey(base_url, headers)
+
 

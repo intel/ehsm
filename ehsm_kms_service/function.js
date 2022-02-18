@@ -151,7 +151,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
       alias: '',
       keyspec,
       origin,
-      keyState: true,
+      keyState: 1,
     })
       .then((r) => {
         delete napi_res.result.cmk_base64 // Delete cmk_base64 in NaPi result
