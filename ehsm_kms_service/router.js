@@ -11,7 +11,13 @@ const {
   create_user_info,
   store_cmk,
 } = require('./function')
-const { listKey, deleteALLKey, deleteKey } = require('./key_management_apis')
+const {
+  listKey,
+  deleteALLKey,
+  deleteKey,
+  enableKey,
+  disableKey,
+} = require('./key_management_apis')
 
 /**
  *
@@ -24,7 +30,7 @@ const cmk_db_query = (id) => {
     selector: {
       _id: `cmk:${id}`,
     },
-    fields: ['keyBlob', 'creator', 'expireTime'],
+    fields: ['keyBlob', 'creator', 'expireTime', 'keyState'],
     limit: 1,
   }
 }
@@ -44,15 +50,20 @@ const find_cmk_by_keyid = async (appid, keyid, res, DB) => {
     res.send(_result(400, 'keyid error'))
     return false
   }
-  if (appid != cmk.docs[0].creator) {
+  const { keyBlob, creator, expireTime, keyState } = cmk.docs[0]
+  if (appid != creator) {
     res.send(_result(400, 'appid error'))
     return false
   }
-  if (new Date().getTime() > cmk.docs[0].expireTime) {
+  if (keyState == 0 && keyState != null && keyState != undefined) {
+    res.send(_result(400, 'keyid is disabled'))
+    return false
+  }
+  if (new Date().getTime() > expireTime) {
     res.send(_result(400, 'keyid expire'))
     return
   }
-  return cmk.docs[0].keyBlob
+  return keyBlob
 }
 
 const router = async (p) => {
@@ -171,6 +182,7 @@ const router = async (p) => {
         napi_res = napi_result(action, res, [json_str_params])
         napi_res && res.send(napi_res)
       } catch (error) {}
+      break
     case key_management_apis.ListKey:
       listKey(appid, res, DB)
       break
@@ -179,6 +191,12 @@ const router = async (p) => {
       break
     case key_management_apis.DeleteAllKey:
       deleteALLKey(appid, res, DB)
+      break
+    case key_management_apis.EnableKey:
+      enableKey(appid, payload, res, DB)
+      break
+    case key_management_apis.DisableKey:
+      disableKey(appid, payload, res, DB)
       break
     default:
       res.send(_result(404, 'Not Fount', {}))

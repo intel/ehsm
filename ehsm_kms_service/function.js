@@ -151,7 +151,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
       alias: '',
       keyspec,
       origin,
-      keyState: true,
+      keyState: 1,
     })
       .then((r) => {
         delete napi_res.result.cmk_base64 // Delete cmk_base64 in NaPi result
@@ -219,7 +219,7 @@ const create_user_info = (action, DB, res, req) => {
           cmk: cmk_base64,
         })
           .then((r) => {
-            res.send(_result(200, 'successful', { appid, apikey }))
+            res.send(_result(200, 'successful', { ...napi_res.result }))
           })
           .catch((e) => {
             res.send(_result(400, 'create app info faild', e))

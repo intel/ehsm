@@ -21,5 +21,7 @@ const key_management_apis = {
   ListKey: 'ListKey',
   DeleteKey: 'DeleteKey',
   DeleteAllKey: 'DeleteAllKey',
+  EnableKey: 'EnableKey',
+  DisableKey: 'DisableKey',
 }
 module.exports = { cryptographic_apis, enroll_apis, key_management_apis }
