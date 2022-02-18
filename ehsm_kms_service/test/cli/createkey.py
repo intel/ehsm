@@ -9,7 +9,7 @@ from hashlib import sha256
 from collections import OrderedDict
 import urllib.parse
 
-import _utils_
+from cli import _utils_
 
 supported_keyspec = ["EH_AES_GCM_128", "EH_RSA_3072"]
 
@@ -35,9 +35,10 @@ def createkey(base_url, keyspec, origin):
 
     resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=_utils_.headers)
     if(_utils_.check_result(resp, 'CreateKey') == False):
-        return
+        return False
 
     print('createkey resp:\n%s\n' %(resp.text))
+    return resp.text
 
 if __name__ == "__main__":
     headers = _utils_.headers

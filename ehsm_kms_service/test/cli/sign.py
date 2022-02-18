@@ -9,7 +9,7 @@ from hashlib import sha256
 from collections import OrderedDict
 import urllib.parse
 
-import _utils_
+from cli import _utils_
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -32,8 +32,10 @@ def sign(base_url, keyid, digest):
 
     resp = requests.post(url=base_url + "Sign", data=json.dumps(params), headers=_utils_.headers)
     if(_utils_.check_result(resp, 'Sign') == False):
-        return
+        return False
     print('sign resp:\n%s\n' %(resp.text))
+
+    return resp.text
 
 if __name__ == "__main__":
     headers = _utils_.headers
