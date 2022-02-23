@@ -133,6 +133,9 @@ spec:
       - name: dev-enclave
         hostPath:
           path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
       - name: dev-aesmd
         hostPath:
           path: aesmd-socket
@@ -154,6 +157,8 @@ spec:
         volumeMounts:
         - mountPath: /dev/sgx/enclave
           name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
         - mountPath: /var/run/aesmd
           name: dev-aesmd
         env:
