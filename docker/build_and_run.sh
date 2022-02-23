@@ -60,7 +60,7 @@ function run {
 	docker load -i $EHSM_DOCKER_FILE_NAME
 
 	RUN_ARG="--env http_proxy=$http_proxy --env https_proxy=$https_proxy"
-	RUN_ARG="$RUN_ARG --device=/dev/sgx/enclave -v aesmd-socket:/var/run/aesmd"
+	RUN_ARG="$RUN_ARG --device=/dev/sgx/enclave --device=/dev/sgx/provision -v aesmd-socket:/var/run/aesmd"
 
 	# run the container
 	docker run -d $RUN_ARG -it -p $HOST_PORT:$DOCKER_PORT -e EHSM_CONFIG_COUCHDB_USERNAME=$EHSM_CONFIG_COUCHDB_USERNAME -e EHSM_CONFIG_COUCHDB_PASSWORD=$EHSM_CONFIG_COUCHDB_PASSWORD -e EHSM_CONFIG_COUCHDB_PORT=$EHSM_CONFIG_COUCHDB_PORT -e EHSM_CONFIG_COUCHDB_SERVER=$EHSM_CONFIG_COUCHDB_SERVER -e EHSM_CONFIG_COUCHDB_DB=$EHSM_CONFIG_COUCHDB_DB $EHSM_DOCKER_IMAGE_NAME
