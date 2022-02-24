@@ -3,6 +3,8 @@
 #include <signal.h>
 
 #include <enclave_u.h>
+#include <getopt.h>
+#include "log_utils.h"
 
 // Need to create enclave and do ecall.
 #include "sgx_urts.h"
@@ -31,6 +33,13 @@ void ocall_print_string(const char *str)
 LaTask * g_la_task = NULL;
 LaServer * g_la_server = NULL;
 
+std::string deploy_ip_addr;
+uint32_t deploy_port = 0;
+static const char* _sopts = "i:p:";
+static const struct option _lopts[] = {{"ip", required_argument, NULL, 'i'},
+                                       {"port", required_argument, NULL, 'p'},
+                                       {0, 0, 0, 0}};
+
 void signal_handler(int sig)
 {
     switch(sig)
@@ -57,10 +66,44 @@ void cleanup()
         delete g_la_server;
 }
 
+static void show_usage_and_exit(int code) {
+    printf("\nusage: ehsm-dkeycache -i 127.0.0.1 -p 8888\n\n");
+    exit(code);
+}
+static void parse_args(int argc, char* argv[]) {
+    int opt;
+    int oidx = 0;
+    while ((opt = getopt_long(argc, argv, _sopts, _lopts, &oidx)) != -1) {
+        switch (opt) {
+            case 'i':
+                deploy_ip_addr = strdup(optarg);
+                break;
+            case 'p':
+                try {
+                    deploy_port = std::stoi(strdup(optarg));
+                }
+                catch (...) {
+                    log_e("[-p %s] port must be a number.", optarg);
+                }
+                break;
+            default:
+                log_e("unrecognized option (%c):\n", opt);
+                show_usage_and_exit(EXIT_FAILURE);
+        }
+    }
+    if (deploy_ip_addr.empty() || deploy_port == 0) {
+        printf("error: missing required argument(s)\n");
+        show_usage_and_exit(EXIT_FAILURE);
+    }
+    log_i("starting dkeycache");
+    log_i("host: %s", deploy_ip_addr.c_str());
+    log_i("port: %d", deploy_port);
+}
+
 int main(int argc, char* argv[])
 {
-    (void)argc;
-    (void)argv;
+    // process argv
+    parse_args(argc, argv);
 
     int ret = 0;
 
@@ -75,7 +118,7 @@ int main(int argc, char* argv[])
     }
 
     // Connect to the dkeyserver and retrieve the domain key via the remote secure channel
-    ret = Initialize();
+    ret = Initialize(deploy_ip_addr, deploy_port);
     if (ret != 0) {
         printf("failed to initialize the dkeycache service.\n");
         sgx_destroy_enclave(g_enclave_id);
