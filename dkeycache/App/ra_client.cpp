@@ -363,7 +363,7 @@ CLEANUP:
     return ret;
 }
 
-int32_t Initialize() {
+int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port) {
     int32_t ret = -1;
     int32_t retry_count = 360;
     struct sockaddr_in serAddr;
@@ -377,7 +377,7 @@ int32_t Initialize() {
     bzero(&serAddr, sizeof(serAddr));
     serAddr.sin_family = AF_INET;
     serAddr.sin_port = htons(deploy_port);
-    serAddr.sin_addr.s_addr = inet_addr(deploy_ip_addr);
+    serAddr.sin_addr.s_addr = inet_addr(deploy_ip_addr.c_str());
 
     do {
         if(connect(sockfd, (struct sockaddr*)&serAddr, sizeof(serAddr)) >= 0) {

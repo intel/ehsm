@@ -43,9 +43,6 @@ using namespace std;
 
 namespace ra_client {
 
-const char deploy_ip_addr[] = "127.0.0.1";
-
-const uint32_t deploy_port = 8888;
 
 #define ENCLAVE_PATH "libenclave-ehsm-dkeycache.signed.so"
 
@@ -55,7 +52,7 @@ errno_t memcpy_s(void *dest,
         const void *src,
         size_t count);
 
-int32_t Initialize();
+int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port);
 
 }
 
