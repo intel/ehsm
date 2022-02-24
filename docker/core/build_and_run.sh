@@ -2,7 +2,7 @@
 
 set -e
 
-WORKDIR=$PWD
+WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" 
 EHSM_DOCKER_FILE_NAME="ehsm_kms_service.tar.gz"
 EHSM_DOCKER_IMAGE_NAME="ehsm_kms_service:latest"
 EHSM_DOCKER_IMAGE_NAME_NO_VERSION="ehsm_kms_service"
@@ -22,7 +22,7 @@ function build {
 	BUILD_ARGS="$BUILD_ARGS --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy"
 
 	echo "[build] create docker images..."
-	docker build $BUILD_ARGS -f $WORKDIR/docker/Dockerfile -t $EHSM_DOCKER_IMAGE_NAME $WORKDIR
+	docker build $BUILD_ARGS -f $WORKDIR/Dockerfile -t $EHSM_DOCKER_IMAGE_NAME $WORKDIR
 
 	echo "[build] save docker images..."
 	docker save $EHSM_DOCKER_IMAGE_NAME | gzip > $WORKDIR/$EHSM_DOCKER_FILE_NAME
