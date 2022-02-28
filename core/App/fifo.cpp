@@ -47,7 +47,7 @@
 
 #define BUFFER_SIZE 1024
 
-#define UNIX_DOMAIN "/tmp/UNIX.domain"
+#define UNIX_DOMAIN "/var/run/ehsm/dkeyprovision.sock"
 
 /* Function Description: this is for client to send request message and receive response message
  * Parameter Description:

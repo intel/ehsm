@@ -46,11 +46,11 @@
 #define SERVER_PORT 8888
 #define BUFFER_SIZE 1024
 
-#define UNIX_DOMAIN "/tmp/UNIX.domain"
+#define UNIX_DOMAIN "/var/run/ehsm/dkeyprovision.sock"
 
 /* Function Description:
  * This is server initialization routine, it creates TCP sockets and listen on a port.
- * In Linux, it would listen on domain socket named '/tmp/UNIX.domain'
+ * In Linux, it would listen on domain socket named '/var/run/ehsm/dkeyprovision.sock'
  * In Windows, it would listen on port 8888, which is for demonstration purpose 
  * */
 int LaServer::init()

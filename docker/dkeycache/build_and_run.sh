@@ -2,17 +2,13 @@
 
 set -e
 
-WORKDIR=$PWD
-EHSM_DOCKER_FILE_NAME="ehsm_kms_service.tar.gz"
-EHSM_DOCKER_IMAGE_NAME="ehsm_kms_service:latest"
-EHSM_DOCKER_IMAGE_NAME_NO_VERSION="ehsm_kms_service"
-HOST_PORT=9000
-DOCKER_PORT=9000
-EHSM_CONFIG_COUCHDB_USERNAME="admin"
-EHSM_CONFIG_COUCHDB_PASSWORD="password"
-EHSM_CONFIG_COUCHDB_SERVER="1.2.3.4"
-EHSM_CONFIG_COUCHDB_PORT="5984"
-EHSM_CONFIG_COUCHDB_DB="ehsm_kms_db"
+WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" 
+EHSM_DOCKER_FILE_NAME="ehsm_dkeycache.tar.gz"
+EHSM_DOCKER_IMAGE_NAME="ehsm_dkeycache:latest"
+EHSM_DOCKER_IMAGE_NAME_NO_VERSION="ehsm_dkeycache"
+DKEYSERVER_IP="10.112.240.122"
+DKEYSERVER_PORT=8888
+
 
 function build {
 	echo "[build] delete the old ehsm docker images and containers..."
@@ -22,7 +18,7 @@ function build {
 	BUILD_ARGS="$BUILD_ARGS --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy"
 
 	echo "[build] create docker images..."
-	docker build $BUILD_ARGS -f $WORKDIR/docker/Dockerfile -t $EHSM_DOCKER_IMAGE_NAME $WORKDIR
+	docker build $BUILD_ARGS -f $WORKDIR/Dockerfile -t $EHSM_DOCKER_IMAGE_NAME $WORKDIR
 
 	echo "[build] save docker images..."
 	docker save $EHSM_DOCKER_IMAGE_NAME | gzip > $WORKDIR/$EHSM_DOCKER_FILE_NAME
@@ -34,7 +30,7 @@ function build {
 
 function run {
 	USAGE=$(cat <<- EOM
-	Usage: run(-r) <ehsm_kms_service docker images>(optional)
+	Usage: run(-r) <ehsm_dkeycache docker images>(optional)
 
 	run the docker image, if you don't add the file name then use the default one($EHSM_DOCKER_FILE_NAME).
 
@@ -60,10 +56,10 @@ function run {
 	docker load -i $EHSM_DOCKER_FILE_NAME
 
 	RUN_ARG="--env http_proxy=$http_proxy --env https_proxy=$https_proxy"
-	RUN_ARG="$RUN_ARG --device=/dev/sgx/enclave --device=/dev/sgx/provision -v aesmd-socket:/var/run/aesmd"
+	RUN_ARG="$RUN_ARG --device=/dev/sgx/enclave --device=/dev/sgx/provision -v aesmd-socket:/var/run/aesmd -v /var/run/ehsm/:/var/run/ehsm/"
 
 	# run the container
-	docker run -d $RUN_ARG -it -p $HOST_PORT:$DOCKER_PORT -e EHSM_CONFIG_COUCHDB_USERNAME=$EHSM_CONFIG_COUCHDB_USERNAME -e EHSM_CONFIG_COUCHDB_PASSWORD=$EHSM_CONFIG_COUCHDB_PASSWORD -e EHSM_CONFIG_COUCHDB_PORT=$EHSM_CONFIG_COUCHDB_PORT -e EHSM_CONFIG_COUCHDB_SERVER=$EHSM_CONFIG_COUCHDB_SERVER -e EHSM_CONFIG_COUCHDB_DB=$EHSM_CONFIG_COUCHDB_DB $EHSM_DOCKER_IMAGE_NAME
+	docker run -d $RUN_ARG -it -e DKEYSERVER_IP=$DKEYSERVER_IP -e DKEYSERVER_PORT=$DKEYSERVER_PORT $EHSM_DOCKER_IMAGE_NAME
 }
 
 function delete {
@@ -84,7 +80,7 @@ function delete {
 USAGE=$(cat <<- EOM
 Usage: build_and_run.sh <Commands>
 Commands:
-  -b | build    Build the docker image for the ehsm_kms_service.
+  -b | build    Build the docker image for the ehsm_dkeycache.
   -r | run      Run the docker image.
   -d | delete   Delete the container and the docker image.
 
