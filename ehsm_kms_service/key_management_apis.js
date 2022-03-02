@@ -68,9 +68,10 @@ const deleteALLKey = async (appid, res, DB) => {
     })
 }
 
-const deleteKey = (payload, res, DB) => {
+const deleteKey = (appid, payload, res, DB) => {
   const query = {
     selector: {
+      creator: appid,
       _id: `cmk:${payload.keyid}`,
     },
     fields: ['_id', '_rev'],

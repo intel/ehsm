@@ -187,7 +187,7 @@ const router = async (p) => {
       listKey(appid, res, DB)
       break
     case key_management_apis.DeleteKey:
-      deleteKey(payload, res, DB)
+      deleteKey(appid, payload, res, DB)
       break
     case key_management_apis.DeleteAllKey:
       deleteALLKey(appid, res, DB)
