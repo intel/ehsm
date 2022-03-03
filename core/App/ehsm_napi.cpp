@@ -1391,4 +1391,85 @@ OUT:
     return retJsonObj.toChar();
 }
 
+
+/*
+ *  @param challenge
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              "challenge" : string,
+ *              "quote" : string
+ *          }
+ *      }
+ */
+char* NAPI_GenerateQuote(const char *challenge)
+{
+    RetJsonObj retJsonObj;
+    log_d("***NAPI_GenerateQuote start.");
+    if (challenge == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    log_d("challenge: \n %s", challenge);
+
+    ehsm_status_t ret = EH_OK;
+    std::string quote;
+
+    // TODO: BUILD QUOTE base64
+    quote = "quote1234";
+
+    retJsonObj.addData_string("challenge", challenge);
+    retJsonObj.addData_string("quote", quote);
+
+    out:
+    log_d("retJsonObj: \n%s",retJsonObj.toChar());
+    log_d("***NAPI_GenerateQuote end.");
+    return retJsonObj.toChar();
+}
+
+
+/*
+ *  @param quote
+ *  @param nonce
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              result : bool,
+ *              "nonce" : string
+ *          }
+ *      }
+ */
+char* NAPI_VerifyQuote(const char *quote, const char *nonce){
+    RetJsonObj retJsonObj;
+    log_d("***NAPI_VerifyQuote start.");
+    if (quote == NULL||nonce == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
+    log_d("quote: \n %s", quote);// base 64
+    log_d("nonce: \n %s", nonce);// base 64
+
+    ehsm_status_t ret = EH_OK;
+    bool result;
+
+    // TODO: Verify Quote
+    result = true;
+
+    retJsonObj.addData_bool("result", result);
+    retJsonObj.addData_string("nonce", nonce);
+
+    out:
+    log_d("retJsonObj: \n%s",retJsonObj.toChar());
+    log_d("***NAPI_VerifyQuote end.");
+    return retJsonObj.toChar();
+}
+
 }  // extern "C"

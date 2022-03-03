@@ -247,6 +247,39 @@ char* NAPI_RA_HANDSHAKE_MSG2(const char *p_msg2);
  */
 char* NAPI_RA_GET_API_KEY(const char *p_msg4);
 
+
+/*
+ *  @param challenge
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              "challenge" : string,
+ *              "quote" : string
+ *          }
+ *      }
+ */
+char* NAPI_GenerateQuote(const char *challenge);
+
+
+/*
+ *  @param quote
+ *  @param nonce
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              result : bool,
+ *              "nonce" : string
+ *          }
+ *      }
+ */
+char* NAPI_VerifyQuote(const char *quote, const char *nonce);
+
 }  // extern "C"
 
 
