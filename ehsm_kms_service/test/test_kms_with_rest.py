@@ -8,8 +8,8 @@ import hmac
 from hashlib import sha256
 from collections import OrderedDict
 import urllib.parse
-appid= ''
-apikey= ''
+appid= '468c507a-da1f-4127-9cd0-82f0e7ce247e'
+apikey= 'Merh0HrKuc2e8ECt5qba5dhy0ykyp1Js'
 keyid= ''
 
 def test_disableKey(base_url, headers):
@@ -61,26 +61,16 @@ def test_listKey(base_url, headers):
     global keyid 
     keyid = json.loads(listKey_resp.text)['result']['list'][0]['keyid']
 
-def test_creat_app_info(base_url, headers):
-    print('====================test_creat_app_info start===========================')
-    creat_app_info_resp = requests.post(url=base_url + "RA_GET_API_KEY", data=json.dumps({}), headers=headers)
-    if(check_result(creat_app_info_resp, 'RA_GET_API_KEY', 'test_creat_app_info') == False):
-        return
-    global appid 
-    global apikey 
-    appid = json.loads(creat_app_info_resp.text)['result']['appid']
-    apikey = json.loads(creat_app_info_resp.text)['result']['apikey']
-    print('CreateKey resp(EH_AES_GCM_128):\n%s\n' %(creat_app_info_resp.text))
-    print('====================test_creat_app_info end===========================')
-
-
 def test_params(payload):
     params = OrderedDict()
     params["appid"] = appid
     if payload!=False:
-        params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+        ord_payload = OrderedDict(sorted(payload.items(), key=lambda k: k[0]))
+        params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(ord_payload))
     params["timestamp"] = str(int(time.time() * 1000))
     sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    print(sign_string.encode('utf-8'))
+    print(apikey.encode('utf-8'))
     sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
     if payload!=False:
         params["payload"] = payload
@@ -328,6 +318,43 @@ def test_AES128(base_url, headers):
 
     print('====================test_AES128 end===========================')
 
+# A hook function forst JSON load function that avoid
+# bool type value changing from "true" to "True".It will be caused the sign verfiy error
+def no_bool_convert(pairs):
+  return {k: str(v).casefold() if isinstance(v, bool) else v for k, v in pairs}
+
+def test_GenerateQuote_and_VerifyQuote(base_url, headers):
+    print('====================test_GenerateQuote_and_VerifyQuote start===========================')
+    payload = OrderedDict()
+    payload["challenge"] = "challenge123456"
+    params=test_params(payload)
+    print('GenerateQuote req:\n%s\n' %(params))
+    GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=headers)
+    if(check_result(GenerateQuote_resp, 'GenerateQuote', 'test_GenerateQuote_and_VerifyQuote') == False):
+        return
+    print('GenerateQuote resp:\n%s\n' %(GenerateQuote_resp.text))
+
+    payload.clear()
+    payload["quote"] = "quote12345"
+    payload["nonce"] = "nonce12345"
+    params=test_params(payload)
+    print('VerifyQuote req:\n%s\n' %(params))
+    VerifyQuote_resp = requests.post(url=base_url + "VerifyQuote", data=json.dumps(params), headers=headers)
+    if(check_result(VerifyQuote_resp, 'VerifyQuote', 'test_GenerateQuote_and_VerifyQuote') == False):
+        return
+    print('VerifyQuote resp:\n%s\n' %(VerifyQuote_resp.text))
+    VerifyQuote_Result = json.loads(VerifyQuote_resp.text, object_pairs_hook=no_bool_convert)['result']
+    hmac_sign = VerifyQuote_Result['sign']
+
+    VerifyQuote_Result.pop('sign')
+    ord_VerifyQuote_Result = OrderedDict(sorted(VerifyQuote_Result.items(), key=lambda k: k[0]))
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(ord_VerifyQuote_Result))
+    sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+    print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))
+
+    print('====================test_GenerateQuote_and_VerifyQuote end===========================')
+
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--ip-adress', type=str, help='ip address of the ehsm_kms_server', required=True)
@@ -353,8 +380,6 @@ if __name__ == "__main__":
 
     base_url = "http://" + ip + ":" + port + "/ehsm?Action="
 
-    test_creat_app_info(base_url, headers)
-
     test_AES128(base_url, headers)
 
     test_GenerateDataKey(base_url, headers)
@@ -377,4 +402,4 @@ if __name__ == "__main__":
 
     test_deleteAllKey(base_url, headers)
 
-
+    test_GenerateQuote_and_VerifyQuote(base_url, headers)

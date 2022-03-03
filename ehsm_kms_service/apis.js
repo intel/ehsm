@@ -17,6 +17,11 @@ const enroll_apis = {
   RA_HANDSHAKE_MSG2: 'RA_HANDSHAKE_MSG2',
 }
 
+const remote_attestation_apis = {
+  GenerateQuote: 'GenerateQuote',
+  VerifyQuote: 'VerifyQuote',
+}
+
 const key_management_apis = {
   ListKey: 'ListKey',
   DeleteKey: 'DeleteKey',
@@ -24,4 +29,4 @@ const key_management_apis = {
   EnableKey: 'EnableKey',
   DisableKey: 'DisableKey',
 }
-module.exports = { cryptographic_apis, enroll_apis, key_management_apis }
+module.exports = { cryptographic_apis, enroll_apis, key_management_apis, remote_attestation_apis }

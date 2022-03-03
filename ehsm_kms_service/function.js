@@ -66,7 +66,7 @@ const _nonce_cache_timer = () => {
         }
       }
     } catch (error) {
-      res.send(_result(404, 'Not Fount', {}))
+      res.send(_result(404, 'Not Found', {}))
       logger.error(JSON.stringify(error))
     }
   }, NONCE_CACHE_TIME / 2)
@@ -258,7 +258,7 @@ const params_sort_str = (sign_params) => {
     }
     return str
   } catch (error) {
-    res.send(_result(404, 'Not Fount', {}))
+    res.send(_result(404, 'Not Found', {}))
     logger.error(JSON.stringify(error))
     return str
   }
@@ -291,7 +291,7 @@ const getIPAdress = () => {
     }
   } catch (error) {
     logger.error(JSON.stringify(error))
-    res.send(_result(404, 'Not Fount', {}))
+    res.send(_result(404, 'Not Found', {}))
   }
 }
 
@@ -462,7 +462,53 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
     let sign_params = { appid, timestamp, payload }
     let sign_string = params_sort_str(sign_params)
 
-    // couchdb query condition
+    gen_hmac(DB, appid, sign_string)
+      .then((error, local_sign) => {
+        if (local_sign.length == 0) {
+          res.send(_result(400, error))
+          return
+        }
+        if (sign != local_sign ) {
+          res.send(_result(400, 'sign error'))
+          return
+        } else {
+          next()
+        }
+      })
+      .catch((e) => {
+        res.send(_result(400, 'database error'))
+      })
+  } catch (error) {
+    res.send(_result(404, 'Not Found', {}))
+    logger.error(JSON.stringify(error))
+  }
+}
+
+/**
+ * ehsm napi result
+ * If the value of the result is not equal to 200, the result is directly returned to the user
+ * @param {function name} action
+ * @param {NAPI_* function params} params
+ * @returns napi result | false
+ */
+function napi_result_local (action, params) {
+  try {
+    const napi_res = ehsm_napi[`NAPI_${action}`](...params)
+    let res = JSON.parse(napi_res)
+    if (res && res.code == 200) {
+      return res
+    }
+    return false
+  } catch (e) {
+    return false
+  }
+}
+
+/**
+ * Query ApiKey
+ */
+const _query_api_key = async (DB, appid) => {
+  try {
     const db_query = {
       selector: {
         _id: `user_info:${appid}`,
@@ -470,39 +516,74 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       fields: ['appid', 'apikey', 'cmk'],
       limit: 1,
     }
-    DB.partitionedFind('user_info', db_query)
-      .then((r) => {
-        if (r.docs[0]) {
-          let { cmk, apikey } = r.docs[0]
-          let apikey_Decrypt_res = napi_result(
-            cryptographic_apis.Decrypt,
-            res,
-            [cmk, apikey, '']
-          )
-          if (apikey_Decrypt_res) {
-            apikey = base64_decode(apikey_Decrypt_res.result.plaintext_base64)
-            let local_sign = crypto
-              .createHmac('sha256', apikey)
-              .update(sign_string, 'utf8')
-              .digest('base64')
-              .toLocaleUpperCase()
-            if (sign != local_sign) {
-              res.send(_result(400, 'sign error'))
-              return
-            } else {
-              next()
-            }
-          }
-        } else {
-          res.send(_result(400, 'Appid not found'))
+    let query_result = await DB.partitionedFind('user_info', db_query);
+    if (!(query_result && query_result.docs[0])) {
+      return {
+        msg: 'Query User Info error',
+        api_key: ''
+      }
+    }
+    let { cmk, apikey } = query_result.docs[0]
+    let decypt_result = napi_result_local(
+      cryptographic_apis.Decrypt,
+      [cmk, apikey, '']
+    )
+    if (decypt_result) {
+      let decoded_api_key = base64_decode(decypt_result.result.plaintext_base64)
+      if (decoded_api_key) {
+        return {
+          msg: '',
+          api_key: decoded_api_key
         }
-      })
-      .catch((e) => {
-        res.send(_result(400, 'database error'))
-      })
+      } else {
+        return {
+          msg: 'Decode key error',
+          api_key: ''
+        }
+      }
+    } else {
+      return {
+        msg: 'Decrypt key error',
+        api_key: ''
+      }
+    }
   } catch (error) {
-    res.send(_result(404, 'Not Fount', {}))
     logger.error(JSON.stringify(error))
+  }
+  return {
+    msg: 'Unexcept error',
+    api_key: ''
+  }
+}
+
+/**
+ * Gen Hmac 
+ */
+const gen_hmac = async (DB, appid, sign_params) => {
+  try {
+    let { msg, api_key } = await _query_api_key(DB, appid)
+    if (api_key && api_key.length == 0) {
+      logger.error(msg)
+      return {
+        error: msg,
+        hmac: ''
+      }
+    }
+    let sign_string = params_sort_str(sign_params)
+    let sign_result = crypto.createHmac('sha256', api_key)
+      .update(sign_string, 'utf8')
+      .digest('base64')
+      .toLocaleUpperCase()
+    return {
+      error: '',
+      hmac: sign_result
+    }
+  } catch (error) {
+    logger.error(JSON.stringify(error))
+    return {
+      error: error,
+      hmac: ''
+    }
   }
 }
 
@@ -517,4 +598,5 @@ module.exports = {
   _nonce_cache_timer,
   store_cmk,
   _cmk_cache_timer,
+  gen_hmac,
 }

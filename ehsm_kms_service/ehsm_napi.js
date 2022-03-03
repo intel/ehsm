@@ -278,6 +278,8 @@ const ehsm_napi = ffi.Library('./libehsmnapi', {
   NAPI_RA_HANDSHAKE_MSG0: ['string', ['string']],
   NAPI_RA_HANDSHAKE_MSG2: ['string', ['string']],
   NAPI_RA_GET_API_KEY: ['string', ['string']],
+  NAPI_GenerateQuote: ['string', ['string']],
+  NAPI_VerifyQuote: ['string', ['string', 'string']],
 })
 
 module.exports = ehsm_napi

@@ -1,4 +1,5 @@
 const { _result } = require('./function')
+const logger=require('./logger')
 
 const cmkFileds = [
   '_id',
@@ -144,7 +145,11 @@ const disableKey = (appid, payload, res, DB) => {
             res.send(_result(200, 'successful'))
           })
           .catch((err) => {
-            res.send(_result(400, 'disableKey failed', { err }))
+            try {
+              res.send(_result(400, 'disableKey failed', { err }))
+            } catch (error) {
+              logger.error(JSON.stringify(error))
+            }
           })
       } else {
         res.send(_result(400, 'not find this keyid'))

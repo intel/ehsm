@@ -3,6 +3,7 @@ const {
   cryptographic_apis,
   enroll_apis,
   key_management_apis,
+  remote_attestation_apis,
 } = require('./apis')
 const logger = require('./logger')
 const {
@@ -10,6 +11,7 @@ const {
   _result,
   create_user_info,
   store_cmk,
+  gen_hmac,
 } = require('./function')
 const {
   listKey,
@@ -197,9 +199,40 @@ const router = async (p) => {
       break
     case key_management_apis.DisableKey:
       disableKey(appid, payload, res, DB)
+    case remote_attestation_apis.GenerateQuote:
+      try {
+        const { challenge } = payload
+        if (challenge) {
+          napi_res = napi_result(action, res, [challenge])
+          napi_res && res.send(napi_res)
+        } else {
+          res.send(_result(400, 'Empty challenge', {}))
+        }
+      } catch (error) {}
+      break
+    case remote_attestation_apis.VerifyQuote:
+      try {
+        const { quote, nonce } = payload
+        if (quote && nonce) {
+          napi_res = napi_result(action, res, [quote, nonce])
+          if (napi_res) {
+            let {error, sign} = await gen_hmac(DB, appid, napi_res.result)
+            if (sign.length > 0) {
+              napi_res.result.sign = sign
+              res.send(napi_res)
+            } else {
+              res.send(_result(400, 'Internal error', {}))
+            }
+          } else {
+            res.send(_result(400, 'Internal error', {}))
+          }
+        } else {
+          res.send(_result(400, 'Empty quote or nonce ', {}))
+        }
+      } catch (error) {}
       break
     default:
-      res.send(_result(404, 'Not Fount', {}))
+      res.send(_result(404, 'Not Found', {}))
       break
   }
 }

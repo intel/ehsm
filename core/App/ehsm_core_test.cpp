@@ -409,6 +409,41 @@ cleanup:
     printf("============test_export_datakey end==========\n");
 }
 
+void test_GenerateQuote_and_VerifyQuote()
+{
+    printf("============test_GenerateQuote_and_VerifyQuote start==========\n");
+    RetJsonObj retJsonObj;
+    char* returnJsonChar = nullptr;
+
+    char* challenge = "challenge123456";
+    char* quote = "quote123456";
+    char* nonce = "nonce123456";
+
+
+    returnJsonChar = NAPI_GenerateQuote(challenge);
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_GenerateQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_GenerateQuote Json : %s\n", returnJsonChar);
+    printf("NAPI_GenerateQuote SUCCESSFULLY!\n");
+
+
+    returnJsonChar = NAPI_VerifyQuote(quote, nonce);
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_VerifyQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_VerifyQuote Json : %s\n", returnJsonChar);
+    printf("NAPI_VerifyQuote SUCCESSFULLY!\n");
+
+    cleanup:
+    SAFE_FREE(returnJsonChar);
+    printf("============test_GenerateQuote_and_VerifyQuote end==========\n");
+}
+
 int main(int argc, char* argv[])
 {
     ehsm_status_t ret = EH_OK;
@@ -429,6 +464,8 @@ int main(int argc, char* argv[])
     test_generate_datakey();
 
     test_export_datakey();
+
+    test_GenerateQuote_and_VerifyQuote();
 
     Finalize();
 
