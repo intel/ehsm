@@ -351,10 +351,14 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
              bool* result);
 
 /*
-*  Description:
-*   Generate a 32-bit random character
+Description:
+Generate a 32-bit random character and use sharedKey encrypt character
+
+Output:
+apikey -- 32-bit random character
+cipherkey -- encrypted character
 */
-ehsm_status_t generate_apikey(ehsm_data_t *apikey);
+ehsm_status_t generate_apikey(ehsm_data_t *apikey, ehsm_data_t *cipherkey);
 
 /*
 Description:

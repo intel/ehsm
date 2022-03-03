@@ -105,8 +105,11 @@ enclave {
                                             [out, size=plaintext_len] uint8_t *plaintext, uint32_t plaintext_len,
                                             [out] uint32_t *req_plaintext_len);
 
-        public sgx_status_t enclave_generate_apikey([out, size=apikey_len] uint8_t *p_apikey,
-                                                uint32_t apikey_len);
+        public sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
+                                                    [out, size=apikey_len] uint8_t *p_apikey,
+                                                    uint32_t apikey_len,
+                                                    [out, size=cipherkey_len] uint8_t *cipherkey,
+                                                    uint32_t cipherkey_len);
         public sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
             [in,size=message_size] uint8_t* message,
             size_t message_size,

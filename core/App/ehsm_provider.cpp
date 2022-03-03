@@ -815,26 +815,30 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
         return EH_OK;
 }
 
-ehsm_status_t generate_apikey(ehsm_data_t *apikey)
+ehsm_status_t generate_apikey(ehsm_data_t *apikey, ehsm_data_t *cipherkey)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    // create apikey
-    if (apikey == NULL || apikey->datalen != EH_API_KEY_SIZE) {
+    if (apikey == NULL || apikey->datalen > EH_API_KEY_SIZE) {
         return EH_ARGUMENTS_BAD;
     }
+    if (cipherkey == NULL || cipherkey->datalen < EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE) {
+        return EH_ARGUMENTS_BAD;
+    }
+
     ret = enclave_generate_apikey(g_enclave_id,
                             &sgxStatus,
+                            g_context,
                             apikey->data,
-                            apikey->datalen);
-    
+                            apikey->datalen,
+                            cipherkey->data,
+                            cipherkey->datalen);
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS){
         printf("error: generate apikey faild (%d)(%d).\n", ret, sgxStatus);
         return EH_FUNCTION_FAILED;
     }
-    else
-    {
+    else{
         return EH_OK;
     }
 }
