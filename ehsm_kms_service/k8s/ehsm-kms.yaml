@@ -20,6 +20,12 @@ data:
   database_url: "couchdb-0.couchdb"
   database_port: "5984"
   database_name: "ehsm_kms_db"
+  # you need adjust 1.2.3.4 to your dkeyserver IP.
+  dkeyserver_ip: "1.2.3.4"
+  # you need adjust 8888 to your dkeyserver port.
+  dkeyserver_port: "8888"
+  # you need adjust https://1.2.3.4:8081 to your pccs_url.
+  pccs_url: "https://1.2.3.4:8081"
 
 ---
 # ehsm-kms PersistentVolume for CouchDB
@@ -113,6 +119,66 @@ spec:
           storage: 10Gi
 
 ---
+# dkey cache          
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: dkeycache-deamonset
+  namespace: ehsm-kms
+spec:
+  selector:
+    matchLabels:
+      name: dkeycache
+  template:
+    metadata:
+      labels:
+        name: dkeycache
+    spec:
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
+      - name: dev-dkeyprovision
+        hostPath:
+          path: /var/run/ehsm
+      containers:
+      - name: dkeycache
+        image: intel/ehsm_dkeycache:latest
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
+        - mountPath: /var/run/ehsm
+          name: dev-dkeyprovision
+        env:
+        - name: PCCS_URL 
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: pccs_url
+        - name: DKEYSERVER_IP
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: dkeyserver_ip
+        - name: DKEYSERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: dkeyserver_port
+
+---
 # ehsm-kms service
 apiVersion: apps/v1
 kind: Deployment
@@ -138,7 +204,10 @@ spec:
           path: /dev/sgx/provision
       - name: dev-aesmd
         hostPath:
-          path: aesmd-socket
+          path: /var/run/aesmd
+      - name: dev-dkeyprovision
+        hostPath:
+          path: /var/run/ehsm
       containers:
       - name: ehsm-kms
         # You need to tag the ehsm-kms container image with this name on each worker node or change it to point to a docker hub to get the container image.
@@ -161,7 +230,14 @@ spec:
           name: dev-provision
         - mountPath: /var/run/aesmd
           name: dev-aesmd
+        - mountPath: /var/run/ehsm
+          name: dev-dkeyprovision
         env:
+        - name: PCCS_URL 
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: pccs_url
         - name: EHSM_CONFIG_COUCHDB_USERNAME
           valueFrom:
             secretKeyRef:
