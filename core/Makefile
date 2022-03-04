@@ -73,7 +73,7 @@ App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Na
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
 else
-	App_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -ldl
+	App_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -lsgx_dcap_quoteverify -ldl
 endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
@@ -101,7 +101,7 @@ Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
 # Do NOT move the libraries linked with `--start-group' and `--end-group' within `--whole-archive' and `--no-whole-archive' options.
 # Otherwise, you may get some undesirable errors.
 Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
-	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
+	-Wl,--whole-archive -lsgx_dcap_tvl -l$(Trts_Library_Name) -Wl,--no-whole-archive \
 	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lra_tkey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
@@ -126,7 +126,7 @@ Napi_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_N
 ifneq ($(SGX_MODE), HW)
 	Napi_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
 else
-	Napi_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -ldl
+	Napi_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -lsgx_dcap_quoteverify -ldl
 endif
 
 Napi_Cpp_Objects := $(Napi_Cpp_Files:.cpp=.o)

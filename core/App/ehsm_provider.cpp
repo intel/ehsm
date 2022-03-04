@@ -29,7 +29,6 @@
  *
  */
 #include <stdio.h>
-
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -48,6 +47,10 @@
 #include "sgx_ukey_exchange.h"
 #include "sgx_dcap_ql_wrapper.h"
 
+#include "sgx_ql_quote.h"
+#include "sgx_dcap_quoteverify.h"
+
+#include "log_utils.h"
 
 void ocall_print_string(const char *str)
 {
@@ -837,6 +840,208 @@ ehsm_status_t generate_apikey(ehsm_data_t *apikey)
     {
         return EH_OK;
     }
+}
+
+ehsm_status_t GenerateQuote(ehsm_data_t *quote)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    quote3_error_t dcap_ret = SGX_QL_SUCCESS;
+
+    uint32_t quote_size = 0;
+    sgx_target_info_t qe_target_info;
+    sgx_report_t app_report;
+
+    if (quote == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    dcap_ret = sgx_qe_get_target_info(&qe_target_info);
+    if (SGX_QL_SUCCESS != dcap_ret) {
+        log_e("Error in sgx_qe_get_target_info. 0x%04x\n", dcap_ret);
+        return EH_FUNCTION_FAILED;
+    }
+    log_d("sgx_qe_get_target_info successfully returned\n");
+
+    dcap_ret = sgx_qe_get_quote_size(&quote_size);
+    if (SGX_QL_SUCCESS != dcap_ret) {
+        log_e("Error in sgx_qe_get_quote_size. 0x%04x\n", dcap_ret);
+        return EH_FUNCTION_FAILED;
+    }
+    log_d("sgx_qe_get_quote_size successfully returned\n");
+
+    if (quote->datalen == 0) {
+        quote->datalen = quote_size;
+        return EH_OK;
+    }
+
+    if (quote->data == NULL || quote->datalen != quote_size) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    ret = enclave_create_report(g_enclave_id,
+                    &sgxStatus,
+                    &qe_target_info,
+                    &app_report);
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS){
+        log_e("Error in enclave_create_report (%d)(%d).\n", ret, sgxStatus);
+        return EH_FUNCTION_FAILED;
+    }
+    log_d("enclave_create_report successfully returned\n");
+
+    memset(quote->data, 0, quote_size);
+
+    // Get the Quote
+    dcap_ret = sgx_qe_get_quote(&app_report,
+                            quote->datalen,
+                            quote->data);
+    if (SGX_QL_SUCCESS != dcap_ret) {
+        log_e( "Error in sgx_qe_get_quote. 0x%04x\n", dcap_ret);
+        return EH_FUNCTION_FAILED;
+    }
+    log_d("sgx_qe_get_quote successfully returned\n");
+
+    return EH_OK;
+}
+
+ehsm_status_t VerifyQuote(ehsm_data_t *quote,
+            sgx_ql_qv_result_t *result)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    quote3_error_t dcap_ret = SGX_QL_ERROR_UNEXPECTED;
+
+    uint32_t collateral_expiration_status = 1;
+
+    sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
+
+    time_t current_time = 0;
+    uint32_t supplemental_data_size = 0;
+    uint8_t *p_supplemental_data = NULL;
+
+    sgx_ql_qe_report_info_t qve_report_info;
+    uint8_t nonce[16] = {0};
+
+    if (quote == NULL || quote->data == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    ret = enclave_get_rand(g_enclave_id,
+                    &sgxStatus,
+                    nonce, sizeof(nonce));
+    if (ret != SGX_SUCCESS) {
+        return EH_FUNCTION_FAILED;
+    }
+
+    //set nonce
+    memcpy(qve_report_info.nonce.rand, nonce, sizeof(nonce));
+
+    ret = enclave_get_target_info(g_enclave_id,
+                            &sgxStatus,
+                            &qve_report_info.app_enclave_target_info);
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        log_e("Error in sgx_get_target_info (%d)(%d).\n", ret, sgxStatus);
+        return EH_FUNCTION_FAILED;
+    }
+
+    log_d("get target info successfully returned.\n");
+
+    //call DCAP quote verify library to set QvE loading policy
+    dcap_ret = sgx_qv_set_enclave_load_policy(SGX_QL_DEFAULT);
+    if (dcap_ret != SGX_QL_SUCCESS) {
+        log_e("Error in sgx_qv_set_enclave_load_policy failed: 0x%04x\n", dcap_ret);
+        return EH_FUNCTION_FAILED;
+    }
+
+    log_d("sgx_qv_set_enclave_load_policy successfully returned.\n");
+
+    //call DCAP quote verify library to get supplemental data size
+    dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
+    if (dcap_ret != SGX_QL_SUCCESS) {
+        log_e("Error in sgx_qv_get_quote_supplemental_data_size failed: 0x%04x\n", dcap_ret);
+        return EH_FUNCTION_FAILED;
+    }
+
+    log_d("sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
+
+    //set current time. This is only for sample use, please use trusted time in product.
+    current_time = time(NULL);
+
+    //call DCAP quote verify library for quote verification with Intel QvE.
+    dcap_ret = sgx_qv_verify_quote(
+                                quote->data,
+                                quote->datalen,
+                                NULL,
+                                current_time,
+                                &collateral_expiration_status,
+                                &quote_verification_result,
+                                &qve_report_info,
+                                supplemental_data_size,
+                                p_supplemental_data);
+    if (dcap_ret != SGX_QL_SUCCESS) {
+        log_e("Error in sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
+        return EH_FUNCTION_FAILED;
+    }
+
+    log_d("sgx_qv_verify_quote successfully returned\n");
+
+    // Threshold of QvE ISV SVN. The ISV SVN of QvE used to verify quote must be greater or equal to this threshold
+    // e.g. You can get latest QvE ISVSVN in QvE Identity JSON file from
+    // https://api.trustedservices.intel.com/sgx/certification/v2/qve/identity
+    // Make sure you are using trusted & latest QvE ISV SVN as threshold
+    sgx_isv_svn_t qve_isvsvn_threshold = 3;
+
+    //call sgx_dcap_tvl API in SampleISVEnclave to verify QvE's report and identity
+    ret = sgx_tvl_verify_qve_report_and_identity(g_enclave_id,
+                                                &dcap_ret,
+                                                quote->data,
+                                                quote->datalen,
+                                                &qve_report_info,
+                                                current_time,
+                                                collateral_expiration_status,
+                                                quote_verification_result,
+                                                p_supplemental_data,
+                                                supplemental_data_size,
+                                                qve_isvsvn_threshold);
+    if (ret != SGX_SUCCESS || dcap_ret != SGX_QL_SUCCESS) {
+        log_e("Error in Verify QvE report and identity failed. 0x%04x\n", dcap_ret);
+        return EH_FUNCTION_FAILED;
+    }
+
+    log_d("Verify QvE report and identity successfully returned.\n");
+
+    //check verification result
+    switch (quote_verification_result)
+    {
+        case SGX_QL_QV_RESULT_OK:
+            //check verification collateral expiration status
+            //this value should be considered in your own attestation/verification policy
+            if (collateral_expiration_status == 0) {
+                printf("\tInfo: App: Verification completed successfully.\n");
+            }
+            else {
+                printf("\tWarning: App: Verification completed, but collateral is out of date based on 'expiration_check_date' you provided.\n");
+            }
+
+            break;
+        case SGX_QL_QV_RESULT_CONFIG_NEEDED:
+        case SGX_QL_QV_RESULT_OUT_OF_DATE:
+        case SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED:
+        case SGX_QL_QV_RESULT_SW_HARDENING_NEEDED:
+        case SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED:
+            printf("\tWarning: App: Verification completed with Non-terminal result: %x\n", quote_verification_result);
+            break;
+        case SGX_QL_QV_RESULT_INVALID_SIGNATURE:
+        case SGX_QL_QV_RESULT_REVOKED:
+        case SGX_QL_QV_RESULT_UNSPECIFIED:
+        default:
+            printf("\tError: App: Verification completed with Terminal result: %x\n", quote_verification_result);
+            break;
+    }
+
+    *result = quote_verification_result;
+
+    return EH_OK;
 }
 
 ehsm_status_t ra_get_msg1(sgx_ra_msg1_t *msg1)

@@ -351,6 +351,28 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
              bool* result);
 
 /*
+Description:
+Performs quote generation and return the quote.
+
+Input/Output:
+quote -- the quote for the target encalve.
+*/
+ehsm_status_t GenerateQuote(ehsm_data_t *quote);
+
+/*
+Description:
+Performs quote verification and return the result.
+
+Input:
+quote -- the quote need to be verified.
+
+Output:
+result -- verification result with type sgx_ql_qv_result_t.
+*/
+ehsm_status_t VerifyQuote(ehsm_data_t *quote,
+            sgx_ql_qv_result_t *result);
+
+/*
 *  Description:
 *   Generate a 32-bit random character
 */

@@ -37,6 +37,8 @@
 #include <stdbool.h>
 #include <mbusafecrt.h>
 
+#include "sgx_report.h"
+#include "sgx_utils.h"
 #include "sgx_tkey_exchange.h"
 
 typedef enum {
@@ -787,6 +789,31 @@ out:
     memset_s(&rsa_key, sizeof(rsa_params_t), 0, sizeof(rsa_params_t));
 
     return ret;
+}
+
+sgx_status_t enclave_get_target_info(sgx_target_info_t* target_info)
+{
+    return sgx_self_target(target_info);
+}
+
+sgx_status_t enclave_create_report(const sgx_target_info_t* p_qe3_target, sgx_report_t* p_report)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+
+    sgx_report_data_t report_data = { 0 };
+
+    // Generate the report for the app_enclave
+    ret = sgx_create_report(p_qe3_target, &report_data, p_report);
+
+    return ret;
+}
+
+sgx_status_t enclave_get_rand(uint8_t *data, uint32_t datalen)
+{
+    if (data == NULL)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    return sgx_read_rand(data, datalen);
 }
 
 sgx_status_t enclave_generate_apikey(uint8_t *p_apikey, uint32_t apikey_len)

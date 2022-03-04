@@ -31,7 +31,10 @@
 
 enclave {
     from "sgx_tkey_exchange.edl" import *;
+    from "sgx_tstdc.edl" import *;
+    from "sgx_dcap_tvl.edl" import *;
 
+    include "sgx_report.h"
     include "sgx_key_exchange.h"
     include "sgx_quote.h"
     include "sgx_trts.h"
@@ -113,14 +116,21 @@ enclave {
             [in,size=mac_size] uint8_t* mac,
             size_t mac_size);
 
+        public sgx_status_t enclave_get_rand([out, size=datalen] uint8_t *data,
+                                                uint32_t datalen);
 
         /* Interfaces for remote attestation */
+        public sgx_status_t enclave_get_target_info([out] sgx_target_info_t* target_info);
+
+        public sgx_status_t enclave_create_report([in]const sgx_target_info_t* p_qe3_target,
+                                              [out]sgx_report_t* p_report);
+
         public sgx_status_t enclave_init_ra(int b_pse, [out] sgx_ra_context_t *p_context);                                        
 
-       /* Interfaces used to create local secure channel based on local attestation */
-       public uint32_t enclave_la_create_session();
-       public uint32_t enclave_la_message_exchange();
-       public uint32_t enclave_la_close_session();
+        /* Interfaces used to create local secure channel based on local attestation */
+        public uint32_t enclave_la_create_session();
+        public uint32_t enclave_la_message_exchange();
+        public uint32_t enclave_la_close_session();
 
     };
 };
