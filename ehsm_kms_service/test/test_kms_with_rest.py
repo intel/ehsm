@@ -335,7 +335,7 @@ def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     print('GenerateQuote resp:\n%s\n' %(GenerateQuote_resp.text))
 
     payload.clear()
-    payload["quote"] = "quote12345"
+    payload["quote"] = json.loads(GenerateQuote_resp.text)['result']['quote']
     payload["nonce"] = "nonce12345"
     params=test_params(payload)
     print('VerifyQuote req:\n%s\n' %(params))
