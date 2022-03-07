@@ -216,9 +216,9 @@ const router = async (p) => {
         if (quote && nonce) {
           napi_res = napi_result(action, res, [quote, nonce])
           if (napi_res) {
-            let {error, sign} = await gen_hmac(DB, appid, napi_res.result)
-            if (sign.length > 0) {
-              napi_res.result.sign = sign
+            let {error, hmac} = await gen_hmac(DB, appid, napi_res.result)
+            if (hmac.length > 0) {
+              napi_res.result.sign = hmac
               res.send(napi_res)
             } else {
               res.send(_result(400, 'Internal error', {}))

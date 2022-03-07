@@ -460,15 +460,14 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
 
     // check sign
     let sign_params = { appid, timestamp, payload }
-    let sign_string = params_sort_str(sign_params)
 
-    gen_hmac(DB, appid, sign_string)
-      .then((error, local_sign) => {
-        if (local_sign.length == 0) {
-          res.send(_result(400, error))
+    gen_hmac(DB, appid, sign_params)
+      .then(result => {
+        if (result.hmac.length == 0) {
+          res.send(_result(400, result.error))
           return
         }
-        if (sign != local_sign ) {
+        if (sign != result.hmac ) {
           res.send(_result(400, 'sign error'))
           return
         } else {
@@ -558,6 +557,10 @@ const _query_api_key = async (DB, appid) => {
 
 /**
  * Gen Hmac 
+ * @param {object} DB //Database object
+ * @param {string} appid // APP ID from client
+ * @param {object} sign_params // A list object contain string params
+ * @returns {object} (error, hmac) // One object contain "error" and "hmac" attributes
  */
 const gen_hmac = async (DB, appid, sign_params) => {
   try {
