@@ -229,6 +229,9 @@ const create_user_info = (action, DB, res, req) => {
           cmk: cmk,
         })
           .then((r) => {
+            if (napi_res.result.apikey) {
+              delete napi_res.result.apikey
+            }
             res.send(_result(200, 'successful', { ...napi_res.result }))
           })
           .catch((e) => {

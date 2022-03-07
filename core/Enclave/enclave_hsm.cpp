@@ -816,16 +816,20 @@ sgx_status_t enclave_get_rand(uint8_t *data, uint32_t datalen)
     return sgx_read_rand(data, datalen);
 }
 
-sgx_status_t enclave_generate_apikey(uint8_t *p_apikey, uint32_t apikey_len)
+sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
+                                     uint8_t *p_apikey, uint32_t apikey_len,
+                                     uint8_t *cipherapikey, uint32_t cipherapikey_len)
 {
     sgx_status_t ret = SGX_SUCCESS;
-    if (p_apikey == NULL || apikey_len != EH_API_KEY_SIZE)
-    {
+    if (p_apikey == NULL || apikey_len > EH_API_KEY_SIZE){
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (cipherapikey == NULL || cipherapikey_len < EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE){
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
+    // generate apikey
     std::string psw_chars = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
-    
     uint8_t temp[apikey_len];
     ret = sgx_read_rand(temp, apikey_len);
     if (ret != SGX_SUCCESS) {
@@ -835,6 +839,29 @@ sgx_status_t enclave_generate_apikey(uint8_t *p_apikey, uint32_t apikey_len)
         p_apikey[i] = psw_chars[temp[i] % psw_chars.length()];
     }
 
+    // struct cipherapikey{
+    //     uint8_t apikey[32]
+    //     uint8_t iv[12]
+    //     uint8_t mac[16]  
+    // }
+    uint8_t *iv = (uint8_t *)(cipherapikey + apikey_len);
+    uint8_t *mac = (uint8_t *)(cipherapikey + apikey_len + EH_AES_GCM_IV_SIZE);
+    // get sk and encrypt apikey 
+    sgx_ec_key_128bit_t sk_key;
+    ret = sgx_ra_get_keys(context, SGX_RA_KEY_SK, &sk_key);
+    if (ret != SGX_SUCCESS) {
+        return ret;
+    }
+    ret = sgx_rijndael128GCM_encrypt(&sk_key,
+                                     p_apikey, apikey_len,
+                                     cipherapikey,
+                                     iv, EH_AES_GCM_IV_SIZE,
+                                     NULL, 0,
+                                     reinterpret_cast<uint8_t (*)[EH_AES_GCM_MAC_SIZE]>(mac));
+    if (ret != SGX_SUCCESS) {
+        printf("error encrypting plain text\n");
+    }
+    memset_s(sk_key, sizeof(sgx_ec_key_128bit_t), 0, sizeof(sgx_ec_key_128bit_t));
     memset_s(temp, apikey_len, 0, apikey_len);
     return ret;
 }

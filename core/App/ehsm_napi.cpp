@@ -1335,6 +1335,7 @@ char *NAPI_RA_GET_API_KEY(const char *p_att_result_msg)
 
     char p_appid[UUID_STR_LEN] = {0};
     ehsm_data_t p_apikey;
+    ehsm_data_t cipherapikey;
 
     memset(&pt_att_result_msg, 0, sizeof(pt_att_result_msg));
 
@@ -1379,7 +1380,15 @@ char *NAPI_RA_GET_API_KEY(const char *p_att_result_msg)
         goto OUT;
     }
 
-    ret = generate_apikey(&p_apikey);
+    // create cipherapikey
+    cipherapikey.datalen = EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
+    cipherapikey.data = (uint8_t*)calloc(cipherapikey.datalen, sizeof(uint8_t));
+    if (cipherapikey.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto OUT;
+    }
+
+    ret = generate_apikey(&p_apikey, &cipherapikey);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -1389,6 +1398,7 @@ char *NAPI_RA_GET_API_KEY(const char *p_att_result_msg)
     retJsonObj.addData_uint8Array("nonce", pt_att_result_msg->platform_info_blob.nonce.rand, 16);
     retJsonObj.addData_string("appid", p_appid);
     retJsonObj.addData_string("apikey", (char*)p_apikey.data);
+    retJsonObj.addData_uint8Array("cipherapikey", cipherapikey.data, cipherapikey.datalen);
 
     log_d("apikey_result_msg: \n%s",retJsonObj.toChar());
     log_d("***NAPI_RA_GET_API_KEY end.");
@@ -1396,7 +1406,7 @@ char *NAPI_RA_GET_API_KEY(const char *p_att_result_msg)
 OUT:
     explicit_bzero(p_apikey.data, p_apikey.datalen);
     SAFE_FREE(pt_att_result_msg);
-    SAFE_FREE(p_apikey.data);
+    SAFE_FREE(cipherapikey.data);
     return retJsonObj.toChar();
 }
 

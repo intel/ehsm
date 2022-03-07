@@ -44,7 +44,6 @@
 #include "sgx_dcap_quoteverify.h"
 #include "rand.h"
 
-
 std::string g_challenge;
 sgx_quote_nonce_t g_nonce;
 static sp_db_item_t g_sp_db;
@@ -725,8 +724,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     {
         *pp_att_result_msg = p_att_result_msg;
     }
-    // clear the g_sp_db database after the attesation session finished.
-    memset(&g_sp_db, 0, sizeof(sp_db_item_t));
 
     SAFE_FREE(domain_key);
     return ret;
@@ -846,22 +843,54 @@ OUT:
     return ret;
 }
 
-enroll_status_t verify_apikey_result_msg(RetJsonObj retJsonObj_apikey_result_msg)
+enroll_status_t ra_proc_apikey_result_msg_get_apikey(RetJsonObj retJsonObj_apikey_result_msg, uint8_t *apikey)
 {
+    // check nonce
     sgx_quote_nonce_t nonce;
+    enroll_status_t enroll_ret = ENL_OK;
+    uint8_t *iv = nullptr;
+    uint8_t *mac = nullptr;
+    uint32_t ret = 0;
+    uint8_t cipherapikey[EH_API_KEY_SIZE + SAMPLE_SP_IV_SIZE + SAMPLE_AESGCM_MAC_SIZE] = {0};
+    int nonce_size;
+    if (apikey == NULL)
+    {
+        ret = ENL_ERROR_VERIFY_NONCE_FAILED;
+        goto OUT;
+    }
     retJsonObj_apikey_result_msg.readData_uint8Array("nonce", nonce.rand);
-    int nonce_size = sizeof(g_nonce.rand) / sizeof(g_nonce.rand[0]);
+    nonce_size = sizeof(g_nonce.rand) / sizeof(g_nonce.rand[0]);
     if (nonce_size != sizeof(nonce.rand) / sizeof(nonce.rand[0]))
     {
-        return ENL_ERROR_VERIFY_NONCE_FAILED;
+        enroll_ret = ENL_ERROR_VERIFY_NONCE_FAILED;
+        goto OUT;
     }
     for (int i = 0; i < nonce_size; i++)
     {
         if (g_nonce.rand[i] != nonce.rand[i])
         {
-            return ENL_ERROR_VERIFY_NONCE_FAILED;
+            enroll_ret = ENL_ERROR_VERIFY_NONCE_FAILED;
+            goto OUT;
         }
     }
 
-    return ENL_OK;
+    // get apikey
+    retJsonObj_apikey_result_msg.readData_uint8Array("cipherapikey", cipherapikey);
+    iv = (uint8_t *)(cipherapikey + EH_API_KEY_SIZE);
+    mac = (uint8_t *)(cipherapikey + EH_API_KEY_SIZE + SAMPLE_SP_IV_SIZE);
+    ret = sample_rijndael128GCM_decrypt(&g_sp_db.sk_key,
+                                        cipherapikey,
+                                        EH_API_KEY_SIZE, apikey,
+                                        iv, SAMPLE_SP_IV_SIZE,
+                                        NULL, 0,
+                                        reinterpret_cast<uint8_t(*)[SAMPLE_AESGCM_MAC_SIZE]>(mac));
+    if (ret)
+    {
+        enroll_ret = ENL_ERROR_DECRYPT_APIKEY_FAILED;
+        goto OUT;
+    }
+OUT:
+    // clear the g_sp_db database after the attesation session finished.
+    explicit_bzero(&g_sp_db, sizeof(sp_db_item_t));
+    return enroll_ret;
 }
