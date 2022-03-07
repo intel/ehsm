@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
     std::string msg0_str;
     std::string msg2_str;
     std::string att_result_msg_str;
+    uint8_t *apikey = nullptr;
 
     log_d("=> reading ehsm_kms_url .....");
     // only one parameter, it is ehsm_kms_url
@@ -103,7 +104,7 @@ int main(int argc, char *argv[])
     ret = ra_proc_msg3_get_att_result_msg(retJsonObj, &att_result_msg_str);
     if (ret != ENL_OK || att_result_msg_str.empty())
     {
-        log_e("ra_proc_msg1_get_msg2 failed. error code [%d]\n", ret);
+        log_e("ra_proc_msg3_get_att_result_msg failed. error code [%d]\n", ret);
         ret = ENL_NAPI_EXCEPTION;
         goto OUT;
     }
@@ -118,21 +119,27 @@ int main(int argc, char *argv[])
     }
     log_d("post success apikey_result_msg : \n%s", retJsonObj.toString().c_str());
 
-    ret = verify_apikey_result_msg(retJsonObj);
-    if (ret != ENL_OK)
+    apikey = (uint8_t *)calloc(EH_API_KEY_SIZE + 1, sizeof(uint8_t));
+    if (apikey == NULL)
     {
-        log_e("verify apikey_result_msg failed. error code [%d]\n", ret);
-        ret = ENL_ERROR_VERIFY_NONCE_FAILED;
+        ret = ENL_DEVICE_MEMORY_FAILED;
         goto OUT;
     }
-    // TODO: decrypt APP ID and API Key
+    ret = ra_proc_apikey_result_msg_get_apikey(retJsonObj, apikey);
+    if (ret != ENL_OK)
+    {
+        log_e("ra_proc_cipherapikey_result_msg_get_apikey failed. error code [%d]\n", ret);
+        goto OUT;
+    }
+
+    printf("\nappid: %s\n", retJsonObj.readData_cstr("appid"));
+    printf("\napikey: %s\n\n", apikey);
+
     log_i("decrypt APP ID and API Key success.");
     log_i("Third handle success.");
 
-    printf("\nappid: %s\n", retJsonObj.readData_cstr("appid"));
-    printf("\napikey: %s\n\n", retJsonObj.readData_cstr("apikey"));
-
 OUT:
     log_i("ehsm-kms enroll app end.");
+    explicit_bzero(apikey, EH_API_KEY_SIZE+1);
     return ret;
 }

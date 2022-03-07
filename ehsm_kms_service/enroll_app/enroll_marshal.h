@@ -32,11 +32,8 @@
 #ifndef _ENROLL_MARSHAL_H_
 #define _ENROLL_MARSHAL_H_
 
-
-
 #include "sample_ra_msg.h"
 #include "json_utils.h"
-
 
 typedef enum
 {
@@ -47,9 +44,10 @@ typedef enum
     ENL_CHALLENGE_NO_COMPARE = -4,
     ENL_INTERNAL_ERROR = -5,
     ENL_ERROR_INVALID_PARAMETER = -6,
-    ENL_ERROR_VERIFY_NONCE_FAILED = -7
+    ENL_ERROR_VERIFY_NONCE_FAILED = -7,
+    ENL_ERROR_DECRYPT_APIKEY_FAILED = -8,
+    ENL_DEVICE_MEMORY_FAILED = -9
 } enroll_status_t;
-
 
 /*
  * process eHSM-KMS return msg1 json
