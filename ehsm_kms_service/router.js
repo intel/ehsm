@@ -131,12 +131,12 @@ const router = async (p) => {
       break
     case cryptographic_apis.Verify:
       try {
-        const { keyid, digest, signature_base64 } = payload
+        const { keyid, digest, signature } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         napi_res = napi_result(action, res, [
           cmk_base64,
           digest,
-          signature_base64,
+          signature,
         ])
         napi_res && res.send(napi_res)
       } catch (error) {}
@@ -151,9 +151,9 @@ const router = async (p) => {
       break
     case cryptographic_apis.AsymmetricDecrypt:
       try {
-        const { keyid, ciphertext_base64 } = payload
+        const { keyid, ciphertext } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, [cmk_base64, ciphertext_base64])
+        napi_res = napi_result(action, res, [cmk_base64, ciphertext])
         napi_res && res.send(napi_res)
       } catch (error) {}
       break
@@ -224,10 +224,8 @@ const router = async (p) => {
               res.send(_result(400, 'Internal error', {}))
             }
           } else {
-            res.send(_result(400, 'Internal error', {}))
+            res.send(_result(400, 'Empty quote or nonce ', {}))
           }
-        } else {
-          res.send(_result(400, 'Empty quote or nonce ', {}))
         }
       } catch (error) {}
       break

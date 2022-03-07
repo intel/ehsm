@@ -141,7 +141,7 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
 
     cmk_base64 = base64_encode(resp, resp_len);
     if(cmk_base64.size() > 0){
-        retJsonObj.addData_string("cmk_base64", cmk_base64);
+        retJsonObj.addData_string("cmk", cmk_base64);
     }
 
 out:
@@ -163,17 +163,17 @@ out:
     }
 */
 char* NAPI_Encrypt(const char* cmk_base64,
-        const char* plaintext,
-        const char* aad)
+        const char* plaintext_base64,
+        const char* aad_base64)
 {
     RetJsonObj retJsonObj;
-    if (cmk_base64 == NULL || plaintext == NULL) {
+    if (cmk_base64 == NULL || plaintext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
     }
-    if(aad == NULL){
-        aad = "";
+    if(aad_base64 == NULL){
+        aad_base64 = "";
     }
 
     ehsm_status_t ret = EH_OK;
@@ -188,10 +188,12 @@ char* NAPI_Encrypt(const char* cmk_base64,
     memset(&cipher_data, 0, sizeof(cipher_data));
 
     string cmk_str = base64_decode(cmk_base64);
+    string plaintext_str = base64_decode(plaintext_base64);
+    string aad_str = base64_decode(aad_base64);
     string cipherText_base64;
     int cmk_len = cmk_str.size();
-    int plaintext_len = strlen(plaintext);
-    int aad_len = strlen(aad);
+    int plaintext_len = plaintext_str.size();
+    int aad_len = aad_str.size();
 
     if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -217,11 +219,11 @@ char* NAPI_Encrypt(const char* cmk_base64,
     }
 
     plaint_data.datalen = plaintext_len;
-    plaint_data.data = (uint8_t*)plaintext;
+    plaint_data.data = (uint8_t*)plaintext_str.data();
 
     aad_data.datalen = aad_len;
     if(aad_len > 0){
-        aad_data.data = (uint8_t*)aad;
+        aad_data.data = (uint8_t*)aad_str.data();
     } else {
         aad_data.data = NULL; 
     }
@@ -250,7 +252,7 @@ char* NAPI_Encrypt(const char* cmk_base64,
 
     cipherText_base64 = base64_encode(cipher_data.data, cipher_data.datalen);
     if(cipherText_base64.size() > 0){
-        retJsonObj.addData_string("ciphertext_base64", cipherText_base64);
+        retJsonObj.addData_string("ciphertext", cipherText_base64);
     }
 
 out:
@@ -272,7 +274,7 @@ out:
 */
 char* NAPI_Decrypt(const char* cmk_base64,
         const char* ciphertext_base64,
-        const char* aad)
+        const char* aad_base64)
 {
     RetJsonObj retJsonObj;
     if (cmk_base64 == NULL || ciphertext_base64 == NULL) {
@@ -280,8 +282,8 @@ char* NAPI_Decrypt(const char* cmk_base64,
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
     }
-    if(aad == NULL){
-        aad = "";
+    if(aad_base64 == NULL){
+        aad_base64 = "";
     }
 
     ehsm_status_t ret = EH_OK;
@@ -298,9 +300,10 @@ char* NAPI_Decrypt(const char* cmk_base64,
     
     string cmk_str = base64_decode(cmk_base64);
     string ciphertext_str = base64_decode(ciphertext_base64);
+    string aad_str = base64_decode(aad_base64);
     int cmk_len = cmk_str.size();
     int ciphertext_len = ciphertext_str.size();
-    int aad_len = strlen(aad);
+    int aad_len = aad_str.size();
 
     if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -330,7 +333,7 @@ char* NAPI_Decrypt(const char* cmk_base64,
 
     aad_data.datalen = aad_len;
     if(aad_len > 0){
-        aad_data.data = (uint8_t*)aad;
+        aad_data.data = (uint8_t*)aad_str.data();
     }else{
         aad_data.data = NULL; 
     }
@@ -364,7 +367,7 @@ char* NAPI_Decrypt(const char* cmk_base64,
 
     plaintext_base64 = base64_encode(plaint_data.data, plaint_data.datalen);
     if(plaintext_base64.size() > 0){
-        retJsonObj.addData_string("plaintext_base64", plaintext_base64);
+        retJsonObj.addData_string("plaintext", plaintext_base64);
     }
 out:
     SAFE_FREE(cmk.keyblob);
@@ -386,7 +389,7 @@ out:
 */
 char* NAPI_GenerateDataKey(const char* cmk_base64,
         const uint32_t keylen,
-        const char* aad)
+        const char* aad_base64)
 {
     RetJsonObj retJsonObj;
     if (cmk_base64 == NULL) {
@@ -394,8 +397,8 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
     }
-    if(aad == NULL){
-        aad = "";
+    if(aad_base64 == NULL){
+        aad_base64 = "";
     }
 
     ehsm_status_t ret = EH_OK;
@@ -410,10 +413,11 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
     memset(&cipher_datakey, 0, sizeof(cipher_datakey));
 
     string cmk_str = base64_decode(cmk_base64);
+    string aad_str = base64_decode(aad_base64);
     string plaintext_base64;
     string ciphertext_base64;
     int cmk_len = cmk_str.size();
-    int aad_len = strlen(aad);
+    int aad_len = aad_str.size();
 
     if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -440,7 +444,7 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
 
     aad_data.datalen = aad_len;
     if(aad_len > 0){
-        aad_data.data = (uint8_t*)aad;
+        aad_data.data = (uint8_t*)aad_str.data();
     }else{
         aad_data.data = NULL; 
     }
@@ -489,8 +493,8 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
     plaintext_base64 = base64_encode(plaint_datakey.data, plaint_datakey.datalen);
     ciphertext_base64 = base64_encode(cipher_datakey.data, cipher_datakey.datalen);
     if((plaintext_base64.size() > 0) && (ciphertext_base64.size() > 0) ){
-        retJsonObj.addData_string("plaintext_base64", plaintext_base64); 
-        retJsonObj.addData_string("ciphertext_base64", ciphertext_base64);
+        retJsonObj.addData_string("plaintext", plaintext_base64); 
+        retJsonObj.addData_string("ciphertext", ciphertext_base64);
     }
     
 out:
@@ -513,7 +517,7 @@ out:
 */
 char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
         const uint32_t keylen,
-        const char* aad)
+        const char* aad_base64)
 {
     RetJsonObj retJsonObj;
     if (cmk_base64 == NULL) {
@@ -521,8 +525,8 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
     }
-    if(aad == NULL){
-        aad = "";
+    if(aad_base64 == NULL){
+        aad_base64 = "";
     }
 
     ehsm_status_t ret = EH_OK;
@@ -537,9 +541,10 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
     memset(&cipher_datakey, 0, sizeof(cipher_datakey));
 
     string cmk_str = base64_decode(cmk_base64);
+    string aad_str = base64_decode(aad_base64);
     string ciphertext_base64;
     int cmk_len = cmk_str.size();
-    int aad_len = strlen(aad);
+    int aad_len = aad_str.size();
 
     if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -566,7 +571,7 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
 
     aad_data.datalen = aad_len;
     if(aad_len > 0){
-        aad_data.data = (uint8_t*)aad;
+        aad_data.data = (uint8_t*)aad_str.data();
     }else{
         aad_data.data = NULL; 
     }
@@ -601,7 +606,7 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
 
     ciphertext_base64 = base64_encode(cipher_datakey.data, cipher_datakey.datalen);
     if(ciphertext_base64.size() > 0){
-        retJsonObj.addData_string("ciphertext_base64", ciphertext_base64);
+        retJsonObj.addData_string("ciphertext", ciphertext_base64);
     }
 
 out:
@@ -624,10 +629,10 @@ out:
     }
 */
 char* NAPI_Sign(const char* cmk_base64,
-        const char* digest)
+        const char* digest_base64)
 {    
     RetJsonObj retJsonObj;
-    if (cmk_base64 == NULL || digest == NULL) {
+    if (cmk_base64 == NULL || digest_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
@@ -643,9 +648,10 @@ char* NAPI_Sign(const char* cmk_base64,
     memset(&signature, 0, sizeof(signature));
 
     string cmk_str = base64_decode(cmk_base64);
+    string digest_str = base64_decode(digest_base64);
     string signature_base64;
     int cmk_len = cmk_str.size();
-    int digest_len = strlen(digest);
+    int digest_len = digest_str.size();
 
     if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -666,7 +672,7 @@ char* NAPI_Sign(const char* cmk_base64,
     }
 
     digest_data.datalen = digest_len;
-    digest_data.data = (uint8_t*)digest;
+    digest_data.data = (uint8_t*)digest_str.data();
 
     signature.datalen = 0;
     ret = Sign(&cmk, &digest_data, &signature);
@@ -692,7 +698,7 @@ char* NAPI_Sign(const char* cmk_base64,
 
     signature_base64 = base64_encode(signature.data, signature.datalen);
     if(signature_base64.size() > 0){
-        retJsonObj.addData_string("signature_base64", signature_base64);
+        retJsonObj.addData_string("signature", signature_base64);
     }
 
 out:
@@ -714,11 +720,11 @@ out:
     }
 */
 char* NAPI_Verify(const char* cmk_base64,
-        const char* digest,
+        const char* digest_base64,
         const char* signature_base64)
 {
     RetJsonObj retJsonObj;
-    if (cmk_base64 == NULL || digest == NULL || signature_base64 == NULL) {
+    if (cmk_base64 == NULL || digest_base64 == NULL || signature_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
@@ -736,8 +742,9 @@ char* NAPI_Verify(const char* cmk_base64,
     bool result  = false;
     string cmk_str = base64_decode(cmk_base64);
     string signatur_str = base64_decode(signature_base64);
+    string digest_str = base64_decode(digest_base64);
     int cmk_len = cmk_str.size();
-    int digest_len = strlen(digest);
+    int digest_len = digest_str.size();
     int signature_len = signatur_str.size();
 
     if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
@@ -764,7 +771,7 @@ char* NAPI_Verify(const char* cmk_base64,
     }
 
     digest_data.datalen = digest_len;
-    digest_data.data = (uint8_t*)digest;
+    digest_data.data = (uint8_t*)digest_str.data();
 
     signature_data.datalen = signature_len;
     signature_data.data = (uint8_t*)signatur_str.data();
@@ -795,10 +802,10 @@ out:
     }
 */
 char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
-        const char* plaintext)
+        const char* plaintext_base64)
 {
     RetJsonObj retJsonObj;
-    if (cmk_base64 == NULL || plaintext == NULL) {
+    if (cmk_base64 == NULL || plaintext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
@@ -814,9 +821,10 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
     memset(&cipher_data, 0, sizeof(cipher_data));
     
     string cmk_str = base64_decode(cmk_base64);
+    string plaintext_str = base64_decode(plaintext_base64);
     string cipherText_base64;
     int cmk_len = cmk_str.size();
-    int plaintext_len = strlen(plaintext);
+    int plaintext_len = plaintext_str.size();
     int plaintext_maxLen = 0;
 
     if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
@@ -862,7 +870,7 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
     }
 
     plaint_data.datalen = plaintext_len;
-    plaint_data.data = (uint8_t*)plaintext;
+    plaint_data.data = (uint8_t*)plaintext_str.data();
 
     cipher_data.datalen = 0;
     ret = AsymmetricEncrypt(&cmk, &plaint_data, &cipher_data);
@@ -888,7 +896,7 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
 
     cipherText_base64 = base64_encode(cipher_data.data, cipher_data.datalen);
     if(cipherText_base64.size() > 0){
-        retJsonObj.addData_string("ciphertext_base64", cipherText_base64);
+        retJsonObj.addData_string("ciphertext", cipherText_base64);
     }
 
 out:
@@ -1003,7 +1011,7 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
     
     plaintext_base64 = base64_encode(plaint_data.data, plaint_data.datalen);
     if(plaintext_base64.size() > 0){
-        retJsonObj.addData_string("plaintext_base64", plaintext_base64);
+        retJsonObj.addData_string("plaintext", plaintext_base64);
     }
 out:
     SAFE_FREE(cmk.keyblob);
@@ -1024,7 +1032,7 @@ out:
 */
 char* NAPI_ExportDataKey(const char* cmk_base64,
         const char* ukey_base64,
-        const char* aad,
+        const char* aad_base64,
         const char* olddatakey_base64)
 {
     RetJsonObj retJsonObj;
@@ -1033,8 +1041,8 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
     }
-    if(aad == NULL){
-        aad = "";
+    if(aad_base64 == NULL){
+        aad_base64 = "";
     }
 
     ehsm_status_t ret = EH_OK;
@@ -1053,10 +1061,11 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
     string cmk_str = base64_decode(cmk_base64);
     string ukey_str = base64_decode(ukey_base64);
     string olddatakey_str = base64_decode(olddatakey_base64);
+    string aad_str = base64_decode(aad_base64);
     string newdatakey_base64;   
     int cmk_len = cmk_str.size();
     int ukey_len = ukey_str.size();
-    int aad_len = strlen(aad);
+    int aad_len = aad_str.size();
     int olddatakey_len = olddatakey_str.size();
 
     
@@ -1100,7 +1109,7 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
     
     aad_data.datalen = aad_len;
     if(aad_len > 0){
-        aad_data.data = (uint8_t*)aad;
+        aad_data.data = (uint8_t*)aad_str.data();
     }else{
         aad_data.data = NULL; 
     }
@@ -1133,7 +1142,7 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
 
     newdatakey_base64 = base64_encode(cipher_datakey_new.data, cipher_datakey_new.datalen);
     if(newdatakey_base64.size() > 0){
-        retJsonObj.addData_string("newdatakey_base64", newdatakey_base64);
+        retJsonObj.addData_string("newdatakey", newdatakey_base64);
     }
 out:
     SAFE_FREE(cmk.keyblob);

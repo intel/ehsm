@@ -19,11 +19,11 @@ const keyid = {
   type: 'string',
   minLength: 1,
   maxLength: MAX_LENGTH,
-  required: true,
+  required: false,
 }
 const aad = {
-  type: 'string',
-  maxLength: 32,
+  type: 'base64',
+  maxLength: MAX_LENGTH,
   required: false,
 }
 
@@ -43,9 +43,12 @@ const ehsm_kms_params = {
     },
   },
   Encrypt: {
-    keyid,
+    keyid: {
+      ...keyid, 
+      required: true
+    },
     plaintext: {
-      type: 'string',
+      type: 'base64',
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
@@ -53,9 +56,12 @@ const ehsm_kms_params = {
     aad,
   },
   Decrypt: {
-    keyid,
+    keyid: {
+      ...keyid, 
+      required: true
+    },
     ciphertext: {
-      type: 'string',
+      type: 'base64',
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
@@ -63,7 +69,10 @@ const ehsm_kms_params = {
     aad,
   },
   GenerateDataKey: {
-    keyid,
+    keyid: {
+      ...keyid, 
+      required: true
+    },
     keylen: {
       type: 'int',
       maxNum: 1024,
@@ -73,7 +82,10 @@ const ehsm_kms_params = {
     aad,
   },
   GenerateDataKeyWithoutPlaintext: {
-    keyid,
+    keyid: {
+      ...keyid, 
+      required: true
+    },
     keylen: {
       type: 'int',
       maxNum: 1024,
@@ -83,41 +95,53 @@ const ehsm_kms_params = {
     aad,
   },
   Sign: {
-    keyid,
+    keyid: {
+      ...keyid, 
+      required: true
+    },
     digest: {
-      type: 'string',
+      type: 'base64',
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
     },
   },
   Verify: {
-    keyid,
+    keyid: {
+      ...keyid, 
+      required: true
+    },
     digest: {
-      type: 'string',
+      type: 'base64',
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
     },
-    signature_base64: {
-      type: 'string',
+    signature: {
+      type: 'base64',
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
     },
   },
   AsymmetricEncrypt: {
-    keyid,
+    keyid: {
+      ...keyid, 
+      required: true
+    },
     plaintext: {
-      type: 'string',
+      type: 'base64',
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
     },
   },
   AsymmetricDecrypt: {
-    keyid,
-    ciphertext_base64: {
+    keyid: {
+      ...keyid, 
+      required: true
+    },
+    ciphertext: {
       type: 'string',
       maxLength: MAX_LENGTH,
       minLength: 1,
@@ -125,7 +149,10 @@ const ehsm_kms_params = {
     },
   },
   ExportDataKey: {
-    keyid,
+    keyid: {
+      ...keyid, 
+      required: true
+    },
     ukeyid: {
       type: 'string',
       minLength: 1,

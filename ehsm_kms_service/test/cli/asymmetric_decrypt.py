@@ -25,7 +25,7 @@ def asymmetric_decrypt(base_url, keyid, data):
     print('encrypt data with an asymmetric cmk')
 
     payload = OrderedDict()
-    payload["ciphertext_base64"] = data
+    payload["ciphertext"] = data
     payload["keyid"] = keyid
     params = _utils_.init_params(payload)
     print('asymmetric_decrypt req:\n%s\n' %(params))
@@ -35,7 +35,7 @@ def asymmetric_decrypt(base_url, keyid, data):
         return
 
     print('asymmetric_decrypt resp:\n%s\n' %(resp.text))
-    plaintext = str(base64.b64decode(json.loads(resp.text)['result']['plaintext_base64']), 'utf-8')
+    plaintext = str(base64.b64decode(json.loads(resp.text)['result']['plaintext']), 'utf-8')
     print('asymmetric_decrypt plaintext:\n%s\n' %(plaintext))
 
 if __name__ == "__main__":
