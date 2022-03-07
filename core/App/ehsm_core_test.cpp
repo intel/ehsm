@@ -412,13 +412,12 @@ cleanup:
 void test_GenerateQuote_and_VerifyQuote()
 {
     printf("============test_GenerateQuote_and_VerifyQuote start==========\n");
+    char challenge[32] = "challenge123456";
+    char nonce[16] = "nonce123456";
+
     RetJsonObj retJsonObj;
     char* returnJsonChar = nullptr;
-
-    char* challenge = "challenge123456";
-    char* quote = "quote123456";
-    char* nonce = "nonce123456";
-
+    char* quote_base64 = nullptr;
 
     returnJsonChar = NAPI_GenerateQuote(challenge);
     retJsonObj.parse(returnJsonChar);
@@ -429,8 +428,10 @@ void test_GenerateQuote_and_VerifyQuote()
     printf("NAPI_GenerateQuote Json : %s\n", returnJsonChar);
     printf("NAPI_GenerateQuote SUCCESSFULLY!\n");
 
+    quote_base64 = retJsonObj.readData_cstr("quote");
+    printf("quote_base64 : %s\n", quote_base64);
 
-    returnJsonChar = NAPI_VerifyQuote(quote, nonce);
+    returnJsonChar = NAPI_VerifyQuote(quote_base64, nonce);
     retJsonObj.parse(returnJsonChar);
     if(retJsonObj.getCode() != 200){
         printf("NAPI_VerifyQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
@@ -439,7 +440,7 @@ void test_GenerateQuote_and_VerifyQuote()
     printf("NAPI_VerifyQuote Json : %s\n", returnJsonChar);
     printf("NAPI_VerifyQuote SUCCESSFULLY!\n");
 
-    cleanup:
+cleanup:
     SAFE_FREE(returnJsonChar);
     printf("============test_GenerateQuote_and_VerifyQuote end==========\n");
 }

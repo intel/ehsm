@@ -247,7 +247,6 @@ char* NAPI_RA_HANDSHAKE_MSG2(const char *p_msg2);
  */
 char* NAPI_RA_GET_API_KEY(const char *p_msg4);
 
-
 /*
  *  @param challenge
  *  @return
@@ -263,7 +262,6 @@ char* NAPI_RA_GET_API_KEY(const char *p_msg4);
  */
 char* NAPI_GenerateQuote(const char *challenge);
 
-
 /*
  *  @param quote
  *  @param nonce
@@ -273,12 +271,12 @@ char* NAPI_GenerateQuote(const char *challenge);
  *          code: int,
  *          message: string,
  *          result: {
- *              result : bool,
+ *              "result" : bool,
  *              "nonce" : string
  *          }
  *      }
  */
-char* NAPI_VerifyQuote(const char *quote, const char *nonce);
+char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce);
 
 }  // extern "C"
 

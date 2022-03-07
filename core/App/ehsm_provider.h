@@ -46,6 +46,8 @@
 
 #define EH_AAD_MAX_SIZE (8*1024)
 
+#define EH_QUOTE_MAX_SIZE (8*1024)
+
 #define EH_CMK_MAX_SIZE (4*1024)
 
 #define EH_DATA_KEY_MAX_SIZE 1024
