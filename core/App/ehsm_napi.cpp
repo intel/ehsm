@@ -1408,7 +1408,7 @@ OUT:
 char* NAPI_GenerateQuote(const char *challenge)
 {
     RetJsonObj retJsonObj;
-    log_d("***NAPI_GenerateQuote start.");
+
     if (challenge == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -1417,20 +1417,46 @@ char* NAPI_GenerateQuote(const char *challenge)
     log_d("challenge: \n %s", challenge);
 
     ehsm_status_t ret = EH_OK;
-    std::string quote;
+    ehsm_data_t quote;
+    string quote_base64;
 
-    // TODO: BUILD QUOTE base64
-    quote = "quote1234";
+    quote.datalen = 0;
+    ret = GenerateQuote(&quote);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+    log_d("get the quote size successfuly\n");
+
+    quote.data = (uint8_t*)malloc(quote.datalen);
+    if (quote.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto out;
+    }
+
+    ret = GenerateQuote(&quote);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+    log_d("GenerateQuote successfuly\n");
+
+    quote_base64 = base64_encode(quote.data, quote.datalen);
+    if (quote_base64.size() <= 0) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
 
     retJsonObj.addData_string("challenge", challenge);
-    retJsonObj.addData_string("quote", quote);
+    retJsonObj.addData_string("quote", quote_base64);
 
-    out:
-    log_d("retJsonObj: \n%s",retJsonObj.toChar());
-    log_d("***NAPI_GenerateQuote end.");
+out:
+    SAFE_FREE(quote.data);
     return retJsonObj.toChar();
 }
-
 
 /*
  *  @param quote
@@ -1446,29 +1472,48 @@ char* NAPI_GenerateQuote(const char *challenge)
  *          }
  *      }
  */
-char* NAPI_VerifyQuote(const char *quote, const char *nonce){
+char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce)
+{
     RetJsonObj retJsonObj;
-    log_d("***NAPI_VerifyQuote start.");
-    if (quote == NULL||nonce == NULL) {
+
+    if (quote_base64 == NULL || nonce == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
     }
-    log_d("quote: \n %s", quote);// base 64
-    log_d("nonce: \n %s", nonce);// base 64
 
     ehsm_status_t ret = EH_OK;
-    bool result;
+    sgx_ql_qv_result_t verifyresult;
+    bool result = false;
 
-    // TODO: Verify Quote
-    result = true;
+    ehsm_data_t quote;
+    memset(&quote, 0, sizeof(quote));
+
+    string quote_str = base64_decode(quote_base64);
+    quote.datalen = quote_str.size();
+    quote.data = (uint8_t*)quote_str.data();
+
+    if(quote.datalen == 0 || quote.datalen > EH_QUOTE_MAX_SIZE){
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("The quote's length is invalid.");
+        goto out;
+    }
+
+    ret = VerifyQuote(&quote, &verifyresult);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+    log_d("VerifyQuote successfuly\n");
+
+    if (verifyresult == SGX_QL_QV_RESULT_OK)
+        result = true;
 
     retJsonObj.addData_bool("result", result);
     retJsonObj.addData_string("nonce", nonce);
 
-    out:
-    log_d("retJsonObj: \n%s",retJsonObj.toChar());
-    log_d("***NAPI_VerifyQuote end.");
+out:
     return retJsonObj.toChar();
 }
 

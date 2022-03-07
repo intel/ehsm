@@ -907,6 +907,7 @@ ehsm_status_t GenerateQuote(ehsm_data_t *quote)
 ehsm_status_t VerifyQuote(ehsm_data_t *quote,
             sgx_ql_qv_result_t *result)
 {
+    ehsm_status_t rc = EH_OK;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     quote3_error_t dcap_ret = SGX_QL_ERROR_UNEXPECTED;
@@ -918,6 +919,12 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
     time_t current_time = 0;
     uint32_t supplemental_data_size = 0;
     uint8_t *p_supplemental_data = NULL;
+
+    // Threshold of QvE ISV SVN. The ISV SVN of QvE used to verify quote must be greater or equal to this threshold
+    // e.g. You can get latest QvE ISVSVN in QvE Identity JSON file from
+    // https://api.trustedservices.intel.com/sgx/certification/v2/qve/identity
+    // Make sure you are using trusted & latest QvE ISV SVN as threshold
+    sgx_isv_svn_t qve_isvsvn_threshold = 3;
 
     sgx_ql_qe_report_info_t qve_report_info;
     uint8_t nonce[16] = {0};
@@ -963,6 +970,11 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
     }
 
     log_d("sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
+    p_supplemental_data = (uint8_t*)malloc(supplemental_data_size);
+    if (p_supplemental_data == NULL) {
+        rc = EH_DEVICE_MEMORY;
+        goto out;
+    }
 
     //set current time. This is only for sample use, please use trusted time in product.
     current_time = time(NULL);
@@ -980,16 +992,11 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
                                 p_supplemental_data);
     if (dcap_ret != SGX_QL_SUCCESS) {
         log_e("Error in sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
-        return EH_FUNCTION_FAILED;
+        rc = EH_FUNCTION_FAILED;
+        goto out;
     }
 
     log_d("sgx_qv_verify_quote successfully returned\n");
-
-    // Threshold of QvE ISV SVN. The ISV SVN of QvE used to verify quote must be greater or equal to this threshold
-    // e.g. You can get latest QvE ISVSVN in QvE Identity JSON file from
-    // https://api.trustedservices.intel.com/sgx/certification/v2/qve/identity
-    // Make sure you are using trusted & latest QvE ISV SVN as threshold
-    sgx_isv_svn_t qve_isvsvn_threshold = 3;
 
     //call sgx_dcap_tvl API in SampleISVEnclave to verify QvE's report and identity
     ret = sgx_tvl_verify_qve_report_and_identity(g_enclave_id,
@@ -1005,7 +1012,8 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
                                                 qve_isvsvn_threshold);
     if (ret != SGX_SUCCESS || dcap_ret != SGX_QL_SUCCESS) {
         log_e("Error in Verify QvE report and identity failed. 0x%04x\n", dcap_ret);
-        return EH_FUNCTION_FAILED;
+        rc = EH_FUNCTION_FAILED;
+        goto out;
     }
 
     log_d("Verify QvE report and identity successfully returned.\n");
@@ -1039,9 +1047,11 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
             break;
     }
 
+out:
     *result = quote_verification_result;
 
-    return EH_OK;
+    SAFE_FREE(p_supplemental_data);
+    return rc;
 }
 
 ehsm_status_t ra_get_msg1(sgx_ra_msg1_t *msg1)
