@@ -28,7 +28,7 @@ def verify(base_url, keyid, digest, sig):
     payload = OrderedDict()
     payload["digest"] = digest
     payload["keyid"] = keyid
-    payload["signature_base64"] = sig
+    payload["signature"] = sig
     params = _utils_.init_params(payload)
     print('verify req:\n%s\n' %(params))
 

@@ -77,8 +77,8 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin);
     }
 */
 char* NAPI_Encrypt(const char* cmk_base64,
-        const char* plaintext,
-        const char* aad);
+        const char* plaintext_base64,
+        const char* aad_base64);
 
 /*
 @return
@@ -93,7 +93,7 @@ char* NAPI_Encrypt(const char* cmk_base64,
 */
 char* NAPI_Decrypt(const char* cmk_base64,
         const char* ciphertext_base64,
-        const char* aad);
+        const char* aad_base64);
 
 /*
 @return
@@ -107,7 +107,7 @@ char* NAPI_Decrypt(const char* cmk_base64,
     }
 */
 char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
-    const char* plaintext);
+    const char* plaintext_base64);
 
 /*
 @return
@@ -137,7 +137,7 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
 */
 char* NAPI_GenerateDataKey(const char* cmk_base64,
         const uint32_t keylen,
-        const char* aad);
+        const char* aad_base64);
 
 /*
 @return
@@ -152,7 +152,7 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
 */
 char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
         const uint32_t keylen,
-        const char* aad);
+        const char* aad_base64);
 
 /*
 @return
@@ -167,7 +167,7 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
 */
 char* NAPI_ExportDataKey(const char* cmk_base64,
         const char* ukey_base64,
-        const char* aad,
+        const char* aad_base64,
         const char* olddatakey_base64);
 
 /*
@@ -182,7 +182,7 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
     }
 */
 char* NAPI_Sign(const char* cmk_base64,
-        const char* digest);
+        const char* digest_base64);
 
 /*
 @return
@@ -196,7 +196,7 @@ char* NAPI_Sign(const char* cmk_base64,
     }
 */
 char* NAPI_Verify(const char* cmk_base64,
-        const char* digest,
+        const char* digest_base64,
         const char* signature_base64);
 
 /*

@@ -100,7 +100,7 @@ def test_export_datakey(base_url, headers):
     print('CreateKey resp(EH_RSA_3072):\n%s\n' %(create_ukey_resp.text))
 
     payload.clear()
-    payload["aad"] = "test"
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     payload["keylen"] = 48
     params=test_params(payload)
@@ -112,9 +112,9 @@ def test_export_datakey(base_url, headers):
 
     # test ExportDataKey
     payload.clear()
-    payload["aad"] = "test"
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
-    payload["olddatakey_base"] = json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext_base64']
+    payload["olddatakey_base"] = json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext']
     payload["ukeyid"] = json.loads(create_ukey_resp.text)['result']['keyid']
     params=test_params(payload)
     print('ExportDataKey req:\n%s\n' %(params))
@@ -140,7 +140,7 @@ def test_RSA3072_encrypt_decrypt(base_url, headers):
     # test AsymmetricEncrypt("123456")
     payload.clear()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
-    payload["plaintext"] = "123456"
+    payload["plaintext"] = str(base64.b64encode("123456".encode("utf-8")),'utf-8').upper()
     params=test_params(payload)
     print('AsymmetricEncrypt req:\n%s\n' %(params))
     asymmetricEncrypt_resp = requests.post(url=base_url + "AsymmetricEncrypt", data=json.dumps(params), headers=headers)
@@ -150,7 +150,7 @@ def test_RSA3072_encrypt_decrypt(base_url, headers):
 
     # test AsymmetricDecrypt(ciphertext)
     payload.clear()
-    payload["ciphertext_base64"] = json.loads(asymmetricEncrypt_resp.text)['result']['ciphertext_base64']
+    payload["ciphertext"] = json.loads(asymmetricEncrypt_resp.text)['result']['ciphertext']
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
     print('AsymmetricDecrypt req:\n%s\n' %(params))
@@ -159,7 +159,7 @@ def test_RSA3072_encrypt_decrypt(base_url, headers):
         return
     print('AsymmetricDecrypt resp:\n%s\n' %(asymmetricDecrypt_resp.text))
 
-    plaintext = str(base64.b64decode(json.loads(asymmetricDecrypt_resp.text)['result']['plaintext_base64']), 'utf-8').strip(b"\x00".decode())
+    plaintext = str(base64.b64decode(json.loads(asymmetricDecrypt_resp.text)['result']['plaintext']), 'utf-8').strip(b"\x00".decode())
     print('AsymmetricDecrypt plaintext:\n%s\n' %(plaintext))
     print('====================test_RSA3072_encrypt_decrypt end===========================')
 
@@ -177,7 +177,7 @@ def test_Stest_RSA3072_sign_verify(base_url, headers):
 
     # test Sign
     payload.clear()
-    payload["digest"] = "test"
+    payload["digest"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
     print('Sign req:\n%s\n' %(params))
@@ -188,9 +188,9 @@ def test_Stest_RSA3072_sign_verify(base_url, headers):
 
     # test Verify
     payload.clear()
-    payload["digest"] = "test"
+    payload["digest"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
-    payload["signature_base64"] = json.loads(sign_resp.text)['result']['signature_base64']
+    payload["signature"] = json.loads(sign_resp.text)['result']['signature']
     params=test_params(payload)
     print('Verify req:\n%s\n' %(params))
     verify_resp = requests.post(url=base_url + "Verify", data=json.dumps(params), headers=headers)
@@ -214,7 +214,7 @@ def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
 
     # test GenerateDataKeyWithoutPlaintext
     payload.clear()
-    payload["aad"] = "test"
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     payload["keylen"] = 48
     params=test_params(payload)
@@ -226,8 +226,8 @@ def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
 
     # test Decrypt(cipher_datakey)
     payload.clear()
-    payload["aad"] = "test"
-    payload["ciphertext"] = json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext_base64']
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["ciphertext"] = json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext']
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
     print('Decrypt req:\n%s\n' %(params))
@@ -252,7 +252,7 @@ def test_GenerateDataKey(base_url, headers):
 
     # test GenerateDataKey
     payload.clear()
-    payload["aad"] = "test"
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     payload["keylen"] = 16
     params=test_params(payload)
@@ -264,8 +264,8 @@ def test_GenerateDataKey(base_url, headers):
 
     # test Decrypt(cipher_datakey)
     payload.clear()
-    payload["aad"] = "test"
-    payload["ciphertext"] = json.loads(generatedatakey_resp.text)['result']['ciphertext_base64']
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["ciphertext"] = json.loads(generatedatakey_resp.text)['result']['ciphertext']
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
     print('Decrypt req:\n%s\n' %(params))
@@ -290,9 +290,9 @@ def test_AES128(base_url, headers):
 
     # test Encrypt("123456")
     payload.clear()
-    payload["aad"] = "test"
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
-    payload["plaintext"] = "123456"
+    payload["plaintext"] = str(base64.b64encode("123456".encode("utf-8")),'utf-8').upper()
     params=test_params(payload)
     print('Encrypt req:\n%s\n' %(params))
     encrypt_resp = requests.post(url=base_url + "Encrypt", data=json.dumps(params), headers=headers)
@@ -302,8 +302,8 @@ def test_AES128(base_url, headers):
 
     # test Decrypt(ciphertext)
     payload.clear()
-    payload["aad"] = "test"
-    payload["ciphertext"] = json.loads(encrypt_resp.text)['result']['ciphertext_base64']
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["ciphertext"] = json.loads(encrypt_resp.text)['result']['ciphertext']
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
     print('Decrypt req:\n%s\n' %(params))
@@ -312,7 +312,7 @@ def test_AES128(base_url, headers):
         return
     print('Decrypt resp:\n%s\n' %(decrypt_resp.text))
     
-    plaintext = str(base64.b64decode(json.loads(decrypt_resp.text)['result']['plaintext_base64']), 'utf-8')
+    plaintext = str(base64.b64decode(json.loads(decrypt_resp.text)['result']['plaintext']), 'utf-8')
     print('Decrypt plaintext:\n%s\n' %(plaintext))
     print('check Decrypt plaintext result with %s: %s\n' %('123456', plaintext == '123456'))
 

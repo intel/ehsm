@@ -34,6 +34,15 @@ const base64_encode = (str) => new Buffer.from(str).toString('base64')
 // base64 decode
 const base64_decode = (base64_str) =>
   new Buffer.from(base64_str, 'base64').toString()
+const is_base64 = (base64_str) => {
+  if (base64_str == undefined ||
+      typeof base64_str != 'string' ||
+      base64_str.length == 0 ||
+      (base64_str.length % 4) != 0) {
+    return false
+  }
+  return /^[a-zA-Z0-9\+\/]+(\={0,2})$/gi.test(base64_str)
+};
 
 /**
  * Clear nonce cache for more than <NONCE_CACHE_TIME> minutes
@@ -144,7 +153,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
     DB.insert({
       _id: `cmk:${keyid}`,
       keyid,
-      keyBlob: napi_res.result.cmk_base64,
+      keyBlob: napi_res.result.cmk,
       creator: appid,
       creationDate,
       expireTime: creationDate + CMK_EFFECTIVE_DURATION,
@@ -154,7 +163,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
       keyState: 1,
     })
       .then((r) => {
-        delete napi_res.result.cmk_base64 // Delete cmk_base64 in NaPi result
+        delete napi_res.result.cmk // Delete cmk in NaPi result
         napi_res.result.keyid = keyid // The keyID field is added to the result returned to the user
         res.send(napi_res)
       })
@@ -205,19 +214,19 @@ const create_user_info = (action, DB, res, req) => {
     const { appid, apikey } = napi_res.result
     let cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
     if (cmk_res) {
-      const { cmk_base64 } = cmk_res.result
+      const { cmk } = cmk_res.result
       let apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [
-        cmk_base64,
+        cmk,
         apikey,
         '',
       ])
       if (apikey_encrypt_res) {
-        const { ciphertext_base64 } = apikey_encrypt_res.result
+        const { ciphertext } = apikey_encrypt_res.result
         DB.insert({
           _id: `user_info:${appid}`,
           appid,
-          apikey: ciphertext_base64,
-          cmk: cmk_base64,
+          apikey: ciphertext,
+          cmk: cmk,
         })
           .then((r) => {
             res.send(_result(200, 'successful', { ...napi_res.result }))
@@ -330,6 +339,26 @@ const _checkPayload = function (req, res) {
               payload[key].length < currentPayLoad[key].minLength))
         ) {
           res.send(_result(400, `${key} length error`))
+          return false
+        }
+      }
+      if (currentPayLoad[key].type == 'base64' && payload[key]) {
+        if (typeof payload[key] != 'string') {
+          res.send(_result(400, `${key} must be of base64 string type`))
+          return false
+        }
+        if (
+          payload[key] != undefined &&
+          ((currentPayLoad[key].maxLength &&
+            payload[key].length > currentPayLoad[key].maxLength) ||
+            (currentPayLoad[key].minLength &&
+              payload[key].length < currentPayLoad[key].minLength))
+        ) {
+          res.send(_result(400, `${key} length error`))
+          return false
+        }
+        if (!is_base64(payload[key])) {
+          res.send(_result(400,  `${key} not a vailed base64 string`))
           return false
         }
       }
@@ -528,7 +557,7 @@ const _query_api_key = async (DB, appid) => {
       [cmk, apikey, '']
     )
     if (decypt_result) {
-      let decoded_api_key = base64_decode(decypt_result.result.plaintext_base64)
+      let decoded_api_key = base64_decode(decypt_result.result.plaintext)
       if (decoded_api_key) {
         return {
           msg: '',
