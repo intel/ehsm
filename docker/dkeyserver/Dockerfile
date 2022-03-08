@@ -1,7 +1,5 @@
 FROM ubuntu:18.04 as sample
 
-ENV PCCS_URL https://10.112.240.166:8081
-
 RUN apt-get update && apt-get install -y \
     vim \
     autoconf \
@@ -56,14 +54,8 @@ RUN apt-get update &&apt-get install -y \
     libsgx-ra-uefi \
     libsgx-dcap-ql-dev 
 
-
-# RESET PCCS URL
-WORKDIR /etc
-RUN echo '# PCCS server address' > sgx_default_qcnl.conf \
-    && echo 'PCCS_URL='${PCCS_URL}'/sgx/certification/v3/' >> sgx_default_qcnl.conf \
-    && echo '# To accept insecure HTTPS certificate, set this option to FALSE' >> sgx_default_qcnl.conf \
-    && echo 'USE_SECURE_CERT=FALSE' >> sgx_default_qcnl.conf
-
+COPY start_dkeyserver.sh /home/
+RUN chmod 744 /home/start_dkeyserver.sh
 
 # Build App from source
 WORKDIR /home
@@ -75,6 +67,6 @@ RUN git clone https://github.com/intel/ehsm.git \
 EXPOSE 8888
 
 # run ehsm-dkeyserver
-CMD ["./ehsm/out/ehsm-dkeyserver/ehsm-dkeyserver"]
+CMD ["sh", "/home/start_dkeyserver.sh"]
 
 
