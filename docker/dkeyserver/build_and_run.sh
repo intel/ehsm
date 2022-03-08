@@ -8,7 +8,7 @@ EHSM_DOCKER_IMAGE_NAME="ehsm_dkeyserver:latest"
 EHSM_DOCKER_IMAGE_NAME_NO_VERSION="ehsm_dkeyserver"
 HOST_PORT=8888
 DOCKER_PORT=8888
-
+PCCS_URL="https://10.112.240.166:8081"
 
 function build {
 	echo "[build] delete the old ehsm docker images and containers..."
@@ -59,7 +59,8 @@ function run {
 	RUN_ARG="$RUN_ARG --device=/dev/sgx/enclave --device=/dev/sgx/provision -v aesmd-socket:/var/run/aesmd"
 
 	# run the container
-	docker run -d $RUN_ARG -it -p $HOST_PORT:$DOCKER_PORT $EHSM_DOCKER_IMAGE_NAME
+  echo "docker run -d $RUN_ARG -it -p $HOST_PORT:$DOCKER_PORT -e PCCS_URL=$PCCS_URL $EHSM_DOCKER_IMAGE_NAME"
+	docker run -d $RUN_ARG -it -p $HOST_PORT:$DOCKER_PORT -e PCCS_URL=$PCCS_URL $EHSM_DOCKER_IMAGE_NAME
 }
 
 function delete {
