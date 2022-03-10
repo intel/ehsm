@@ -71,7 +71,7 @@ def test_params(payload):
     sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
     print(sign_string.encode('utf-8'))
     print(apikey.encode('utf-8'))
-    sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+    sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     if payload!=False:
         params["payload"] = payload
     params["sign"] = sign
@@ -100,7 +100,7 @@ def test_export_datakey(base_url, headers):
     print('CreateKey resp(EH_RSA_3072):\n%s\n' %(create_ukey_resp.text))
 
     payload.clear()
-    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     payload["keylen"] = 48
     params=test_params(payload)
@@ -112,7 +112,7 @@ def test_export_datakey(base_url, headers):
 
     # test ExportDataKey
     payload.clear()
-    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     payload["olddatakey_base"] = json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext']
     payload["ukeyid"] = json.loads(create_ukey_resp.text)['result']['keyid']
@@ -140,7 +140,7 @@ def test_RSA3072_encrypt_decrypt(base_url, headers):
     # test AsymmetricEncrypt("123456")
     payload.clear()
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
-    payload["plaintext"] = str(base64.b64encode("123456".encode("utf-8")),'utf-8').upper()
+    payload["plaintext"] = str(base64.b64encode("123456".encode("utf-8")),'utf-8')
     params=test_params(payload)
     print('AsymmetricEncrypt req:\n%s\n' %(params))
     asymmetricEncrypt_resp = requests.post(url=base_url + "AsymmetricEncrypt", data=json.dumps(params), headers=headers)
@@ -177,7 +177,7 @@ def test_Stest_RSA3072_sign_verify(base_url, headers):
 
     # test Sign
     payload.clear()
-    payload["digest"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["digest"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
     print('Sign req:\n%s\n' %(params))
@@ -188,7 +188,7 @@ def test_Stest_RSA3072_sign_verify(base_url, headers):
 
     # test Verify
     payload.clear()
-    payload["digest"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["digest"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     payload["signature"] = json.loads(sign_resp.text)['result']['signature']
     params=test_params(payload)
@@ -214,7 +214,7 @@ def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
 
     # test GenerateDataKeyWithoutPlaintext
     payload.clear()
-    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     payload["keylen"] = 48
     params=test_params(payload)
@@ -226,7 +226,7 @@ def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
 
     # test Decrypt(cipher_datakey)
     payload.clear()
-    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["ciphertext"] = json.loads(generateDataKeyWithoutPlaintext_resp.text)['result']['ciphertext']
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
@@ -252,7 +252,7 @@ def test_GenerateDataKey(base_url, headers):
 
     # test GenerateDataKey
     payload.clear()
-    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     payload["keylen"] = 16
     params=test_params(payload)
@@ -264,7 +264,7 @@ def test_GenerateDataKey(base_url, headers):
 
     # test Decrypt(cipher_datakey)
     payload.clear()
-    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["ciphertext"] = json.loads(generatedatakey_resp.text)['result']['ciphertext']
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
@@ -290,9 +290,9 @@ def test_AES128(base_url, headers):
 
     # test Encrypt("123456")
     payload.clear()
-    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
-    payload["plaintext"] = str(base64.b64encode("123456".encode("utf-8")),'utf-8').upper()
+    payload["plaintext"] = str(base64.b64encode("123456".encode("utf-8")),'utf-8')
     params=test_params(payload)
     print('Encrypt req:\n%s\n' %(params))
     encrypt_resp = requests.post(url=base_url + "Encrypt", data=json.dumps(params), headers=headers)
@@ -302,7 +302,7 @@ def test_AES128(base_url, headers):
 
     # test Decrypt(ciphertext)
     payload.clear()
-    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8').upper()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
     payload["ciphertext"] = json.loads(encrypt_resp.text)['result']['ciphertext']
     payload["keyid"] = json.loads(create_resp.text)['result']['keyid']
     params=test_params(payload)
@@ -349,7 +349,7 @@ def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     VerifyQuote_Result.pop('sign')
     ord_VerifyQuote_Result = OrderedDict(sorted(VerifyQuote_Result.items(), key=lambda k: k[0]))
     sign_string = urllib.parse.unquote(urllib.parse.urlencode(ord_VerifyQuote_Result))
-    sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+    sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))
 
     print('====================test_GenerateQuote_and_VerifyQuote end===========================')

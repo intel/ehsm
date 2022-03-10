@@ -600,7 +600,6 @@ const gen_hmac = async (DB, appid, sign_params) => {
     let sign_result = crypto.createHmac('sha256', api_key)
       .update(sign_string, 'utf8')
       .digest('base64')
-      .toLocaleUpperCase()
     return {
       error: '',
       hmac: sign_result

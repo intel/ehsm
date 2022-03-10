@@ -25,7 +25,7 @@ def init_params(payload):
     sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
     #print(sign_string.encode('utf-8'))
     #print(apikey.encode('utf-8'))
-    sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+    sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     if payload!=False:
         params["payload"] = payload
     params["sign"] = sign
