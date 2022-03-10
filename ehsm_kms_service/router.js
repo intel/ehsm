@@ -199,6 +199,7 @@ const router = async (p) => {
       break
     case key_management_apis.DisableKey:
       disableKey(appid, payload, res, DB)
+      break
     case remote_attestation_apis.GenerateQuote:
       try {
         const { challenge } = payload
