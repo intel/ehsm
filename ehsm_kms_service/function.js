@@ -560,17 +560,9 @@ const _query_api_key = async (DB, appid) => {
       [cmk, apikey, '']
     )
     if (decypt_result) {
-      let decoded_api_key = base64_decode(decypt_result.result.plaintext)
-      if (decoded_api_key) {
-        return {
-          msg: '',
-          api_key: decoded_api_key
-        }
-      } else {
-        return {
-          msg: 'Decode key error',
-          api_key: ''
-        }
+      return {
+        msg: '',
+        api_key: decypt_result.result.plaintext
       }
     } else {
       return {
