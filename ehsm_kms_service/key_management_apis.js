@@ -1,4 +1,4 @@
-const { _result } = require('./function')
+const { _result } = require("./common_function")
 const logger=require('./logger')
 
 const cmkFileds = [

@@ -13,6 +13,7 @@
   "author": "intel",
   "license": "BSD",
   "dependencies": {
+    "axios": "^0.26.1",
     "express": "^4.17.1",
     "ffi-napi": "^4.0.3",
     "log4js": "^6.3.0",

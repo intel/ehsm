@@ -54,14 +54,12 @@ RUN apt-get update &&apt-get install -y \
     libsgx-ra-uefi \
     libsgx-dcap-ql-dev
 
-COPY start_ehsm-kms.sh /home/
-RUN chmod 744 /home/start_ehsm-kms.sh
+COPY start_ehsm-access.sh /home/
+RUN chmod 744 /home/start_ehsm-access.sh
 
 # Build App from source
 WORKDIR /home
-RUN git clone https://github.com/intel/ehsm.git \
-    && cd ehsm \
-    && make
+RUN git clone https://github.com/intel/ehsm.git
 
 # Install node & npm packages
 RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
@@ -73,12 +71,10 @@ RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
 
 # Install ehsm-service dependence packages
 WORKDIR /home/ehsm/ehsm_kms_service
-RUN cp /home/ehsm/out/ehsm-core/libehsmnapi.so . \
-    && cp /home/ehsm/out/ehsm-core/libenclave-ehsm-core.signed.so .
 RUN npm install
 
 # image port
-EXPOSE 9000
+EXPOSE 9001
 
 # run ehsm_kms_service
-CMD ["sh", "/home/start_ehsm-kms.sh"]
+CMD ["sh", "/home/start_ehsm-access.sh"]

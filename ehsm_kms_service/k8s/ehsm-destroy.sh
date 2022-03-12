@@ -1,6 +1,8 @@
 #!/bin/bash
 kubectl delete svc couchdb -n ehsm-kms
+kubectl delete svc ehsm-acs-service -n ehsm-kms
 kubectl delete svc ehsm-kms-service -n ehsm-kms
+kubectl delete deployment ehsm-acs-deployment -n ehsm-kms
 kubectl delete deployment ehsm-kms-deployment -n ehsm-kms
 kubectl delete ds dkeycache-deamonset -n ehsm-kms
 kubectl delete sts couchdb -n ehsm-kms

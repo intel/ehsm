@@ -26,6 +26,15 @@ data:
   dkeyserver_port: "8888"
   # you need adjust https://1.2.3.4:8081 to your pccs_url.
   pccs_url: "https://1.2.3.4:8081"
+  # the http://5.6.7.8:9010 is Access control server url,this IP is IP of [ehsm access control service],you can find it below.
+  # If you have another access control service,you can change this url to your service, and then remove [ehsm access control service] below.
+  defense_server_url: "http://5.6.7.8:9010"
+  # The max deny ip list size, default value is 3000
+  deny_size_limit: "3000"
+  # The max deny time for one ip.The unit is ms and default value is 1800000 ms(30 min)
+  deny_timeout: 1800000"
+  # The max deny count for one ip.If one ip has been reported max count within the configured timeout.The default value is 5
+  deny_count_limit: "5"
 
 ---
 # ehsm-kms PersistentVolume for CouchDB
@@ -162,7 +171,7 @@ spec:
         - mountPath: /var/run/ehsm
           name: dev-dkeyprovision
         env:
-        - name: PCCS_URL 
+        - name: PCCS_URL
           valueFrom:
             configMapKeyRef:
               name: ehsm-configmap
@@ -177,6 +186,131 @@ spec:
             configMapKeyRef:
               name: ehsm-configmap
               key: dkeyserver_port
+
+---
+# ehsm access control service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ehsm-acs-deployment
+  namespace: ehsm-kms
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ehsm-acs
+  template:
+    metadata:
+      labels:
+        app: ehsm-acs
+    spec:
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
+      - name: dev-dkeyprovision
+        hostPath:
+          path: /var/run/ehsm
+      containers:
+      - name: ehsm-acs
+        # The current image is the same as ehsm-kms service,You need to tag the ehsm-acs container image with this name on each worker node or change it to point to a docker hub to get the container image.
+        image: intel/ehsm_kms_service:latest
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "curl http://${EHSM_CONFIG_COUCHDB_SERVER}:${EHSM_CONFIG_COUCHDB_PORT}/"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
+        - mountPath: /var/run/ehsm
+          name: dev-dkeyprovision
+        env:
+        - name: PCCS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: pccs_url
+        - name: EHSM_CONFIG_COUCHDB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ehsm-secret
+              key: couch_root_username
+        - name: EHSM_CONFIG_COUCHDB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ehsm-secret
+              key: couch_root_password
+        - name: EHSM_CONFIG_COUCHDB_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_url
+        - name: EHSM_CONFIG_COUCHDB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_port
+        - name: EHSM_CONFIG_COUCHDB_DB
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: database_name
+        - name: EHSM_CONFIG_DENY_SIZE_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: deny_size_limit
+        - name: EHSM_CONFIG_DENY_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: deny_timeout
+        - name: EHSM_CONFIG_DENY_COUNT_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: deny_count_limit
+        ports:
+        - name: ehsm-acs
+          containerPort: 9010
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ehsm-acs-service
+  namespace: ehsm-kms
+spec:
+  type: LoadBalancer
+  selector:
+    app: ehsm-acs
+  ports:
+    - name: ehsm-acs
+      protocol: TCP
+      # This port is [ehsm access control service] access port,you can change it to what you want.
+      port: 9010
+      targetPort: 9010
+      nodePort: 30010
+  sessionAffinity: ClientIP
+  externalIPs:
+  # This IP is [ehsm access control service] access IP, You need to adjust 5.6.7.8 to the service IP you want to expose.
+  - 5.6.7.8
 
 ---
 # ehsm-kms service
@@ -233,7 +367,7 @@ spec:
         - mountPath: /var/run/ehsm
           name: dev-dkeyprovision
         env:
-        - name: PCCS_URL 
+        - name: PCCS_URL
           valueFrom:
             configMapKeyRef:
               name: ehsm-configmap
@@ -263,6 +397,11 @@ spec:
             configMapKeyRef:
               name: ehsm-configmap
               key: database_name
+        - name: EHSM_CONFIG_DEFENSE_SERVER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: ehsm-configmap
+              key: defense_server_url
         ports:
         - name: ehsm-kms
           containerPort: 9000

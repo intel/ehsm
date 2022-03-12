@@ -8,11 +8,11 @@ const {
 const logger = require('./logger')
 const {
   napi_result,
-  _result,
   create_user_info,
   store_cmk,
   gen_hmac,
 } = require('./function')
+const { _result } = require("./common_function")
 const {
   listKey,
   deleteALLKey,

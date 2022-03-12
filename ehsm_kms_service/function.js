@@ -18,16 +18,12 @@ const {
   key_management_apis,
 } = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
+const {
+  ReportControlTarget,
+  CheckNonce
+} = require('./access_control_api')
+const { _result } = require("./common_function")
 
-const _result = (code, msg, data = {}) => {
-  return {
-    code: code,
-    message: msg,
-    result: {
-      ...data,
-    },
-  }
-}
 // base64 encode
 const base64_encode = (str) => new Buffer.from(str).toString('base64')
 
@@ -43,44 +39,6 @@ const is_base64 = (base64_str) => {
   }
   return /^[a-zA-Z0-9\+\/]+(\={0,2})$/gi.test(base64_str)
 };
-
-/**
- * Clear nonce cache for more than <NONCE_CACHE_TIME> minutes
- * nonce_database[appid]
- *  - type: array
- *  - sort: [new timestamp, old timestamp, ...]
- * @returns nonce_cache_timer, nonce_database
- */
-const _nonce_cache_timer = () => {
-  const nonce_database = {}
-  const timer = setInterval(() => {
-    try {
-      for (const appid in nonce_database) {
-        // slice_index  Index of the cache that exceeded the maximum time
-        let slice_index =
-          nonce_database[appid] &&
-          nonce_database[appid].findIndex((nonce_data) => {
-            return (
-              new Date().getTime() - nonce_data.nonce_timestamp >
-              NONCE_CACHE_TIME
-            )
-          })
-        // keep unexpired data
-        if (slice_index > 0) {
-          nonce_database[appid] = nonce_database[appid].slice(0, slice_index)
-        }
-        // All data expired
-        if (slice_index == 0) {
-          delete nonce_database[appid]
-        }
-      }
-    } catch (error) {
-      res.send(_result(404, 'Not Found', {}))
-      logger.error(JSON.stringify(error))
-    }
-  }, NONCE_CACHE_TIME / 2)
-  return { timer, nonce_database }
-}
 
 /**
  * CMK is valid for 5 years and 10 days
@@ -285,28 +243,6 @@ const _checkTimestamp = (timestamp) => {
   return Math.abs(new Date().getTime() - timestamp) < MAX_TIME_STAMP_DIFF
 }
 
-const getIPAdress = () => {
-  try {
-    var interfaces = require('os').networkInterfaces()
-    for (var devName in interfaces) {
-      var iface = interfaces[devName]
-      for (var i = 0; i < iface.length; i++) {
-        var alias = iface[i]
-        if (
-          alias.family === 'IPv4' &&
-          alias.address !== '127.0.0.1' &&
-          !alias.internal
-        ) {
-          return alias.address
-        }
-      }
-    }
-  } catch (error) {
-    logger.error(JSON.stringify(error))
-    res.send(_result(404, 'Not Found', {}))
-  }
-}
-
 /**
  * Verify each parameter in the payload, such as data type,
  * data length, whether it is the specified value,
@@ -435,6 +371,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       !sign ||
       (ACTION !== key_management_apis[ACTION] && !payload)
     ) {
+      ReportControlTarget(req.ip, new Date().getTime())
       res.send(_result(400, 'Missing required parameters'))
       return
     }
@@ -444,71 +381,92 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       (payload && typeof payload != 'object') ||
       typeof sign != 'string'
     ) {
+      ReportControlTarget(req.ip, new Date().getTime())
       res.send(_result(400, 'param type error'))
       return
     }
     if (timestamp.length != TIMESTAMP_LEN) {
+      ReportControlTarget(req.ip, new Date().getTime())
       res.send(_result(400, 'Timestamp length error'))
       return
     }
     if (!_checkTimestamp(timestamp)) {
+      ReportControlTarget(req.ip, new Date().getTime())
       res.send(_result(400, 'Timestamp error'))
       return
     }
-    /**
-     * Cache nonce locally after receiving the request
-     * nonce_database - object
-     *  {
-     *    <appid>: [nonce_data，nonce_data]
-     *  }
-     * nonce_data - object
-     *  {
-     *    nonce: ****
-     *    nonce_timestamp: new Date().getTime()
-     *  }
-     */
-    const nonce_data = { nonce, nonce_timestamp: new Date().getTime() }
-    if (!nonce_database[appid]) {
-      nonce_database[appid] = [nonce_data]
-    } else if (
-      !!nonce_database[appid] &&
-      nonce_database[appid].findIndex(
-        (nonce_data) => nonce_data.nonce == nonce
-      ) > -1
-    ) {
-      res.send(_result(400, "Timestamp can't be repeated in 20 minutes"))
-      return
-    } else {
-      nonce_database[appid].unshift(nonce_data)
-    }
 
-    if (ACTION !== key_management_apis[ACTION]) {
-      // check payload
-      const _checkPayload_res = _checkPayload(req, res, next)
-      if (!_checkPayload_res) {
-        return
+    var _lastSteps = () => {
+      if (ACTION !== key_management_apis[ACTION]) {
+        // check payload
+        const _checkPayload_res = _checkPayload(req, res, next)
+        if (!_checkPayload_res) {
+          return
+        }
       }
+
+      // check sign
+      let sign_params = { appid, timestamp, payload }
+
+      gen_hmac(DB, appid, sign_params)
+        .then(result => {
+          if (result.hmac.length == 0) {
+            ReportControlTarget(req.ip, new Date().getTime())
+            res.send(_result(400, result.error))
+            return
+          }
+          if (sign != result.hmac ) {
+            ReportControlTarget(req.ip, new Date().getTime())
+            res.send(_result(400, 'sign error'))
+            return
+          } else {
+            next()
+          }
+        })
+        .catch((e) => {
+          res.send(_result(400, 'database error'))
+        })
     }
 
-    // check sign
-    let sign_params = { appid, timestamp, payload }
-
-    gen_hmac(DB, appid, sign_params)
-      .then(result => {
-        if (result.hmac.length == 0) {
-          res.send(_result(400, result.error))
-          return
-        }
-        if (sign != result.hmac ) {
-          res.send(_result(400, 'sign error'))
-          return
+    var _checkNonce = CheckNonce(nonce_database, appid, nonce, new Date().getTime())
+    if (_checkNonce == undefined) {
+      /**
+       * Cache nonce locally after receiving the request
+       * nonce_database - object
+       *  {
+       *    <appid>: [nonce_data，nonce_data]
+       *  }
+       * nonce_data - object
+       *  {
+       *    nonce: ****
+       *    nonce_timestamp: new Date().getTime()
+       *  }
+       */
+      const nonce_data = { nonce, nonce_timestamp: new Date().getTime() }
+      if (!nonce_database[appid]) {
+        nonce_database[appid] = [nonce_data]
+      } else if (
+        !!nonce_database[appid] &&
+        nonce_database[appid].findIndex(
+          (nonce_data) => nonce_data.nonce == nonce
+        ) > -1
+      ) {
+        res.send(_result(400, "Timestamp can't be repeated in 20 minutes"))
+        return
+      } else {
+        nonce_database[appid].unshift(nonce_data)
+      }
+      _lastSteps()
+    } else {
+      _checkNonce.then((checkNonceRes) => {
+        if (checkNonceRes) {
+          _lastSteps()
         } else {
-          next()
+          ReportControlTarget(req.ip, new Date().getTime())
+          res.send(_result(400, "Timestamp can't be repeated in 20 minutes"))
         }
       })
-      .catch((e) => {
-        res.send(_result(400, 'database error'))
-      })
+    }
   } catch (error) {
     res.send(_result(404, 'Not Found', {}))
     logger.error(JSON.stringify(error))
@@ -580,7 +538,7 @@ const _query_api_key = async (DB, appid) => {
 }
 
 /**
- * Gen Hmac 
+ * Gen Hmac
  * @param {object} DB //Database object
  * @param {string} appid // APP ID from client
  * @param {object} sign_params // A list object contain string params
@@ -614,14 +572,11 @@ const gen_hmac = async (DB, appid, sign_params) => {
 }
 
 module.exports = {
-  getIPAdress,
   base64_encode,
   base64_decode,
   _checkParams,
-  _result,
   napi_result,
   create_user_info,
-  _nonce_cache_timer,
   store_cmk,
   _cmk_cache_timer,
   gen_hmac,

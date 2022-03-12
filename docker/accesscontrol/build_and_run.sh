@@ -3,19 +3,15 @@
 set -e
 
 WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-EHSM_DOCKER_FILE_NAME="ehsm_kms_service.tar.gz"
-EHSM_DOCKER_IMAGE_NAME="ehsm_kms_service:latest"
-EHSM_DOCKER_IMAGE_NAME_NO_VERSION="ehsm_kms_service"
-HOST_PORT=9000
-DOCKER_PORT=9000
-EHSM_CONFIG_COUCHDB_USERNAME="admin"
-EHSM_CONFIG_COUCHDB_PASSWORD="password"
-EHSM_CONFIG_COUCHDB_SERVER="1.2.3.4"
-EHSM_CONFIG_COUCHDB_PORT="5984"
-EHSM_CONFIG_COUCHDB_DB="ehsm_kms_db"
+EHSM_DOCKER_FILE_NAME="ehsm_access_service.tar.gz"
+EHSM_DOCKER_IMAGE_NAME="ehsm_access_service:latest"
+EHSM_DOCKER_IMAGE_NAME_NO_VERSION="ehsm_access_service"
+HOST_PORT=9001
+DOCKER_PORT=9001
+EHSM_CONFIG_DENY_SIZE_LIMIT=3000
+EHSM_CONFIG_DENY_TIMEOUT=1800000
+EHSM_CONFIG_DENY_COUNT_LIMIT=5
 PCCS_URL="https://10.112.240.166:8081"
-EHSM_CONFIG_DEFENSE_ENABLE=true
-EHSM_CONFIG_DEFENSE_SERVER_URL="http://10.112.240.122:9001"
 
 function build {
 	echo "[build] delete the old ehsm docker images and containers..."
@@ -37,7 +33,7 @@ function build {
 
 function run {
 	USAGE=$(cat <<- EOM
-	Usage: run(-r) <ehsm_kms_service docker images>(optional)
+	Usage: run(-r) <ehsm_access_service docker images>(optional)
 	run the docker image, if you don't add the file name then use the default one($EHSM_DOCKER_FILE_NAME).
 	EOM
 	)
@@ -64,7 +60,7 @@ function run {
 	RUN_ARG="$RUN_ARG --device=/dev/sgx/enclave --device=/dev/sgx/provision -v aesmd-socket:/var/run/aesmd -v /var/run/ehsm/:/var/run/ehsm/"
 
 	# run the container
-	docker run -d $RUN_ARG -it -p $HOST_PORT:$DOCKER_PORT -e PCCS_URL=$PCCS_URL -e EHSM_CONFIG_COUCHDB_USERNAME=$EHSM_CONFIG_COUCHDB_USERNAME -e EHSM_CONFIG_COUCHDB_PASSWORD=$EHSM_CONFIG_COUCHDB_PASSWORD -e EHSM_CONFIG_COUCHDB_PORT=$EHSM_CONFIG_COUCHDB_PORT -e EHSM_CONFIG_COUCHDB_SERVER=$EHSM_CONFIG_COUCHDB_SERVER -e EHSM_CONFIG_COUCHDB_DB=$EHSM_CONFIG_COUCHDB_DB -e EHSM_CONFIG_DEFENSE_ENABLE=$EHSM_CONFIG_DEFENSE_ENABLE -e EHSM_CONFIG_DEFENSE_SERVER_URL=$EHSM_CONFIG_DEFENSE_SERVER_URL $EHSM_DOCKER_IMAGE_NAME
+	docker run -d $RUN_ARG -it -p $HOST_PORT:$DOCKER_PORT -e PCCS_URL=$PCCS_URL -e EHSM_CONFIG_DENY_SIZE_LIMIT=$EHSM_CONFIG_DENY_SIZE_LIMIT -e EHSM_CONFIG_DENY_TIMEOUT=$EHSM_CONFIG_DENY_TIMEOUT -e EHSM_CONFIG_DENY_COUNT_LIMIT=$EHSM_CONFIG_DENY_TIMEOUT  $EHSM_DOCKER_IMAGE_NAME
 }
 
 function delete {

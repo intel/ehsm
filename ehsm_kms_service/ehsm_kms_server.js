@@ -3,12 +3,15 @@ const express = require('express')
 const ehsm_napi = require('./ehsm_napi')
 const {
   getIPAdress,
-  _checkParams,
   _nonce_cache_timer,
+} = require('./common_function')
+const {
+  _checkParams,
   _cmk_cache_timer,
 } = require('./function')
 const connectDB = require('./couchdb')
 const router = require('./router')
+const {AccessControl} = require('./access_control_api')
 
 const app = express()
 app.use(express.json())
@@ -34,6 +37,22 @@ const server = (DB) => {
    * Clear expired cmks
    */
   const { timer: cmk_cache_timer } = _cmk_cache_timer(DB)
+
+  /**
+   * Add sample access control
+   *
+   * Note:
+   * This sample access control can alleviate the explosion attack in some parts,
+   * but it can not prevent the attack for paralyzing the server by server resource depletion
+   *
+   * An full part access control should injected in native ability
+   * before the requests coming into the server
+   * (like net firewall, high defense server product etc.)
+   */
+  let accessControl = AccessControl()
+  if (accessControl) {
+    app.use(accessControl)
+  }
 
   /**
    * check params
