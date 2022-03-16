@@ -49,12 +49,19 @@ const uint32_t server_port = 8888;
 #endif
 
 int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
-						uint32_t msg1_size,
-						ra_samp_response_header_t **pp_msg2);
+                        uint32_t msg1_size,
+                        const sesion_id_t sessionId,
+                        ra_samp_response_header_t **pp_msg2);
 
 int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
                         uint32_t msg3_size,
+                        const sesion_id_t sessionId,
                         ra_samp_response_header_t **pp_att_result_msg);
+
+int sp_ra_proc_get_session_id_req(ra_samp_response_header_t **pp_session_res);
+
+int sp_ra_proc_finalize_session_id_req(const sesion_id_t sessionId,
+                                       ra_samp_response_header_t **pp_finalize_session_res);
 
 /* initialize the socket handle */
 void Initialize();

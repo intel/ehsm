@@ -47,6 +47,7 @@ App_Cpp_Files := $(wildcard App/*.cpp)
 App_Include_Paths := \
 	-IInclude \
 	-IApp \
+	-I$(TOPDIR)/include \
 	-I$(SGX_SDK)/include \
 	-Isample_libcrypto
 

@@ -49,10 +49,9 @@
 #include "sample_libcrypto.h"
 #include "socket_server.h"
 #include "rand.h"
+#include "CacheController.h"
 
 namespace socket_server {
-
-static sp_db_item_t g_sp_db;
 
 // This is the private EC key of SP, the corresponding public EC key is
 // hard coded in isv_enclave. It is based on NIST P-256 curve.
@@ -171,12 +170,100 @@ static int32_t SendErrResponse(int32_t sockfd, int8_t type, int8_t err) {
     return SendResponse(sockfd, &p_err_resp_full);
 }
 
+
+// call cachecontrol finalize session id
+int sp_ra_proc_finalize_session_id_req(const sesion_id_t sessionId, ra_samp_response_header_t **pp_finalize_session_res)
+{
+    int ret = 0;
+    ra_samp_response_header_t* p_finalize_response = nullptr;
+    if(!pp_finalize_session_res ) {
+        return -1;
+    }
+
+    do
+    {
+        p_finalize_response = (ra_samp_response_header_t*)malloc(sizeof(ra_samp_response_header_t));
+        if(!p_finalize_response){
+            fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        memset(p_finalize_response, 0, sizeof(ra_samp_response_header_t));
+        // set response header
+        p_finalize_response->type = TYPE_RA_FINALIZE_SESSION_ID_RES;
+        ret = db_finalize(sessionId);
+        if(ret!= NO_ERROR){
+            fprintf(stderr, "\nError, failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+    }while(0);
+
+    if(ret){
+        *pp_finalize_session_res = NULL;
+        SAFE_FREE(p_finalize_response);
+    }
+    else{
+        // Freed by the network simulator in ra_free_network_response_buffer
+        *pp_finalize_session_res = p_finalize_response;
+    }
+    return ret;
+
+}
+
+
+// get session id from cachecontroller
+// if get session id ok then
+// return session id to dkeycache
+int sp_ra_proc_get_session_id_req(ra_samp_response_header_t **pp_session_res)
+{
+    int ret = 0;
+    ra_samp_response_header_t* p_response = nullptr;
+    sesion_id_t sessionId = {0};
+    if(!pp_session_res) {
+        return -1;
+    }
+
+    do
+    {
+        p_response = (ra_samp_response_header_t*)malloc(sizeof(ra_samp_response_header_t));
+        if(!p_response){
+            fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        memset(p_response, 0, sizeof(ra_samp_response_header_t));
+        // set response header
+        p_response->type = TYPE_RA_GET_SESSION_ID_RES;
+        ret = db_initialize(sessionId);
+        if(ret!= NO_ERROR || !sessionId){
+            fprintf(stderr, "\nError, failed in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
+        memcpy_s(p_response->sessionId, SESSION_ID_SIZE, sessionId, SESSION_ID_SIZE);
+    }while(0);
+
+    if(ret){
+        *pp_session_res = NULL;
+        SAFE_FREE(p_response);
+    }
+    else{
+        // Freed by the network simulator in ra_free_network_response_buffer
+        *pp_session_res = p_response;
+    }
+    return ret;
+}
+
+
 // Verify message 1 then generate and return message 2 to isv.
 int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
                         uint32_t msg1_size,
+                        sesion_id_t sessionId,
                         ra_samp_response_header_t **pp_msg2)
 {
     int ret = 0;
+    sp_db_item_t *sp_db = NULL;
     ra_samp_response_header_t* p_msg2_full = NULL;
     sample_ra_msg2_t *p_msg2 = NULL;
     sample_ecc_state_handle_t ecc_state = NULL;
@@ -196,11 +283,15 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         uint8_t* sig_rl = NULL;
         uint32_t sig_rl_size = 0;
 
-        //clear the g_sp_db database when the attesation session begins.
-        memset(&g_sp_db, 0, sizeof(sp_db_item_t));
-
+        // get sp_gb from cacheController
+        int32_t controller_ret = get_session_db(sessionId, &sp_db);
+        if(controller_ret != NO_ERROR){
+            fprintf(stderr, "\nError, get session db in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
         // Need to save the client's public ECDH key to local storage
-        if (memcpy_s(&g_sp_db.g_a, sizeof(g_sp_db.g_a), &p_msg1->g_a,
+        if (memcpy_s(&sp_db->g_a, sizeof(sp_db->g_a), &p_msg1->g_a,
                      sizeof(p_msg1->g_a)))
         {
             fprintf(stderr, "\nError, cannot do memcpy in [%s].", __FUNCTION__);
@@ -231,14 +322,14 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         }
 
         // Need to save the SP ECDH key pair to local storage.
-        if(memcpy_s(&g_sp_db.b, sizeof(g_sp_db.b), &priv_key, sizeof(priv_key)) != 0)
+        if(memcpy_s(&sp_db->b, sizeof(sp_db->b), &priv_key, sizeof(priv_key)) != 0)
         {
             fprintf(stderr, "\nError, cannot do memcpy in [%s].", __FUNCTION__);
             ret = SP_INTERNAL_ERROR;
             break;
         }
 
-        if(memcpy_s(&g_sp_db.g_b, sizeof(g_sp_db.g_b), &pub_key, sizeof(pub_key)) != 0)
+        if(memcpy_s(&sp_db->g_b, sizeof(sp_db->g_b), &pub_key, sizeof(pub_key)) != 0)
         {
             fprintf(stderr, "\nError, cannot do memcpy in [%s].", __FUNCTION__);
             ret = SP_INTERNAL_ERROR;
@@ -263,7 +354,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 
         // smk is only needed for msg2 generation.
         derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_SMK_SK,
-            &g_sp_db.smk_key, &g_sp_db.sk_key);
+            &sp_db->smk_key, &sp_db->sk_key);
         if(derive_ret != true)
         {
             fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
@@ -273,7 +364,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 
         // The rest of the keys are the shared secrets for future communication.
         derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_MK_VK,
-            &g_sp_db.mk_key, &g_sp_db.vk_key);
+            &sp_db->mk_key, &sp_db->vk_key);
         if(derive_ret != true)
         {
             fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
@@ -283,7 +374,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 #else
         // smk is only needed for msg2 generation.
         derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_SMK,
-                                &g_sp_db.smk_key);
+                                &sp_db->smk_key);
         if(derive_ret != true)
         {
             fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
@@ -293,7 +384,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 
         // The rest of the keys are the shared secrets for future communication.
         derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_MK,
-                                &g_sp_db.mk_key);
+                                &sp_db->mk_key);
         if(derive_ret != true)
         {
             fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
@@ -302,7 +393,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         }
 
         derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_SK,
-                                &g_sp_db.sk_key);
+                                &sp_db->sk_key);
         if(derive_ret != true)
         {
             fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
@@ -311,7 +402,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         }
 
         derive_ret = derive_key(&dh_key, SAMPLE_DERIVE_KEY_VK,
-                                &g_sp_db.vk_key);
+                                &sp_db->vk_key);
         if(derive_ret != true)
         {
             fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
@@ -339,8 +430,8 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         p_msg2 = (sample_ra_msg2_t *)p_msg2_full->body;
 
         // Assemble MSG2
-        if(memcpy_s(&p_msg2->g_b, sizeof(p_msg2->g_b), &g_sp_db.g_b,
-                    sizeof(g_sp_db.g_b)) ||
+        if(memcpy_s(&p_msg2->g_b, sizeof(p_msg2->g_b), &sp_db->g_b,
+                    sizeof(sp_db->g_b)) ||
            memcpy_s(&p_msg2->spid, sizeof(sample_spid_t),
                     &g_spid, sizeof(g_spid)))
         {
@@ -362,10 +453,10 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 #endif
         // Create gb_ga
         sample_ec_pub_t gb_ga[2];
-        if(memcpy_s(&gb_ga[0], sizeof(gb_ga[0]), &g_sp_db.g_b,
-                    sizeof(g_sp_db.g_b))
-           || memcpy_s(&gb_ga[1], sizeof(gb_ga[1]), &g_sp_db.g_a,
-                       sizeof(g_sp_db.g_a)))
+        if(memcpy_s(&gb_ga[0], sizeof(gb_ga[0]), &sp_db->g_b,
+                    sizeof(sp_db->g_b))
+           || memcpy_s(&gb_ga[1], sizeof(gb_ga[1]), &sp_db->g_a,
+                       sizeof(sp_db->g_a)))
         {
             fprintf(stderr,"\nError, memcpy failed in [%s].", __FUNCTION__);
             ret = SP_INTERNAL_ERROR;
@@ -387,7 +478,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         // Generate the CMACsmk for gb||SPID||TYPE||KDF_ID||Sigsp(gb,ga)
         uint8_t mac[SAMPLE_EC_MAC_SIZE] = {0};
         uint32_t cmac_size = offsetof(sample_ra_msg2_t, mac);
-        sample_ret = sample_rijndael128_cmac_msg(&g_sp_db.smk_key,
+        sample_ret = sample_rijndael128_cmac_msg(&sp_db->smk_key,
             (uint8_t *)&p_msg2->g_b, cmac_size, &mac);
         if(SAMPLE_SUCCESS != sample_ret)
         {
@@ -436,9 +527,11 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 // Process remote attestation message 3
 int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
                         uint32_t msg3_size,
+                        sesion_id_t sessionId,
                         ra_samp_response_header_t **pp_att_result_msg)
 {
     int ret = 0;
+    sp_db_item_t* sp_db = NULL;
     sample_status_t sample_ret = SAMPLE_SUCCESS;
     const uint8_t *p_msg3_cmaced = NULL;
     const sgx_quote3_t *p_quote = NULL;
@@ -475,8 +568,15 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
 
     do
     {
+        // get sp_gb from cacheController
+        int32_t controller_ret = get_session_db(sessionId, &sp_db);
+        if(controller_ret != NO_ERROR){
+            fprintf(stderr, "\nError, get session db in [%s].", __FUNCTION__);
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
         // Compare g_a in message 3 with local g_a.
-        ret = memcmp(&g_sp_db.g_a, &p_msg3->g_a, sizeof(sample_ec_pub_t));
+        ret = memcmp(&sp_db->g_a, &p_msg3->g_a, sizeof(sample_ec_pub_t));
         if(ret)
         {
             fprintf(stderr, "\nError, g_a is not same [%s].", __FUNCTION__);
@@ -490,7 +590,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
 
         // Verify the message mac using SMK
         sample_cmac_128bit_tag_t mac = {0};
-        sample_ret = sample_rijndael128_cmac_msg(&g_sp_db.smk_key,
+        sample_ret = sample_rijndael128_cmac_msg(&sp_db->smk_key,
                                            p_msg3_cmaced,
                                            mac_size,
                                            &mac);
@@ -511,7 +611,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             break;
         }
 
-        if(memcpy_s(&g_sp_db.ps_sec_prop, sizeof(g_sp_db.ps_sec_prop),
+        if(memcpy_s(&sp_db->ps_sec_prop, sizeof(sp_db->ps_sec_prop),
             &p_msg3->ps_sec_prop, sizeof(p_msg3->ps_sec_prop)))
         {
             fprintf(stderr,"\nError, memcpy failed in [%s].", __FUNCTION__);
@@ -548,8 +648,8 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        sample_ret = sample_sha256_update((uint8_t *)&(g_sp_db.g_a),
-                                     sizeof(g_sp_db.g_a), sha_handle);
+        sample_ret = sample_sha256_update((uint8_t *)&(sp_db->g_a),
+                                     sizeof(sp_db->g_a), sha_handle);
         if(sample_ret != SAMPLE_SUCCESS)
         {
             fprintf(stderr,"\nError, udpate hash failed in [%s].",
@@ -557,8 +657,8 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        sample_ret = sample_sha256_update((uint8_t *)&(g_sp_db.g_b),
-                                     sizeof(g_sp_db.g_b), sha_handle);
+        sample_ret = sample_sha256_update((uint8_t *)&(sp_db->g_b),
+                                     sizeof(sp_db->g_b), sha_handle);
         if(sample_ret != SAMPLE_SUCCESS)
         {
             fprintf(stderr,"\nError, udpate hash failed in [%s].",
@@ -566,8 +666,8 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        sample_ret = sample_sha256_update((uint8_t *)&(g_sp_db.vk_key),
-                                     sizeof(g_sp_db.vk_key), sha_handle);
+        sample_ret = sample_sha256_update((uint8_t *)&(sp_db->vk_key),
+                                     sizeof(sp_db->vk_key), sha_handle);
         if(sample_ret != SAMPLE_SUCCESS)
         {
             fprintf(stderr,"\nError, udpate hash failed in [%s].",
@@ -806,7 +906,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         memcpy_s(&(p_att_result_msg->platform_info_blob.qve_report_info),sizeof(sgx_ql_qe_report_info_t), &qve_report_info, sizeof(sgx_ql_qe_report_info_t));
         // Generate mac based on the mk key.
         mac_size = sizeof(ias_platform_info_blob_t);
-        sample_ret = sample_rijndael128_cmac_msg(&g_sp_db.mk_key,
+        sample_ret = sample_rijndael128_cmac_msg(&sp_db->mk_key,
             (const uint8_t*)&p_att_result_msg->platform_info_blob,
             mac_size,
             &p_att_result_msg->mac);
@@ -821,7 +921,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         uint8_t aes_gcm_iv[SAMPLE_SP_IV_SIZE] = {0};
         p_att_result_msg->secret.payload_size = SGX_DOMAIN_KEY_SIZE;
 
-        ret = sample_rijndael128GCM_encrypt(&g_sp_db.sk_key,
+        ret = sample_rijndael128GCM_encrypt(&sp_db->sk_key,
                     domain_key,
                     p_att_result_msg->secret.payload_size,
                     p_att_result_msg->secret.payload,
@@ -840,8 +940,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     else {
         *pp_att_result_msg = p_att_result_msg_full;
     }
-    //clear the g_sp_db database after the attesation session finished.
-    memset(&g_sp_db, 0, sizeof(sp_db_item_t));
 
     SAFE_FREE(domain_key);
     return ret;
@@ -860,6 +958,7 @@ int SocketDispatchCmd(
         return sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((size_t)req
             + sizeof(ra_samp_request_header_t)),
             req->size,
+            req->sessionId,
             p_resp);
 
     case TYPE_RA_MSG3:
@@ -867,7 +966,13 @@ int SocketDispatchCmd(
         return sp_ra_proc_msg3_req((const sample_ra_msg3_t*)((size_t)req
             + sizeof(ra_samp_request_header_t)),
             req->size,
+            req->sessionId,
             p_resp);
+    case TYPE_RA_GET_SESSION_ID_REQ:
+        return sp_ra_proc_get_session_id_req(p_resp);
+
+    case TYPE_RA_FINALIZE_SESSION_ID_REQ:
+        return sp_ra_proc_finalize_session_id_req(req->sessionId, p_resp);
 
     default:
         printf("Cannot dispatch unknown msg type %d\n", req->type);
@@ -914,6 +1019,13 @@ static void* SocketMsgHandler(void *sock_addr)
         if (ret < 0 || !resp) {
             printf("failed(%d) to handle msg type(%d)\n", ret, req->type);
             SendErrResponse(sockfd, req->type, ret);
+
+            ret = db_finalize(req->sessionId);
+            if(ret!= NO_ERROR){
+                fprintf(stderr, "\nError, failed in [%s].", __FUNCTION__);
+                ret = SP_INTERNAL_ERROR;
+                break;
+            }
 
             SAFE_FREE(req);
             SAFE_FREE(resp);

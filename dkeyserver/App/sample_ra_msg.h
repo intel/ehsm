@@ -32,6 +32,7 @@
 #ifndef _SAMPLE_RA_MSG_
 #define _SAMPLE_RA_MSG_
 
+#include <cstdio>
 #include <stdint.h>
 
 #include "ecp.h"
@@ -49,11 +50,16 @@ extern "C" {
  */
 typedef enum _ra_msg_type_t
 {
-     TYPE_RA_MSG0,
+     TYPE_RA_MSG0 = 0,
      TYPE_RA_MSG1,
      TYPE_RA_MSG2,
      TYPE_RA_MSG3,
      TYPE_RA_ATT_RESULT,
+     TYPE_RA_RETRIEVE_DK,
+     TYPE_RA_GET_SESSION_ID_REQ,
+     TYPE_RA_GET_SESSION_ID_RES,
+     TYPE_RA_FINALIZE_SESSION_ID_REQ,
+     TYPE_RA_FINALIZE_SESSION_ID_RES,
 }ra_msg_type_t;
 
 typedef enum {
@@ -88,6 +94,7 @@ typedef enum {
 
 #define SAMPLE_HASH_SIZE    32  // SHA256
 #define SAMPLE_MAC_SIZE     16  // Message Authentication Code
+#define SESSION_ID_SIZE  16          // sessionId length
 
 /*Key Derivation Function ID : 0x0001  AES-CMAC Entropy Extraction and Key Expansion*/
 const uint16_t SAMPLE_AES_CMAC_KDF_ID = 0x0001;
@@ -186,10 +193,13 @@ typedef struct sample_ra_att_result_msg_t {
     sp_aes_gcm_data_t           secret;
 } sample_ra_att_result_msg_t;
 
+typedef uint8_t sesion_id_t[SESSION_ID_SIZE];
+
 typedef struct _ra_samp_request_header_t{
     uint8_t  type;     /* set to one of ra_msg_type_t*/
     uint32_t size;     /*size of request body*/
     uint8_t  align[3];
+    sesion_id_t  sessionId;  /* the session Id generate from dkeyserver */
     uint8_t body[];
 }ra_samp_request_header_t;
 
@@ -198,6 +208,7 @@ typedef struct _ra_samp_response_header_t{
     uint8_t  status[2];
     uint32_t size;      /*size of the response body*/
     uint8_t  align[1];
+    sesion_id_t  sessionId;  /* the session Id generate from dkeyserver */
     uint8_t  body[];
 }ra_samp_response_header_t;
 
@@ -212,6 +223,8 @@ typedef struct _sp_db_item_t
     sample_ec_key_128bit_t      smk_key;// Used only for SIGMA protocol
     sample_ec_priv_t            b;
     sample_ps_sec_prop_desc_t   ps_sec_prop;
+    sesion_id_t session_id;
+    uint64_t expired_time; // The expiration time is 5 minutes after creation.
 }sp_db_item_t;
 
 #pragma pack(pop)

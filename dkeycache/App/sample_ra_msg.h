@@ -52,6 +52,10 @@ typedef enum _ra_msg_type_t
      TYPE_RA_MSG3,
      TYPE_RA_ATT_RESULT,
      TYPE_RA_RETRIEVE_DK,
+     TYPE_RA_GET_SESSION_ID_REQ,
+     TYPE_RA_GET_SESSION_ID_RES,
+     TYPE_RA_FINALIZE_SESSION_ID_REQ,
+     TYPE_RA_FINALIZE_SESSION_ID_RES,
 }ra_msg_type_t;
 
 
@@ -62,6 +66,7 @@ typedef enum _ra_msg_type_t
 #define PSVN_SIZE 18
 
 #define SGX_DOMAIN_KEY_SIZE     16
+#define SESSION_ID_SIZE  16          // sessionId length
 
 #pragma pack(push,1)
 
@@ -75,6 +80,8 @@ typedef struct sp_aes_gcm_data_t {
     uint8_t         payload[];          /* 32: Ciphertext of the payload*/
                                         /*     followed by the plain text*/
 } sp_aes_gcm_data_t;
+
+typedef uint8_t sesion_id_t[SESSION_ID_SIZE];
 
 typedef struct ias_platform_info_blob_t
 {
@@ -99,6 +106,7 @@ typedef struct _ra_samp_request_header_t{
     uint8_t  type;     /* set to one of ra_msg_type_t*/
     uint32_t size;     /*size of request body*/
     uint8_t  align[3];
+    sesion_id_t  sessionId;  /* the session Id generate from dkeyserver */
     uint8_t body[];
 } ra_samp_request_header_t;
 
@@ -107,6 +115,7 @@ typedef struct _ra_samp_response_header_t{
     uint8_t  status[2];
     uint32_t size;      /*size of the response body*/
     uint8_t  align[1];
+    sesion_id_t  sessionId;  /* the session Id generate from dkeyserver */
     uint8_t  body[];
 } ra_samp_response_header_t;
 
