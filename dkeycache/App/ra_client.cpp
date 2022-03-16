@@ -165,14 +165,20 @@ out:
 }
 
 static int RetreiveDomainKey(int32_t sockfd) {
+    ra_samp_request_header_t* p_sessionId_req = NULL;
+    ra_samp_response_header_t* p_sessionId_res = NULL;
     ra_samp_request_header_t *p_msg1_full = NULL;
     ra_samp_response_header_t *p_msg2_full = NULL;
     ra_samp_request_header_t* p_msg3_full = NULL;
     ra_samp_response_header_t* p_att_result_msg_full = NULL;
 
     sample_ra_att_result_msg_t *p_att_result_msg_body = NULL;
+    ra_samp_request_header_t* p_finalize_sessionId_req = NULL;
+    ra_samp_response_header_t* p_finalize_sessionId_res = NULL;
+
     sgx_ra_msg2_t* p_msg2_body = NULL;
     sgx_ra_msg3_t *p_msg3 = NULL;
+    sesion_id_t sessionID = {0};
 
     uint32_t msg3_size = 0;
     int busy_retry_time = 4;
@@ -197,6 +203,31 @@ static int RetreiveDomainKey(int32_t sockfd) {
         goto CLEANUP;
     }
 
+    // call initsession and get sessionid
+    // stroe sessionid to g_sessionid
+    // msg1\msg3 will add sessionid in their header
+    p_sessionId_req = (ra_samp_request_header_t*)
+                     malloc(sizeof(ra_samp_request_header_t));
+    if(NULL == p_sessionId_req) {
+        ret = -1;
+        goto CLEANUP;
+    }
+    p_sessionId_req->type = TYPE_RA_GET_SESSION_ID_REQ;
+    p_sessionId_req->size = 0;
+    SendAndRecvMsg(sockfd, p_sessionId_req, &p_sessionId_res);
+    if(!p_sessionId_res) {
+        printf("Error, get session id failed.\n");
+        ret = -1;
+        goto CLEANUP;
+    }
+    if(TYPE_RA_GET_SESSION_ID_RES != p_sessionId_res->type) {
+        printf("Error, Session id response type is not matched!\n");
+        ret = -1;
+        goto CLEANUP;
+    }
+    printf("session id recieved success!\n");
+    memcpy_s(sessionID, SESSION_ID_SIZE, p_sessionId_res->sessionId, SESSION_ID_SIZE);
+
     /* Allocate MSG1 buf to call libukey_exchange API to retrieve MSG1 */
     p_msg1_full = (ra_samp_request_header_t*)
                  malloc(sizeof(ra_samp_request_header_t)
@@ -207,6 +238,7 @@ static int RetreiveDomainKey(int32_t sockfd) {
     }
     p_msg1_full->type = TYPE_RA_MSG1;
     p_msg1_full->size = sizeof(sgx_ra_msg1_t);
+    memcpy_s(p_msg1_full->sessionId, SESSION_ID_SIZE, sessionID, SESSION_ID_SIZE);
 
     do
     {
@@ -270,6 +302,8 @@ static int RetreiveDomainKey(int32_t sockfd) {
     }
     p_msg3_full->type = TYPE_RA_MSG3;
     p_msg3_full->size = msg3_size;
+    memcpy_s(p_msg3_full->sessionId, SESSION_ID_SIZE, sessionID, SESSION_ID_SIZE);
+
     if(memcpy_s(p_msg3_full->body, msg3_size, p_msg3, msg3_size)) {
         printf("Error: memcpy failed\n.");
         ret = -1;
@@ -336,7 +370,31 @@ static int RetreiveDomainKey(int32_t sockfd) {
         goto CLEANUP;
     }
 
-    printf("Successfully received the DomainKey from deploy server.");
+    printf("Successfully received the DomainKey from deploy server.\n");
+
+    // after domainkey verify, call finalize session id
+    p_finalize_sessionId_req = (ra_samp_request_header_t*)
+                     malloc(sizeof(ra_samp_request_header_t));
+    if(NULL == p_finalize_sessionId_req) {
+        ret = -1;
+        goto CLEANUP;
+    }
+    p_finalize_sessionId_req->type = TYPE_RA_FINALIZE_SESSION_ID_REQ;
+    p_finalize_sessionId_req->size = 0;
+    memcpy_s(p_finalize_sessionId_req->sessionId, SESSION_ID_SIZE, sessionID, SESSION_ID_SIZE);
+    SendAndRecvMsg(sockfd, p_finalize_sessionId_req, &p_finalize_sessionId_res);
+    if(!p_finalize_sessionId_res) {
+        printf("Error, send finalize session id failed.\n");
+        ret = -1;
+        goto CLEANUP;
+    }
+    if(TYPE_RA_FINALIZE_SESSION_ID_RES != p_finalize_sessionId_res->type) {
+        printf("Error, finalize session id response type is not matched!\n");
+        ret = -1;
+        goto CLEANUP;
+    }
+    printf("call finalize session id success!\n");
+
 CLEANUP:
     // Clean-up
     // Need to close the RA key state.
@@ -353,12 +411,15 @@ CLEANUP:
         }
         printf("\nCall enclave_ra_close success.\n");
     }
-
+    SAFE_FREE(p_sessionId_req);
+    SAFE_FREE(p_sessionId_res);
     SAFE_FREE(p_msg1_full);
     SAFE_FREE(p_msg2_full);
     SAFE_FREE(p_msg3);
     SAFE_FREE(p_msg3_full);
     SAFE_FREE(p_att_result_msg_full);
+    SAFE_FREE(p_finalize_sessionId_req);
+    SAFE_FREE(p_finalize_sessionId_res);
 
     return ret;
 }
