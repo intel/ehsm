@@ -30,6 +30,10 @@
 #
 
 
+######## auto_version Settings ########
+VERSION_STRING := "v0.2.0"
+DATE_STRING := `date "+20%y.%m.%d %k:%M"`
+
 # -------------------------------------------------------------------
 #  Function : parent-dir
 #  Arguments: 1: path

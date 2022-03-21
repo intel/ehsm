@@ -45,6 +45,7 @@
 // Needed to query extended epid group id.
 #include "sgx_uae_epid.h"
 #include "sgx_uae_quote_ex.h"
+#include "log_utils.h"
 
 
 using namespace std;
@@ -199,7 +200,7 @@ static int RetreiveDomainKey(int32_t sockfd) {
 
     if(SGX_SUCCESS != ret || status) {
         ret = -1;
-        printf("Error, call enclave_init_ra failed.\n");
+        log_e("Error, call enclave_init_ra failed.");
         goto CLEANUP;
     }
 
@@ -216,16 +217,16 @@ static int RetreiveDomainKey(int32_t sockfd) {
     p_sessionId_req->size = 0;
     SendAndRecvMsg(sockfd, p_sessionId_req, &p_sessionId_res);
     if(!p_sessionId_res) {
-        printf("Error, get session id failed.\n");
+        log_e("Error, get session id failed.");
         ret = -1;
         goto CLEANUP;
     }
     if(TYPE_RA_GET_SESSION_ID_RES != p_sessionId_res->type) {
-        printf("Error, Session id response type is not matched!\n");
+        log_e("Error, Session id response type is not matched!");
         ret = -1;
         goto CLEANUP;
     }
-    printf("session id recieved success!\n");
+    log_d("session id recieved success!");
     memcpy_s(sessionID, SESSION_ID_SIZE, p_sessionId_res->sessionId, SESSION_ID_SIZE);
 
     /* Allocate MSG1 buf to call libukey_exchange API to retrieve MSG1 */
@@ -249,29 +250,29 @@ static int RetreiveDomainKey(int32_t sockfd) {
     } while (SGX_ERROR_BUSY == ret && busy_retry_time--);
 
     if(SGX_SUCCESS != ret) {
-        printf("Error, call sgx_ra_get_msg1_ex failed(%#x)\n", ret);
+        log_e("Error, call sgx_ra_get_msg1_ex failed(%#x)", ret);
         ret = -1;
         goto CLEANUP;
     }
-    printf("Call sgx_ra_get_msg1_ex success, the MSG1 body generated.\n");
+    log_d("Call sgx_ra_get_msg1_ex success, the MSG1 body generated.");
 
-    printf("Sending MSG1 to remote attestation service provider, and expecting MSG2 back...\n");
+    log_d("Sending MSG1 to remote attestation service provider, and expecting MSG2 back...");
     SendAndRecvMsg(sockfd, p_msg1_full, &p_msg2_full);
     if(!p_msg2_full) {
-        printf("Error,sending MSG1 failed.\n");
+        log_e("Error,sending MSG1 failed.");
         ret = -1;
         goto CLEANUP;
     }
 
     /* Successfully sent MSG1 and received a MSG2 back. */
     if(TYPE_RA_MSG2 != p_msg2_full->type) {
-        printf("Error, MSG2's type is not matched!\n");
+        log_e("Error, MSG2's type is not matched!");
         ret = -1;
         goto CLEANUP;
     }
 
     //PRINT_BYTE_ARRAY(OUTPUT, p_msg2_full, (uint32_t)sizeof(ra_samp_response_header_t) + p_msg2_full->size);
-    printf("MSG2 recieved success!\n");
+    log_d("MSG2 recieved success!");
 
     /* Call lib key_u(t)exchange(sgx_ra_proc_msg2_ex) to process the MSG2 and retrieve MSG3 back. */
     p_msg2_body = (sgx_ra_msg2_t*)((uint8_t*)p_msg2_full + sizeof(ra_samp_response_header_t));
@@ -290,10 +291,10 @@ static int RetreiveDomainKey(int32_t sockfd) {
                            &msg3_size);
     } while (SGX_ERROR_BUSY == ret && busy_retry_time--);
     if(!p_msg3 || (SGX_SUCCESS != (sgx_status_t)ret)) {
-        printf("Error(%d), call sgx_ra_proc_msg2_ex failed, p_msg3 = 0x%p.", ret, p_msg3);
+        log_e("Error(%d), call sgx_ra_proc_msg2_ex failed, p_msg3 = 0x%p.", ret, p_msg3);
         goto CLEANUP;
     }
-    printf("Call sgx_ra_proc_msg2_ex success.\n");
+    log_d("Call sgx_ra_proc_msg2_ex success.");
 
     p_msg3_full = (ra_samp_request_header_t*)malloc(sizeof(ra_samp_request_header_t) + msg3_size);
     if(NULL == p_msg3_full) {
@@ -305,7 +306,7 @@ static int RetreiveDomainKey(int32_t sockfd) {
     memcpy_s(p_msg3_full->sessionId, SESSION_ID_SIZE, sessionID, SESSION_ID_SIZE);
 
     if(memcpy_s(p_msg3_full->body, msg3_size, p_msg3, msg3_size)) {
-        printf("Error: memcpy failed\n.");
+        log_e("Error: memcpy failed.");
         ret = -1;
         goto CLEANUP;
     }
@@ -318,12 +319,12 @@ static int RetreiveDomainKey(int32_t sockfd) {
     // demonstration.  Note that the attestation result message makes use
     // of both the MK for the MAC and the SK for the secret. These keys are
     // established from the SIGMA secure channel binding.
-    printf("Sending MSG3 to remote attestation service provider,"
-                        "expecting attestation result msg back...\n");
+    log_d("Sending MSG3 to remote attestation service provider,"
+                        "expecting attestation result msg back...");
     SendAndRecvMsg(sockfd, p_msg3_full, &p_att_result_msg_full);
     if(ret || !p_att_result_msg_full) {
         ret = -1;
-        printf("Error, sending MSG3 failed\n.");
+        log_e("Error, sending MSG3 failed.");
         goto CLEANUP;
     }
 
@@ -332,11 +333,11 @@ static int RetreiveDomainKey(int32_t sockfd) {
                            + sizeof(ra_samp_response_header_t));
     if(TYPE_RA_ATT_RESULT != p_att_result_msg_full->type) {
         ret = -1;
-        printf("Error, the attestaion MSG's type is not matched!\n");
+        log_e("Error, the attestaion MSG's type is not matched!");
         goto CLEANUP;
     }
 
-    printf("Attestation result MSG recieved success!\n");
+    log_d("Attestation result MSG recieved success!");
 
     /*
     * Check the MAC using MK on the attestation result message.
@@ -352,11 +353,11 @@ static int RetreiveDomainKey(int32_t sockfd) {
     if((SGX_SUCCESS != ret) ||
        (SGX_SUCCESS != status)) {
         ret = -1;
-        printf("Error: Attestation result MSG's MK based cmac check failed\n");
+        log_e("Error: Attestation result MSG's MK based cmac check failed");
         goto CLEANUP;
     }
 
-    printf("Verify attestation result is succeed!\n");
+    log_d("Verify attestation result is succeed!");
 
     ret = enclave_store_domainkey(g_enclave_id,
                           &status,
@@ -365,12 +366,10 @@ static int RetreiveDomainKey(int32_t sockfd) {
                           p_att_result_msg_body->secret.payload_size,
                           p_att_result_msg_body->secret.payload_tag);
     if((SGX_SUCCESS != ret)  || (SGX_SUCCESS != status)) {
-        printf("Error(%d), decrypt secret using SK based on AES-GCM failed.\n", ret);
+        log_e("Error(%d), decrypt secret using SK based on AES-GCM failed.", ret);
         ret = -1;
         goto CLEANUP;
     }
-
-    printf("Successfully received the DomainKey from deploy server.\n");
 
     // after domainkey verify, call finalize session id
     p_finalize_sessionId_req = (ra_samp_request_header_t*)
@@ -384,16 +383,16 @@ static int RetreiveDomainKey(int32_t sockfd) {
     memcpy_s(p_finalize_sessionId_req->sessionId, SESSION_ID_SIZE, sessionID, SESSION_ID_SIZE);
     SendAndRecvMsg(sockfd, p_finalize_sessionId_req, &p_finalize_sessionId_res);
     if(!p_finalize_sessionId_res) {
-        printf("Error, send finalize session id failed.\n");
+        log_e("Error, send finalize session id failed.");
         ret = -1;
         goto CLEANUP;
     }
     if(TYPE_RA_FINALIZE_SESSION_ID_RES != p_finalize_sessionId_res->type) {
-        printf("Error, finalize session id response type is not matched!\n");
+        log_e("Error, finalize session id response type is not matched!");
         ret = -1;
         goto CLEANUP;
     }
-    printf("call finalize session id success!\n");
+    log_d("call finalize session id success!");
 
 CLEANUP:
     // Clean-up
@@ -402,14 +401,14 @@ CLEANUP:
         int ret_save = ret;
         ret = enclave_ra_close(g_enclave_id, &status, context);
         if(SGX_SUCCESS != ret || status) {
-            printf("\nError, call enclave_ra_close fail [%#x].\n",ret);
+            log_e("Error, call enclave_ra_close fail [%#x].",ret);
         }
         else {
             // enclave_ra_close was successful, let's restore the value that
             // led us to this point in the code.
             ret = ret_save;
         }
-        printf("\nCall enclave_ra_close success.\n");
+        log_d("Call enclave_ra_close success.");
     }
     SAFE_FREE(p_sessionId_req);
     SAFE_FREE(p_sessionId_res);
@@ -425,6 +424,7 @@ CLEANUP:
 }
 
 int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port) {
+    log_i("Applying for a DomainKey from eHSM-KMS domainKey server.");
     int32_t ret = -1;
     int32_t retry_count = 360;
     struct sockaddr_in serAddr;
@@ -442,15 +442,14 @@ int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port) {
 
     do {
         if(connect(sockfd, (struct sockaddr*)&serAddr, sizeof(serAddr)) >= 0) {
-            printf("Connect dkeyserver success!\n");
             break;
         }
         else if (retry_count > 0) {
-            printf("Failed to Connect dkeyserver, sleep 0.5s and try again...\n");
+            log_w("Failed to Connect dkeyserver, sleep 0.5s and try again...\n");
             usleep(500000); // 0.5 s
         }
         else {
-            printf("Failed to connect dkeyserver\n");
+            log_e("Failed to connect dkeyserver\n");
             goto out;
         }
     } while (retry_count-- > 0);
@@ -458,9 +457,10 @@ int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port) {
     /* retrieve the domain key from dkeyserver via remote secure channel */
     ret = RetreiveDomainKey(sockfd);
     if (ret != 0) {
-        printf("Failed(%d) to setup the secure channel.\n", ret);
+        log_e("Failed(%d) to setup the secure channel.\n", ret);
         goto out;
     }
+    log_i("Successfully received the DomainKey from deploy server.");
 
 out:
     close(sockfd);

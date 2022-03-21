@@ -16,6 +16,8 @@
 
 #include "la_task.h"
 #include "la_server.h"
+#include "log_utils.h"
+#include "auto_version.h"
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -95,15 +97,18 @@ static void parse_args(int argc, char* argv[]) {
         printf("error: missing required argument(s)\n");
         show_usage_and_exit(EXIT_FAILURE);
     }
-    log_i("starting dkeycache");
-    log_i("host: %s", deploy_ip_addr.c_str());
-    log_i("port: %d", deploy_port);
 }
 
 int main(int argc, char* argv[])
 {
+	log_i("Server version name:\t\teHSM-KMS DomainKey Cache %s", VERSION);
+	log_i("Server built:\t\t\t%s", DATE);
+
     // process argv
     parse_args(argc, argv);
+
+	log_i("DomainKey Server IP:\t\t%s", deploy_ip_addr.c_str());
+	log_i("DomainKey Server port:\t%d", deploy_port);
 
     int ret = 0;
 
@@ -113,14 +118,14 @@ int main(int argc, char* argv[])
                                  NULL,
                                  &g_enclave_id, NULL);
     if(SGX_SUCCESS != ret) {
-        printf("failed(%d) to create enclave.\n", ret);
+        log_e("failed(%d) to create enclave.\n", ret);
         return -1;
     }
 
     // Connect to the dkeyserver and retrieve the domain key via the remote secure channel
     ret = Initialize(deploy_ip_addr, deploy_port);
     if (ret != 0) {
-        printf("failed to initialize the dkeycache service.\n");
+        log_e("failed to initialize the dkeycache service.\n");
         sgx_destroy_enclave(g_enclave_id);
     }
 
@@ -141,10 +146,10 @@ int main(int argc, char* argv[])
 
     if (g_la_server->init() != 0)
     {
-         printf("fail to init dkeycache service!\n");
+         log_e("fail to init dkeycache service!\n");
     }else
     {
-         printf("dkeycache service is ON...\n");
+         log_i("dkeycache service is ON...\n");
          //printf("Press Ctrl+C to exit...\n");
          g_la_server->doWork();
     }
