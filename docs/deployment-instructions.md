@@ -97,6 +97,7 @@ With this deployment config file, it will publish the ehsm-kms as a loadbalancer
     ```Shell
     kubectl logs -f ehsm-kms-deployment-xxxxxx-xxx -n ehsm-kms
     kubectl logs -f ehsm-kms-deployment-xxxxxx-xxx -c ehsm-kms -n ehsm-kms
+    kubectl logs -f ehsm-kms-deployment-xxxxxx-xxx -c init-ehsm-kms -n ehsm-kms
     ```
 * kubectl exec commands
     ```Shell
