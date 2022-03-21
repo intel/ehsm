@@ -40,6 +40,7 @@
 #include <sys/un.h>
 
 #include "la_server.h"
+#include "log_utils.h"
 
 #define BACKLOG 5     
 #define CONCURRENT_MAX 32   
@@ -55,6 +56,7 @@
  * */
 int LaServer::init()
 {
+	log_i("Initializing ProtocolHandler [\"socket: %s\"]", UNIX_DOMAIN);
     struct sockaddr_un srv_addr;
     
     m_server_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -85,6 +87,7 @@ int LaServer::init()
 
     m_shutdown = 0;
 
+	log_i("Starting ProtocolHandler [\"socket: %s\"]", UNIX_DOMAIN);
     return 0;
 }
 

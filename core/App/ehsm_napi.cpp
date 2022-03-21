@@ -42,6 +42,7 @@
 #include "sgx_dcap_ql_wrapper.h"
 
 #include "ehsm_marshal.h"
+#include "auto_version.h"
 
 using namespace std;
 using namespace EHsmProvider;
@@ -60,6 +61,9 @@ create the enclave
     }
 */
 char* NAPI_Initialize(){
+	log_i("Server version name:\teHSM-KMS Server %s", VERSION);
+	log_i("Server built:\t\t%s", DATE);
+
     RetJsonObj retJsonObj;
     ehsm_status_t ret = EH_OK;
     

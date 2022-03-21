@@ -146,11 +146,19 @@ target: $(App_Test_Name) $(Napi_Name) $(Signed_Enclave_Name)
 endif
 
 clean:
-	@rm -f $(App_Cpp_Objects) $(Napi_Cpp_Objects) $(Enclave_Cpp_Objects) App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
+	@rm -f $(App_Cpp_Objects) $(Napi_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
 	@rm -rf $(OUT)
 
 
 ######## App Objects ########
+App/auto_version.h:
+	@`touch App/auto_version.h`
+	@echo "#ifndef EHSM_CORE_AUTO_VERSION_H" > App/auto_version.h
+	@echo "#define EHSM_CORE_AUTO_VERSION_H" >> App/auto_version.h
+	@echo "#define VERSION \"$(VERSION_STRING)\"" >> App/auto_version.h 
+	@echo "#define DATE \"$(DATE_STRING)\""	>> App/auto_version.h 
+	@echo "#endif //EHSM_CORE_AUTO_VERSION_H"	>> App/auto_version.h 
+	@echo "  ==>  touch App/auto_version.h"
 
 App/enclave_hsm_u.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
 	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
@@ -160,11 +168,11 @@ App/enclave_hsm_u.o: App/enclave_hsm_u.c
 	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-App/%.o: App/%.cpp
+App/%.o: App/%.cpp App/auto_version.h
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Test_Name): App/enclave_hsm_u.o $(App_Cpp_Objects)
+$(App_Test_Name): App/enclave_hsm_u.o $(App_Cpp_Objects) App/auto_version.h
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 

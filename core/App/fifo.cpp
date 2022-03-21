@@ -41,6 +41,7 @@
 #include <errno.h>
 
 #include "fifo_def.h"
+#include "log_utils.h"
 
 #define SERVER_ADDR "127.0.0.1"
 #define SERVER_PORT 8888
@@ -68,7 +69,7 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
     int server_sock_fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (server_sock_fd == -1)
     {
-        printf("socket error");
+        log_e("socket error");
         return -1;
     }
 
@@ -79,18 +80,18 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
         if(connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) >= 0)
             break;
         else if (retry_count > 0) {
-            printf("failed to connect, sleep 0.5s and try again...\n");
+            log_w("failed to connect, sleep 0.5s and try again...");
             usleep(500000); // 0.5 s
         }
         else {
-            printf("connection error, %s, line %d.\n", strerror(errno), __LINE__);
+            log_e("connection error, %s, line %d.", strerror(errno), __LINE__);
             goto CLEAN;
         }
     } while (retry_count-- > 0);
 
     if ((byte_num = send(server_sock_fd, reinterpret_cast<char *>(fiforequest), static_cast<int>(fiforequest_size), 0)) == -1)
     {
-        printf("connection error, %s, line %d..\n", strerror(errno), __LINE__);
+        log_e("connection error, %s, line %d..", strerror(errno), __LINE__);
         ret = -1;
         goto CLEAN; 
     }

@@ -50,6 +50,7 @@
 #include "socket_server.h"
 #include "rand.h"
 #include "CacheController.h"
+#include "log_utils.h"
 
 namespace socket_server {
 
@@ -1044,6 +1045,7 @@ static void* SocketMsgHandler(void *sock_addr)
 
 
 void Initialize() {
+	log_i("Initializing ProtocolHandler [\"socket-%d\"]", server_port);
     struct sockaddr_in serAddr, cliAddr;
     int32_t listenfd, connfd;
     socklen_t cliAddr_len;
@@ -1071,7 +1073,8 @@ void Initialize() {
     /* Listen */
     listen(listenfd , 1024);
 
-    printf("Waiting for incoming connections...\n");
+	log_i("Starting ProtocolHandler [\"socket-%d\"]", server_port);
+    log_i("Waiting for incoming connections...");
     cliAddr_len = sizeof(cliAddr);
     while (true) {
         /* Accept and incoming connection */
