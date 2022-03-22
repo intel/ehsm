@@ -67,6 +67,11 @@ ifeq (true, $(EHSM_DEFAULT_DOMAIN_KEY_FALLBACK))
 	App_C_Flags += -DEHSM_DEFAULT_DOMAIN_KEY_FALLBACK=1
 endif
 
+ENABLE_PERFORMANCE_TEST ?= false
+ifeq (true, $(ENABLE_PERFORMANCE_TEST))
+	App_C_Flags += -DENABLE_PERFORMANCE_TEST=1
+endif
+
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
 App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid
 
