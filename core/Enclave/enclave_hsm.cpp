@@ -765,7 +765,7 @@ sgx_status_t enclave_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, 
 
     /* return the plaintext len */
     if (req_plaintext_len) {
-        printf("ecall rsa_decrypt real_plaintext_len is %d.\n", real_plaintext_len);
+        //printf("ecall rsa_decrypt real_plaintext_len is %d.\n", real_plaintext_len);
         *req_plaintext_len = real_plaintext_len;
         ret = SGX_SUCCESS;
         goto out;

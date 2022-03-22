@@ -41,7 +41,544 @@
 #include "dsohandle.h"
 #include "json_utils.h"
 
+#include <pthread.h>
+#include <chrono>
+
 using namespace EHsmProvider;
+
+#define PERF_NUM 1000
+
+#define NUM_THREADS   100
+
+void test_perf_createkey()
+{
+    RetJsonObj retJsonObj;
+    char* returnJsonChar = nullptr;
+
+    // Start measuring time
+    auto begin = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < PERF_NUM*100; i++) {
+        returnJsonChar = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
+        retJsonObj.parse(returnJsonChar);
+
+        if(retJsonObj.getCode() != 200){
+            printf("Createkey with aes-128 failed in time(%d)\n", i);
+            SAFE_FREE(returnJsonChar);
+            break;
+        }
+        SAFE_FREE(returnJsonChar);
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+
+    printf("Time measured of CreateKey(AES_128) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM*100, elapsed.count() * 1e-9);
+
+    // Start measuring time
+    begin = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < PERF_NUM; i++) {
+        returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
+        retJsonObj.parse(returnJsonChar);
+
+        if(retJsonObj.getCode() != 200){
+            printf("Createkey with rsa-3072 failed in time(%d)\n", i);
+            SAFE_FREE(returnJsonChar);
+            break;
+        }
+        SAFE_FREE(returnJsonChar);
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+    printf("Time measured of CreateKey(RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+}
+
+void test_perf_encrypt()
+{
+    char* returnJsonChar = nullptr;
+    char plaintext[32] = "helloworld";
+    char aad[] = "challenge";
+
+    std::chrono::high_resolution_clock::time_point begin;
+    std::chrono::high_resolution_clock::time_point end;
+    std::chrono::nanoseconds elapsed;
+
+    char* cmk_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    std::string input_aad_base64 = base64_encode((const uint8_t*)aad, sizeof(aad)/sizeof(aad[0]));
+
+    RetJsonObj retJsonObj;
+    returnJsonChar = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
+    retJsonObj.parse(returnJsonChar);
+
+    if(retJsonObj.getCode() != 200){
+        printf("Createkey with aes-gcm-128 failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    //printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    // Start measuring time
+    begin = std::chrono::high_resolution_clock::now();
+
+    for(int i=0; i<PERF_NUM*100; i++){
+        returnJsonChar = NAPI_Encrypt(cmk_base64, input_plaintext_base64.c_str(), input_aad_base64.c_str());
+        retJsonObj.parse(returnJsonChar);
+
+        if(retJsonObj.getCode() != 200){
+            printf("failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        //printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        SAFE_FREE(returnJsonChar);
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+
+    printf("Time measured of Encrypt(AES_128) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM*100, elapsed.count() * 1e-9);
+
+cleanup:
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(returnJsonChar);
+}
+
+void test_perf_decrypt()
+{
+    char* returnJsonChar = nullptr;
+    char plaintext[32] = "helloworld";
+    char aad[] = "challenge";
+
+    std::chrono::high_resolution_clock::time_point begin;
+    std::chrono::high_resolution_clock::time_point end;
+    std::chrono::nanoseconds elapsed;
+
+    char* cmk_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    std::string input_aad_base64 = base64_encode((const uint8_t*)aad, sizeof(aad)/sizeof(aad[0]));
+
+    RetJsonObj retJsonObj;
+    returnJsonChar = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
+    retJsonObj.parse(returnJsonChar);
+
+    if(retJsonObj.getCode() != 200){
+        printf("Createkey with aes-gcm-128 failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    //printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    returnJsonChar = NAPI_Encrypt(cmk_base64, input_plaintext_base64.c_str(), input_aad_base64.c_str());
+    retJsonObj.parse(returnJsonChar);
+
+    if(retJsonObj.getCode() != 200){
+        printf("failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+
+    //printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+    //printf("Encrypt data SUCCESSFULLY!\n");
+
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+
+    // Start measuring time
+    begin = std::chrono::high_resolution_clock::now();
+
+    for(int i=0; i<PERF_NUM*100; i++){
+        returnJsonChar = NAPI_Decrypt(cmk_base64, ciphertext_base64, input_aad_base64.c_str());
+        retJsonObj.parse(returnJsonChar);
+
+        if(retJsonObj.getCode() != 200){
+            printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        //printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        SAFE_FREE(returnJsonChar);
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+
+    printf("Time measured of Decrypt(AES_128) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM*100, elapsed.count() * 1e-9);
+
+cleanup:
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(returnJsonChar);
+}
+
+void test_perf_sign()
+{
+    ehsm_status_t ret = EH_OK;
+    char* returnJsonChar = nullptr;
+    ehsm_data_t digest;
+
+    std::chrono::high_resolution_clock::time_point begin;
+    std::chrono::high_resolution_clock::time_point end;
+    std::chrono::nanoseconds elapsed;
+
+    char* cmk_base64 = nullptr;
+    bool result = false;
+    RetJsonObj retJsonObj;
+    std::string input_digest_base64;
+
+    returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    // printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
+    // printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    digest.datalen = 256;
+    digest.data = (uint8_t*)malloc(digest.datalen);
+    if (digest.data == NULL) {
+    }
+    memset(digest.data, 'B', digest.datalen);
+    input_digest_base64 = base64_encode(digest.data, digest.datalen);
+
+    // Start measuring time
+    begin = std::chrono::high_resolution_clock::now();
+
+    for(int i=0; i<PERF_NUM; i++){
+        returnJsonChar = NAPI_Sign(cmk_base64, input_digest_base64.c_str());
+        retJsonObj.parse(returnJsonChar);
+        if(retJsonObj.getCode() != 200){
+            printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        //printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        SAFE_FREE(returnJsonChar);
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+
+    printf("Time measured of Sign(RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+
+cleanup:
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(digest.data);
+    SAFE_FREE(returnJsonChar);
+}
+
+void test_perf_verify()
+{
+    ehsm_status_t ret = EH_OK;
+    char* returnJsonChar = nullptr;
+    ehsm_data_t digest;
+
+    char* cmk_base64 = nullptr;
+    char* signature_base64 = nullptr;
+    bool result = false;
+    RetJsonObj retJsonObj;
+    std::string input_digest_base64;
+
+    std::chrono::high_resolution_clock::time_point begin;
+    std::chrono::high_resolution_clock::time_point end;
+    std::chrono::nanoseconds elapsed;
+
+    returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    // printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
+    // printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    digest.datalen = 256;
+    digest.data = (uint8_t*)malloc(digest.datalen);
+    if (digest.data == NULL) {
+    }
+    memset(digest.data, 'B', digest.datalen);
+    input_digest_base64 = base64_encode(digest.data, digest.datalen);
+
+    returnJsonChar = NAPI_Sign(cmk_base64, input_digest_base64.c_str());
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    // printf("NAPI_Sign Json = %s\n", returnJsonChar);
+    signature_base64 = retJsonObj.readData_cstr("signature");
+    // printf("Sign data SUCCESSFULLY!\n");
+
+    // Start measuring time
+    begin = std::chrono::high_resolution_clock::now();
+
+    for(int i=0; i<PERF_NUM; i++){
+        returnJsonChar = NAPI_Verify(cmk_base64, input_digest_base64.c_str(), signature_base64);
+        retJsonObj.parse(returnJsonChar);
+        if(retJsonObj.getCode() != 200){
+            printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        SAFE_FREE(returnJsonChar);
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+
+    printf("Time measured of Verify(RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+
+cleanup:
+    SAFE_FREE(signature_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(digest.data);
+    SAFE_FREE(returnJsonChar);
+}
+
+void test_perf_asymmetricencrypt()
+{
+    std::chrono::high_resolution_clock::time_point begin;
+    std::chrono::high_resolution_clock::time_point end;
+    std::chrono::nanoseconds elapsed;
+
+    char* returnJsonChar = nullptr;
+    char plaintext[32] = "TestRSA-3072";
+    char* cmk_base64 = nullptr;
+    RetJsonObj retJsonObj;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+
+    returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    // printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    // printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    // Start measuring time
+    begin = std::chrono::high_resolution_clock::now();
+
+    for(int i=0; i<PERF_NUM; i++){
+        returnJsonChar = NAPI_AsymmetricEncrypt(cmk_base64, input_plaintext_base64.c_str());
+        retJsonObj.parse(returnJsonChar);
+        if(retJsonObj.getCode() != 200){
+            printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        SAFE_FREE(returnJsonChar);
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+    printf("Time measured of AsymmetricEncrypt(RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+
+cleanup:
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(returnJsonChar);
+}
+
+void test_perf_asymmetricdecrypt()
+{
+    std::chrono::high_resolution_clock::time_point begin;
+    std::chrono::high_resolution_clock::time_point end;
+    std::chrono::nanoseconds elapsed;
+
+    char* returnJsonChar = nullptr;
+    char plaintext[32] = "TestRSA-3072";
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    RetJsonObj retJsonObj;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+
+    returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    // printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    // printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    returnJsonChar = NAPI_AsymmetricEncrypt(cmk_base64, input_plaintext_base64.c_str());
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    // printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
+    // printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
+
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+
+        // Start measuring time
+    begin = std::chrono::high_resolution_clock::now();
+
+    for(int i=0; i<PERF_NUM; i++){
+        returnJsonChar = NAPI_AsymmetricDecrypt(cmk_base64, ciphertext_base64);
+        retJsonObj.parse(returnJsonChar);
+        if(retJsonObj.getCode() != 200){
+            printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        // printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
+        // plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+        // printf("Decrypted plaintext : %s\n", plaintext_base64);
+        // printf("(%d) NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n", i);
+
+        SAFE_FREE(returnJsonChar);
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+    printf("Time measured of AsymmetricDecrypt(RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+
+cleanup:
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(returnJsonChar);
+}
+
+void *test_createkey(void *threadid)
+{
+    RetJsonObj retJsonObj;
+    char* returnJsonChar = nullptr;
+    long tid = (long)threadid;
+
+    for (int i = 0; i < PERF_NUM; i++) {
+        returnJsonChar = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
+        retJsonObj.parse(returnJsonChar);
+
+        if(retJsonObj.getCode() != 200){
+            printf("Createkey with aes-128 failed in time(%d)\n", i);
+            SAFE_FREE(returnJsonChar);
+            break;
+        }
+        SAFE_FREE(returnJsonChar);
+        printf("Thread[%ld], CreateKey(AES-128) succeed in time[%d]\n", tid, i);
+    }
+
+   pthread_exit(NULL);
+}
+
+void test_multi_createkey()
+{
+    void *status;
+    pthread_t threads[NUM_THREADS];
+    int rc;
+    int i;
+    for( i=0; i < NUM_THREADS; i++ ){
+        printf("creating thread [%d]\n", i);
+        rc = pthread_create(&threads[i], NULL, test_createkey, (void *)i);
+        if (rc){
+            printf("Error(%d):unable to create thread\n", rc);
+            exit(-1);
+        }
+    }
+
+    for( i = 0; i < NUM_THREADS; i++ ) {
+        rc = pthread_join(threads[i], &status);
+        if (rc) {
+            printf("Error(%d) to join with thread[%d]\n", rc, i);
+            exit(-1);
+        }
+        printf("Main: completed thread[%d]\n", i);
+    }
+    pthread_exit(NULL);
+}
+
+void *test_encrypt(void *threadid)
+{
+    long tid = (long)threadid;
+    char* returnJsonChar = nullptr;
+    char plaintext[32] = "helloworld";
+    char aad[] = "challenge";
+
+    printf("Thread[%ld]. plaintext is %s\n", tid, plaintext);
+
+    char* cmk_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    std::string input_aad_base64 = base64_encode((const uint8_t*)aad, sizeof(aad)/sizeof(aad[0]));
+
+    RetJsonObj retJsonObj;
+    returnJsonChar = NAPI_CreateKey(EH_AES_GCM_128, EH_INTERNAL_KEY);
+    retJsonObj.parse(returnJsonChar);
+
+    if(retJsonObj.getCode() != 200){
+        printf("Thread[%ld], Createkey with aes-gcm-128 failed, error message: %s \n", tid, retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("Thread[%ld], NAPI_CreateKey Json = %s\n",tid, returnJsonChar);
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    for(int i=0; i<PERF_NUM; i++){
+        returnJsonChar = NAPI_Encrypt(cmk_base64, input_plaintext_base64.c_str(), input_aad_base64.c_str());
+        retJsonObj.parse(returnJsonChar);
+
+        if(retJsonObj.getCode() != 200){
+            printf("Thread[%ld] with time[%d], failed to Encrypt the plaittext data, error message: %s \n", tid, i, retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+
+        printf("Thread[%ld] with time[%d], NAPI_Encrypt json = %s\n", tid, i, returnJsonChar);
+
+        SAFE_FREE(returnJsonChar);
+    }
+
+cleanup:
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(returnJsonChar);
+
+    pthread_exit(NULL);
+}
+
+void test_multi_encrypt()
+{
+    void *status;
+    pthread_t threads[NUM_THREADS];
+    int rc;
+    int i;
+    for( i=0; i < NUM_THREADS; i++ ){
+        printf("creating thread [%d]\n", i);
+        rc = pthread_create(&threads[i], NULL, test_encrypt, (void *)i);
+        if (rc){
+            printf("Error(%d):unable to create thread\n", rc);
+            exit(-1);
+        }
+    }
+
+    for( i = 0; i < NUM_THREADS; i++ ) {
+        rc = pthread_join(threads[i], &status);
+        if (rc) {
+            printf("Error(%d) to join with thread[%d]\n", rc, i);
+            exit(-1);
+        }
+        printf("Main: completed thread[%d]\n", i);
+    }
+    pthread_exit(NULL);
+}
 
 /*
 
@@ -450,6 +987,17 @@ cleanup:
     printf("============test_GenerateQuote_and_VerifyQuote end==========\n");
 }
 
+void test_performance()
+{
+    test_perf_createkey();
+    test_perf_encrypt();
+    test_perf_decrypt();
+    test_perf_sign();
+    test_perf_verify();
+    test_perf_asymmetricencrypt();
+    test_perf_asymmetricdecrypt();
+}
+
 int main(int argc, char* argv[])
 {
     ehsm_status_t ret = EH_OK;
@@ -462,6 +1010,10 @@ int main(int argc, char* argv[])
     printf("Initialize done\n");
 
     printf("%s", NAPI_GetVersion());
+
+#if ENABLE_PERFORMANCE_TEST
+    test_performance();
+#endif
 
     test_AES128();
 
