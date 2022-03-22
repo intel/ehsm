@@ -550,7 +550,7 @@ const _query_api_key = async (DB, appid) => {
     let query_result = await DB.partitionedFind('user_info', db_query);
     if (!(query_result && query_result.docs[0])) {
       return {
-        msg: 'Query User Info error',
+        msg: 'keyid not found',
         api_key: ''
       }
     }
