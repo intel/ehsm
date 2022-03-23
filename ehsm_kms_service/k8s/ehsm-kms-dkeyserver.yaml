@@ -1,0 +1,197 @@
+# ehsm-kms ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dkeyserver-configmap
+  namespace: dkeyserver
+data:
+  # you need adjust https://1.2.3.4:8081 to your pccs_url.
+  pccs_url: "https://1.2.3.4:8081"
+  # you need adjust main-0.main:8888 to your root dkeyserver service url.
+  main_service_url: "main-0.main:8888"
+  # you need adjust 1.2.3.4:8888 to your dkey provisioning service url.
+  dkey_provisioning_service_url: "1.2.3.4:8888"
+
+---
+# ehsm-kms main dkeyserver
+apiVersion: v1
+kind: Service
+metadata:
+  name: main
+  namespace: dkeyserver
+  labels:
+    app: main
+spec:
+  ports:
+    - name: main
+      port: 8888
+      targetPort: 8888
+  selector:
+    app: main
+  clusterIP: None 
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: main
+  namespace: dkeyserver
+spec:
+  selector:
+    matchLabels:
+      app: main
+  serviceName: "main"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: main
+    spec:
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
+      containers:
+      - name: main
+        image: intel/dkeyserver:latest
+        imagePullPolicy: IfNotPresent
+        # readinessProbe:
+        #   httpGet:
+        #     port: main-port
+        #     path: /isReady
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 10
+        # livenessProbe:
+        #   httpGet:
+        #     port: main-port
+        #     path: /isLive
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 10
+        volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
+        env:
+        - name: PCCS_URL 
+          valueFrom:
+            configMapKeyRef:
+              name: dkeyserver-configmap
+              key: pccs_url
+        - name: DKEY_TARGET_SERVICE_URL 
+          valueFrom:
+            configMapKeyRef:
+              name: dkeyserver-configmap
+              key: dkey_provisioning_service_url
+        ports: 
+        - containerPort: 8888
+          name: main-port
+
+---
+# ehsm-kms worker dkeyserver
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+  namespace: dkeyserver
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
+      # initContainers:
+      # - name: init-worker
+      #   # this images same the container's image.
+      #   image: intel/dkeyserver:latest
+      #   imagePullPolicy: IfNotPresent
+      #   command: ['sh' , '-c','until curl http://${DKEY_TARGET_SERVICE_URL}/isReady; do echo waiting for main servier; sleep 5; done;']
+      #   env:
+      #   - name: DKEY_TARGET_SERVICE_URL
+      #     valueFrom:
+      #       configMapKeyRef:
+      #         name: dkeyserver-configmap
+      #         key: main_service_url
+      containers:
+      - name: worker
+        # You need to tag the worker container image with this name on each worker node or change it to point to a docker hub to get the container image.
+        image: intel/dkeyserver:latest
+        imagePullPolicy: IfNotPresent
+        # readinessProbe:
+        #   httpGet:
+        #     port: worker-port
+        #     path: /isReady
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 10
+        # livenessProbe:
+        #   httpGet:
+        #     port: worker-port
+        #     path: /isLive
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 10
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
+        env:
+        - name: PCCS_URL 
+          valueFrom:
+            configMapKeyRef:
+              name: dkeyserver-configmap
+              key: pccs_url
+        - name: DKEY_TARGET_SERVICE_URL 
+          valueFrom:
+            configMapKeyRef:
+              name: dkeyserver-configmap
+              key: main_service_url
+        ports:
+        - containerPort: 8888
+          name: worker-port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dkey-provisioning-service
+  namespace: dkeyserver
+spec:
+  type: LoadBalancer
+  selector:
+    app: worker
+  ports:
+    - name: worker
+      protocol: TCP
+      # This port is ehsm-kms worker dkeyserver access port,you can change it to what you want.
+      port: 8888
+      targetPort: 8888
+      nodePort: 30010
+  sessionAffinity: ClientIP
+  externalIPs:
+  # This IP is ehsm-kms worker dkeyserver access IP, You need to adjust 1.2.3.4 to the service IP you want to expose
+  - 1.2.3.4
+
