@@ -8,7 +8,10 @@ const {
   _cmk_cache_timer,
 } = require('./function')
 const connectDB = require('./couchdb')
-const router = require('./router')
+const {
+  router,
+  GetRouter
+} = require('./router')
 
 const app = express()
 app.use(express.json())
@@ -43,6 +46,7 @@ const server = (DB) => {
   /**
    * router
    */
+  app.get('/ehsm', (req, res) => GetRouter({ req, res}))
   app.post('/ehsm', (req, res) => router({ req, res, DB }))
 
   /**

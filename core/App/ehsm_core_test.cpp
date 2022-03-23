@@ -461,6 +461,8 @@ int main(int argc, char* argv[])
     }
     printf("Initialize done\n");
 
+    printf("%s", NAPI_GetVersion());
+
     test_AES128();
 
     test_RSA3072_encrypt_decrypt();

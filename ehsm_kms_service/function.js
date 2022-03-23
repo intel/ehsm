@@ -16,6 +16,7 @@ const {
   enroll_apis,
   cryptographic_apis,
   key_management_apis,
+  common_apis,
 } = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
 
@@ -43,6 +44,13 @@ const is_base64 = (base64_str) => {
   }
   return /^[a-zA-Z0-9\+\/]+(\={0,2})$/gi.test(base64_str)
 };
+
+const ActionBypassList = [
+  enroll_apis.RA_GET_API_KEY,
+  enroll_apis.RA_HANDSHAKE_MSG0,
+  enroll_apis.RA_HANDSHAKE_MSG2,
+  common_apis.GetVersion,
+]
 
 /**
  * Clear nonce cache for more than <NONCE_CACHE_TIME> minutes
@@ -420,11 +428,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       ip,
     }
     logger.info(JSON.stringify(_logData))
-    if (
-      ACTION === enroll_apis.RA_GET_API_KEY ||
-      ACTION === enroll_apis.RA_HANDSHAKE_MSG0 ||
-      ACTION === enroll_apis.RA_HANDSHAKE_MSG2
-    ) {
+    if ( ActionBypassList.includes(ACTION) ) {
       next()
       return
     }

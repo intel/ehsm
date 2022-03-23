@@ -4,6 +4,7 @@ const {
   enroll_apis,
   key_management_apis,
   remote_attestation_apis,
+  common_apis,
 } = require('./apis')
 const logger = require('./logger')
 const {
@@ -66,6 +67,20 @@ const find_cmk_by_keyid = async (appid, keyid, res, DB) => {
     return
   }
   return keyBlob
+}
+
+const GetRouter = async (p) => {
+  const { req, res } = p
+  const action = req.query.Action
+  switch (action) {
+    case common_apis.GetVersion:
+      napi_res = napi_result(action, res, [])
+      napi_res && res.send(napi_res)
+      break;
+    default:
+      res.send(_result(404, 'Not Found', {}))
+      break
+  }
 }
 
 const router = async (p) => {
@@ -235,4 +250,7 @@ const router = async (p) => {
       break
   }
 }
-module.exports = router
+module.exports = {
+  router,
+  GetRouter
+}

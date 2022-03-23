@@ -1540,4 +1540,22 @@ out:
     return retJsonObj.toChar();
 }
 
+/*
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              "version" : string
+ *          }
+ *      }
+ */
+char* NAPI_GetVersion()
+{
+    RetJsonObj retJsonObj;
+    retJsonObj.addData_string("version", VERSION);
+    return retJsonObj.toChar();
+}
+
 }  // extern "C"
