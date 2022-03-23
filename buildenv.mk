@@ -29,10 +29,15 @@
 #
 #
 
+######## version ########
+vsn_major=0
+vsn_minor=2
+vsn_patch=0
 
 ######## auto_version Settings ########
-VERSION_STRING := "v0.2.0"
+VERSION_STRING := $(vsn_major).$(vsn_minor).$(vsn_patch)
 DATE_STRING := `date "+20%y.%m.%d %k:%M"`
+EHSM_KMS_GIT_SHA=$(shell git rev-parse --short=7 --verify HEAD)
 
 # -------------------------------------------------------------------
 #  Function : parent-dir

@@ -1547,7 +1547,8 @@ out:
  *          code: int,
  *          message: string,
  *          result: {
- *              "version" : string
+ *              "version" : string,
+ *              "git_sha" : string
  *          }
  *      }
  */
@@ -1555,6 +1556,7 @@ char* NAPI_GetVersion()
 {
     RetJsonObj retJsonObj;
     retJsonObj.addData_string("version", VERSION);
+    retJsonObj.addData_string("git_sha", GIT_SHA);
     return retJsonObj.toChar();
 }
 

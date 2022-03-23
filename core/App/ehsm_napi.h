@@ -285,7 +285,8 @@ char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce);
  *          code: int,
  *          message: string,
  *          result: {
- *              "version" : string
+ *              "version" : string,
+ *              "git_sha" : string
  *          }
  *      }
  */

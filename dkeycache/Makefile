@@ -146,6 +146,7 @@ App/auto_version.h:
 	@echo "#define EHSM_DKEYCACHE_AUTO_VERSION_H" >> App/auto_version.h
 	@echo "#define VERSION \"$(VERSION_STRING)\"" >> App/auto_version.h 
 	@echo "#define DATE \"$(DATE_STRING)\""	>> App/auto_version.h 
+	@echo "#define GIT_SHA \"$(EHSM_KMS_GIT_SHA)\""	>> App/auto_version.h 
 	@echo "#endif //EHSM_DKEYCACHE_AUTO_VERSION_H"	>> App/auto_version.h 
 	@echo "  ==>  touch App/auto_version.h"
 
