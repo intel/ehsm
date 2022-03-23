@@ -30,3 +30,7 @@ ehsm_kms_service/test/cli/__pycache__
 
 .history/
 .vscode/
+
+core/App/auto_version.h
+dkeycache/App/auto_version.h
+dkeyserver/App/auto_version.h
