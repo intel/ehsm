@@ -8,7 +8,7 @@ const {
   EHSM_CONFIG_COUCHDB_DB,
 } = process.env
 
-async function connectDB(server) {
+async function connectDB(app, server) {
   if (
     !EHSM_CONFIG_COUCHDB_USERNAME ||
     !EHSM_CONFIG_COUCHDB_PASSWORD ||
@@ -28,7 +28,7 @@ async function connectDB(server) {
       DB = await nanoDb.use(EHSM_CONFIG_COUCHDB_DB)
     }
     if (DB) {
-      server(DB)
+      server(app, DB)
     } else {
       console.log('couchdb connect error')
     }

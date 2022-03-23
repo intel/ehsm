@@ -9,9 +9,8 @@ const {
 } = require('./function')
 const connectDB = require('./couchdb')
 const router = require('./router')
-
-const app = express()
-app.use(express.json())
+const cluster = require('cluster')
+const os = require('os')
 
 const PORT = process.argv.slice(2)[0] || 9000
 
@@ -62,4 +61,13 @@ const server = (app, DB) => {
     )
   })
 }
-connectDB(app, server)
+
+if (cluster.isMaster) {
+  os.cpus().forEach(() => {
+    cluster.fork();
+  })
+} else {
+  const app = express()
+  app.use(express.json())
+  connectDB(app, server)
+}

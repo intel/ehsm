@@ -2,16 +2,18 @@ import requests
 import json
 import argparse
 import base64
+import _thread
 import time
+import datetime
 import random
 import hmac
 from hashlib import sha256
 from collections import OrderedDict
 import urllib.parse
-appid= '468c507a-da1f-4127-9cd0-82f0e7ce247e'
-apikey= 'Merh0HrKuc2e8ECt5qba5dhy0ykyp1Js'
+appid= '2b4fa199-64b7-4e09-befb-96bc51179d3f'
+apikey= 'ZY1iDtu65Xy9K7v5HS4k5TZ01egri61h'
 keyid= ''
-
+salt = 0
 def test_disableKey(base_url, headers):
     payload = OrderedDict()
     payload["keyid"] = keyid
@@ -62,15 +64,17 @@ def test_listKey(base_url, headers):
     keyid = json.loads(listKey_resp.text)['result']['list'][0]['keyid']
 
 def test_params(payload):
+    global salt
     params = OrderedDict()
     params["appid"] = appid
     if payload!=False:
         ord_payload = OrderedDict(sorted(payload.items(), key=lambda k: k[0]))
         params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(ord_payload))
-    params["timestamp"] = str(int(time.time() * 1000))
+    params["timestamp"] = str(int(time.time() * 1000) + salt)
+    salt = salt + 1
     sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
-    print(sign_string.encode('utf-8'))
-    print(apikey.encode('utf-8'))
+    #print(sign_string.encode('utf-8'))
+    #print(apikey.encode('utf-8'))
     sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     if payload!=False:
         params["payload"] = payload
@@ -367,12 +371,43 @@ def get_args():
 def check_result(res, action, test_name):
     res_json = json.loads(res.text)
     if(res_json['code'] == 200):
-        print("%s successfully \n" %(action))
+        #print("%s successfully \n" %(action))
         return True
     else:
         print("%s failed, error message: %s \n" %(action, res_json["message"]))
         print('====================%s end===========================' %(test_name))
         return False
+
+def testThread(threadName, base_url, headers, keyid):
+    start = {"time":"{}".format(datetime.datetime.now()), "ms":int(time.time() * 1000)}
+    payload = OrderedDict()
+    payload.clear()
+    payload["aad"] = str(base64.b64encode("test".encode("utf-8")),'utf-8')
+    payload["keyid"] = keyid
+    payload["plaintext"] = str(base64.b64encode("123456".encode("utf-8")),'utf-8')
+    params=test_params(payload)
+
+    encrypt_resp = requests.post(url=base_url + "Encrypt", data=json.dumps(params), headers=headers)
+    check_result(encrypt_resp, 'Encrypt', 'test_MutilThread')
+
+    end = {"time":"{}".format(datetime.datetime.now()), "ms":int(time.time() * 1000)}
+    print(threadName + '\t('+ start["time"] +' :' + end["time"] + ')\t use：'+ str((end["ms"] - start["ms"])/1000.0))
+
+def test_MutilThread(base_url, headers):
+    payload = OrderedDict()
+    payload["keyspec"] = "EH_AES_GCM_128"
+    payload["origin"] = "EH_INTERNAL_KEY"
+    params=test_params(payload)
+    print('CreateKey req:\n%s\n' %(params))
+    create_resp = requests.post(url=base_url + "CreateKey", data=json.dumps(params), headers=headers)
+    if(check_result(create_resp, 'CreateKey', 'test_AES128') == False):
+        return
+    print('CreateKey resp:\n%s\n' %(create_resp.text))
+    for i in range(1000):
+        _thread.start_new_thread(testThread, ('Thread-{}'.format(i), base_url, headers, json.loads(create_resp.text)['result']['keyid']) )
+    while 1:
+        pass
+
 if __name__ == "__main__":
     headers = {"Content-Type":"application/json"}
 
@@ -380,26 +415,4 @@ if __name__ == "__main__":
 
     base_url = "http://" + ip + ":" + port + "/ehsm?Action="
 
-    test_AES128(base_url, headers)
-
-    test_GenerateDataKey(base_url, headers)
-
-    test_GenerateDataKeyWithoutPlaintext(base_url, headers)
-
-    test_Stest_RSA3072_sign_verify(base_url, headers)
-
-    test_RSA3072_encrypt_decrypt(base_url, headers)
-
-    test_export_datakey(base_url, headers)
-
-    test_listKey(base_url, headers)
-
-    test_disableKey(base_url, headers)
-
-    test_enableKey(base_url, headers)
-
-    test_deleteKey(base_url, headers)
-
-    test_deleteAllKey(base_url, headers)
-
-    test_GenerateQuote_and_VerifyQuote(base_url, headers)
+    test_MutilThread(base_url, headers)
