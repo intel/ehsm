@@ -278,6 +278,19 @@ char* NAPI_GenerateQuote(const char *challenge);
  */
 char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce);
 
+/*
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              "version" : string
+ *          }
+ *      }
+ */
+char* NAPI_GetVersion();
+
 }  // extern "C"
 
 

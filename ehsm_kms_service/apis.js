@@ -29,4 +29,14 @@ const key_management_apis = {
   EnableKey: 'EnableKey',
   DisableKey: 'DisableKey',
 }
-module.exports = { cryptographic_apis, enroll_apis, key_management_apis, remote_attestation_apis }
+
+const common_apis = {
+  GetVersion: 'GetVersion'
+}
+module.exports = {
+  cryptographic_apis,
+  enroll_apis,
+  key_management_apis,
+  remote_attestation_apis,
+  common_apis
+}
