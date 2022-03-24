@@ -149,7 +149,7 @@ spec:
           path: /var/run/ehsm
       containers:
       - name: dkeycache
-        image: intel/ehsm_dkeycache:latest
+        image: intelccc/ehsm_dkeycache:latest
         securityContext:
           privileged: true
         volumeMounts:
@@ -210,7 +210,7 @@ spec:
           path: /var/run/ehsm
       initContainers:
       - name: init-ehsm-kms
-        image: intel/ehsm_kms_service:latest
+        image: intelccc/ehsm_kms_service:latest
         imagePullPolicy: IfNotPresent
         command: ['sh' , '-c','until curl http://${EHSM_CONFIG_COUCHDB_SERVER}:${EHSM_CONFIG_COUCHDB_PORT}/; do echo waiting for couchDB; sleep 5; done;']
         env:
@@ -227,7 +227,7 @@ spec:
       containers:
       - name: ehsm-kms
         # You need to tag the ehsm-kms container image with this name on each worker node or change it to point to a docker hub to get the container image.
-        image: intel/ehsm_kms_service:latest
+        image: intelccc/ehsm_kms_service:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true

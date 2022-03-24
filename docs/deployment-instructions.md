@@ -10,29 +10,61 @@ This below diagram depicts the high-level overview of the eHSM-KMS in K8S cluste
 ---
 
 ## Prerequisites
-* Ensure you already have a running kubenetes cluster environment, if not, please follow [k8s-setup-guide](k8s-setup-guide.md) to setup the K8S cluster.
-* Ensure you already have a NFS server, if not, please follow [nfs-setup-guide](nfs-setup-guide.md) to setup a nfs server.
+* A running kubernetes cluster environment, if not, please follow [k8s-setup-guide](k8s-setup-guide.md) to setup the K8S cluster.
+    * The worker nodes MUST support SGX(need FLC support for DCAP remote attestation).
+    * The Master is a generic node.
+* A centralized dkeyserver node for domain key provisioning.
+    * MUST support SGX (w/ FLC) OR directly connect with a dedicated HSM.
+* A NFS server, if not, please follow [nfs-setup-guide](nfs-setup-guide.md) to setup a nfs server.
+* A running PCCS-service. (Suggest to host it in another dedicate node.)
 
 ---
 
 ## Deployment
-* Download and modify the yaml file
+* Download and Start the Dkeyserver service in the Dkeyserver node
+
     ```Shell
-    $ wget https://github.com/intel/ehsm/tree/main/ehsm_kms_service/k8s/ehsm-kms.yaml
+    wget https://github.com/intel/ehsm/tree/main/ehsm_kms_service/k8s/run_dkeyserver.sh
+
+    # modify the below configs
+    EHSM_DOCKER_IMAGE_NAME="intelccc/ehsm_dkeyserver:0.2.0"  --> <your_dkeyserver_image>
+    HOST_PORT=8888                                           --> <your_dkeyserver_port>
+    DOCKER_PORT=8888
+    PCCS_URL="https://10.112.240.166:8081"                   --> <your_PCCS_URL>
+
+    # run the script
+    ./run_dkeyserver.sh
+    ```
+    ![dkeyserver_status.png](./diagrams/dkeyserver_status.PNG)
+
+* Download and modify the yaml file in the K8S master node.
+    ```Shell
+    Notes: You can get the example YAML file from:
+    https://github.com/intel/ehsm/tree/main/ehsm_kms_service/k8s/ehsm-kms.yaml
 
     # Modify the below parameters based on your environment
+
     data:
-        couch_root_username: YWRtaW4=          --> <your_db_user>
-        couch_root_password: cGFzc3dvcmQ=      --> <your_db_passwd>
+        dkeyserver_ip: "1.2.3.4"               --> <your_dkeyserver_ip>
+        dkeyserver_port: "8888"                --> <your_dkeyserver_port>
+        pccs_url: "https://1.2.3.4:8081"       --> <your_nfs_folder>
+
 
     nfs:
         path: /nfs_ehsm_db                     --> <your_nfs_folder>
-        server: 1.2.3.4                        --> <your_nfs_ipaddr>
+        server: 1.2.3.4                        --> <your_nfs_ip>
+
+     containers:
+      - name: dkeycache
+        image: intelccc/ehsm_dkeycache:latest     --> <your_dkeycache_image>
+
+    initContainers:
+       - name: init-ehsm-kms
+        image: intelccc/ehsm_kms_service:latest   --> <your_kms_image>
 
     containers:
       - name: ehsm-kms
-        image: intel/ehsm_kms_service:latest   --> <tag your ehsm-kms container image as this name on the worker node or modify it to point your private docker hub>
-        imagePullPolicy: IfNotPresent
+        image: intelccc/ehsm_kms_service:latest   --> <your_kms_image>
 
     kind: Service
     metadata:
@@ -40,8 +72,9 @@ This below diagram depicts the high-level overview of the eHSM-KMS in K8S cluste
     namespace: ehsm-kms
     ....
     externalIPs:
-    - 1.2.3.4                                --> <your_kms_external_ipaddr>
+    - 1.2.3.4                                --> <your_kms_external_ipaddr, you need try to find an unused IP>
     ```
+
  * Create namespace and apply the yaml file
     ```Shell
     # Create ehsm-kms namespace
@@ -51,8 +84,8 @@ This below diagram depicts the high-level overview of the eHSM-KMS in K8S cluste
     $ kubectl apply -f ehsm-kms.yaml -n ehsm-kms
     ```
 
-Then, you will get the below result:<br>
-![result-of-deployment.png](./diagrams/result-of-deployment.PNG)<br>
+    Then, you will get the below result:<br>
+    ![result-of-deployment.png](./diagrams/result-of-deployment.PNG)<br>
 
 Notes:
 With this deployment config file, it will publish the ehsm-kms as a loadbalancer service in k8s cluster, the customer could visit it by the \<***external ip:port***\><br>
