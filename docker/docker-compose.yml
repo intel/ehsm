@@ -1,0 +1,103 @@
+version: "3.9"
+services:
+  # CouchDB service
+  couchdb:
+    container_name: c_couchdb
+    image: couchdb:3.2
+    ports:
+      - "${COUCHDB_PORT}:5984"
+    volumes:
+      - /opt/couchdb/data:/opt/couchdb/data
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+
+  # eHSM Base Images
+  #   just for build a base image.
+  ehsm_base:
+    container_name: c_ehsm_base
+    build: 
+      context: .
+      args:
+       http_proxy: ${http_proxy}
+       https_proxy: ${http_proxy}
+       TAG_VERSION: ${EHSM_VERSION_STR}
+    image: "${IMAGE_NAME_EHSM_BASE}:${EHSM_VERSION_STR}"
+
+  # eHSM Domain Key Server service
+  dkeyserver:
+    container_name: c_dkeyserver
+    build: 
+      context: dkeyserver
+      args:
+       IMAGE_NAME_EHSM_BASE: ${IMAGE_NAME_EHSM_BASE}
+       EHSM_VERSION_STR: ${EHSM_VERSION_STR}
+    image: "ehsm_dkeyserver:${EHSM_VERSION_STR}"
+    ports:
+      - "${DKEYSERVER_PORT}:8888"
+    volumes:
+      - /var/run/aesmd:/var/run/aesmd
+    environment:
+      - PCCS_URL=${PCCS_URL}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+    devices:
+      - /dev/sgx/enclave
+      - /dev/sgx/provision
+    depends_on:
+      - ehsm_base
+
+  # eHSM Domain Key Cache service
+  dkeycache:
+    container_name: c_dkeycache
+    build: 
+      context: dkeycache
+      args:
+       IMAGE_NAME_EHSM_BASE: ${IMAGE_NAME_EHSM_BASE}
+       EHSM_VERSION_STR: ${EHSM_VERSION_STR}
+    image: "ehsm_dkeycache:${EHSM_VERSION_STR}"
+    volumes:
+      - /var/run/aesmd:/var/run/aesmd
+      - ${DKEYCACHE_SOCKET_LOCALTION}:${DKEYCACHE_SOCKET_LOCALTION}
+    environment:
+      - PCCS_URL=${PCCS_URL}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+      - DKEYSERVER_IP=${HOST_IP}
+      - DKEYSERVER_PORT=${DKEYSERVER_PORT}
+    devices:
+      - /dev/sgx/enclave
+      - /dev/sgx/provision
+    depends_on:
+      - dkeyserver
+
+  # eHSM KMS service
+  ehsmKMS:
+    container_name: c_ehsmKMS
+    build: 
+      context: core
+      args:
+       http_proxy: ${http_proxy}
+       https_proxy: ${http_proxy}
+       IMAGE_NAME_EHSM_BASE: ${IMAGE_NAME_EHSM_BASE}
+       EHSM_VERSION_STR: ${EHSM_VERSION_STR}
+    image: "ehsm_kms_service:${EHSM_VERSION_STR}"
+    ports:
+      - "${KMS_PORT}:9000"
+    volumes:
+      - /var/run/aesmd:/var/run/aesmd
+      - ${DKEYCACHE_SOCKET_LOCALTION}:${DKEYCACHE_SOCKET_LOCALTION}
+    environment:
+      - PCCS_URL=${PCCS_URL}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+      - EHSM_CONFIG_COUCHDB_USERNAME=${COUCHDB_USER}
+      - EHSM_CONFIG_COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+      - EHSM_CONFIG_COUCHDB_PORT=${COUCHDB_PORT}
+      - EHSM_CONFIG_COUCHDB_SERVER=${HOST_IP}
+      - EHSM_CONFIG_COUCHDB_DB=${COUCHDB_DB}
+    devices:
+      - /dev/sgx/enclave
+      - /dev/sgx/provision
+    depends_on:
+      - dkeycache

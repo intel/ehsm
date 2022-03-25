@@ -1,72 +1,13 @@
-FROM ubuntu:18.04 as sample
+ARG IMAGE_NAME_EHSM_BASE
+ARG EHSM_VERSION_STR
 
-RUN apt-get update && apt-get install -y \
-    vim \
-    autoconf \
-    automake \
-    build-essential \
-    cmake \
-    curl \
-    debhelper \
-    git \
-    libcurl4-openssl-dev \
-    libprotobuf-dev \
-    libssl-dev \
-    libtool \
-    lsb-release \
-    ocaml \
-    ocamlbuild \
-    protobuf-compiler \
-    python \
-    wget \
-    libcurl4 \
-    libprotobuf10 \
-    libssl1.1 \
-    make \
-    module-init-tools \
-    g++ \
-    libjsoncpp-dev\
-    uuid-dev
-
-# Install the SDK
-WORKDIR /opt/intel
-RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.12.1/linux/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.15.101.1.bin \
-    && chmod 777 sgx_linux_x64_sdk_2.15.101.1.bin \
-    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.15.101.1.bin'
-
-# Install DCAP packages
-# DCAP repository setup
-RUN echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | tee /etc/apt/sources.list.d/intel-sgx.list \
-    && wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add -
-
-RUN apt-get update &&apt-get install -y \
-    libsgx-enclave-common-dev \
-    libsgx-ae-qe3 \
-    libsgx-ae-qve \
-    libsgx-urts \
-    libsgx-dcap-ql \
-    libsgx-dcap-default-qpl \
-    libsgx-dcap-quote-verify-dev \
-    libsgx-dcap-default-qpl-dev \
-    libsgx-quote-ex-dev  \
-    libsgx-uae-service \
-    libsgx-ra-network \
-    libsgx-ra-uefi \
-    libsgx-dcap-ql-dev 
+FROM $IMAGE_NAME_EHSM_BASE:$EHSM_VERSION_STR
 
 COPY start_dkeyserver.sh /home/
-RUN chmod 744 /home/start_dkeyserver.sh
-
-# Build App from source
-WORKDIR /home
-RUN git clone https://github.com/intel/ehsm.git \
-    && cd ehsm \
-    && make
+RUN chmod 744 /home/start_dkeyserver.sh 
 
 # image port
 EXPOSE 8888
 
 # run ehsm-dkeyserver
 CMD ["sh", "/home/start_dkeyserver.sh"]
-
-
