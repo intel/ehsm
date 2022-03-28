@@ -4,8 +4,7 @@
 
 Currently, the eHSM-KMS-Service now provides the following restful APIs to the customers :
 
-
-- **Cryptographic Functionalities APIs**<br>
+- **Cryptographic Functionalities APIs**
   Notes: These below Rest APIs are used to provide crypto functionalities for users.
   - [CreateKey](#CreateKey)
   - [Encrypt](#Encrypt)
@@ -17,13 +16,20 @@ Currently, the eHSM-KMS-Service now provides the following restful APIs to the c
   - [GenerateDataKey](#GenerateDataKey)
   - [GenerateDataKeyWithoutPlaintext](#GenerateDataKeyWithoutPlaintext)
   - [ExportDataKey](#ExportDataKey)
-- **Key Management APIs**<br>
+  <br>
+- **Key Management APIs**
   Notes: These below Rest APIs are used to manage CMK functionalities for users.
+  - [GetVersion](#GetVersion)
   - [ListKey](#ListKey)
   - [DeleteKey](#DeleteKey)
   - [DeleteALLKey](#DeleteALLKey)
   - [EnableKey](#EnableKey)
   - [DisableKey](#DisableKey)
+  <br>
+- **Remote Attestation APIs**
+  Notes: These below Rest APIs are used to do the remote attestation.
+  - [GenerateQuote](#GenerateQuote)
+  - [VerifyQuote](#VerifyQuote)
 
 ## Common Prameters
 This section describes the parameters that are common to all API requests and responses.
@@ -59,7 +65,7 @@ Create a customer master key(CMK) for the user, which can be a symmetric or an a
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | cmk_base64 | String |"AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwAA***" |The result in json object for the cmk which in based64 encoding. |
+  | cmk | String |"AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwAA***" |The result in json object for the cmk which in based64 encoding. |
 
 - **Example**
 	- Request sample in python
@@ -88,7 +94,7 @@ Create a customer master key(CMK) for the user, which can be a symmetric or an a
         "code": 200,
         "message": "success!",
         "result": {
-            "cmk_base64":"AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+            "cmk":"AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
         }
     }
   ```
@@ -106,9 +112,9 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | aad | String | "challenge" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. |
-  | cmk_base64 | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A symmetric cmk in BASE64 string. |
-  | plaintext | String | "plaintext***" | The datas of the plaintext. |
+  | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. The aad stored in BASE64 string.|
+  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A symmetric cmk in BASE64 string. |
+  | plaintext | String | "cGxhaW50ZXh0" | The datas of the plaintext which in based64 encoding. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
@@ -118,15 +124,15 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | ciphertext_base64 | String | "uSDos6NLWNVp4sQZS2+mzLvDw***" |The result in json object for the Ciphertext  which in based64 encoding. |
+  | ciphertext | String | "uSDos6NLWNVp4sQZS2+mzLvDw***" |The result in json object for the Ciphertext  which in based64 encoding. |
 
 - **Example**
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["aad"] = "challenge"
-    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
-    payload["plaintext"] = "plaintext***"
+    payload["aad"] = "Y2hhbGxlbmdl"
+    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["plaintext"] = "cGxhaW50ZXh0"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -148,7 +154,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
       "code": 200,
       "message": "success!",
       "result": {
-          "ciphertext_base64": "uSDos6NLWNVp4sQZS2+mzLvDw***"
+          "ciphertext": "uSDos6NLWNVp4sQZS2+mzLvDw***"
       }
     }
   ```
@@ -167,9 +173,9 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | aad | String | "challenge" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. |
-  | cmk_base64 | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A symmetric cmk in BASE64 string. |
-  | ciphertext_base64 | String | "uSDos6NLWNVp4sQZS2+mzLvDw***" | Ciphertext to be decrypted in BASE64 string. |
+  | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. The aad stored in BASE64 string.|
+  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A symmetric cmk in BASE64 string. |
+  | ciphertext | String | "uSDos6NLWNVp4sQZS2+mzLvDw***" | Ciphertext to be decrypted in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
@@ -179,15 +185,15 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | plaintext_base64 | String | "VGVzdDEyMzQtQU***" | Plain data after decrypt and stored in BASE64 string. |
+  | plaintext | String | "VGVzdDEyMzQtQU***" | Plain data after decrypt and stored in BASE64 string. |
 
 - **Example**
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["aad"] = "challenge"
-    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
-    payload["ciphertext_base64"] = "uSDos6NLWNVp4sQZS2+mzLvDw***"
+    payload["aad"] = "Y2hhbGxlbmdl"
+    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["ciphertext"] = "uSDos6NLWNVp4sQZS2+mzLvDw***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -209,7 +215,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
       "code": 200,
       "message": "success!",
       "result": {
-          "plaintext_base64": "VGVzdDEyMzQtQU***"
+          "plaintext": "VGVzdDEyMzQtQU***"
       }
     }
   ```
@@ -228,8 +234,8 @@ Encrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | cmk_base64 | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
-  | plaintext | String | "plaintext***" | The datas of the plaintext. |
+  | cmk | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
+  | plaintext | String | "cGxhaW50ZXh0" | The datas of the plaintext which in based64 encoding. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
@@ -239,14 +245,14 @@ Encrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | ciphertext_base64 | String | "EhGpx8pMYFRDr28xT4dJvrMg5***" | The data of the ciphertext stores in BASE64 string. |
+  | ciphertext | String | "EhGpx8pMYFRDr28xT4dJvrMg5***" | The data of the ciphertext stores in BASE64 string. |
 
 - **Example**
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
-    payload["plaintext"] = "plaintext***"
+    payload["cmk"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["plaintext"] = "cGxhaW50ZXh0"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -268,7 +274,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
       "code": 200,
       "message": "success!",
       "result": {
-          "ciphertext_base64": "EhGpx8pMYFRDr28xT4dJvrMg5***"
+          "ciphertext": "EhGpx8pMYFRDr28xT4dJvrMg5***"
       }
     }
   ```
@@ -287,8 +293,8 @@ Decrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | cmk_base64 | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
-  | ciphertext_base64 | String | "EhGpx8pMYFRDr28xT4dJvrMg5***" | The data of the ciphertext in BASE64 string. |
+  | cmk | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
+  | ciphertext | String | "EhGpx8pMYFRDr28xT4dJvrMg5***" | The data of the ciphertext in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
@@ -298,14 +304,14 @@ Decrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | plaintext_base64 | String | "VGVzdFJTQS0zMDcyAAAAAAAAAAAAAA***" | Plaint data after decrypt and stored in BASE64 string. |
+  | plaintext | String | "VGVzdFJTQS0zMDcyAAAAAAAAAAAAAA***" | Plaint data after decrypt and stored in BASE64 string. |
 
 - **Example**
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
-    payload["ciphertext_base64"] = "EhGpx8pMYFRDr28xT4dJvrMg5***"
+    payload["cmk"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["ciphertext"] = "EhGpx8pMYFRDr28xT4dJvrMg5***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -327,7 +333,7 @@ Decrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
       "code": 200,
       "message": "success!",
       "result": {
-          "plaintext_base64": "VGVzdFJTQS0zMDcyAAAAAAAAAAAAAA***"
+          "plaintext": "VGVzdFJTQS0zMDcyAAAAAAAAAAAAAA***"
       }
     }
   ```
@@ -346,8 +352,8 @@ Performs sign operation using the cmk(only support asymmetric keyspec).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | cmk_base64 | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
-  | digest | String | "digest***" | The hash of datas want to be signed. |
+  | cmk | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
+  | digest | String | "ZGlnZXN0" | The hash of datas want to be signed, and stored in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
@@ -357,14 +363,14 @@ Performs sign operation using the cmk(only support asymmetric keyspec).
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | signature_base64 | String | "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***" | The calculated signature value stores in BASE64 string. |
+  | signature | String | "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***" | The calculated signature value stores in BASE64 string. |
 
 - **Example**
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
-    payload["digest"] = "digest***"
+    payload["cmk"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["digest"] = "ZGlnZXN0"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -386,7 +392,7 @@ Performs sign operation using the cmk(only support asymmetric keyspec).
       "code": 200,
       "message": "success!",
       "result": {
-          "signature_base64": "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***"
+          "signature": "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***"
       }
     }
   ```
@@ -405,9 +411,9 @@ Performs verify operation using the cmk(only support asymmetric keyspec).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | cmk_base64 | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
-  | digest | String | "digest***" | The hash of datas want to be signed. |
-  | signature_base64 | String | "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***" | The signature of the digest signed by the cmk in BASE64 string. |
+  | cmk | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
+  | digest | String | "ZGlnZXN0" | The hash of datas want to be signed, and stored in BASE64 string. |
+  | signature | String | "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***" | The signature of the digest signed by the cmk in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
@@ -423,9 +429,9 @@ Performs verify operation using the cmk(only support asymmetric keyspec).
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["cmk_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
-    payload["digest"] = "digest***"
-    payload["signature_base64"] = "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***"
+    payload["cmk"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["digest"] = "ZGlnZXN0"
+    payload["signature"] = "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -471,8 +477,8 @@ when you want to obtain the plaintext of datakey again, you can call the Decrypt
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | aad | String | "challenge" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. |
-  | cmk_base64 | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A specified symmetric CMK in BASE64 string. |
+  | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. The aad stored in BASE64 string.|
+  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A specified symmetric CMK in BASE64 string. |
   | keylen | int | 16 | Specifies the length of the plaintext, length is 0~1024 bytes. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -483,15 +489,15 @@ when you want to obtain the plaintext of datakey again, you can call the Decrypt
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | plaintext_base64 | String | "JzoxG7io20MgbbvVnbDhquaZ9nZtZXwRlA***" | Plain data key stores in BASE64 string. |
-  | ciphertext_base64 | String | "J/qC8IwEnhsjFjzIf***" | The cipher text of the data key stores in BASE64 string. |
+  | plaintext | String | "JzoxG7io20MgbbvVnbDhquaZ9nZtZXwRlA***" | Plain data key stores in BASE64 string. |
+  | ciphertext | String | "J/qC8IwEnhsjFjzIf***" | The cipher text of the data key stores in BASE64 string. |
 
 - **Example**
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["aad"] = "challenge"
-    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["aad"] = "Y2hhbGxlbmdl"
+    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
     payload["keylen"] = 16
 
     params = OrderedDict()
@@ -514,8 +520,8 @@ when you want to obtain the plaintext of datakey again, you can call the Decrypt
       "code": 200,
       "message": "success!",
       "result": {
-          "plaintext_base64": "JzoxG7io20MgbbvVnbDhquaZ9nZtZXwRlA***",
-          "ciphertext_base64": "J/qC8IwEnhsjFjzIf***"
+          "plaintext": "JzoxG7io20MgbbvVnbDhquaZ9nZtZXwRlA***",
+          "ciphertext": "J/qC8IwEnhsjFjzIf***"
       }
     }
   ```
@@ -534,8 +540,8 @@ The same as GenerateDataKey, but it doesn’t return plaintext of generated Data
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | aad | String | "challenge" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. |
-  | cmk_base64 | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A specified symmetric CMK in BASE64 string. |
+  | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. The aad stored in BASE64 string.|
+  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A specified symmetric CMK in BASE64 string. |
   | keylen | int | 16 | Specifies the length of the plaintext, length is 0~1024 bytes. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -546,14 +552,14 @@ The same as GenerateDataKey, but it doesn’t return plaintext of generated Data
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | ciphertext_base64 | String | "J/qC8IwEnhsjFjzIf***" | The cipher text of the data key stores in BASE64 string. |
+  | ciphertext | String | "J/qC8IwEnhsjFjzIf***" | The cipher text of the data key stores in BASE64 string. |
 
 - **Example**
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["aad"] = "challenge"
-    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["aad"] = "Y2hhbGxlbmdl"
+    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
     payload["keylen"] = 16
 
     params = OrderedDict()
@@ -576,7 +582,7 @@ The same as GenerateDataKey, but it doesn’t return plaintext of generated Data
       "code": 200,
       "message": "success!",
       "result": {
-          "ciphertext_base64": "J/qC8IwEnhsjFjzIf***"
+          "ciphertext": "J/qC8IwEnhsjFjzIf***"
       }
     }
   ```
@@ -595,10 +601,10 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | aad | String | "challenge" | Some extra datas input by the user, which could help to to ensure data integrity. |
-  | cmk_base64 | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwAA***" | A specified symmetric CMK in BASE64 string. |
-  | olddatakey_base64 | String | "J/qC8IwEnhsjFjzIf***" | The ciphertext of the datakey wrapped by the cmk in BASE64 string. |
-  | ukey_base64 | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric use specified key in BASE64 string. |
+  | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity. The aad stored in BASE64 string.|
+  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwAA***" | A specified symmetric CMK in BASE64 string. |
+  | olddatakey | String | "J/qC8IwEnhsjFjzIf***" | The ciphertext of the datakey wrapped by the cmk in BASE64 string. |
+  | ukey | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric use specified key in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
@@ -608,16 +614,16 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | newdatakey_base64 | String | "a4cN1k8QcXLhxm8dUoVHbXWB4P1v/kr***" | The ciphertext of the datakey wrapped by the ukey stores in BASE64 string. |
+  | newdatakey | String | "a4cN1k8QcXLhxm8dUoVHbXWB4P1v/kr***" | The ciphertext of the datakey wrapped by the ukey stores in BASE64 string. |
 
 - **Example**
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["aad"] = "challenge"
-    payload["cmk_base64"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
-    payload["olddatakey_base64"] = "J/qC8IwEnhsjFjzIf***"
-    payload["ukey_base64"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["aad"] = "Y2hhbGxlbmdl"
+    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["olddatakey"] = "J/qC8IwEnhsjFjzIf***"
+    payload["ukey"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
 
     params = OrderedDict()
     params["appid"] = appid
@@ -639,12 +645,50 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
       "code": 200,
       "message": "success!",
       "result": {
-          "newdatakey_base64": "a4cN1k8QcXLhxm8dUoVHbXWB4P1v/kr***"
+          "newdatakey": "a4cN1k8QcXLhxm8dUoVHbXWB4P1v/kr***"
       }
     }
   ```
   *(return to the [Cryptographic Functionalities APIs](#eHSM-REST-API-Reference).)*
 ---
+
+## GetVersion
+Query the KMS server version.
+
+- **Rest API format:**
+
+  GET <ehsm_srv_address>/ehsm?Action=GetVersion
+
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200  | The result of the method call, 200 is success, others are fail. |
+  | message | String  | "success" | The description of result. |
+  | version | String | "0.2.0" | The version of eHSM-KMS server. |
+  | git_sha | String | "c14b8b8" | THe git_sha of the currently running code |
+
+- **Example**
+  - Request sample in Shell
+  ```Shell
+    $ curl <ehsm_srv_address>/ehsm?Action=GetVersion
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {
+         "version": "0.2.0",
+         "git_sha": "c14b8b8"
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
 
 ## ListKey
 Query all the CMKs generated by the current account.
@@ -698,6 +742,12 @@ Query all the CMKs generated by the current account.
   ```
   *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
 ---
+
+
+
+
+
+
 
 ## DeleteKey
 Delete a specific CMK generated by the current account.
@@ -848,7 +898,6 @@ Only when the CMK is enabled, it could be used to perform cryptographic operatio
   *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
 ---
 
-
 ## DisableKey
 Disables a specified CMK.<br/>
 If a CMK is disabled, it can't be used until you re-enable it by the EnableKey API.
@@ -903,3 +952,128 @@ If a CMK is disabled, it can't be used until you re-enable it by the EnableKey A
   ```
   *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
 ---
+
+## GenerateQuote
+Generate a quote of the eHSM-KMS core enclave for user used to do the SGX DCAP Remote Attestation. User may send it to a remote reliable third party or directly send it to eHSM-KMS via VerifyQuote API to do the quote verification.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=GenerateQuote
+
+
+- **Request Payload:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | challenge | String | "Y2hhbGxlbmdl" | 	
+A challenge in BASE64 string. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "success" | The description of result. |
+  | quote | String | "AwACAAAAAAAHAAwAk5pB&lowast;&lowast;&lowast;" | A quote for the eHSM-KMS core enclave format in BASE64 string. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["challenge"] = "Y2hhbGxlbmdl"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=DisableKey", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {
+         "quote": "AwACAAAAAAAHAAwAk5pB***"
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## VerifyQuote
+Users are expected already got a valid DCAP format QUOTE. And it could use this API to send it to eHSM-KMS to do a quote verification.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=VerifyQuote
+
+
+- **Request Payload:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | quote | String | "AwACAAAAAAAHAAwAk5pB&lowast;&lowast;&lowast;" |A valid DCAP quote in BASE64 string. |
+  | nonce | String | "bm9uY2U=" |A nonce in BASE64 string. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "success" | The description of result. |
+  | result | bool | "true or false" | The result of quote verification |
+  | nonce | String | "bm9uY2U=" | The nonce in BASE64 string. |
+  | sign  | String | "T4DRCEZAPLBbb+d3ObD&lowast;&lowast;&lowast;" | The HAMC sign of result and nonce calculated by the API Key. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["nonce"] = "bm9uY2U="
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=DisableKey", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {
+         "result": true,
+         "nonce": "bm9uY2U=",
+         "sign": "T4DRCEZAPLBbb+d3ObD***"
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
