@@ -61,8 +61,9 @@ create the enclave
     }
 */
 char* NAPI_Initialize(){
-	log_i("Server version name:\teHSM-KMS Server %s", VERSION);
-	log_i("Server built:\t\t%s", DATE);
+    log_i("Service name:\t\teHSM-KMS service %s", EHSM_VERSION);
+    log_i("Service built:\t\t%s", EHSM_DATE);
+    log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
 
     RetJsonObj retJsonObj;
     ehsm_status_t ret = EH_OK;
@@ -1555,8 +1556,8 @@ out:
 char* NAPI_GetVersion()
 {
     RetJsonObj retJsonObj;
-    retJsonObj.addData_string("version", VERSION);
-    retJsonObj.addData_string("git_sha", GIT_SHA);
+    retJsonObj.addData_string("version", EHSM_VERSION);
+    retJsonObj.addData_string("git_sha", EHSM_GIT_SHA);
     return retJsonObj.toChar();
 }
 
