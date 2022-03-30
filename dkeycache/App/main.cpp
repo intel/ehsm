@@ -101,14 +101,15 @@ static void parse_args(int argc, char* argv[]) {
 
 int main(int argc, char* argv[])
 {
-	log_i("Server version name:\t\teHSM-KMS DomainKey Cache %s", VERSION);
-	log_i("Server built:\t\t\t%s", DATE);
+    log_i("Service name:\t\tDomainKey Caching Service %s", EHSM_VERSION);
+    log_i("Service built:\t\t%s", EHSM_DATE);
+    log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
 
     // process argv
     parse_args(argc, argv);
 
-	log_i("DomainKey Server IP:\t\t%s", deploy_ip_addr.c_str());
-	log_i("DomainKey Server port:\t%d", deploy_port);
+    log_i("DomainKey Server IP:\t\t%s", deploy_ip_addr.c_str());
+    log_i("DomainKey Server port:\t%d", deploy_port);
 
     int ret = 0;
 

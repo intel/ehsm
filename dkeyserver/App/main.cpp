@@ -16,8 +16,9 @@ void ocall_print_string(const char *str)
 
 int main() {
 
-	log_i("Server version name:\teHSM-KMS DomainKey Server %s", VERSION);
-	log_i("Server built:\t\t%s", DATE);
+    log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
+    log_i("Service built:\t\t%s", EHSM_DATE);
+    log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
 
     Initialize();
 
