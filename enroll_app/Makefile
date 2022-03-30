@@ -29,7 +29,7 @@
 #
 #
 
-include ../../buildenv.mk
+include ../buildenv.mk
 
 App_Name := ehsm-kms_enroll_app
 

@@ -31,7 +31,7 @@
 
 include buildenv.mk
 
-SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver ehsm_kms_service/enroll_app
+SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver enroll_app
 
 .PHONY: all clean
 
