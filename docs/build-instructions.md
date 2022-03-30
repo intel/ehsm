@@ -76,7 +76,7 @@ Welcome to see the build instructions for the ehsm-kms project.
     TAG_VERSION=main              # (Optional) the default code base is using the main latest branch, modify it to specific tag if you want.
 
     # start to build and run the docker images (couchdb, dkeyserver, dkeycache, ehsm_kms_service)
-    ./docker/docker-compose up -d
+    cd docker && docker-compose up -d
     ```
     You will get below results:<br>
     ![image](diagrams/docker-compose-result.PNG)
