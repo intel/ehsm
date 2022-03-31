@@ -85,11 +85,11 @@ Welcome to see the build instructions for the ehsm-kms project.
     * Enroll your appid and apikey
     ``` shell
     # build the enroll application
-    cd ehsm_kms_service/enroll_app
+    cd enroll_app
     make
 
     # use the enroll app to retrieve the valide appid and apikey from ehsm-kms
-    cd ../../out/ehsm-kms_enroll_app
+    cd ../out/ehsm-kms_enroll_app
     ./ehsm-kms_enroll_app http://1.2.3.4:9000/ehsm/ (change to your ip and port)
     ```
     You will get below results:<br>
@@ -98,7 +98,7 @@ Welcome to see the build instructions for the ehsm-kms project.
 
     * Test with python script
     ``` shell
-    cd ehsm_kms_service/test
+    cd test
 
     # change appid and apikey to your enroll result
     vim test_kms_with_rest.py

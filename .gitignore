@@ -24,9 +24,9 @@ ehsm_kms_service/node_modules/
 ehsm_kms_service/package-lock.json
 ehsm_kms_service/logs/*/
 ehsm_kms_service/*.so
-ehsm_kms_service/enroll_app/*.o
 
-ehsm_kms_service/test/cli/__pycache__
+enroll_app/*.o
+test/cli/__pycache__
 
 .history/
 .vscode/
