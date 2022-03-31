@@ -15,7 +15,7 @@ apikey = 'xXH5nmw4J0NaKwKEJiKcxuJ859u1cwrE'
 
 headers = {"Content-Type":"application/json"}
 
-def init_params(payload):
+def init_params(payload=False):
     params = OrderedDict()
     params["appid"] = appid
     if payload!=False:
