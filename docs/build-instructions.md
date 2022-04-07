@@ -25,7 +25,13 @@ Welcome to see the build instructions for the ehsm-kms project.
 
 * Install DCAP required packages
     ```shell
-    echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu focal main' | sudo tee /etc/apt/sources.list.d/intel-sgx.list
+    cd /opt/intel
+
+    wget https://download.01.org/intel-sgx/sgx-dcap/1.12.1/linux/distro/ubuntu20.04-server/sgx_debian_local_repo.tgz
+
+    tar xzf sgx_debian_local_repo.tgz
+
+    echo 'deb [trusted=yes arch=amd64] file:///opt/intel/sgx_debian_local_repo focal main' | sudo tee /etc/apt/sources.list.d/intel-sgx.list
 
     wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | sudo apt-key add -
 
