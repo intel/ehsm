@@ -37,6 +37,7 @@ def asymmetric_decrypt(base_url, keyid, data):
     print('asymmetric_decrypt resp:\n%s\n' %(resp.text))
     plaintext = str(base64.b64decode(json.loads(resp.text)['result']['plaintext']), 'utf-8')
     print('asymmetric_decrypt plaintext:\n%s\n' %(plaintext))
+    return json.loads(resp.text)['result']['plaintext']
 
 if __name__ == "__main__":
     headers = _utils_.headers

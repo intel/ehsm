@@ -32,6 +32,7 @@ def listkey(base_url):
         return
 
     print('listkey resp:\n%s\n' %(resp.text))
+    return json.loads(resp.text)['result']['list']
 
 if __name__ == "__main__":
     headers = _utils_.headers

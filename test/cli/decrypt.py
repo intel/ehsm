@@ -38,8 +38,12 @@ def decrypt(base_url, keyid, data, aad):
         return
 
     print('decrypt resp:\n%s\n' %(resp.text))
-    plaintext = str(base64.b64decode(json.loads(resp.text)['result']['plaintext']), 'utf-8')
+    try:
+        plaintext = str(base64.b64decode(json.loads(resp.text)['result']['plaintext']), 'utf-8')
+    except:
+        plaintext = base64.b64decode(json.loads(resp.text)['result']['plaintext'])
     print('decrypt plaintext:\n%s\n' %(plaintext))
+    return plaintext
 
 if __name__ == "__main__":
     headers = _utils_.headers

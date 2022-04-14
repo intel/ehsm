@@ -38,6 +38,7 @@ def generate_datakey(base_url, keyid, len, aad):
         return
 
     print('generate_datakey resp:\n%s\n' %(resp.text))
+    return json.loads(resp.text)['result']['ciphertext']
 
 if __name__ == "__main__":
     headers = _utils_.headers
