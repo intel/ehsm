@@ -15,6 +15,7 @@ const enroll_apis = {
   RA_GET_API_KEY: 'RA_GET_API_KEY',
   RA_HANDSHAKE_MSG0: 'RA_HANDSHAKE_MSG0',
   RA_HANDSHAKE_MSG2: 'RA_HANDSHAKE_MSG2',
+  Enroll: 'Enroll',
 }
 
 const remote_attestation_apis = {

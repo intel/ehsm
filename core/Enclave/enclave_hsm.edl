@@ -113,6 +113,10 @@ enclave {
                                                     uint32_t apikey_len,
                                                     [out, size=cipherapikey_len] uint8_t *cipherapikey,
                                                     uint32_t cipherapikey_len);
+
+        public sgx_status_t enclave_get_apikey([out, size=kenlen] uint8_t *apikey,
+                                                    uint32_t kenlen);
+
         public sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
             [in,size=message_size] uint8_t* message,
             size_t message_size,

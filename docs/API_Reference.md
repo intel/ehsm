@@ -20,6 +20,7 @@ Currently, the eHSM-KMS-Service now provides the following restful APIs to the c
 - **Key Management APIs**
   Notes: These below Rest APIs are used to manage CMK functionalities for users.
   - [GetVersion](#GetVersion)
+  - [Enroll](#Enroll)
   - [ListKey](#ListKey)
   - [DeleteKey](#DeleteKey)
   - [DeleteALLKey](#DeleteALLKey)
@@ -683,6 +684,45 @@ Query the KMS server version.
       "result": {
          "version": "0.2.0",
          "git_sha": "c14b8b8"
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+## Enroll
+Obtain a valid access keypair (APPID and APIKey) which is MUST before request the public cryptographic APIs.
+
+Notes: This operation only need to do once. After get the APPID and APIKey, user should be responsible for managing the keypair.
+
+- **Rest API format:**
+
+  GET <ehsm_srv_address>/ehsm?Action=Enroll
+
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200  | The result of the method call, 200 is success, others are fail. |
+  | message | String  | "success" | The description of result. |
+  | apikey | String | "44RPFy3SEqLbAahaP9PXSGQ6ABB6gctr" | the API access key to the eHSM-KMS server. |
+  | appid | String | "3309ecfa-d02f-49b3-a107-b47d6c7d3854" | An uuid which represent the customer app. |
+
+- **Example**
+  - Request sample in Shell
+  ```Shell
+    $ curl <ehsm_srv_address>/ehsm?Action=Enroll
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {
+         "apikey": "44RPFy3SEqLbAahaP9PXSGQ6ABB6gctr",
+         "appid": "3309ecfa-d02f-49b3-a107-b47d6c7d3854"
       }
     }
   ```

@@ -45,6 +45,7 @@
 #define PADDING_SIZE       16
 
 #define EH_API_KEY_SIZE     32
+#define UUID_STR_LEN	   37
 
 #define TAG_SIZE        16
 #define IV_SIZE            12

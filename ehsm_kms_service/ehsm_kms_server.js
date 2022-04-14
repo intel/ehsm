@@ -46,7 +46,7 @@ const server = (DB) => {
   /**
    * router
    */
-  app.get('/ehsm', (req, res) => GetRouter({ req, res}))
+  app.get('/ehsm', (req, res) => GetRouter({ req, res, DB }))
   app.post('/ehsm', (req, res) => router({ req, res, DB }))
 
   /**
