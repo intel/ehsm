@@ -34,6 +34,7 @@ def sign(base_url, keyid, digest):
     if(_utils_.check_result(resp, 'Sign') == False):
         return
     print('sign resp:\n%s\n' %(resp.text))
+    return json.loads(resp.text)['result']['signature']
 
 if __name__ == "__main__":
     headers = _utils_.headers

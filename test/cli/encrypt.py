@@ -38,6 +38,7 @@ def encrypt(base_url, keyid, data, aad):
         return
 
     print('encrypt resp:\n%s\n' %(resp.text))
+    return json.loads(resp.text)['result']['ciphertext']
 
 if __name__ == "__main__":
     headers = _utils_.headers

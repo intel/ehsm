@@ -20,17 +20,28 @@ def get_args():
     base_url = args.url + "/ehsm?Action="
     return base_url, args.quote
 
-def generate_quote(base_url, quote_file):
+def generate_quote(base_url):
     payload = OrderedDict()
     payload["challenge"] = "challenge123456"
     params = _utils_.init_params(payload)
     print('generate_quote req:\n%s\n' %(params))
-    GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=headers)
+    GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=_utils_.headers)
     if(_utils_.check_result(GenerateQuote_resp, 'GenerateQuote') == False):
         return
     print('generate_quote resp:\n%s\n' %(GenerateQuote_resp.text))
-    
-    f = open(quote_file, "a")
+    return json.loads(resp.text)['result']['quote']
+
+def generate_quote_with_file(base_url, quote_file):
+    payload = OrderedDict()
+    payload["challenge"] = "challenge123456"
+    params = _utils_.init_params(payload)
+    print('generate_quote req:\n%s\n' %(params))
+    GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=_utils_.headers)
+    if(_utils_.check_result(GenerateQuote_resp, 'GenerateQuote') == False):
+        return
+    print('generate_quote resp:\n%s\n' %(GenerateQuote_resp.text))
+
+    f = open(quote_file, "w")
     f.write(json.loads(GenerateQuote_resp.text)['result']['quote'])
 
 if __name__ == "__main__":
@@ -38,5 +49,5 @@ if __name__ == "__main__":
 
     base_url, quote = get_args()
 
-    generate_quote(base_url, quote)
+    generate_quote_with_file(base_url, quote)
 

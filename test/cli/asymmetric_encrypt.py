@@ -35,6 +35,7 @@ def asymmetric_encrypt(base_url, keyid, data):
         return
 
     print('asymmetric_encrypt resp:\n%s\n' %(resp.text))
+    return json.loads(resp.text)['result']['ciphertext']
 
 if __name__ == "__main__":
     headers = _utils_.headers

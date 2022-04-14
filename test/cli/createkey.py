@@ -38,6 +38,7 @@ def createkey(base_url, keyspec, origin):
         return
 
     print('createkey resp:\n%s\n' %(resp.text))
+    return json.loads(resp.text)['result']['keyid']
 
 if __name__ == "__main__":
     headers = _utils_.headers
