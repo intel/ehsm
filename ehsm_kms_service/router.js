@@ -11,6 +11,7 @@ const {
   napi_result,
   _result,
   create_user_info,
+  enroll_user_info,
   store_cmk,
   gen_hmac,
 } = require('./function')
@@ -70,12 +71,15 @@ const find_cmk_by_keyid = async (appid, keyid, res, DB) => {
 }
 
 const GetRouter = async (p) => {
-  const { req, res } = p
+  const { req, res, DB } = p
   const action = req.query.Action
   switch (action) {
     case common_apis.GetVersion:
       napi_res = napi_result(action, res, [])
       napi_res && res.send(napi_res)
+      break;
+    case enroll_apis.Enroll:
+      enroll_user_info(action, DB, res, req)
       break;
     default:
       res.send(_result(404, 'Not Found', {}))

@@ -1415,6 +1415,59 @@ OUT:
     return retJsonObj.toChar();
 }
 
+/*
+ *  @return
+ *  [string] json string
+ *      {
+ *          code: int,
+ *          message: string,
+ *          result: {
+ *              appid : string
+ *              apikey : string
+ *          }
+ *      }
+ */
+char *NAPI_Enroll()
+{
+    RetJsonObj retJsonObj;
+    log_i("%s start.", __func__);
+
+    ehsm_status_t ret = EH_OK;
+
+    ehsm_data_t apikey;
+    ehsm_data_t appid;
+
+    appid.datalen = UUID_STR_LEN;
+    appid.data = (uint8_t*)calloc(appid.datalen, sizeof(uint8_t));
+    if (appid.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto OUT;
+    }
+
+    apikey.datalen = EH_API_KEY_SIZE;
+    apikey.data = (uint8_t*)calloc(apikey.datalen+1, sizeof(uint8_t));
+    if (apikey.data == NULL) {
+        ret = EH_DEVICE_MEMORY;
+        goto OUT;
+    }
+
+    ret = Enroll(&appid, &apikey);
+    if (ret != EH_OK) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto OUT;
+    }
+
+    retJsonObj.addData_string("appid", (char*)appid.data);
+    retJsonObj.addData_string("apikey", (char*)apikey.data);
+
+    log_i("%s end.", __func__);
+
+OUT:
+    SAFE_FREE(apikey.data);
+    SAFE_FREE(appid.data);
+    return retJsonObj.toChar();
+}
 
 /*
  *  @param challenge

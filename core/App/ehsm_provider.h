@@ -376,6 +376,16 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
 
 /*
 Description:
+Obtain a valid appid and apikey
+
+Output:
+appid -- an uuid
+apikey -- 32bit random number
+*/
+ehsm_status_t Enroll(ehsm_data_t *appid, ehsm_data_t *apikey);
+
+/*
+Description:
 Generate a 32-bit random character and use sharedKey encrypt character
 
 Output:

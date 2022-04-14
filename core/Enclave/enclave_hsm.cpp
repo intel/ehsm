@@ -866,6 +866,27 @@ sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
     return ret;
 }
 
+sgx_status_t enclave_get_apikey(uint8_t *apikey, uint32_t keylen)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (apikey == NULL || keylen != EH_API_KEY_SIZE){
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    // generate apikey
+    std::string psw_chars = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+    uint8_t temp[keylen];
+    ret = sgx_read_rand(temp, keylen);
+    if (ret != SGX_SUCCESS) {
+        return ret;
+    }
+    for (int i = 0; i < keylen; i++) {
+        apikey[i] = psw_chars[temp[i] % psw_chars.length()];
+    }
+
+    memset_s(temp, keylen, 0, keylen);
+    return ret;
+}
 // This ecall is a wrapper of sgx_ra_init to create the trusted
 // KE exchange key context needed for the remote attestation
 // SIGMA API's. Input pointers aren't checked since the trusted stubs

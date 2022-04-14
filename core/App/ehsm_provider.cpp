@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include <uuid/uuid.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -812,6 +813,34 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
             return EH_KEYSPEC_INVALID;
     }
 
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+}
+
+ehsm_status_t Enroll(ehsm_data_t *appid, ehsm_data_t *apikey)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (appid == NULL || appid->datalen != UUID_STR_LEN) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    if (apikey == NULL || apikey->datalen != EH_API_KEY_SIZE) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    // create appid
+    uuid_t uu;
+    uuid_generate(uu);
+    uuid_unparse(uu, (char*)appid->data);
+
+    ret = enclave_get_apikey(g_enclave_id,
+                            &sgxStatus,
+                            apikey->data,
+                            apikey->datalen);
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;
     else

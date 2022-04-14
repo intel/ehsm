@@ -49,6 +49,7 @@ const ActionBypassList = [
   enroll_apis.RA_GET_API_KEY,
   enroll_apis.RA_HANDSHAKE_MSG0,
   enroll_apis.RA_HANDSHAKE_MSG2,
+  enroll_apis.Enroll,
   common_apis.GetVersion,
 ]
 
@@ -244,6 +245,45 @@ const create_user_info = (action, DB, res, req) => {
           })
           .catch((e) => {
             res.send(_result(400, 'create app info faild', e))
+          })
+      }
+    }
+  }
+}
+
+/**
+ * enroll： retrieve appid&apikey from ehsm-core enclave and store them into couchDB
+ * @param {object} DB
+ * @param {object} res
+ * Fields contained in the user_info document:
+ * _id | appid | apikey | cmk
+ */
+const enroll_user_info = (action, DB, res, req) => {
+  let napi_res = napi_result(action, res, [])
+
+  if (napi_res) {
+    const { appid, apikey } = napi_res.result
+    let cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
+    if (cmk_res) {
+      const { cmk } = cmk_res.result
+      let apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [
+        cmk,
+        apikey,
+        '',
+      ])
+      if (apikey_encrypt_res) {
+        const { ciphertext } = apikey_encrypt_res.result
+        DB.insert({
+          _id: `user_info:${appid}`,
+          appid,
+          apikey: ciphertext,
+          cmk: cmk,
+        })
+          .then((r) => {
+            res.send(_result(200, 'successful', { ...napi_res.result }))
+          })
+          .catch((e) => {
+            res.send(_result(400, 'enroll user info faild', e))
           })
       }
     }
@@ -625,6 +665,7 @@ module.exports = {
   _result,
   napi_result,
   create_user_info,
+  enroll_user_info,
   _nonce_cache_timer,
   store_cmk,
   _cmk_cache_timer,
