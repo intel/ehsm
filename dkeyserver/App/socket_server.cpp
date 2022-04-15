@@ -44,6 +44,7 @@
 #include "sgx_urts.h"
 #include "sgx_ql_quote.h"
 #include "sgx_dcap_quoteverify.h"
+#include "enclave_u.h"
 
 #include "ecp.h"
 #include "sample_libcrypto.h"
@@ -51,6 +52,8 @@
 #include "rand.h"
 #include "CacheController.h"
 #include "log_utils.h"
+
+extern sgx_enclave_id_t g_enclave_id;
 
 namespace socket_server {
 
@@ -556,8 +559,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     sgx_ql_qe_report_info_t qve_report_info;
     unsigned char rand_nonce[16] = "59jslk201fgjmm;";
 
-    uint8_t *domain_key = NULL;
-
     uint32_t quote_size=0;
     
     if((!p_msg3) ||
@@ -874,16 +875,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             break;
         }
 
-        domain_key = (uint8_t *)malloc(SGX_DOMAIN_KEY_SIZE);
-        if (!domain_key) {
-            ret = SP_INTERNAL_ERROR;
-            break;
-        }
-        /*TODO: current initialize the domain key as 1*SGX_DOMAIN_KEY_SIZE
-        * need to generate the real domain_key from the HSM in the real product
-        */
-        memset(domain_key, 1, SGX_DOMAIN_KEY_SIZE);
-
         // Respond the client with the results of the attestation.
         uint32_t att_result_msg_size = sizeof(sample_ra_att_result_msg_t)+SGX_DOMAIN_KEY_SIZE;
         p_att_result_msg_full =
@@ -919,18 +910,19 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         }
 
         // Generate shared secret and encrypt it with SK, if attestation passed.
-        uint8_t aes_gcm_iv[SAMPLE_SP_IV_SIZE] = {0};
         p_att_result_msg->secret.payload_size = SGX_DOMAIN_KEY_SIZE;
 
-        ret = sample_rijndael128GCM_encrypt(&sp_db->sk_key,
-                    domain_key,
-                    p_att_result_msg->secret.payload_size,
-                    p_att_result_msg->secret.payload,
-                    &aes_gcm_iv[0],
-                    SAMPLE_SP_IV_SIZE,
-                    NULL,
-                    0,
-                    &p_att_result_msg->secret.payload_tag);
+        sgx_status_t enclave_ret = SGX_SUCCESS;
+        ret = sgx_wrap_domain_key(g_enclave_id, &enclave_ret,
+	                          &sp_db->sk_key,
+                                  p_att_result_msg->secret.payload,
+                                  p_att_result_msg->secret.payload_size,
+                                  &p_att_result_msg->secret.payload_tag);
+        if (enclave_ret != SGX_SUCCESS || ret != SGX_SUCCESS) {
+            printf("Failed to get domain key.\n");
+            ret = SP_INTERNAL_ERROR;
+            break;
+        }
 
     }while(0);
 
@@ -942,7 +934,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         *pp_att_result_msg = p_att_result_msg_full;
     }
 
-    SAFE_FREE(domain_key);
     return ret;
 }
 
