@@ -39,11 +39,13 @@ enclave {
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
+        int ocall_read_domain_key([out, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len);
+        int ocall_store_domain_key([in, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len);
     };
 
     trusted {
-        public sgx_status_t sgx_create_domainkey(
-			[out, size=cmk_blob_size] uint8_t *cmk_blob, size_t cmk_blob_size,
-			[out] size_t *req_blob_size);
+        public sgx_status_t sgx_wrap_domain_key([in] sgx_aes_gcm_128bit_key_t *p_key,
+                                                [out, size=p_dst_len] uint8_t *p_dst, size_t p_dst_len,
+                                                [out] sgx_aes_gcm_128bit_tag_t *p_out_mac);
     };
 };

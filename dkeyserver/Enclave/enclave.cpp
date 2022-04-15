@@ -37,7 +37,7 @@
 #include <stdbool.h>
 #include <mbusafecrt.h>
 
-#define SGX_AES_KEY_SIZE 16
+#define SGX_DOMAIN_KEY_SIZE 16
 
 void printf(const char *fmt, ...)
 {
@@ -49,37 +49,77 @@ void printf(const char *fmt, ...)
     ocall_print_string(buf);
 }
 
-sgx_status_t sgx_create_domainkey(uint8_t *cmk_blob, size_t cmk_blob_size, size_t *req_blob_size)
+sgx_status_t sgx_get_domainkey(uint8_t *domain_key)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint32_t real_blob_len = sgx_calc_sealed_data_size(0, SGX_AES_KEY_SIZE);
+    uint32_t dk_cipher_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);
 
-    if (real_blob_len == UINT32_MAX)
+    if (dk_cipher_len == UINT32_MAX)
         return SGX_ERROR_UNEXPECTED;
 
-    if (req_blob_size != NULL) {
-        *req_blob_size = real_blob_len;
-        return SGX_SUCCESS;
+    int retstatus;
+    uint8_t dk_cipher[dk_cipher_len] = {0};
+    uint8_t tmp[SGX_DOMAIN_KEY_SIZE] = {0};
+
+    ret = ocall_read_domain_key(&retstatus, dk_cipher, dk_cipher_len);
+    if (ret != SGX_SUCCESS)
+        return ret;
+
+    if (retstatus == 0) {
+        uint32_t dk_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)dk_cipher);
+
+        ret = sgx_unseal_data((const sgx_sealed_data_t *)dk_cipher, NULL, 0, tmp, &dk_len);
+	if (ret != SGX_SUCCESS)
+            return ret;
     }
+    // -2: dk file does not exist.
+    else if (retstatus == -2) {
+        printf("enclave file does not exist.\n");
+        ret = sgx_read_rand(tmp, SGX_DOMAIN_KEY_SIZE);
+        if (ret != SGX_SUCCESS) {
+            return ret;
+        }
 
-    if (cmk_blob == NULL || cmk_blob_size != real_blob_len)
-        return SGX_ERROR_INVALID_PARAMETER;
+        ret = sgx_seal_data(0, NULL, SGX_DOMAIN_KEY_SIZE, tmp, dk_cipher_len, (sgx_sealed_data_t *)dk_cipher);
+        if (ret != SGX_SUCCESS)
+            return SGX_ERROR_UNEXPECTED;
 
-    uint8_t* tmp = (uint8_t *)malloc(SGX_AES_KEY_SIZE);
-    if (tmp == NULL)
-        return SGX_ERROR_OUT_OF_MEMORY;
+        ret = ocall_store_domain_key(&retstatus, dk_cipher, dk_cipher_len);
+        if (ret != SGX_SUCCESS || retstatus != 0)
+            return SGX_ERROR_UNEXPECTED;
+    }
+    else
+        return SGX_ERROR_UNEXPECTED;
 
-    ret = sgx_read_rand(tmp, SGX_AES_KEY_SIZE);
+    memcpy_s(domain_key, SGX_DOMAIN_KEY_SIZE, tmp, SGX_DOMAIN_KEY_SIZE);
+    memset_s(tmp, SGX_DOMAIN_KEY_SIZE, 0, SGX_DOMAIN_KEY_SIZE);
+
+    return ret;
+}
+
+/* encrypt dk with session key */
+sgx_status_t sgx_wrap_domain_key(sgx_aes_gcm_128bit_key_t *p_key,
+                                 uint8_t *p_dst, size_t p_dst_len,
+                                 sgx_aes_gcm_128bit_tag_t *p_out_mac)
+{
+    uint8_t domain_key[SGX_DOMAIN_KEY_SIZE];
+    uint8_t aes_gcm_iv[12] = {0};
+
+    if (p_dst_len < SGX_DOMAIN_KEY_SIZE)
+        return SGX_ERROR_UNEXPECTED;
+
+    sgx_status_t ret = sgx_get_domainkey(domain_key);
     if (ret != SGX_SUCCESS) {
-        free(tmp);
+        printf("Failed to get domain:%d.\n", ret);
         return ret;
     }
 
-    ret = sgx_seal_data(0, NULL, SGX_AES_KEY_SIZE, tmp, cmk_blob_size, (sgx_sealed_data_t *)cmk_blob);
-
-    memset_s(tmp, SGX_AES_KEY_SIZE, 0, SGX_AES_KEY_SIZE);
-
-    free(tmp);
+    ret = sgx_rijndael128GCM_encrypt(p_key,
+                                     domain_key, SGX_DOMAIN_KEY_SIZE,
+                                     p_dst,
+                                     aes_gcm_iv, sizeof(aes_gcm_iv),
+                                     NULL, 0,
+                                     p_out_mac);
 
     return ret;
 }
