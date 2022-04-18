@@ -19,6 +19,7 @@ utils/tkey_exchange/sgx_tkey_exchange_u.*
 utils/ukey_exchange/*.o
 
 out/
+utils/sgxssl/
 
 ehsm_kms_service/node_modules/
 ehsm_kms_service/package-lock.json

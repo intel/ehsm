@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2011-2020 Intel Corporation. All rights reserved.
+# Copyright (C) 2011-2022 Intel Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -32,12 +32,14 @@
 include buildenv.mk
 
 SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver enroll_app
+SSL_DIR := third_party/intel-sgx-ssl
+export DESTDIR = ${OPENSSL_PATH}
 
 .PHONY: all clean
 
-all:
+all: ssl
 	for dir in $(SUB_DIR); do \
-		$(MAKE) -C $$dir; \
+		$(MAKE) -C $$dir || exit 1; \
 	done
 
 ifeq ($(Build_Mode), HW_DEBUG)
@@ -52,6 +54,17 @@ else ifeq ($(Build_Mode), SIM_RELEAESE)
 	@echo "The project has been built in simulation release mode."
 else ifeq ($(Build_Mode), SIM_PRERELEAESE)
 	@echo "The project has been built in simulation pre-release mode."
+endif
+
+ssl:
+ifeq ("$(wildcard $(SSL_DIR))", "")
+	@git submodule update --init --recursive
+endif
+ifeq ("$(wildcard $(DESTDIR))", "")
+	@wget https://www.openssl.org/source/openssl-1.1.1o.tar.gz -P $(SSL_DIR)/openssl_source/ || exit 1
+	$(MAKE) -C $(SSL_DIR)/Linux clean all install || exit 1
+	$(MAKE) -C $(SSL_DIR)/Linux clean
+	@rm -rf $(SSL_DIR)/openssl_source/openssl-1.1.1* $(SSL_DIR)/Linux/package/include/crypto
 endif
 
 clean:
