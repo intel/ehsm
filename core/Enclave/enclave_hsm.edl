@@ -30,6 +30,9 @@
  */
 
 enclave {
+    from "sgx_tsgxssl.edl" import *;
+    from "sgx_pthread.edl" import *;
+
     from "sgx_tkey_exchange.edl" import *;
     from "sgx_tstdc.edl" import *;
     from "sgx_dcap_tvl.edl" import *;

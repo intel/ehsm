@@ -73,7 +73,7 @@ ifeq (true, $(ENABLE_PERFORMANCE_TEST))
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name)
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -93,10 +93,11 @@ Enclave_Include_Paths := \
 	-I$(SGX_SDK)/include/libcxx \
 	-IInclude \
 	-IEnclave \
-	-I$(TOPDIR)/include
+	-I$(TOPDIR)/include \
+	-I$(OPENSSL_PATH)/include
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths)
-Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
+Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++ -include "tsgxsslio.h"
 
 # To generate a proper enclave, it is recommended to follow below guideline to link the trusted libraries:
 #    1. Link sgx_trts with the `--whole-archive' and `--no-whole-archive' options,
@@ -106,6 +107,7 @@ Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
 # Do NOT move the libraries linked with `--start-group' and `--end-group' within `--whole-archive' and `--no-whole-archive' options.
 # Otherwise, you may get some undesirable errors.
 Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
+	$(SgxSSL_Link_Libraries) \
 	-Wl,--whole-archive -lsgx_dcap_tvl -l$(Trts_Library_Name) -Wl,--no-whole-archive \
 	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lra_tkey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
@@ -126,7 +128,7 @@ Napi_Include_Paths := \
 
 Napi_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 Napi_Cpp_Flags := $(Napi_C_Flags) -std=c++11
-Napi_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -nostartfiles -Wl,--export-dynamic -shared
+Napi_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -nostartfiles -Wl,--export-dynamic -shared
 
 ifneq ($(SGX_MODE), HW)
 	Napi_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -167,7 +169,7 @@ App/auto_version.h:
 	@echo "  ==>  touch App/auto_version.h"
 
 App/enclave_hsm_u.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
-	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include
 	@echo "GEN  =>  $@"
 
 App/enclave_hsm_u.o: App/enclave_hsm_u.c
@@ -185,7 +187,7 @@ $(App_Test_Name): App/enclave_hsm_u.o $(App_Cpp_Objects) App/auto_version.h
 ######## Enclave Objects ########
 
 Enclave/enclave_hsm_t.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
-	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include
 	@echo "GEN  =>  $@"
 
 Enclave/enclave_hsm_t.o: Enclave/enclave_hsm_t.c

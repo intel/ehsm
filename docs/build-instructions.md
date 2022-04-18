@@ -68,7 +68,7 @@ Welcome to see the build instructions for the ehsm-kms project.
 * Build and Run ehsm-kms with docker-compose
     ```shell
     # Download the ehsm code from github
-    git clone https://github.com/intel/ehsm.git ehsm && cd ehsm
+    git clone --recursive https://github.com/intel/ehsm.git ehsm && cd ehsm
 
     vim docker/.env
     # Modify the docker/.env configurations

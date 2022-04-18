@@ -66,7 +66,7 @@ RUN apt-get update &&apt-get install -y \
 
 # Build App from source
 WORKDIR /home
-RUN git clone -b $TAG_VERSION https://github.com/intel/ehsm.git \
+RUN git clone --recursive -b $TAG_VERSION https://github.com/intel/ehsm.git \
     && cd ehsm \
     && make
 
