@@ -7,11 +7,18 @@ import random
 import hmac
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, delete_all_key, deletekey, disablekey, enablekey, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, listkey, sign, verify, verify_quote
+from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, delete_all_key, deletekey, disablekey, enablekey, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, listkey, sign, verify, verify_quote, enroll
 import urllib.parse
-appid= '468c507a-da1f-4127-9cd0-82f0e7ce247e'
-apikey= 'Merh0HrKuc2e8ECt5qba5dhy0ykyp1Js'
+import _utils_
+appid= ''
+apikey= ''
 keyid= ''
+
+def get_appid_apikey(base_url):
+    global appid
+    global apikey
+    appid, apikey = enroll.enroll(base_url)
+    _utils_.init_appid_apikey(appid, apikey)
 
 def test_disableKey(base_url, headers):
     disablekey.disablekey(base_url, keyid)
@@ -144,6 +151,8 @@ if __name__ == "__main__":
     url = get_args()
 
     base_url = url + "/ehsm?Action="
+
+    get_appid_apikey(base_url)
     
     test_AES128(base_url, headers)
 

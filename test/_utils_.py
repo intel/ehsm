@@ -10,10 +10,16 @@ from collections import OrderedDict
 import urllib.parse
 
 # Using a dummy appid and app key
-appid='101014d7-b274-464e-8d36-e0cc7cea7760'
-apikey = 'UXqvDSe2d1pABPSWJtzz4w3k8Y8KW1bE'
+appid=''
+apikey = ''
 
 headers = {"Content-Type":"application/json"}
+
+def init_appid_apikey(appid_user, apikey_user):
+    global appid
+    global apikey
+    appid = appid_user
+    apikey = apikey_user
 
 def init_params(payload=False):
     params = OrderedDict()

@@ -28,6 +28,7 @@ def enroll(base_url):
         return
 
     print('Enroll resp:\n%s\n' %(resp.text))
+    return json.loads(resp.text)['result']['appid'], json.loads(resp.text)['result']['apikey'] 
 
 if __name__ == "__main__":
     headers = _utils_.headers
