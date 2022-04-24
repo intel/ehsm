@@ -25,7 +25,7 @@ def get_args():
     print(base_url)
     return base_url, args.name, args.data, args.version
 
-def createsecret(base_url, name, secret, version):
+def CreateSecret(base_url, name, secret, version):
     key = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY")
     print('create secret with secret %s' %(secret))
 
@@ -55,5 +55,5 @@ if __name__ == "__main__":
 
     base_url, name, secret, version = get_args()
 
-    createsecret(base_url, name, secret, version)
+    CreateSecret(base_url, name, secret, version)
 
