@@ -22,7 +22,7 @@ def get_args():
     print(base_url)
     return base_url, args.name
 
-def get_secret_value(base_url, name):
+def GetSecretValue(base_url, name):
     with open('secret_DB', 'r') as f:
         for row in f.readlines():
             row = json.loads(row)
@@ -39,5 +39,5 @@ if __name__ == "__main__":
 
     base_url, name = get_args()
 
-    get_secret_value(base_url, name)
+    GetSecretValue(base_url, name)
 
