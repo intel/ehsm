@@ -10,4 +10,5 @@ RUN chmod 744 /home/start_dkeyserver.sh
 EXPOSE 8888
 
 # run ehsm-dkeyserver
+WORKDIR /home/ehsm/out/ehsm-dkeyserver
 CMD ["sh", "/home/start_dkeyserver.sh"]
