@@ -87,8 +87,14 @@ Welcome to see the build instructions for the ehsm-kms project.
     You will get below results:<br>
     ![image](diagrams/docker-compose-result.PNG)
 
-* Run the unittest cases (you can do it in another remote device)
-    * Enroll your appid and apikey
+* Enrollment of the APPID and APIKey
+    * Option-1: use the RESTFUL GET command of Enroll
+    ``` shell
+    curl http://10.112.240.169:9000/ehsm?Action=Enroll
+    ```
+    ![image](diagrams/enroll.PNG)
+
+    * Option-2: use the enroll_app which will remote attest the eHSM-KMS
     ``` shell
     # build the enroll application
     cd enroll_app
@@ -101,18 +107,13 @@ Welcome to see the build instructions for the ehsm-kms project.
     You will get below results:<br>
     ![image](diagrams/enroll_result.PNG)
 
-
+* Run the unittest cases (you can do it in another remote device)
     * Test with python script
     ``` shell
     cd test
-
-    # change appid and apikey to your enroll result
-    vim test_kms_with_rest.py
-
     # run the unit testcases
-    python3 test_kms_with_rest.py -i <your-host-ip> -p <your-kms-port>
+    python3 test_kms_with_rest.py --url http://<ip_addr>:<port>
     ```
-
     Then, you will get the below test result:<br>
     ![unittest-result-with-rest.png](diagrams/unittest-result-with-rest.PNG)
 

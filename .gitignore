@@ -34,3 +34,5 @@ test/cli/__pycache__
 core/App/auto_version.h
 dkeycache/App/auto_version.h
 dkeyserver/App/auto_version.h
+
+test/__pycache__/
