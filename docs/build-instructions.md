@@ -15,10 +15,10 @@ Welcome to see the build instructions for the ehsm-kms project.
 
 * Install SGX SDK
     ```shell
-    wget https://download.01.org/intel-sgx/sgx-dcap/1.12.1/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.15.101.1.bin
+    wget https://download.01.org/intel-sgx/sgx-dcap/1.13/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.16.100.4.bin
 
     #choose to install the sdk into the /opt/intel
-    chmod a+x ./sgx_linux_x64_sdk_2.15.101.1.bin && sudo ./sgx_linux_x64_sdk_2.15.101.1.bin
+    chmod a+x ./sgx_linux_x64_sdk_2.16.100.4.bin && sudo ./sgx_linux_x64_sdk_2.16.100.4.bin
 
     source /opt/intel/sgxsdk/environment
     ```
@@ -27,7 +27,7 @@ Welcome to see the build instructions for the ehsm-kms project.
     ```shell
     cd /opt/intel
 
-    wget https://download.01.org/intel-sgx/sgx-dcap/1.12.1/linux/distro/ubuntu20.04-server/sgx_debian_local_repo.tgz
+    wget https://download.01.org/intel-sgx/sgx-dcap/1.13/linux/distro/ubuntu20.04-server/sgx_debian_local_repo.tgz
 
     tar xzf sgx_debian_local_repo.tgz
 
