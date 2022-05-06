@@ -35,6 +35,7 @@ using namespace std;
 #include <sys/time.h>
 #include <fstream>
 #include <string>
+#include <getopt.h>
 
 #include "log_utils.h"
 #include "rest_utils.h"
@@ -50,20 +51,36 @@ int main(int argc, char *argv[])
     std::string msg2_str;
     std::string att_result_msg_str;
     uint8_t *apikey = nullptr;
+    bool cert_verify = true;
 
     log_d("=> reading ehsm_kms_url .....");
-    // only one parameter, it is ehsm_kms_url
+    static const char* _sopts = "hna:";
+    static const struct option _lopts[] = {{"help", no_argument, NULL, 'h'},
+                                          {"insecure", no_argument, NULL, 'n'},
+                                          {"ehsm_kms_url", required_argument, NULL, 'a'},
+                                          {0}};
     std::string ehsm_kms_url;
-    if (argc == 2)
-    {
-        ehsm_kms_url = argv[1];
-    }
-    if (ehsm_kms_url.empty())
-    {
-        printf("\nusage: ehsm-kms_enroll_app [http://1.2.3.4:9009/ehsm/]\n\n");
-        ret = ENL_CONFIG_INVALID;
-        goto OUT;
-    }
+    int opt;
+    int oidx = 0;
+    do {
+        opt = getopt_long(argc, argv, _sopts, _lopts, &oidx);
+        switch (opt) {
+            case 'a':
+                ehsm_kms_url = strdup(optarg);
+                break;
+            case 'n':
+                cert_verify = false;
+                break;
+            default:
+		if (ehsm_kms_url.empty()) {
+                    printf("\nusage: ehsm-kms_enroll_app -a https://1.2.3.4:9000/ehsm/ [-n]");
+                    printf("\n -n Optional only for informal certificates.\n\n");
+                    ret = ENL_CONFIG_INVALID;
+                    goto OUT;
+                }
+        }
+    } while (opt != -1);
+
     log_d("ehsm_kms_url : %s", ehsm_kms_url.c_str());
 
     log_i("First handle:  send msg0 and get msg1.");
@@ -71,7 +88,7 @@ int main(int argc, char *argv[])
     log_d("msg0 : \n%s", msg0_str.c_str());
 
     log_d("post RA_HANDSHAKE_MSG0.....");
-    post_KMS(ehsm_kms_url + "?Action=RA_HANDSHAKE_MSG0", msg0_str, &retJsonObj);
+    post_KMS(ehsm_kms_url + "?Action=RA_HANDSHAKE_MSG0", msg0_str, &retJsonObj, cert_verify);
     if (!retJsonObj.isSuccess())
     {
         log_e("NAPI Exception: %s", retJsonObj.getMessage().c_str());
@@ -90,7 +107,7 @@ int main(int argc, char *argv[])
     }
     log_d("msg2 : \n%s", msg2_str.c_str());
 
-    post_KMS(ehsm_kms_url + "?Action=RA_HANDSHAKE_MSG2", msg2_str, &retJsonObj);
+    post_KMS(ehsm_kms_url + "?Action=RA_HANDSHAKE_MSG2", msg2_str, &retJsonObj, cert_verify);
     if (!retJsonObj.isSuccess())
     {
         log_e("NAPI Exception: %s", retJsonObj.getMessage().c_str());
@@ -110,7 +127,7 @@ int main(int argc, char *argv[])
     }
     log_d("att_result_msg : \n%s", att_result_msg_str.c_str());
 
-    post_KMS(ehsm_kms_url + "?Action=RA_GET_API_KEY", att_result_msg_str, &retJsonObj);
+    post_KMS(ehsm_kms_url + "?Action=RA_GET_API_KEY", att_result_msg_str, &retJsonObj, cert_verify);
     if (!retJsonObj.isSuccess())
     {
         log_e("NAPI Exception: %s", retJsonObj.getMessage().c_str());
@@ -140,6 +157,7 @@ int main(int argc, char *argv[])
 
 OUT:
     log_i("ehsm-kms enroll app end.");
-    explicit_bzero(apikey, EH_API_KEY_SIZE+1);
+    if (apikey)
+        explicit_bzero(apikey, EH_API_KEY_SIZE+1);
     return ret;
 }

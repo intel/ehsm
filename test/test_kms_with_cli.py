@@ -5,6 +5,7 @@ import base64
 import time
 import random
 import hmac
+import os
 from hashlib import sha256
 from collections import OrderedDict
 from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, delete_all_key, deletekey, disablekey, enablekey, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, listkey, sign, verify, verify_quote, enroll
@@ -134,7 +135,7 @@ def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     generate_quote.generate_quote_with_file(base_url, "a.txt")
 
     verify_quote.verify_quote_with_file(base_url, "a.txt")
-
+    os.remove("a.txt")
     print('====================test_GenerateQuote_and_VerifyQuote end===========================')
 
 

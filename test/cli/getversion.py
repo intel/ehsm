@@ -24,8 +24,7 @@ def get_args():
 def getversion(base_url):
     print('get version')
 
-
-    resp = requests.get(url=base_url + "GetVersion", headers=_utils_.headers)
+    resp = requests.get(url=base_url + "GetVersion", headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'GetVersion') == False):
         return
 

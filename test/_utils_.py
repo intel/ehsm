@@ -13,6 +13,10 @@ import urllib.parse
 appid=''
 apikey = ''
 
+# For production environment, the web server should request a formally issued
+# cetificate, and change the below use_secure_cert to True.
+use_secure_cert = False
+
 headers = {"Content-Type":"application/json"}
 
 def init_appid_apikey(appid_user, apikey_user):

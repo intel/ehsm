@@ -30,7 +30,7 @@ def enablekey(base_url, keyid):
     params = _utils_.init_params(payload)
     print('enablekey req:\n%s\n' %(params))
 
-    resp = requests.post(url=base_url + "EnableKey", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "EnableKey", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'EnableKey') == False):
         return
 

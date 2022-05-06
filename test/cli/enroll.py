@@ -12,6 +12,7 @@ import urllib.parse
 import _utils_
 
 
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--url', type=str, help='the address of the ehsm_kms_server', required=True)
@@ -23,7 +24,7 @@ def get_args():
 def enroll(base_url):
     requrl = base_url + "Enroll"
     print(requrl)
-    resp = requests.get(url=requrl, headers=_utils_.headers)
+    resp = requests.get(url=requrl, verify=_utils_.use_secure_cert, headers=_utils_.headers)
     if(_utils_.check_result(resp, 'Enroll') == False):
         return
 

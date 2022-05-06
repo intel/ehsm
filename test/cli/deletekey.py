@@ -30,7 +30,7 @@ def deletekey(base_url, keyid):
     params = _utils_.init_params(payload)
     print('deletekey req:\n%s\n' %(params))
 
-    resp = requests.post(url=base_url + "DeleteKey", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "DeleteKey", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'DeleteKey') == False):
         return
 

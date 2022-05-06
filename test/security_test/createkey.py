@@ -113,7 +113,7 @@ def test_createkey_normally(test_url, appid_params, apikey_params, timestamp_id_
 
     params = init_params(appid_params, apikey_params, timestamp_id_params, keyspec_params, origin_params)
 
-    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     print(resp.text)
     resp_json = json.loads(resp.text)
     assert 200 == resp_json["code"]
@@ -121,7 +121,7 @@ def test_createkey_normally(test_url, appid_params, apikey_params, timestamp_id_
 
 def test_createkey_with_invalid_appid(test_url, invalid_appid_params, apikey_params, timestamp_id_params, keyspec_params, origin_params):
     params = init_params(invalid_appid_params, apikey_params, timestamp_id_params, keyspec_params, origin_params)
-    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     print(resp.text)
     resp_json = json.loads(resp.text)
     assert 200 != resp_json["code"]
@@ -129,7 +129,7 @@ def test_createkey_with_invalid_appid(test_url, invalid_appid_params, apikey_par
 
 def test_createkey_with_invalid_apikey(test_url, appid_params, invalid_apikey_params, timestamp_id_params, keyspec_params, origin_params):
     params = init_params(appid_params, invalid_apikey_params, timestamp_id_params, keyspec_params, origin_params)
-    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     print(resp.text)
     resp_json = json.loads(resp.text)
     assert 200 != resp_json["code"]
@@ -137,21 +137,21 @@ def test_createkey_with_invalid_apikey(test_url, appid_params, invalid_apikey_pa
 
 def test_createkey_with_invalid_timestamp(test_url, appid_params, apikey_params, invalid_timestamp_params, keyspec_params, origin_params):
     params = init_params(appid_params, apikey_params, invalid_timestamp_params, keyspec_params, origin_params)
-    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     print(resp.text)
     resp_json = json.loads(resp.text)
     assert 200 != resp_json["code"]
 
 def test_createkey_with_invalid_keyspec(test_url, appid_params, apikey_params, timestamp_id_params, invalid_keyspec_params, origin_params):
     params = init_params(appid_params, apikey_params, timestamp_id_params, invalid_keyspec_params, origin_params)
-    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     print(resp.text)
     resp_json = json.loads(resp.text)
     assert 200 != resp_json["code"]
 
 def test_createkey_with_invalid_origin(test_url, appid_params, apikey_params, timestamp_id_params, keyspec_params, invalid_origin_params):
     params = init_params(appid_params, apikey_params, timestamp_id_params, keyspec_params, invalid_origin_params)
-    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     print(resp.text)
     resp_json = json.loads(resp.text)
     assert 200 != resp_json["code"]
@@ -159,8 +159,8 @@ def test_createkey_with_invalid_origin(test_url, appid_params, apikey_params, ti
 
 def test_duplicated_request(test_url, appid_params, apikey_params, timestamp_params, keyspec_params, origin_params):
     params = init_params(appid_params, apikey_params, timestamp_params, keyspec_params, origin_params)
-    tempresp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
-    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    tempresp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
+    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     print(tempresp.text, timestamp_params)
     print(resp.text, timestamp_params)
     resp_json = json.loads(resp.text)
@@ -168,7 +168,7 @@ def test_duplicated_request(test_url, appid_params, apikey_params, timestamp_par
 
 def test_wrong_sign_request(test_url, appid_params, apikey_params, timestamp_params, keyspec_params, origin_params):
     params = init_params_with_invalid_sign(appid_params, apikey_params, timestamp_params, timestamp_params, keyspec_params, origin_params)
-    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     print(resp.text, timestamp_params)
     resp_json = json.loads(resp.text)
     assert 200 != resp_json["code"]
@@ -177,11 +177,11 @@ def test_wrong_sign_request(test_url, appid_params, apikey_params, timestamp_par
 def test_replay_attack_for_createkey_api(test_url, appid_params, apikey_params, origin_params):
     timestamp = str(int((time.time()+599) * 1000))
     params = init_params(appid_params, apikey_params, timestamp, "EH_AES_GCM_128", origin_params)
-    tempresp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+    tempresp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
     resp_json = json.loads(tempresp.text)
     for i in range (0, NONCE_CACHE_TIME_MINS):
         time.sleep(60)
-        resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers)
+        resp = requests.post(url=test_url + "/ehsm?Action=CreateKey", data=json.dumps(params), headers=headers, verify=_utils_.use_secure_cert)
         print(tempresp.text, timestamp)
         print(resp.text, timestamp)
         resp_json = json.loads(resp.text)

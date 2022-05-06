@@ -29,7 +29,7 @@ def verify_quote(base_url, quote):
     payload["nonce"] = "nonce12345"
     params = _utils_.init_params(payload)
     print('verify_quote req:\n%s\n' %(params))
-    resp = requests.post(url=base_url + "VerifyQuote", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "VerifyQuote", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'VerifyQuote') == False):
         return
     print('verify_quote resp:\n%s\n' %(resp.text))
@@ -52,7 +52,7 @@ def verify_quote_with_file(base_url, quote_file):
     payload["nonce"] = "nonce12345"
     params = _utils_.init_params(payload)
     print('verify_quote req:\n%s\n' %(params))
-    resp = requests.post(url=base_url + "VerifyQuote", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "VerifyQuote", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'VerifyQuote') == False):
         return
     print('verify_quote resp:\n%s\n' %(resp.text))

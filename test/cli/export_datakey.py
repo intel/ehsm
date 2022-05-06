@@ -33,7 +33,7 @@ def export_datakey(base_url, keyid, ukeyid, datakey, aad):
     params = _utils_.init_params(payload)
     print('export_datakey req:\n%s\n' %(params))
 
-    resp = requests.post(url=base_url + "ExportDataKey", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "ExportDataKey", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'ExportDataKey') == False):
         return
 
