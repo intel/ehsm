@@ -35,16 +35,17 @@
 #include <stdio.h>
 #include <curl/curl.h>
 #include <iostream>
+#include <stdbool.h>
 
 #include "json_utils.h"
 
 /*
  * base post
  */
-std::string post(std::string url, std::string content);
+std::string post(std::string url, std::string content, bool cert_verify);
 /*
  * KMS server post
  */
-void post_KMS(std::string url, std::string content, RetJsonObj *retJsonObj);
+void post_KMS(std::string url, std::string content, RetJsonObj *retJsonObj, bool cert_verify);
 
 #endif

@@ -41,7 +41,7 @@ size_t post_callback(void *ptr, size_t size, size_t nmemb, void *stream)
 /*
  * base post
  */
-std::string post(std::string url, std::string content)
+std::string post(std::string url, std::string content, bool cert_verify)
 {
     struct curl_slist *header_list = nullptr;
     // use curl post.
@@ -65,6 +65,14 @@ std::string post(std::string url, std::string content)
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, content.data());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, content.size());
 
+    /*
+     * For the case web server certificate is not formally issued.
+     */
+    if (!cert_verify) {
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    }
+
     res = curl_easy_perform(curl);
     if (res != CURLE_OK)
     {
@@ -79,8 +87,8 @@ out:
 /*
  * KMS server post
  */
-void post_KMS(std::string url, std::string content, RetJsonObj *retJsonObj)
+void post_KMS(std::string url, std::string content, RetJsonObj *retJsonObj, bool cert_verify)
 {
-    std::string json_str = post(url, content);
+    std::string json_str = post(url, content, cert_verify);
     retJsonObj->parse(json_str);
 }

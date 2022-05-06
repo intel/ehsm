@@ -1,0 +1,6 @@
+This is a self-aigned certificate used by https:
+# openssl genrsa -out privatekey.pem 3072
+# openssl req -new -key privatekey.pem -out certrequest.csr 
+# openssl x509 -days 365 -req -in certrequest.csr -signkey privatekey.pem -out certificate.crt
+
+For production environment you should use formally issued key and certificate.

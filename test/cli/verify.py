@@ -32,7 +32,7 @@ def verify(base_url, keyid, digest, sig):
     params = _utils_.init_params(payload)
     print('verify req:\n%s\n' %(params))
 
-    resp = requests.post(url=base_url + "Verify", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "Verify", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'Verify') == False):
         return
     print('verify resp:\n%s\n' %(resp.text))

@@ -27,7 +27,7 @@ def listkey(base_url):
     params = _utils_.init_params()
     print('list key req:\n%s\n' %(params))
 
-    resp = requests.post(url=base_url + "ListKey", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "ListKey", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'ListKey') == False):
         return
 

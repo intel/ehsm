@@ -30,7 +30,7 @@ def disablekey(base_url, keyid):
     params = _utils_.init_params(payload)
     print('disablekey req:\n%s\n' %(params))
 
-    resp = requests.post(url=base_url + "DisableKey", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "DisableKey", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'DisableKey') == False):
         return
 

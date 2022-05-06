@@ -1,5 +1,13 @@
 const express = require('express')
 
+const https = require('https')
+const fs = require('fs');
+
+const cert = {
+  key: fs.readFileSync('./ssl_key/privatekey.pem', 'utf8'),
+  cert: fs.readFileSync('./ssl_key/certificate.crt', 'utf8')
+};
+
 const ehsm_napi = require('./ehsm_napi')
 const {
   getIPAdress,
@@ -16,7 +24,7 @@ const {
 const app = express()
 app.use(express.json())
 
-const PORT = process.argv.slice(2)[0] || 9000
+const HTTPS_PORT = process.argv.slice(2)[0] || 9000
 
 const server = (DB) => {
   /**
@@ -60,10 +68,10 @@ const server = (DB) => {
     process.exit(0)
   })
 
-  app.listen(PORT, () => {
-    console.log(
-      `ehsm_ksm_service application listening at ${getIPAdress()}:${PORT}`
-    )
-  })
+  console.log(`ehsm_ksm_service application listening at ${getIPAdress()} with https port: ${HTTPS_PORT}`)
+  https.createServer(cert, app).listen(HTTPS_PORT);
+
 }
+
 connectDB(server)
+

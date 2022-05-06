@@ -25,7 +25,7 @@ def generate_quote(base_url):
     payload["challenge"] = "challenge123456"
     params = _utils_.init_params(payload)
     print('generate_quote req:\n%s\n' %(params))
-    GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=_utils_.headers)
+    GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(GenerateQuote_resp, 'GenerateQuote') == False):
         return
     print('generate_quote resp:\n%s\n' %(GenerateQuote_resp.text))
@@ -36,7 +36,7 @@ def generate_quote_with_file(base_url, quote_file):
     payload["challenge"] = "challenge123456"
     params = _utils_.init_params(payload)
     print('generate_quote req:\n%s\n' %(params))
-    GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=_utils_.headers)
+    GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(GenerateQuote_resp, 'GenerateQuote') == False):
         return
     print('generate_quote resp:\n%s\n' %(GenerateQuote_resp.text))

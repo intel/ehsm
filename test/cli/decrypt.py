@@ -33,7 +33,7 @@ def decrypt(base_url, keyid, data, aad):
     params = _utils_.init_params(payload)
     print('decrypt req:\n%s\n' %(params))
 
-    resp = requests.post(url=base_url + "Decrypt", data=json.dumps(params), headers=_utils_.headers)
+    resp = requests.post(url=base_url + "Decrypt", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'Decrypt') == False):
         return
 
