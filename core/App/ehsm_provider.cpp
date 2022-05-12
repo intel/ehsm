@@ -958,7 +958,7 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
     // e.g. You can get latest QvE ISVSVN in QvE Identity JSON file from
     // https://api.trustedservices.intel.com/sgx/certification/v2/qve/identity
     // Make sure you are using trusted & latest QvE ISV SVN as threshold
-    sgx_isv_svn_t qve_isvsvn_threshold = 3;
+    sgx_isv_svn_t qve_isvsvn_threshold = 5;
 
     sgx_ql_qe_report_info_t qve_report_info;
     uint8_t nonce[16] = {0};
