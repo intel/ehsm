@@ -32,13 +32,18 @@ RUN apt-get update && apt-get install -y \
 
 # Install the SDK
 WORKDIR /opt/intel
-RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.12.1/linux/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.15.101.1.bin \
-    && chmod 777 sgx_linux_x64_sdk_2.15.101.1.bin \
-    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.15.101.1.bin'
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.13/linux/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.16.100.4.bin \
+    && chmod 777 sgx_linux_x64_sdk_2.16.100.4.bin \
+    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.16.100.4.bin'
+
+#Install SDK toolset
+RUN wget https://download.01.org/intel-sgx/sgx-linux/2.16/as.ld.objdump.r4.tar.gz \
+    && tar -zxf as.ld.objdump.r4.tar.gz \
+    && cp external/toolset/ubuntu18.04/* /usr/local/bin
 
 # Install DCAP packages
 # DCAP repository setup
-RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.12.1/linux/distro/ubuntu18.04-server/sgx_debian_local_repo.tgz \
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.13/linux/distro/ubuntu18.04-server/sgx_debian_local_repo.tgz \
     && tar xzf sgx_debian_local_repo.tgz \
     && echo 'deb [trusted=yes arch=amd64] file:///opt/intel/sgx_debian_local_repo bionic main' | tee /etc/apt/sources.list.d/intel-sgx.list \
     && wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - \
