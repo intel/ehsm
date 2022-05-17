@@ -57,7 +57,7 @@ else ifeq ($(Build_Mode), SIM_PRERELEAESE)
 endif
 
 ssl:
-ifeq ("$(wildcard $(SSL_DIR))", "")
+ifeq ("$(wildcard $(SSL_DIR/Linux))", "")
 	@git submodule update --init --recursive
 endif
 ifeq ("$(wildcard $(DESTDIR))", "")
