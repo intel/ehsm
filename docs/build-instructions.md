@@ -15,6 +15,10 @@ Welcome to see the build instructions for the ehsm-kms project.
 
 * Install SGX SDK
     ```shell
+    wget https://download.01.org/intel-sgx/sgx-linux/2.16/as.ld.objdump.r4.tar.gz 
+    tar -zxf as.ld.objdump.r4.tar.gz
+    sudo cp external/toolset/{current_distr}/* /usr/local/bin
+    
     wget https://download.01.org/intel-sgx/sgx-dcap/1.13/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.16.100.4.bin
 
     #choose to install the sdk into the /opt/intel
