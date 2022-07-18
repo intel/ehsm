@@ -39,6 +39,7 @@ services:
       - /var/run/aesmd:/var/run/aesmd
     environment:
       - PCCS_URL=${PCCS_URL}
+      - no_proxy=${no_proxy}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
     devices:
@@ -61,6 +62,7 @@ services:
       - ${DKEYCACHE_SOCKET_LOCALTION}:${DKEYCACHE_SOCKET_LOCALTION}
     environment:
       - PCCS_URL=${PCCS_URL}
+      - no_proxy=${no_proxy}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - DKEYSERVER_IP=${HOST_IP}
@@ -89,6 +91,7 @@ services:
       - ${DKEYCACHE_SOCKET_LOCALTION}:${DKEYCACHE_SOCKET_LOCALTION}
     environment:
       - PCCS_URL=${PCCS_URL}
+      - no_proxy=${no_proxy}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - EHSM_CONFIG_COUCHDB_USERNAME=${COUCHDB_USER}
