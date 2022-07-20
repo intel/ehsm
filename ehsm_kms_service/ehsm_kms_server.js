@@ -15,6 +15,9 @@ const {
   _nonce_cache_timer,
   _cmk_cache_timer,
 } = require('./function')
+const {
+  init_DefaultCMK,
+} = require('./secret_management')
 const connectDB = require('./couchdb')
 const {
   router,
@@ -36,6 +39,11 @@ const server = (DB) => {
     process.exit(0)
   }
 
+  /**
+   * initialize Default CMK
+   */
+   init_DefaultCMK(DB)
+  
   /**
    * Clear nonce cache for more than 15 minutes
    */
