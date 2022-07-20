@@ -16,7 +16,7 @@ const {
   _cmk_cache_timer,
 } = require('./function')
 const {
-  init_DefaultCMK,
+  Init_SM_DefaultCMK,
 } = require('./secret_management')
 const connectDB = require('./couchdb')
 const {
@@ -42,7 +42,7 @@ const server = (DB) => {
   /**
    * initialize Default CMK
    */
-   init_DefaultCMK(DB)
+   Init_SM_DefaultCMK(DB)
   
   /**
    * Clear nonce cache for more than 15 minutes

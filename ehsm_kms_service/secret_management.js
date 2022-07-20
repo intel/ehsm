@@ -2,7 +2,7 @@ const crypto = require('crypto')
 const logger = require('./logger')
 const {
     CMK_EFFECTIVE_DURATION,
-    KEYID_SYSTEM_DEFAULT_CMK
+    KEYID_SECRET_MANAGER_DEFAULT_CMK
 } = require('./constant')
 const {
     napi_result,
@@ -14,9 +14,9 @@ const {
 const ehsm_napi = require('./ehsm_napi')
 
 //initialize Default CMK
-const init_DefaultCMK = (DB) => {
+const Init_SM_DefaultCMK = (DB) => {
     try {
-        const keyid = KEYID_SYSTEM_DEFAULT_CMK
+        const keyid = KEYID_SECRET_MANAGER_DEFAULT_CMK
         const query = {
             selector: {
                 keyid,
@@ -35,10 +35,10 @@ const init_DefaultCMK = (DB) => {
                         _id: `cmk:${keyid}`,
                         keyid,
                         keyBlob: napi_res.result.cmk,
-                        creator: 'System',
+                        creator: 'Secret Manager',
                         creationDate,
                         expireTime: creationDate + CMK_EFFECTIVE_DURATION * 999,
-                        alias: 'System Default CMK',
+                        alias: 'Secret Manager Default CMK',
                         keyspec,
                         origin,
                         keyState: 1,
@@ -60,5 +60,5 @@ const init_DefaultCMK = (DB) => {
  *
  */
 module.exports = {
-    init_DefaultCMK,
+    Init_SM_DefaultCMK,
 }
