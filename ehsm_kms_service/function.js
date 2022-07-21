@@ -264,8 +264,11 @@ const enroll_user_info = (action, DB, res, req) => {
   if (napi_res) {
     const { appid, apikey } = napi_res.result
     let cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
-    if (cmk_res) {
+    let sm_default_cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
+    if (cmk_res && sm_default_cmk_res) {
       const { cmk } = cmk_res.result
+      // create a default secret manager CMK for current appids
+      const sm_default_cmk = sm_default_cmk_res.result.cmk
       let apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [
         cmk,
         apikey,
@@ -278,6 +281,7 @@ const enroll_user_info = (action, DB, res, req) => {
           appid,
           apikey: ciphertext,
           cmk: cmk,
+          sm_default_cmk,
         })
           .then((r) => {
             res.send(_result(200, 'successful', { ...napi_res.result }))
@@ -286,6 +290,8 @@ const enroll_user_info = (action, DB, res, req) => {
             res.send(_result(400, 'enroll user info faild', e))
           })
       }
+    } else {
+      res.send(_result(400, 'enroll user info faild'))
     }
   }
 }
