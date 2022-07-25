@@ -3,6 +3,7 @@ const {
   cryptographic_apis,
   enroll_apis,
   key_management_apis,
+  secret_manager_apis,
   remote_attestation_apis,
   common_apis,
 } = require('./apis')
@@ -22,7 +23,9 @@ const {
   enableKey,
   disableKey,
 } = require('./key_management_apis')
-
+const {
+  createSecret,
+} = require('./secret_manager_apis')
 /**
  *
  * @param {string} id (keyid|ukeyid)
@@ -251,6 +254,9 @@ const router = async (p) => {
       break
     default:
       res.send(_result(404, 'Not Found', {}))
+      break
+    case secret_manager_apis.CreateSecret:
+        createSecret(res, appid, payload, DB)
       break
   }
 }
