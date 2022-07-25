@@ -31,6 +31,10 @@ const key_management_apis = {
   DisableKey: 'DisableKey',
 }
 
+const secret_manager_apis = {
+  CreateSecret: 'CreateSecret',
+}
+
 const common_apis = {
   GetVersion: 'GetVersion'
 }
@@ -39,5 +43,6 @@ module.exports = {
   enroll_apis,
   key_management_apis,
   remote_attestation_apis,
-  common_apis
+  common_apis,
+  secret_manager_apis,
 }
