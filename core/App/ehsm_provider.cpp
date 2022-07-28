@@ -141,18 +141,21 @@ ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
 
     switch (cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
+        case EH_AES_GCM_256:
             if (cmk->keybloblen == 0) {
                 ret = enclave_create_aes_key(g_enclave_id,
-                                         &sgxStatus,
-                                         NULL,
-                                         0,
-                                         &(cmk->keybloblen));
+                                             &sgxStatus,
+                                             NULL,
+                                             0,
+                                             &(cmk->keybloblen),
+                                             (ehsm_keyspec_t)cmk->metadata.keyspec);
             } else {
                 ret = enclave_create_aes_key(g_enclave_id,
-                                         &sgxStatus,
-                                         cmk->keyblob,
-                                         cmk->keybloblen,
-                                         NULL);
+                                             &sgxStatus,
+                                             cmk->keyblob,
+                                             cmk->keybloblen,
+                                             NULL,
+                                             (ehsm_keyspec_t)cmk->metadata.keyspec);
             }
             break;
         case EH_RSA_3072:
@@ -194,6 +197,7 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_AES_GCM_256 &&
         cmk->metadata.keyspec != EH_SM4) {
         return EH_KEYSPEC_INVALID;
     }
@@ -206,6 +210,7 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
 
     switch(cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
+        case EH_AES_GCM_256:
             /* calculate the ciphertext length */
             if (ciphertext->datalen == 0) {
                 ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
@@ -225,15 +230,16 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
             }
 
             ret = enclave_aes_encrypt(g_enclave_id,
-                                  &sgxStatus,
-                                  aad->data,
-                                  aad->datalen,
-                                  cmk->keyblob,
-                                  cmk->keybloblen,
-                                  plaintext->data,
-                                  plaintext->datalen,
-                                  ciphertext->data,
-                                  ciphertext->datalen);
+                                      &sgxStatus,
+                                      aad->data,
+                                      aad->datalen,
+                                      cmk->keyblob,
+                                      cmk->keybloblen,
+                                      plaintext->data,
+                                      plaintext->datalen,
+                                      ciphertext->data,
+                                      ciphertext->datalen,
+                                      (ehsm_keyspec_t)cmk->metadata.keyspec);
             break;
         case EH_SM4:
             //TODO
@@ -332,6 +338,7 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_AES_GCM_256 &&
         cmk->metadata.keyspec != EH_SM4) {
         return EH_KEYSPEC_INVALID;
     }
@@ -342,6 +349,7 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
 
     switch(cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
+        case EH_AES_GCM_256:
             /* calculate the ciphertext length */
             if (plaintext->datalen == 0) {
                 plaintext->datalen = ciphertext->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
@@ -361,15 +369,16 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
             }
 
             ret = enclave_aes_decrypt(g_enclave_id,
-                                  &sgxStatus,
-                                  aad->data,
-                                  aad->datalen,
-                                  cmk->keyblob,
-                                  cmk->keybloblen,
-                                  ciphertext->data,
-                                  ciphertext->datalen,
-                                  plaintext->data,
-                                  plaintext->datalen);
+                                      &sgxStatus,
+                                      aad->data,
+                                      aad->datalen,
+                                      cmk->keyblob,
+                                      cmk->keybloblen,
+                                      ciphertext->data,
+                                      ciphertext->datalen,
+                                      plaintext->data,
+                                      plaintext->datalen,
+                                      (ehsm_keyspec_t)cmk->metadata.keyspec);
             break;
         case EH_SM4:
             //TODO

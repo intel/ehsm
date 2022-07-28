@@ -86,17 +86,6 @@ typedef enum  {
 } ehsm_keyorigin_t;
 
 typedef enum {
-    EH_AES_GCM_128 = 0,
-    EH_AES_GCM_256 =1,
-    EH_RSA_2048 = 2,
-    EH_RSA_3072 = 3,
-    EH_EC_P256 = 4,
-    EH_EC_P512 = 5,
-    EH_EC_SM2 =6,
-    EH_SM4 =7,
-} ehsm_keyspec_t;
-
-typedef enum {
     ENCRYPT_DECRYPT = 0,
     SIGN_VERIFY = 1,
 } ehsm_keypurpose_t;

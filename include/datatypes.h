@@ -134,6 +134,17 @@ typedef struct _session_id_tracker_t
     uint32_t          session_id;
 } session_id_tracker_t;
 
+typedef enum {
+    EH_AES_GCM_128 = 0,
+    EH_AES_GCM_256,
+    EH_RSA_2048,
+    EH_RSA_3072,
+    EH_EC_P256,
+    EH_EC_P512,
+    EH_EC_SM2,
+    EH_SM4,
+} ehsm_keyspec_t;
+
 #pragma pack(pop)
 
 
