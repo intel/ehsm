@@ -25,6 +25,7 @@ const {
 } = require('./key_management_apis')
 const {
   createSecret,
+  updateSecretDesc
 } = require('./secret_manager_apis')
 /**
  *
@@ -252,11 +253,14 @@ const router = async (p) => {
         }
       } catch (error) {}
       break
-    default:
-      res.send(_result(404, 'Not Found', {}))
-      break
     case secret_manager_apis.CreateSecret:
         createSecret(res, appid, payload, DB)
+      break
+    case secret_manager_apis.UpdateSecretDesc:
+        updateSecretDesc(res, appid, payload, DB)
+      break
+    default:
+      res.send(_result(404, 'Not Found', {}))
       break
   }
 }

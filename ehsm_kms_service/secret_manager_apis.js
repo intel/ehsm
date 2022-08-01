@@ -234,9 +234,69 @@ const createSecret = async (res, appid, payload, DB) => {
     }
 }
 
+//update the description of secret
+const updateSecretDesc = async (res, appid, payload, DB) => {
+    //get and check param in payload
+    let secretName = getParam_String(payload, 'secretName')
+    let description = getParam_String(payload, 'description')
+    if (!checkStringParam(secretName, true)) {
+        res.send(_result(400, 'secretName cannot be empty and must be string'))
+        return
+    }
+    if (!checkStringParam(description, true)) {
+        res.send(_result(400, 'description cannot be empty and must be string'))
+        return
+    }
+
+    //Query the description through secret name and update the description
+    const secret_name_query = {
+        selector: {
+            appid,
+            secretName
+        },
+        fields: [
+            '_id',
+            '_rev',
+            'appid',
+            'secretName',
+            'encryptionKeyId',
+            'description',
+            'createTime',
+            'deleteTime',
+            'plannedDeleteTime',
+            'rotationInterval',
+            'lastRotationDate',
+            'nextRotationDate'
+        ],
+        limit: 1,
+    }
+    await DB.partitionedFind('secret_metadata', secret_name_query)
+        .then((secret_metadata_res) => {
+            if (secret_metadata_res.docs.length > 0) {
+                secret_metadata_res.docs[0].description = description
+                DB.insert(secret_metadata_res.docs[0])
+                    .then(() => {
+                        res.send(_result(200, 'update secret seccess'))
+                    })
+                    .catch((err) => {
+                        console.info('createSecret :: ', err)
+                        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+                    })
+            } else {
+                res.send(_result(400, 'cannot find secretName'))
+                return
+            }
+        })
+        .catch((err) => {
+            console.info('createSecret :: ', err)
+            res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        })
+}
+
 /**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    updateSecretDesc
 }
