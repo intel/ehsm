@@ -2,6 +2,10 @@ const crypto = require('crypto')
 const logger = require('./logger')
 const { v4: uuidv4 } = require('uuid')
 const {
+    SM_SECRET_VERSION_STAGE_CURRENT,
+    SM_SECRET_VERSION_STAGE_PREVIOUS
+} = require('./constant')
+const {
     napi_result,
     _result,
     base64_encode,
@@ -218,7 +222,8 @@ const createSecret = async (res, appid, payload, DB) => {
                 versionId: 1,
                 deletedFlag: false,
                 secretData: ciphertext,
-                createTime
+                createTime,
+                versionStage: SM_SECRET_VERSION_STAGE_CURRENT
             }).then(() => {
                 res.send(_result(200, `The ${base64_decode(secretName)} create success.`))
             }).catch((e) => {

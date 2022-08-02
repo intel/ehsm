@@ -252,11 +252,11 @@ const router = async (p) => {
         }
       } catch (error) {}
       break
-    default:
-      res.send(_result(404, 'Not Found', {}))
-      break
     case secret_manager_apis.CreateSecret:
         createSecret(res, appid, payload, DB)
+      break
+    default:
+      res.send(_result(404, 'API Not Found', {}))
       break
   }
 }
