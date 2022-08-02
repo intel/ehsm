@@ -68,27 +68,54 @@ function check_rotationInterval_format(rotationInterval) {
     return true
 }
 
-//KeyId query
-const queryKeyId = (appid, keyid) => {
-    return {
-        selector: {
-            creator: appid,
-            keyid
-        },
-        fields: ['keyBlob'],
-        limit: 1
+// Query SM_MasterKey through encryptionkeyid
+const get_SM_Masterkey = async (DB, appid, encryptionKeyId) => {
+    let ret = {
+        isFind: false,
+        sm_masterKey: undefined,
+        msg: ''
     }
-}
-
-//Defaultcmk query
-const queryDefaultCMK = (appid) => {
-    return {
-        selector: {
-            appid
-        },
-        fields: ['sm_default_cmk'],
-        limit: 1
+    if (encryptionKeyId == "" || encryptionKeyId == undefined) {
+        // query default SM_MasterKey
+        const query = {
+            selector: {
+                appid
+            },
+            fields: ['sm_default_cmk'],
+            limit: 1
+        }
+        let res = await DB.partitionedFind('user_info', query)
+        if (res.docs.length == 0) {
+            ret.msg = 'Cannot find default CMK.'
+        } else {
+            ret.isFind = true
+            ret.sm_masterKey = res.docs[0].sm_default_cmk
+        }
+    } else if (typeof (encryptionKeyId) == 'string') {
+        // query SM_MasterKey by encryptionKeyId
+        if (check_encryptionKeyId_format(encryptionKeyId)) {
+            const query = {
+                selector: {
+                    creator: appid,
+                    keyid: encryptionKeyId
+                },
+                fields: ['keyBlob'],
+                limit: 1
+            }
+            let res = await DB.partitionedFind('cmk', query)
+            if (res.docs.length == 0) {
+                ret.msg = 'Cannot find cmk by keyid.'
+            } else {
+                ret.isFind = true
+                ret.sm_masterKey = res.docs[0].keyBlob
+            }
+        } else {
+            ret.msg = 'The encryptionKeyId format error.'
+        }
+    } else {
+        ret.msg = 'Wrong parameter, please check your encryptionKeyId.'
     }
+    return ret
 }
 
 //Calculate nextrotationdate
@@ -127,8 +154,8 @@ const createSecret = async (res, appid, payload, DB) => {
         let description = getParam_String(payload, 'description')
         let rotationInterval = getParam_String(payload, 'rotationInterval', false)
         const createTime = new Date().getTime()
-        let keyBlob = ''
-        let nextRotationDate = ''
+        let sm_masterKey
+        let nextRotationDate
         if (!checkStringParam(secretData, true)) {
             res.send(_result(400, 'secretData cannot be empty and must be string'))
             return
@@ -169,27 +196,15 @@ const createSecret = async (res, appid, payload, DB) => {
             return
         }
 
-        //Query keyblob through encryptionkeyid, encrypt secretdata through keyblob
-        if (encryptionKeyId != '' && typeof (encryptionKeyId) == 'string') {
-            let key_id_res = await DB.partitionedFind('cmk', queryKeyId(appid, encryptionKeyId))
-            if (key_id_res.docs.length == 0) {
-                res.send(_result(400, 'Cannot find key id'))
-                return
-            } else {
-                keyBlob = key_id_res.docs[0].keyBlob
-            }
-        } else if (encryptionKeyId == "" || encryptionKeyId == undefined) {
-            let default_cmk_res = await DB.partitionedFind('user_info', queryDefaultCMK(appid))
-            if (default_cmk_res.docs.length == 0) {
-                res.send(_result(400, 'Cannot find default CMK'))
-                return
-            }
-            keyBlob = default_cmk_res.docs[0].sm_default_cmk
+        // query SM_Masterkey and encrypt secretData
+        retCMK = await get_SM_Masterkey(DB, appid, encryptionKeyId)
+        if (retCMK.isFind) {
+            sm_masterKey = retCMK.sm_masterKey
         } else {
-            res.send(_result(400, 'internal error, sm_default_CMK always exists, this should not happen'))
+            res.send(_result(400, retCMK.msg))
             return
         }
-        const apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [keyBlob, secretData, ''])
+        const apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [sm_masterKey, secretData, ''])
         const { ciphertext } = apikey_encrypt_res.result
 
         //Next rotation time calculation
@@ -200,7 +215,7 @@ const createSecret = async (res, appid, payload, DB) => {
                 return
             }
         }
-        
+
         //Insert form
         DB.insert({
             _id: `secret_metadata:${uuidv4()}`,
@@ -227,15 +242,19 @@ const createSecret = async (res, appid, payload, DB) => {
             }).then(() => {
                 res.send(_result(200, `The ${base64_decode(secretName)} create success.`))
             }).catch((e) => {
-                res.send(_result(400, 'create secret_version_data failed', e))
+                console.info('createSecret :: ', e)
+                res.send(_result(500, 'Server internal error, please contact the administrator.'))
                 return
             })
         }).catch((e) => {
-            res.send(_result(400, 'secret_metadata failed', e))
+            console.info('createSecret :: ', e)
+            res.send(_result(500, 'Server internal error, please contact the administrator.'))
             return
         })
     } catch (e) {
-        res.send(_result(400, 'create secret failed', e))
+        console.info('createSecret :: ', e)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return
     }
 }
 
