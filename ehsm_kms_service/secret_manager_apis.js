@@ -266,8 +266,118 @@ const createSecret = async (res, appid, payload, DB) => {
 }
 
 /**
+ * stores the secret value of a new version into a secret object.
+ * @param {Object} res : response
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database control
+ * @param {Object} payload
+ *          ==> {r}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
+ *          ==> {r}secretData(String [1~4096]) : The value of the secret.                                             eg. '30d'
+ * @returns
+ */
+const putSecretValue = async (res, appid, payload, DB) => {
+    try {
+        //get and check Param in payload
+        let secretName = getParam_String(payload, 'secretName')
+        let secretData = getParam_String(payload, 'secretData')
+        const createTime = new Date().getTime()
+        let sm_masterKey
+        let encryptionKeyId
+        let versionId
+        if (!checkStringParam(secretData, true, SECRETDATA_LENGTH_MAX)) {
+            res.send(_result(400, `secretData cannot be empty, must be string and length not more than ${SECRETDATA_LENGTH_MAX}`))
+            return
+        }
+        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
+            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
+            return
+        }
+
+        //
+        //query SM_Masterkey and encrypt secretData
+        const query_secertName = {
+            selector: {
+                appid,
+                secretName,
+            },
+            limit: 1
+        }
+        const secret_metadata_res = await DB.partitionedFind('secret_metadata', query_secertName)
+        if (secret_metadata_res.docs.length == 0) {
+            res.send(_result(400, 'can not find secretName'))
+            return
+        } else {
+            if(secret_metadata_res.docs[0].encryptionKeyId == undefined) {
+                encryptionKeyId = ""
+            }
+            else {
+                encryptionKeyId = secret_metadata_res.docs[0].encryptionKeyId
+            }
+        }
+        retCMK = await get_SM_Masterkey(DB, appid, encryptionKeyId)
+        if (retCMK.isFind) {
+            sm_masterKey = retCMK.sm_masterKey
+        } else {
+            res.send(_result(400, retCMK.msg))
+            return
+        }
+        const apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [sm_masterKey, secretData, ''])
+        const { ciphertext } = apikey_encrypt_res.result
+
+        //Search the old version by appid, secretName, versionStage, deletedFlag 
+        //change old version stage and add a new version
+        const query_version_stage = {
+            selector: {
+                appid,
+                secretName,
+                versionStage: SM_SECRET_VERSION_STAGE_CURRENT,
+                deletedFlag: false
+            },
+            fields: [
+                '_id',
+                '_rev',
+                'appid',
+                'secretName',
+                'versionId',
+                'deletedFlag',
+                'secretData',
+                'createTime',
+                'versionStage',
+            ],
+            limit: 1
+        }
+        const version_stage_res = await DB.partitionedFind('secret_version_data', query_version_stage)
+        if (version_stage_res.docs.length > 0) {
+            versionId = version_stage_res.docs[0].versionId + 1
+            version_stage_res.docs[0].versionStage = SM_SECRET_VERSION_STAGE_PREVIOUS
+            await DB.insert(version_stage_res.docs[0])
+            await DB.insert({
+                _id: `secret_version_data:${uuidv4()}`,
+                appid,
+                secretName,
+                versionId,
+                deletedFlag: false,
+                secretData: ciphertext,
+                createTime,
+                versionStage: SM_SECRET_VERSION_STAGE_CURRENT
+            })
+            res.send(_result(200, `The ${base64_decode(secretName)} new version put success.`))
+            return
+        } else {
+            res.send(_result(400, 'Current secretname cannot find previous version'))
+            return
+        }
+    } catch (e) {
+        console.info('putSecretValue :: ', e)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return
+    }
+}
+
+/**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    putSecretValue
 }
