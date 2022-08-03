@@ -8,7 +8,7 @@ import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, enroll, createSecret
+from cli import createkey, enroll, createSecret, deleteSecret
 import urllib.parse
 import _utils_
 appid= ''
@@ -29,6 +29,10 @@ def test_secret_manager(base_url, headers):
     createSecret.createSecret(base_url, "secretData1", "secret001", key1, "mysecret", "30h")
 
     createSecret.createSecret(base_url, "secretData2", "secret002", None, "mysecret", "20d")
+
+    deleteSecret.deleteSecret(base_url, "secret001", 10, "false")
+
+    deleteSecret.deleteSecret(base_url, "secret002", None, "true")
 
     print('====================test_secret_manager end===========================')
 

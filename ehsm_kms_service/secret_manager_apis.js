@@ -6,7 +6,8 @@ const {
     SM_SECRET_VERSION_STAGE_PREVIOUS,
     SECRETNAME_LENGTH_MAX,
     SECRETDATA_LENGTH_MAX,
-    DESCRIPTION_LENGTH_MAX
+    DESCRIPTION_LENGTH_MAX,
+    DEFAULT_DELETE_TIME
 } = require('./constant')
 const {
     napi_result,
@@ -151,6 +152,60 @@ function calculateRotationSperate(rotationInterval, createTime) {
     return nextRotationDate
 }
 
+/**
+ * Force delete secret metadata and secret version data by appId and secretName
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database control
+ * @param {Object} secretName : The name of the secret. eg. 'secretName01'
+ * @returns {boolean}
+ */
+const forceDeleteData = async (DB, appid, secretName) => {
+    try {
+        //Query and delete the secret metadata
+        const query_secret_metadata = {
+            selector: {
+                appid,
+                secretName
+            },
+            fields: ['_id', '_rev'],
+            limit: 1
+        }
+        let secret_metadata_res = await DB.partitionedFind('secret_metadata', query_secret_metadata)
+        if (secret_metadata_res.docs.length > 0) {
+            await DB.destroy(secret_metadata_res.docs[0]._id, secret_metadata_res.docs[0]._rev)
+            //Query and delete the secret version data (1000 queries per time)
+            let needDelete = true
+            while (needDelete) {
+                const query_secret_version_data = {
+                    selector: {
+                        appid,
+                        secretName
+                    },
+                    fields: ['_id', '_rev'],
+                    limit: 1000
+                }
+                let secret_version_data_res = await DB.partitionedFind('secret_version_data', query_secret_version_data)
+                if (secret_version_data_res.docs.length > 0) {
+                    for (const secret_version_data_item of secret_version_data_res.docs) {
+                        secret_version_data_item._deleted = true
+                    }
+                    await DB.bulk({ docs: secret_version_data_res.docs })
+                } else {
+                    continue
+                }
+                if (secret_version_data_res.docs.length != 1000) {
+                    needDelete = false
+                }
+            }
+            return true
+        } else {
+            return false
+        }
+    } catch {
+        return false
+    }
+}
+
 //create Secret
 const createSecret = async (res, appid, payload, DB) => {
     try {
@@ -266,8 +321,139 @@ const createSecret = async (res, appid, payload, DB) => {
 }
 
 /**
+ * Force delete secret or schedule a time to delete secret
+ * @param {Object} res : response
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database control
+ * @param {Object} payload
+ *          ==> {r}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
+ *          ==> {o}recoveryPeriod(Number [1~365])[defalut='30']: Specifies the recovery period of the secret if you do not forcibly delete it.
+ *               eg. '50' unit is day
+ *          ==> {o}forceDelete(String [T/F])[defalut='false']: Specifies whether to forcibly delete the secret.
+ *                 If this parameter is set to true, the secret cannot be recovered. eg. 'true'
+ * @returns
+ */
+const deleteSecret = async (res, appid, payload, DB) => {
+    try {
+        //get and check Param in payload
+        const deleteTime = new Date().getTime()
+        let secretName = getParam_String(payload, 'secretName')
+        let recoveryPeriod = payload['recoveryPeriod']
+        let forceDelete = payload['forceDelete']
+        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
+            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
+            return
+        }
+        if (typeof (recoveryPeriod) !== 'number' && recoveryPeriod != '' && recoveryPeriod != undefined) {
+            res.send(_result(400, 'recoveryPeriod must be number'))
+            return
+        }
+        if(recoveryPeriod < 1 || recoveryPeriod > 365) {
+            res.send(_result(400, 'recoveryPeriod must be more then 0 and less than 366'))
+            return
+        }
+        if (forceDelete != '' && forceDelete != undefined) {
+            if (forceDelete != 'true' && forceDelete != 'false') {
+                res.send(_result(400, 'forceDelete must be true or false'))
+                return
+            }
+        }
+        //Set default delete time
+        if (recoveryPeriod == '' || recoveryPeriod == undefined) {
+            recoveryPeriod = DEFAULT_DELETE_TIME
+        }
+
+        if (forceDelete == 'true') {
+            //Force delete secret metadata and secret version data by appId and secretName
+            if (await forceDeleteData(DB, appid, secretName)) {
+                res.send(_result(200, `The ${base64_decode(secretName)} delete success`))
+                return
+            } else {
+                res.send(_result(400, 'force delete failed'))
+                return
+            }
+        } else {
+            //change delete secret metadata and secret version data according to the scheduled deletion time
+            //Query and change the secret metadata
+            const query_matadata = {
+                selector: {
+                    appid,
+                    secretName
+                },
+                fields: [
+                    '_id',
+                    '_rev',
+                    'appid',
+                    'secretName',
+                    'encryptionKeyId',
+                    'description',
+                    'createTime',
+                    'deleteTime',
+                    'plannedDeleteTime',
+                    'rotationInterval',
+                    'lastRotationDate',
+                    'nextRotationDate'
+                ],
+                limit: 1
+            }
+            let secret_metadata_res = await DB.partitionedFind('secret_metadata', query_matadata)
+            if (secret_metadata_res.docs.length > 0) {
+                secret_metadata_res.docs[0].deleteTime = deleteTime
+                secret_metadata_res.docs[0].plannedDeleteTime = deleteTime + 24 * 60 * 60 * 1000 * recoveryPeriod
+                //Query and change the secret version data (1000 queries per time)
+                let needChange = true
+                while (needChange) {
+                    const query_version_data = {
+                        selector: {
+                            appid,
+                            secretName
+                        },
+                        fields: [
+                            '_id',
+                            '_rev',
+                            'appid',
+                            'secretName',
+                            'versionId',
+                            'deletedFlag',
+                            'secretData',
+                            'createTime',
+                            'versionStage',
+                        ],
+                        limit: 1000
+                    }
+                    let secret_version_data_res = await DB.partitionedFind('secret_version_data', query_version_data)
+                    if (secret_version_data_res.docs.length > 0) {
+                        for (var i = 0; i < secret_version_data_res.docs.length; i++) {
+                            secret_version_data_res.docs[i].deletedFlag = true
+                            await DB.insert(secret_version_data_res.docs[i])
+                        }
+                    } else {
+                        continue
+                    }
+                    if (secret_version_data_res.docs.length != 1000) {
+                        needChange = false
+                    }
+                }
+                //update secret metadata
+                await DB.insert(secret_metadata_res.docs[0])
+                res.send(_result(200, `The ${base64_decode(secretName)} will be delete after ${recoveryPeriod}d`))
+                return
+            } else {
+                res.send(_result(400, 'logically delete :: can not find secretName'))
+                return
+            }
+        }
+    } catch (e) {
+        console.info('deleteSecret :: ', e)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return
+    }
+}
+
+/**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    deleteSecret
 }
