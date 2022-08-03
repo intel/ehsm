@@ -8,7 +8,7 @@ import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, enroll, createSecret
+from cli import createkey, enroll, createSecret, getSecretValue
 import urllib.parse
 import _utils_
 appid= ''
@@ -26,9 +26,17 @@ def test_secret_manager(base_url, headers):
     print('====================test_secret_manager start===========================')
     key1 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY")
 
+    # createSecret with encryptionKeyId
     createSecret.createSecret(base_url, "secretData1", "secret001", key1, "mysecret", "30h")
-
+    # createSecret use default CMK
     createSecret.createSecret(base_url, "secretData2", "secret002", None, "mysecret", "20d")
+
+    # getSecretValue by current version
+    secretData1 = getSecretValue.getSecretValue(base_url, "secret001")
+    print('check getSecretValue result with %s: %s\n' %('secretData1', secretData1 == 'secretData1'))
+    # getSecretValue by versionId
+    secretData2 = getSecretValue.getSecretValue(base_url, "secret002", 1)
+    print('check getSecretValue result with %s: %s\n' %('secretData2', secretData2 == 'secretData2'))
 
     print('====================test_secret_manager end===========================')
 

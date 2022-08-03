@@ -204,7 +204,7 @@ const createSecret = async (res, appid, payload, DB) => {
         }
 
         // query SM_Masterkey and encrypt secretData
-        retCMK = await get_SM_Masterkey(DB, appid, encryptionKeyId)
+        let retCMK = await get_SM_Masterkey(DB, appid, encryptionKeyId)
         if (retCMK.isFind) {
             sm_masterKey = retCMK.sm_masterKey
         } else {
@@ -266,8 +266,125 @@ const createSecret = async (res, appid, payload, DB) => {
 }
 
 /**
+ * Obtains a secret value.
+ * @param {Object} res : response
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database control
+ * @param {Object} payload
+ *          ==> {r}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
+ *          ==> {o}versionId(int [> 0]) : The version number of the secret value. eg. 12
+ * @returns {Object}
+ *          ==> {o}secretName(String) : The name of the secret. eg. 'secretName01'
+ *          ==> {o}secretData(String) : The secret value. eg. 'secretData01'
+ *          ==> {o}versionId(int) : The version number of the secret value. eg. 12
+ *          ==> {o}createTime(long) : The time when the secret value was created, millisecond unit. eg. 1659519772925
+ */
+const getSecretValue = async (appid, payload, res, DB) => {
+    try {
+        // get and check parameter
+        let secretName = getParam_String(payload, 'secretName')
+        let versionId = payload['versionId']
+        let selector;
+        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
+            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
+            return
+        }
+        if (versionId != undefined) {
+            if (typeof (versionId) !== 'number') {
+                res.send(_result(400, 'versionId must be a integer.'))
+                return
+            } else if (versionId < 1) {
+                res.send(_result(400, 'versionId must be greater than 0.'))
+                return
+            }
+        }
+
+        // build selector for search CouchDB, if has versionId use it find, 
+        // if not use versionStage = SM_SECRET_VERSION_STAGE_CURRENT
+        if (versionId) {
+            selector = {
+                appid: appid,
+                secretName: secretName,
+                versionId: versionId,
+                deletedFlag: false
+            }
+        } else {
+            selector = {
+                appid: appid,
+                secretName: secretName,
+                versionStage: SM_SECRET_VERSION_STAGE_CURRENT,
+                deletedFlag: false
+            }
+        }
+
+        // query secret_version_data
+        const query = {
+            selector,
+            fields: ['secretData', 'versionId', 'createTime'],
+            limit: 1,
+        }
+        let query_result = await DB.partitionedFind('secret_version_data', query)
+
+        // build result
+        let result = {}
+        if (query_result.docs.length > 0) {
+            let secretData = query_result.docs[0]['secretData']
+            let createTime = query_result.docs[0]['createTime']
+            versionId = query_result.docs[0]['versionId']
+
+            //query encryptionKeyId
+            const query_encryptionKeyId = {
+                selector: {
+                    appid,
+                    secretName,
+                },
+                fields: ['encryptionKeyId'],
+                limit: 1,
+            }
+            const secret_metadata_res = await DB.partitionedFind('secret_metadata', query_encryptionKeyId)
+            if (secret_metadata_res.docs.length == 0) {
+                encryptionKeyId = ""
+            } else {
+                encryptionKeyId = secret_metadata_res.docs[0].encryptionKeyId
+            }
+
+            // query SM_Masterkey
+            let sm_masterKey
+            let retCMK = await get_SM_Masterkey(DB, appid, encryptionKeyId)
+            if (retCMK.isFind) {
+                sm_masterKey = retCMK.sm_masterKey
+            } else {
+                res.send(_result(400, retCMK.msg))
+                return
+            }
+
+            // decrypt secretData
+            const secretData_decypt_result = napi_result(cryptographic_apis.Decrypt, res, [sm_masterKey, secretData, ''])
+            if (secretData_decypt_result) {
+                secretData = secretData_decypt_result.result['plaintext']
+            } else {
+                res.send(_result(400, 'decypt secretData error', {}))
+                return
+            }
+
+            result['secretName'] = base64_decode(secretName)
+            result['secretData'] = base64_decode(secretData)
+            result['versionId'] = versionId
+            result['createTime'] = createTime
+        }
+        res.send(_result(200, 'successful', result))
+        return
+    } catch (e) {
+        console.info('getSecretValue :: ', e)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return
+    }
+}
+
+/**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    getSecretValue
 }

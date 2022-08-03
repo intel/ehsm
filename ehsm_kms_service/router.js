@@ -25,6 +25,7 @@ const {
 } = require('./key_management_apis')
 const {
   createSecret,
+  getSecretValue,
 } = require('./secret_manager_apis')
 /**
  *
@@ -254,6 +255,9 @@ const router = async (p) => {
       break
     case secret_manager_apis.CreateSecret:
         createSecret(res, appid, payload, DB)
+      break
+    case secret_manager_apis.GetSecretValue:
+        getSecretValue(appid, payload, res, DB)
       break
     default:
       res.send(_result(404, 'API Not Found', {}))
