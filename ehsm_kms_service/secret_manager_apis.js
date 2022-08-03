@@ -266,8 +266,77 @@ const createSecret = async (res, appid, payload, DB) => {
 }
 
 /**
+ * update the description of secret
+ * @param {Object} res : response
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database control
+ * @param {Object} payload
+ *          ==> {r}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
+ *          ==> {o}description(String [1~4096]) : The description of the secret. eg. 'desc01'
+ * @returns
+ */
+const updateSecretDesc = async (res, appid, payload, DB) => {
+    //get and check param in payload
+    let secretName = getParam_String(payload, 'secretName')
+    let description = getParam_String(payload, 'description')
+    if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
+        res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
+        return
+    }
+    if (!checkStringParam(description, false, DESCRIPTION_LENGTH_MAX)) {
+        res.send(_result(400, `description must be string and length not more than ${DESCRIPTION_LENGTH_MAX}`))
+        return
+    }
+
+    //Query the description through secret name and update the description
+    const secret_name_query = {
+        selector: {
+            appid,
+            secretName
+        },
+        fields: [
+            '_id',
+            '_rev',
+            'appid',
+            'secretName',
+            'encryptionKeyId',
+            'description',
+            'createTime',
+            'deleteTime',
+            'plannedDeleteTime',
+            'rotationInterval',
+            'lastRotationDate',
+            'nextRotationDate'
+        ],
+        limit: 1,
+    }
+    await DB.partitionedFind('secret_metadata', secret_name_query)
+        .then((secret_metadata_res) => {
+            if (secret_metadata_res.docs.length > 0) {
+                secret_metadata_res.docs[0].description = description
+                DB.insert(secret_metadata_res.docs[0])
+                    .then(() => {
+                        res.send(_result(200, 'update secret description success'))
+                    })
+                    .catch((err) => {
+                        console.info('updateSecretDesc :: ', err)
+                        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+                    })
+            } else {
+                res.send(_result(400, 'cannot find secretName'))
+                return
+            }
+        })
+        .catch((err) => {
+            console.info('updateSecretDesc :: ', err)
+            res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        })
+}
+
+/**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    updateSecretDesc
 }
