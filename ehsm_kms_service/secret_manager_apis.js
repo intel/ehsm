@@ -3,7 +3,10 @@ const logger = require('./logger')
 const { v4: uuidv4 } = require('uuid')
 const {
     SM_SECRET_VERSION_STAGE_CURRENT,
-    SM_SECRET_VERSION_STAGE_PREVIOUS
+    SM_SECRET_VERSION_STAGE_PREVIOUS,
+    SECRETNAME_LENGTH_MAX,
+    SECRETDATA_LENGTH_MAX,
+    DESCRIPTION_LENGTH_MAX
 } = require('./constant')
 const {
     napi_result,
@@ -32,7 +35,7 @@ function getParam_String(payload, key, needBase64) {
 }
 
 //check param is string and required
-function checkStringParam(param, required) {
+function checkStringParam(param, required, maxLength) {
     if (param == '' || param == undefined) {
         if (required) {
             return false
@@ -41,7 +44,11 @@ function checkStringParam(param, required) {
         }
     } else {
         if (typeof (param) == 'string') {
-            return true
+            if (maxLength != undefined && param.length > maxLength) {
+                return false
+            } else {
+                return true
+            }
         } else {
             return false
         }
@@ -156,16 +163,16 @@ const createSecret = async (res, appid, payload, DB) => {
         const createTime = new Date().getTime()
         let sm_masterKey
         let nextRotationDate
-        if (!checkStringParam(secretData, true)) {
-            res.send(_result(400, 'secretData cannot be empty and must be string'))
+        if (!checkStringParam(secretData, true, SECRETDATA_LENGTH_MAX)) {
+            res.send(_result(400, 'secretData cannot be empty, must be string and length not more than 4096'))
             return
         }
-        if (!checkStringParam(secretName, true)) {
-            res.send(_result(400, 'secretName cannot be empty and must be string'))
+        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
+            res.send(_result(400, 'secretName cannot be empty, must be string and length not more than 64'))
             return
         }
-        if (!checkStringParam(description, false)) {
-            res.send(_result(400, 'description must be string'))
+        if (!checkStringParam(description, false, DESCRIPTION_LENGTH_MAX)) {
+            res.send(_result(400, 'description must be string and length not more than 4096'))
             return
         }
         if (!checkStringParam(rotationInterval, false)) {
