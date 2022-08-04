@@ -19,11 +19,14 @@ const {
 } = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
 
-// get a string parameter from payload and base64 if you need
-function getParam_String(payload, key, needBase64) {
-    if (needBase64 == undefined) {
-        needBase64 = true;
-    }
+/**
+ * get a string parameter from payload and base64 if you need
+ * @param {Object} payload : a json object
+ * @param {String} key : the key of payload
+ * @param {boolean} needBase64 [defalut=true] : The return value needs Base64 encoding flag
+ * @returns {String}
+ */
+function getParam_String(payload, key, needBase64 = true) {
     let val = payload[key]
     if (val != undefined) {
         val = String(val)
@@ -34,7 +37,13 @@ function getParam_String(payload, key, needBase64) {
     return val
 }
 
-//check param is string and required
+/**
+ * Verify that the parameter is string and whether it is required and the maximum length
+ * @param {object} param : Variables requiring validation
+ * @param {boolean} required : Whether the parameter is required
+ * @param {int} maxLength [defalut=undefined] : Maximum length of string, If maxLength is undefined, the length is not verified.
+ * @returns {boolean}
+ */
 function checkStringParam(param, required, maxLength) {
     if (param == '' || param == undefined) {
         if (required) {
@@ -55,7 +64,11 @@ function checkStringParam(param, required, maxLength) {
     }
 }
 
-//check encryptionKeyId format
+/**
+ * check encryptionKeyId format
+ * @param {String} encryptionKeyId : The ID of CMK, eg. 0197ad2d-c4be-4948-996d-513c6f1e****
+ * @returns {boolean}
+ */
 function check_encryptionKeyId_format(encryptionKeyId) {
     if (encryptionKeyId != '' && encryptionKeyId != undefined) {
         if (!((/^([a-z\d]{8}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{12})$/).test(encryptionKeyId))) {
@@ -65,7 +78,14 @@ function check_encryptionKeyId_format(encryptionKeyId) {
     return true
 }
 
-//check rotationInterval format
+/**
+ * check rotationInterval format
+ * @param {String [0~5]} rotationInterval : The interval for automatic rotation. 
+ *                                      format: integer[unit],
+ *                                      unit can be d (day), h (hour), m (minute), or s (second)
+ *                                      eg. '30d'
+ * @returns {boolean}
+ */
 function check_rotationInterval_format(rotationInterval) {
     if (rotationInterval != '' && rotationInterval != undefined) {
         if (!((/^(\d{1,4}[d,h,m,s]{1})$/).test(rotationInterval))) {
@@ -75,7 +95,16 @@ function check_rotationInterval_format(rotationInterval) {
     return true
 }
 
-// Query SM_MasterKey through encryptionkeyid
+/**
+ * Query SM_MasterKey through encryptionkeyid, if encryptionKeyId is undefined, will be return default CMK of appid.
+ * @param {Object} DB : database controller
+ * @param {String} appid : appid of user
+ * @param {String} encryptionKeyId [defalut=undefined] : The ID of CMK, eg. 0197ad2d-c4be-4948-996d-513c6f1e****
+ * @returns {Ojbect}
+ *          ==> isFind(boolean) : Whether to query the flag of CMK
+ *          ==> sm_masterKey(String) : blob string of CMK
+ *          ==> msg(String) : If isfind is false, MSG will record some messages that the reason is not found
+ */
 const get_SM_Masterkey = async (DB, appid, encryptionKeyId) => {
     let ret = {
         isFind: false,
@@ -125,7 +154,12 @@ const get_SM_Masterkey = async (DB, appid, encryptionKeyId) => {
     return ret
 }
 
-//Calculate nextrotationdate
+/**
+ * Calculate the time of the next rotation
+ * @param {string} rotationInterval : 
+ * @param {long} createTime : base time, millisecond unit. eg. 1659519772925
+ * @returns {long} nextRotationDate = createTime + rotationInterval, millisecond unit. eg. 1659519772925
+ */
 function calculateRotationSperate(rotationInterval, createTime) {
     let timenum = rotationInterval.substring(0, rotationInterval.length - 1)
     let unit = rotationInterval.substring(rotationInterval.length - 1, rotationInterval.length)
@@ -266,8 +300,74 @@ const createSecret = async (res, appid, payload, DB) => {
 }
 
 /**
+ * Obtains the metadata of a secret.
+ * @param {Object} res : response
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database controller
+ * @param {Object} payload
+ *          ==> {r}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
+ * @returns {Object}
+ *          ==> {o}secretName(String) : The name of the secret. eg. 'secretName01'
+ *          ==> {o}description(String) : The description of the secret. eg. 'desc01'
+ *          ==> {o}createTime(long) : The time when the secret was created. eg. 1659519772925
+ *          ==> {o}plannedDeleteTime(long) : The time when the secret is scheduled to be deleted. eg. 1659519772925
+ *          ==> {o}rotationInterval(String) : The interval for automatic rotation. 
+ *                                      format: integer[unit],
+ *                                      unit can be d (day), h (hour), m (minute), or s (second)
+ *                                      eg. '30d'
+ *          ==> {o}lastRotationDate(long) : The time when the last rotation was performed. eg. 1659519772925
+ *          ==> {o}nextRotationDate(long) : The time when the next rotation will be performed. eg. 1659519772925
+ */
+const describeSecret = async (res, appid, payload, DB) => {
+    try {
+        // get and check parameter 
+        let secretName = getParam_String(payload, 'secretName')
+        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
+            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
+            return
+        }
+
+        // search secret_metadata 
+        const query = {
+            selector: {
+                appid,
+                secretName
+            },
+            fields: ['secretName', 'description', 'createTime', 'plannedDeleteTime', 'rotationInterval', 'lastRotationDate', 'nextRotationDate'],
+            limit: 1,
+        }
+        let secret_metadata_result = await DB.partitionedFind('secret_metadata', query)
+
+        // build result
+        let result = {}
+        if (secret_metadata_result.docs.length > 0) {
+            const doc = secret_metadata_result.docs[0]
+            result['secretName'] = base64_decode(doc['secretName'])
+            result['description'] = base64_decode(doc['description'])
+            result['createTime'] = doc['createTime']
+            if (doc['plannedDeleteTime']) {
+                result['plannedDeleteTime'] = doc['plannedDeleteTime']
+            }
+            if (doc['rotationInterval']) {
+                result['rotationInterval'] = doc['rotationInterval']
+                result['lastRotationDate'] = doc['lastRotationDate']
+                result['nextRotationDate'] = doc['nextRotationDate']
+            }
+        }
+
+        res.send(_result(200, 'describe secrets success.', result))
+        return
+    } catch (e) {
+        console.info('describeSecrets :: ', e)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return
+    }
+}
+
+/**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    describeSecret
 }
