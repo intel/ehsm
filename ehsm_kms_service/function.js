@@ -479,15 +479,16 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       return
     }
     const { appid, timestamp: nonce, timestamp, sign, payload } = req.body
-    if (
-      !appid ||
-      !timestamp ||
-      !sign ||
-      (ACTION !== key_management_apis[ACTION] && !payload)
-    ) {
+    if (!appid || !timestamp || !sign) {
       res.send(_result(400, 'Missing required parameters'))
       return
     }
+    // cryptographic_apis must be has payload
+    if(ACTION === cryptographic_apis[ACTION] && !payload){
+      res.send(_result(400, 'Missing required parameters'))
+      return
+    }
+
     if (
       typeof appid != 'string' ||
       typeof timestamp != 'string' ||
@@ -532,7 +533,8 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       nonce_database[appid].unshift(nonce_data)
     }
 
-    if (ACTION !== key_management_apis[ACTION]) {
+    // check cryptographic_apis parameter
+    if (ACTION === cryptographic_apis[ACTION]) {
       // check payload
       const _checkPayload_res = _checkPayload(req, res, next)
       if (!_checkPayload_res) {

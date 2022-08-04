@@ -25,6 +25,7 @@ const {
 } = require('./key_management_apis')
 const {
   createSecret,
+  listSecrets
 } = require('./secret_manager_apis')
 /**
  *
@@ -92,7 +93,11 @@ const GetRouter = async (p) => {
 
 const router = async (p) => {
   const { req, res, DB } = p
-  const { appid, payload } = req.body
+  const appid = req.body['appid']
+  let payload = req.body['payload']
+  if(payload == undefined){
+    payload = {}
+  }
   const action = req.query.Action
   switch (action) {
     case enroll_apis.RA_GET_API_KEY:
@@ -255,6 +260,9 @@ const router = async (p) => {
     case secret_manager_apis.CreateSecret:
         createSecret(res, appid, payload, DB)
       break
+    case secret_manager_apis.ListSecrets:
+      listSecrets(res, appid, payload, DB)
+    break
     default:
       res.send(_result(404, 'API Not Found', {}))
       break

@@ -266,8 +266,77 @@ const createSecret = async (res, appid, payload, DB) => {
 }
 
 /**
+ * Queries all secrets created by your appid. Maximum 4000 line 
+ * @param {Object} res : response
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database controller
+ * @param {Object} payload
+ *          ==> {o}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
+ * @returns {Object}
+ *          ==> {r}totalCount(int) : The number of returned secrets. eg. 15
+ *          ==> {r}secretList(Array[Object]) : The list of secrets.
+ *                  Object ==> {r}secretName(String) : The name of the secret. eg. 'secretName01'
+ *                  Object ==> {r}description(String) : The description of the secret. eg. 'desc01'
+ *                  Object ==> {r}createTime(long) : The time when the secret was created, millisecond unit. eg. 1659519772925
+ *                  Object ==> {o}plannedDeleteTime(long) : The time when the secret is scheduled to be deleted, millisecond unit. eg. 1659519772925
+ */
+const listSecrets = async (res, appid, payload, DB) => {
+    try {
+        // get and check parameter 
+        let secretName = getParam_String(payload, 'secretName')
+        if (!checkStringParam(secretName, false, SECRETNAME_LENGTH_MAX)) {
+            res.send(_result(400, `secretName must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
+            return
+        }
+
+        // build selector for search secret_metadata
+        let selector = {
+            appid: appid
+        }
+        if (secretName != '' && secretName != undefined) {
+            selector['secretName'] = secretName
+        }
+
+        // search secret_metadata, Maximum 4000 line 
+        const query = {
+            selector,
+            fields: ['secretName', 'description', 'createTime', 'plannedDeleteTime'],
+            limit: 4000,
+        }
+        let secret_metadata_result = await DB.partitionedFind('secret_metadata', query)
+
+        // build result
+        let result = {
+            'totalCount': 0,
+            'secretList': []
+        }
+        if (secret_metadata_result.docs.length > 0) {
+            result.totalCount = secret_metadata_result.docs.length
+            for (const doc of secret_metadata_result.docs) {
+                let secret = {};
+                secret['secretName'] = base64_decode(doc['secretName'])
+                secret['description'] = base64_decode(doc['description'])
+                secret['createTime'] = doc['createTime']
+                if (doc['plannedDeleteTime']) {
+                    secret['plannedDeleteTime'] = doc['plannedDeleteTime']
+                }
+                result.secretList.push(secret)
+            }
+        }
+
+        res.send(_result(200, 'list secrets success.', result))
+        return
+    } catch (e) {
+        console.info('listSecrets :: ', e)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return
+    }
+}
+
+/**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    listSecrets
 }
