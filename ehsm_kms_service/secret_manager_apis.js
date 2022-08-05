@@ -266,8 +266,69 @@ const createSecret = async (res, appid, payload, DB) => {
 }
 
 /**
+ * Queries all versions of a secret. Maximum 4000 line 
+ * @param {Object} res : response
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database controller
+ * @param {Object} payload
+ *          ==> {r}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
+ * @returns {Object}
+ *          ==> {r}secretName(String) : The name of the secret. eg. 'secretName01'
+ *          ==> {r}totalCount(int) : The number of returned secrets. eg. 15
+ *          ==> {r}versionIds(Array[Object]) : The list of secret versions.
+ *                  Object ==> {r}versionId(int) : The version number of the secret value. eg. 12
+ *                  Object ==> {r}createTime(long) : The time when the secret was created, millisecond unit. eg. 1659519772925
+ */
+ const listSecretVersionIds = async (res, appid, payload, DB) => {
+    try {
+        // get and check parameter 
+        let secretName = getParam_String(payload, 'secretName')
+        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
+            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
+            return
+        }
+
+        // search secret_version_data, Maximum 4000 line 
+        const query = {
+            selector: {
+                appid: appid,
+                secretName: secretName,
+                deletedFlag: false
+            },
+            fields: ['versionId', 'createTime'],
+            limit: 4000,
+        }
+        let secret_version_data_result = await DB.partitionedFind('secret_version_data', query)
+
+        // build result
+        let result = {
+            'secretName': base64_decode(secretName),
+            'totalCount': 0,
+            'versionIds': []
+        }
+        if (secret_version_data_result.docs.length > 0) {
+            result.totalCount = secret_version_data_result.docs.length
+            for (const doc of secret_version_data_result.docs) {
+                let secretVersion = {};
+                secretVersion['versionId'] = doc['versionId']
+                secretVersion['createTime'] = doc['createTime']
+                result.versionIds.push(secretVersion)
+            }
+        }
+
+        res.send(_result(200, 'List secret versionIds success.', result))
+        return
+    } catch (e) {
+        console.info('listSecretVersionIds :: ', e)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return
+    }
+}
+
+/**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    listSecretVersionIds
 }

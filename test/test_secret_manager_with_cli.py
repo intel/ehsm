@@ -8,7 +8,7 @@ import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, enroll, createSecret
+from cli import createkey, enroll, createSecret, listSecretVersionIds
 import urllib.parse
 import _utils_
 appid= ''
@@ -29,6 +29,9 @@ def test_secret_manager(base_url, headers):
     createSecret.createSecret(base_url, "secretData1", "secret001", key1, "mysecret", "30h")
 
     createSecret.createSecret(base_url, "secretData2", "secret002", None, "mysecret", "20d")
+
+    totalCount_version = listSecretVersionIds.listSecretVersionIds(base_url, "secret001")
+    print('check listSecretVersionIds result with %s: %s\n' %('totalCount', totalCount_version == 1))
 
     print('====================test_secret_manager end===========================')
 
