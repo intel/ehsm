@@ -26,9 +26,9 @@ def test_secret_manager(base_url, headers):
     print('====================test_secret_manager start===========================')
     key1 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY")
 
-    createSecret.createSecret(base_url, "secretData1", "secret001", key1, "mysecret", "30h")
+    createSecret.createSecret(base_url, "secret001", "secretData1", key1, "mysecret", "30h")
 
-    createSecret.createSecret(base_url, "secretData2", "secret002", None, "mysecret", "20d")
+    createSecret.createSecret(base_url, "secret002", "secretData2", None, "mysecret", "20d")
 
     print('====================test_secret_manager end===========================')
 

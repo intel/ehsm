@@ -15,8 +15,8 @@ import _utils_
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--url', type=str, help='the address of the ehsm_kms_server', required=True)
-    parser.add_argument('--secretData', type=str, help='the value of the secret to be created', required=True)
     parser.add_argument('--secretName', type=str, help='the name of the secret', required=True)
+    parser.add_argument('--secretData', type=str, help='the value of the secret to be created', required=True)
     parser.add_argument('--encryptionKeyId', type=str, help='The ID of the CMK that is used to encrypt the secret value')
     parser.add_argument('--description', type=str, help='the description of the secret')
     parser.add_argument('--rotationInterval', type=str, help='Automatic rotation interval')
@@ -24,16 +24,18 @@ def get_args():
 
     base_url = args.url + "/ehsm?Action="
     print(base_url)
-    return base_url, args.secretData, args.secretName, args.encryptionKeyId, args.description, args.rotationInterval
+    return base_url, args.secretName, args.secretData, args.encryptionKeyId, args.description, args.rotationInterval
 
-def createSecret(base_url, secretData, secretName, encryptionKeyId, description, rotationInterval):
+def createSecret(base_url, secretName, secretData, encryptionKeyId = None, description = None, rotationInterval = None):
     print('create secret')
     
     payload = OrderedDict()
-    payload["description"] = description
+    if description != None:
+        payload["description"] = description
     if encryptionKeyId != None:
         payload["encryptionKeyId"] = encryptionKeyId
-    payload["rotationInterval"] = rotationInterval
+    if rotationInterval != None:
+        payload["rotationInterval"] = rotationInterval
     payload["secretData"] = secretData
     payload["secretName"] = secretName
     params = _utils_.init_params(payload)
@@ -48,7 +50,7 @@ def createSecret(base_url, secretData, secretName, encryptionKeyId, description,
 if __name__ == "__main__":
     headers = _utils_.headers
 
-    base_url, secretData, secretName, encryptionKeyId, description, rotationInterval = get_args()
+    base_url, secretName, secretData, encryptionKeyId, description, rotationInterval = get_args()
 
-    createSecret(base_url, secretData, secretName, encryptionKeyId, description, rotationInterval)
+    createSecret(base_url, secretName, secretData, encryptionKeyId, description, rotationInterval)
 
