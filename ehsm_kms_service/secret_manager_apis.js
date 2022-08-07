@@ -266,8 +266,100 @@ const createSecret = async (res, appid, payload, DB) => {
 }
 
 /**
+ * Restores a deleted secret.
+ * @param {Object} res : response
+ * @param {String} appid : appid of user
+ * @param {Object} DB : database controller
+ * @param {Object} payload
+ *          ==> {r}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
+ * @returns
+ */
+const restoreSecret = async (res, appid, payload, DB) => {
+    try {
+        let secretName = getParam_String(payload, 'secretName')
+        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
+            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
+            return
+        }
+
+        //Query and change the secret metadata
+        const query_matadata = {
+            selector: {
+                appid,
+                secretName
+            },
+            fields: [
+                '_id',
+                '_rev',
+                'appid',
+                'secretName',
+                'encryptionKeyId',
+                'description',
+                'createTime',
+                'deleteTime',
+                'plannedDeleteTime',
+                'rotationInterval',
+                'lastRotationDate',
+                'nextRotationDate'
+            ],
+            limit: 1
+        }
+        let secret_metadata_res = await DB.partitionedFind('secret_metadata', query_matadata)
+        if (secret_metadata_res.docs.length > 0) {
+            secret_metadata_res.docs[0].deleteTime = null
+            secret_metadata_res.docs[0].plannedDeleteTime = null
+            //Query and change the secret version data (1000 queries per time)
+            let needChange = true
+            while (needChange) {
+                const query_version_data = {
+                    selector: {
+                        appid,
+                        secretName
+                    },
+                    fields: [
+                        '_id',
+                        '_rev',
+                        'appid',
+                        'secretName',
+                        'versionId',
+                        'deletedFlag',
+                        'secretData',
+                        'createTime',
+                        'versionStage',
+                    ],
+                    limit: 1000
+                }
+                let secret_version_data_res = await DB.partitionedFind('secret_version_data', query_version_data)
+                if (secret_version_data_res.docs.length > 0) {
+                    for (var i = 0; i < secret_version_data_res.docs.length; i++) {
+                        secret_version_data_res.docs[i].deletedFlag = false
+                        await DB.insert(secret_version_data_res.docs[i])
+                    }
+                } else {
+                    continue
+                }
+                if (secret_version_data_res.docs.length != 1000) {
+                    needChange = false
+                }
+            }
+            //update secret metadata
+            await DB.insert(secret_metadata_res.docs[0])
+            res.send(_result(200, `The ${base64_decode(secretName)} restore success.`))
+            return
+        } else {
+            res.send(_result(400, 'Can not restore secret, the secretName not find.'))
+            return
+        }
+    } catch (e) {
+        console.info('restoreSecret :: ', e)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return
+    }
+}
+/**
  *
  */
 module.exports = {
-    createSecret
+    createSecret,
+    restoreSecret
 }
