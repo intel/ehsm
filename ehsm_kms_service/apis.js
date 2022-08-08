@@ -33,6 +33,14 @@ const key_management_apis = {
 
 const secret_manager_apis = {
   CreateSecret: 'CreateSecret',
+  UpdateSecretDesc: 'UpdateSecretDesc',
+  PutSecretValue: 'PutSecretValue',
+  ListSecretVersionIds: 'ListSecretVersionIds',
+  ListSecrets: 'ListSecrets',
+  DescribeSecret: 'DescribeSecret',
+  DeleteSecret: 'DeleteSecret',
+  GetSecretValue: 'GetSecretValue',
+  RestoreSecret: 'RestoreSecret'
 }
 
 const common_apis = {
