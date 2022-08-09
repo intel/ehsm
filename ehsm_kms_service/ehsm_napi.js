@@ -280,7 +280,33 @@ const ehsm_napi = ffi.Library('./libehsmnapi', {
   NAPI_RA_GET_API_KEY: ['string', ['string']],
   NAPI_Enroll: ['string', []],
   NAPI_GenerateQuote: ['string', ['string']],
-  NAPI_VerifyQuote: ['string', ['string', 'string']],
+  /**
+  NAPI_VerifyQuote
+  Description:
+    Users are expected already got a valid DCAP format QUOTE. And it could use this API to send it to eHSM-KMS to do a quote verification.
+  params:
+    - quote_base64:
+        des: A valid DCAP quote in BASE64 string.
+        type: string
+    - mr_signer:
+        des: Trusted zone code issuer public key metric
+        type: string
+    - mr_enclave: 
+        des: Trusted zone code metric
+        type: string
+    - nonce_base64:
+        des: 	A nonce in BASE64 string.
+        type: string
+  return json
+    {
+      code: int,
+      message: string,
+      result: {
+        cipher_datakey_new_base64: string
+      }
+    }
+  */
+  NAPI_VerifyQuote: ['string', ['string', 'string', 'string', 'string']],
   /**
     get version
   */

@@ -203,7 +203,8 @@ function napi_result(action, res, params) {
     }
     // })
   } catch (e) {
-    res.send(_result(400, 'Parsing error'))
+    console.info('napi_result :: ', e)
+    res.send(_result(500, 'Server internal error, please contact the administrator.'))
     return false
   }
 }

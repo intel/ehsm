@@ -26,6 +26,12 @@ const {
 const {
   createSecret,
 } = require('./secret_manager_apis')
+const {
+  generateQuote,
+  verifyQuote,
+  uploadQuotePolicy,
+  getQuotePolicy
+} = require('./quote_manager_apis')
 /**
  *
  * @param {string} id (keyid|ukeyid)
@@ -109,7 +115,7 @@ const router = async (p) => {
         origin = ehsm_keyorigin_t[origin]
         const napi_res = napi_result(action, res, [keyspec, origin])
         napi_res && store_cmk(napi_res, res, appid, payload, DB)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.Encrypt:
       try {
@@ -117,7 +123,7 @@ const router = async (p) => {
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         const napi_res = napi_result(action, res, [cmk_base64, plaintext, aad])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.Decrypt:
       try {
@@ -125,7 +131,7 @@ const router = async (p) => {
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         napi_res = napi_result(action, res, [cmk_base64, ciphertext, aad])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.GenerateDataKey:
       try {
@@ -133,7 +139,7 @@ const router = async (p) => {
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         napi_res = napi_result(action, res, [cmk_base64, keylen, aad])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.GenerateDataKeyWithoutPlaintext:
       try {
@@ -141,7 +147,7 @@ const router = async (p) => {
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         napi_res = napi_result(action, res, [cmk_base64, keylen, aad])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.Sign:
       try {
@@ -149,7 +155,7 @@ const router = async (p) => {
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         napi_res = napi_result(action, res, [cmk_base64, digest])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.Verify:
       try {
@@ -161,7 +167,7 @@ const router = async (p) => {
           signature,
         ])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.AsymmetricEncrypt:
       try {
@@ -169,7 +175,7 @@ const router = async (p) => {
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         napi_res = napi_result(action, res, [cmk_base64, plaintext])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.AsymmetricDecrypt:
       try {
@@ -177,7 +183,7 @@ const router = async (p) => {
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         napi_res = napi_result(action, res, [cmk_base64, ciphertext])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case cryptographic_apis.ExportDataKey:
       try {
@@ -191,21 +197,21 @@ const router = async (p) => {
           olddatakey_base,
         ])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case enroll_apis.RA_HANDSHAKE_MSG0:
       try {
         const json_str_params = JSON.stringify({ ...req.body })
         napi_res = napi_result(action, res, [json_str_params])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case enroll_apis.RA_HANDSHAKE_MSG2:
       try {
         const json_str_params = JSON.stringify({ ...req.body })
         napi_res = napi_result(action, res, [json_str_params])
         napi_res && res.send(napi_res)
-      } catch (error) {}
+      } catch (error) { }
       break
     case key_management_apis.ListKey:
       listKey(appid, res, DB)
@@ -223,37 +229,19 @@ const router = async (p) => {
       disableKey(appid, payload, res, DB)
       break
     case remote_attestation_apis.GenerateQuote:
-      try {
-        const { challenge } = payload
-        if (challenge) {
-          napi_res = napi_result(action, res, [challenge])
-          napi_res && res.send(napi_res)
-        } else {
-          res.send(_result(400, 'Empty challenge', {}))
-        }
-      } catch (error) {}
+      generateQuote(res, payload, action)
       break
     case remote_attestation_apis.VerifyQuote:
-      try {
-        const { quote, nonce } = payload
-        if (quote && nonce) {
-          napi_res = napi_result(action, res, [quote, nonce])
-          if (napi_res) {
-            let {error, hmac} = await gen_hmac(DB, appid, napi_res.result)
-            if (hmac.length > 0) {
-              napi_res.result.sign = hmac
-              res.send(napi_res)
-            } else {
-              res.send(_result(400, 'Internal error', {}))
-            }
-          } else {
-            res.send(_result(400, 'Empty quote or nonce ', {}))
-          }
-        }
-      } catch (error) {}
+      verifyQuote(res, appid, payload, DB, action)
+      break
+    case remote_attestation_apis.UploadQuotePolicy:
+      uploadQuotePolicy(res, appid, payload, DB)
+      break
+    case remote_attestation_apis.GetQuotePolicy:
+      getQuotePolicy(res, appid, payload, DB)
       break
     case secret_manager_apis.CreateSecret:
-        createSecret(res, appid, payload, DB)
+      createSecret(res, appid, payload, DB)
       break
     default:
       res.send(_result(404, 'API Not Found', {}))

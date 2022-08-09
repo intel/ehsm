@@ -8,7 +8,7 @@ import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, delete_all_key, deletekey, disablekey, enablekey, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, listkey, sign, verify, verify_quote, enroll
+from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, delete_all_key, deletekey, disablekey, enablekey, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, listkey, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy
 import urllib.parse
 import _utils_
 appid= ''
@@ -132,9 +132,24 @@ def no_bool_convert(pairs):
 
 def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     print('====================test_GenerateQuote_and_VerifyQuote start===========================')
+    mr_enclave = '870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038';
+    mr_signer = 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835';   
+
+    policyId = uploadQuotePolicy.uploadQuotePolicy(base_url, mr_enclave, mr_signer)
+
+    result_getQuotePlicy = getQuotePolicy.getQuotePolicy(base_url, policyId)
+    if ('mr_enclave' in result_getQuotePlicy):
+        print('check getQuotePolicy result with %s: %s' %('mr_enclave', mr_enclave == result_getQuotePlicy['mr_enclave']))
+    else:
+        print('check getQuotePolicy result with %s: %s' %('mr_enclave', False))
+    if ('mr_signer' in result_getQuotePlicy):
+        print('check getQuotePolicy result with %s: %s\n' %('mr_signer', mr_signer == result_getQuotePlicy['mr_signer']))
+    else:
+        print('check getQuotePolicy result with %s: %s\n' %('mr_signer', False))
+
     generate_quote.generate_quote_with_file(base_url, "a.txt")
 
-    verify_quote.verify_quote_with_file(base_url, "a.txt")
+    verify_quote.verify_quote_with_file(base_url, "a.txt", policyId)
     os.remove("a.txt")
     print('====================test_GenerateQuote_and_VerifyQuote end===========================')
 

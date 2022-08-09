@@ -53,9 +53,23 @@
 
 #include "log_utils.h"
 
+using namespace std;
+
 void ocall_print_string(const char *str)
 {
     printf("%s", str);
+}
+
+errno_t memcpy_s(
+    void *dest,
+    size_t numberOfElements,
+    const void *src,
+    size_t count)
+{
+    if(numberOfElements<count)
+        return -1;
+    memcpy(dest, src, count);
+    return 0;
 }
 
 namespace EHsmProvider
@@ -938,7 +952,40 @@ ehsm_status_t GenerateQuote(ehsm_data_t *quote)
     return EH_OK;
 }
 
+/*
+ *  @brief check mr_signer and mr_enclave
+ *  @param quote quote data
+ *  @param mr_signer_good the mr_signer
+ *  @param mr_enclave_good the mr_enclave 
+ */
+bool verify_policy(uint8_t* quote, const char* mr_signer_good, const char* mr_enclave_good)
+{
+    if(quote == NULL || mr_signer_good == NULL || mr_enclave_good == NULL) {
+        printf("quote or mr_signer_good or mr_enclave_good is null");
+        return false;
+    }
+    string mr_signer_str;
+    string mr_enclave_str;
+    char mr_signer_temp[3] = {0};
+    char mr_enclave_temp[3] = {0};
+    sgx_quote3_t *p_sgx_quote = (sgx_quote3_t *)quote;
+    for(int i = 0; i < SGX_HASH_SIZE; i++) {
+        snprintf(mr_signer_temp, sizeof(mr_signer_temp) , "%02x", p_sgx_quote->report_body.mr_signer.m[i]);
+        snprintf(mr_enclave_temp, sizeof(mr_enclave_temp), "%02x", p_sgx_quote->report_body.mr_enclave.m[i]);
+        mr_signer_str += mr_signer_temp;
+        mr_enclave_str += mr_enclave_temp;
+    }
+    if(strncmp(mr_signer_good, mr_signer_str.c_str(), mr_signer_str.size()) != 0 || 
+       strncmp(mr_enclave_good, mr_enclave_str.c_str(), mr_enclave_str.size()) != 0) {
+        printf("mr_signer or mr_enclave is invalid!");
+        return false;
+    }
+    return true;
+}
+
 ehsm_status_t VerifyQuote(ehsm_data_t *quote,
+            const char *mr_signer,
+            const char *mr_enclave,
             sgx_ql_qv_result_t *result)
 {
     ehsm_status_t rc = EH_OK;
@@ -1012,6 +1059,12 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
 
     //set current time. This is only for sample use, please use trusted time in product.
     current_time = time(NULL);
+
+    // check mr_signer and mr_enclave
+    if(!verify_policy(quote->data, mr_signer, mr_enclave)) {
+        rc = EH_DEVICE_MEMORY;
+        goto out;
+    }
 
     //call DCAP quote verify library for quote verification with Intel QvE.
     dcap_ret = sgx_qv_verify_quote(
