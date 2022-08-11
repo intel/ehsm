@@ -20,6 +20,9 @@ const {
   router,
   GetRouter
 } = require('./router')
+const {
+  _secret_delete_timer
+} = require('./delete_secret_thread')
 
 const app = express()
 app.use(express.json())
@@ -35,6 +38,12 @@ const server = (DB) => {
     console.log('service Initialize exception!')
     process.exit(0)
   }
+
+
+  /**
+   * start secret delete timer
+   */
+  const { timer: secret_delete_timer } = _secret_delete_timer(DB)
 
   /**
    * Clear nonce cache for more than 15 minutes
@@ -65,6 +74,7 @@ const server = (DB) => {
     ehsm_napi.NAPI_Finalize()
     clearInterval(nonce_cache_timer)
     clearInterval(cmk_cache_timer)
+    clearInterval(secret_delete_timer)
     process.exit(0)
   })
 
