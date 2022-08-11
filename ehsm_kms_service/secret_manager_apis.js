@@ -19,6 +19,10 @@ const {
     cryptographic_apis,
 } = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
+const {
+    add_delete_task,
+    remove_delete_task
+  } = require('./delete_secret_thread')
 
 /**
  * get a string parameter from payload and base64 if you need
@@ -779,6 +783,7 @@ const deleteSecret = async (res, appid, DB, payload) => {
         if (recoveryPeriod == '' || recoveryPeriod == undefined) {
             recoveryPeriod = DEFAULT_DELETE_RECOVERY_DAYS
         }
+        let plannedDeleteTime = deleteTime + 24 * 60 * 60 * 1000 * recoveryPeriod
 
         //Query and change the secret metadata
         const query_matadata = {
@@ -793,6 +798,7 @@ const deleteSecret = async (res, appid, DB, payload) => {
             if (forceDelete == 'true') {
                 //Force delete secret metadata and secret version data by appId and secretName
                 if (await forceDeleteData(DB, appid, secretName)) {
+                    remove_delete_task(secretName, appid)
                     res.send(_result(200, `The ${base64_decode(secretName)} delete success`))
                     return
                 } else {
@@ -802,8 +808,9 @@ const deleteSecret = async (res, appid, DB, payload) => {
             } else {
                 //update secret metadata
                 secret_metadata_res.docs[0].deleteTime = deleteTime
-                secret_metadata_res.docs[0].plannedDeleteTime = deleteTime + 24 * 60 * 60 * 1000 * recoveryPeriod
+                secret_metadata_res.docs[0].plannedDeleteTime = plannedDeleteTime
                 await DB.insert(secret_metadata_res.docs[0])
+                add_delete_task(DB, appid, secretName, plannedDeleteTime)
                 res.send(_result(200, `The ${base64_decode(secretName)} will be delete after ${recoveryPeriod}d`))
                 return
             }
@@ -966,6 +973,8 @@ const restoreSecret = async (res, appid, DB, payload) => {
             secret_metadata_res.docs[0].deleteTime = null
             secret_metadata_res.docs[0].plannedDeleteTime = null
             await DB.insert(secret_metadata_res.docs[0])
+            //Delete the added thread by secretName
+            remove_delete_task(secretName, appid)
             res.send(_result(200, `The ${base64_decode(secretName)} restore success.`))
             return
         } else {
@@ -991,5 +1000,6 @@ module.exports = {
     describeSecret,
     deleteSecret,
     getSecretValue,
-    restoreSecret
+    restoreSecret,
+    forceDeleteData
 }
