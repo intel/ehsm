@@ -83,22 +83,34 @@ void NAPI_Finalize(){
     Finalize();
 }
 
-/*
-@return
-[string] json string
+/**
+ * @brief Create key and save the parameters when using the key for encrypt, decrypt, sign and verify
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * @return char* 
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            cmk_base64 : string,
+            cmk_base64 : string
         }
     }
-*/
-char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
+ */
+char* NAPI_CreateKey(const char* paramJson)
 {
     RetJsonObj retJsonObj;
     ehsm_status_t ret = EH_OK;
     ehsm_keyblob_t master_key;
+
+    // parse paramJson into paramJsonObj
+    JsonObj paramJsonObj;
+    if (!paramJsonObj.parse(paramJson))
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
 
     memset(&master_key, 0, sizeof(master_key));
 
@@ -107,11 +119,14 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
     uint8_t *resp = NULL;
     uint32_t resp_len = 0;
 
-    master_key.metadata.keyspec = keyspec;
-    master_key.metadata.origin = origin;
+    // storage common key properties into metadata of master_key 
+    master_key.metadata.keyspec = paramJsonObj.readData_uint16("keyspec");
+    master_key.metadata.origin = paramJsonObj.readData_uint16("origin");
+    master_key.metadata.purpose = paramJsonObj.readData_uint16("purpose");
     master_key.keybloblen = 0;    
-
-    ret = CreateKey(&master_key);
+    
+    // get keybloblen
+    ret = CreateKey(&master_key, paramJsonObj);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -125,7 +140,8 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
         goto out;
     }
 
-    ret = CreateKey(&master_key);
+    // create key
+    ret = CreateKey(&master_key, paramJsonObj);
     if (ret != EH_OK) {
         if(ret == EH_KEYSPEC_INVALID){
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -167,11 +183,16 @@ out:
         }
     }
 */
-char* NAPI_Encrypt(const char* cmk_base64,
-        const char* plaintext_base64,
-        const char* aad_base64)
+char* NAPI_Encrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+    
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* plaintext_base64 = paramJsonObj.readData_cstr("plaintext_base64");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+
     if (cmk_base64 == NULL || plaintext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -277,11 +298,16 @@ out:
         }
     }
 */
-char* NAPI_Decrypt(const char* cmk_base64,
-        const char* ciphertext_base64,
-        const char* aad_base64)
+char* NAPI_Decrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* ciphertext_base64 = paramJsonObj.readData_cstr("ciphertext_base64");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+
     if (cmk_base64 == NULL || ciphertext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -392,11 +418,16 @@ out:
         }
     }
 */
-char* NAPI_GenerateDataKey(const char* cmk_base64,
-        const uint32_t keylen,
-        const char* aad_base64)
+char* NAPI_GenerateDataKey(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* keylen = paramJsonObj.readData_uint32("keylen");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+
     if (cmk_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -520,11 +551,16 @@ out:
         }
     }
 */
-char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
-        const uint32_t keylen,
-        const char* aad_base64)
+char* NAPI_GenerateDataKeyWithoutPlaintext(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* keylen = paramJsonObj.readData_uint32("keylen");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+
     if (cmk_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -633,10 +669,15 @@ out:
         }
     }
 */
-char* NAPI_Sign(const char* cmk_base64,
-        const char* digest_base64)
+char* NAPI_Sign(const char* paramJson)
 {    
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* digest_base64 = paramJsonObj.readData_cstr("digest_base64");
+    
     if (cmk_base64 == NULL || digest_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -724,11 +765,16 @@ out:
         }
     }
 */
-char* NAPI_Verify(const char* cmk_base64,
-        const char* digest_base64,
-        const char* signature_base64)
+char* NAPI_Verify(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* digest_base64 = paramJsonObj.readData_cstr("digest_base64");
+    char* signature_base64 = paramJsonObj.readData_cstr("signature_base64");
+
     if (cmk_base64 == NULL || digest_base64 == NULL || signature_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -806,10 +852,15 @@ out:
         }
     }
 */
-char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
-        const char* plaintext_base64)
+char* NAPI_AsymmetricEncrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* plaintext_base64 = paramJsonObj.readData_cstr("plaintext_base64");
+
     if (cmk_base64 == NULL || plaintext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -852,12 +903,6 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
             break;
         case EH_RSA_3072:
             plaintext_maxLen = RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE;
-            break;
-        case EH_EC_P256:
-            // TODO
-            break;
-        case EH_EC_P512:
-            // TODO
             break;
         case EH_EC_SM2:
             // TODO
@@ -921,10 +966,15 @@ out:
         }
     }
 */
-char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
-        const char* ciphertext_base64)
+char* NAPI_AsymmetricDecrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* ciphertext_base64 = paramJsonObj.readData_cstr("ciphertext_base64");
+
     if (cmk_base64 == NULL || ciphertext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -967,12 +1017,6 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
             break;
         case EH_RSA_3072:
             ciphertext_maxLen = RSA_OAEP_3072_CIPHER_LENGTH;
-            break;
-        case EH_EC_P256:
-            // TODO
-            break;
-        case EH_EC_P512:
-            // TODO
             break;
         case EH_EC_SM2:
             // TODO
@@ -1035,12 +1079,17 @@ out:
         }
     }
 */
-char* NAPI_ExportDataKey(const char* cmk_base64,
-        const char* ukey_base64,
-        const char* aad_base64,
-        const char* olddatakey_base64)
+char* NAPI_ExportDataKey(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* ukey_base64 = paramJsonObj.readData_cstr("ukey_base64");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+    char* olddatakey_base64 = paramJsonObj.readData_cstr("olddatakey_base64");
+
     if (cmk_base64 == NULL || ukey_base64 == NULL || olddatakey_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");

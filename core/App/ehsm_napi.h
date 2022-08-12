@@ -52,9 +52,12 @@ destory the enclave
 */
 void NAPI_Finalize();
 
-/*
-@return
-[string] json string
+/**
+ * @brief Create key and save the parameters when using the key for encrypt, decrypt, sign and verify
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * @return char* 
+ * [string] json string
     {
         code: int,
         message: string,
@@ -62,8 +65,8 @@ void NAPI_Finalize();
             cmk_base64 : string
         }
     }
-*/
-char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin);
+ */
+char* NAPI_CreateKey(const char* paramJson);
 
 /*
 @return
@@ -76,9 +79,7 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin);
         }
     }
 */
-char* NAPI_Encrypt(const char* cmk_base64,
-        const char* plaintext_base64,
-        const char* aad_base64);
+char* NAPI_Encrypt(const char* paramJson);
 
 /*
 @return
@@ -91,9 +92,7 @@ char* NAPI_Encrypt(const char* cmk_base64,
         }
     }
 */
-char* NAPI_Decrypt(const char* cmk_base64,
-        const char* ciphertext_base64,
-        const char* aad_base64);
+char* NAPI_Decrypt(const char* paramJson);
 
 /*
 @return
@@ -106,8 +105,7 @@ char* NAPI_Decrypt(const char* cmk_base64,
         }
     }
 */
-char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
-    const char* plaintext_base64);
+char* NAPI_AsymmetricEncrypt(const char* paramJson);
 
 /*
 @return
@@ -120,8 +118,7 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
         }
     }
 */
-char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
-        const char* ciphertext_base64);
+char* NAPI_AsymmetricDecrypt(const char* paramJson);
 
 /*
 @return
@@ -135,9 +132,7 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
         }
     }
 */
-char* NAPI_GenerateDataKey(const char* cmk_base64,
-        const uint32_t keylen,
-        const char* aad_base64);
+char* NAPI_GenerateDataKey(const char* paramJson);
 
 /*
 @return
@@ -150,9 +145,7 @@ char* NAPI_GenerateDataKey(const char* cmk_base64,
         }
     }
 */
-char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
-        const uint32_t keylen,
-        const char* aad_base64);
+char* NAPI_GenerateDataKeyWithoutPlaintext(const char* paramJson);
 
 /*
 @return
@@ -165,10 +158,7 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
         }
     }
 */
-char* NAPI_ExportDataKey(const char* cmk_base64,
-        const char* ukey_base64,
-        const char* aad_base64,
-        const char* olddatakey_base64);
+char* NAPI_ExportDataKey(const char* paramJson);
 
 /*
 @return
@@ -181,8 +171,7 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
         }
     }
 */
-char* NAPI_Sign(const char* cmk_base64,
-        const char* digest_base64);
+char* NAPI_Sign(const char* paramJson);
 
 /*
 @return
@@ -195,9 +184,7 @@ char* NAPI_Sign(const char* cmk_base64,
         }
     }
 */
-char* NAPI_Verify(const char* cmk_base64,
-        const char* digest_base64,
-        const char* signature_base64);
+char* NAPI_Verify(const char* paramJson);
 
 /*
  *  @param p_msg0 : msg0 json string

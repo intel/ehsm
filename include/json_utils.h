@@ -222,10 +222,10 @@ public:
         return pJsonParser->parse(jsonStr, m_json);
     }
 
-    void parse(char *jsonChar)
+    bool parse(char *jsonChar)
     {
         std::string jsonStr = jsonChar;
-        parse(jsonStr);
+        return parse(jsonStr);
     }
 
     char *readData_cstr(std::string key)

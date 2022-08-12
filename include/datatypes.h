@@ -38,22 +38,15 @@
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
-#define DH_KEY_SIZE        20
 #define NONCE_SIZE         16
 #define MAC_SIZE           16
 #define MAC_KEY_SIZE       16
-#define PADDING_SIZE       16
 
 #define EH_API_KEY_SIZE     32
 #define UUID_STR_LEN	   37
 
 #define TAG_SIZE        16
 #define IV_SIZE            12
-
-#define DERIVE_MAC_KEY      0x0
-#define DERIVE_SESSION_KEY  0x1
-#define DERIVE_VK1_KEY      0x3
-#define DERIVE_VK2_KEY      0x4
 
 #define CLOSED 0x0
 #define IN_PROGRESS 0x1
@@ -67,39 +60,20 @@
 
 #define ENCLAVE_TO_ENCLAVE_CALL 0x1
 
-#define INVALID_ARGUMENT                   -2   ///< Invalid function argument
-#define LOGIC_ERROR                        -3   ///< Functional logic error
-#define FILE_NOT_FOUND                     -4   ///< File not found
-
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
-
-#define VMC_ATTRIBUTE_MASK  0xFFFFFFFFFFFFFFCB
 
 #define _T(x) x
 
 #define UNUSED(val) (void)(val)
 
-#define TCHAR   char
-
-#define _TCHAR  char
-
-#define scanf_s scanf
-
-#define _tmain  main
-
 #ifndef INT_MAX
 #define INT_MAX     0x7fffffff
-#endif
-
-#ifndef SAFE_FREE
-#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}}
 #endif
 
 #ifndef _ERRNO_T_DEFINED
 #define _ERRNO_T_DEFINED
 typedef int errno_t;
 #endif
-
 
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
@@ -135,70 +109,85 @@ typedef struct _session_id_tracker_t
 } session_id_tracker_t;
 
 //sgx-ssl framework
-//aes
-typedef struct _aes_gcm_data_ex_t_new
-{
-    uint8_t   key_size;
-    uint8_t   key_block_mode;
 
-    uint32_t  ciphertext_size;
-    uint32_t  aad_size;
-    uint8_t   iv[SGX_AESGCM_IV_SIZE];
-    uint8_t   mac[SGX_AESGCM_MAC_SIZE];
-    uint8_t   payload[];   /* ciphertext + aad */
-} sgx_aes_gcm_data_ex_t_new;
+typedef struct {
+    uint32_t keyspec;
+    uint32_t origin;
+    uint32_t purpose;
+    uint32_t apiversion;
+    uint8_t  descrption[16];
+    uint8_t  createdate[8];
+} ehsm_keymetadata_t;
+
+typedef struct {
+    ehsm_keymetadata_t  metadata;       //common key properties
+    uint32_t            keybloblen;     
+    uint8_t             *keyblob;       //private key properties
+} ehsm_keyblob_t;
+
+//aes
+typedef struct
+{
+    uint8_t     key_size;
+
+    uint32_t    ciphertext_size;
+    uint32_t    aad_size;
+    uint8_t     iv[SGX_AESGCM_IV_SIZE];
+    uint8_t     mac[SGX_AESGCM_MAC_SIZE];
+    uint8_t     payload[];   /* ciphertext + aad */
+} aes_gcm_key_data_t;
 
 //rsa
-typedef struct _rsa_data_ex_t
+typedef struct
 {
     uint32_t    key_size;
     uint8_t     padding_mode;
     uint8_t     digest_mdoe;
     uint64_t    exponent;
 
-    uint8_t     * n;
-	uint8_t     * e;
-	uint8_t     * d;
-	uint8_t     * p;
-	uint8_t     * q;
-	uint8_t     * dmp1;
-	uint8_t     * dmq1;
-	uint8_t     * iqmp;
-} sgx_rsa_data_ex_t;
+    uint8_t     n[];
+	uint8_t     e[];
+	uint8_t     d[];
+	uint8_t     p[];
+	uint8_t     q[];
+	uint8_t     dmp1[];
+	uint8_t     dmq1[];
+	uint8_t     iqmp[];
+} rsa_key_data_t;
 
 //ec:
-typedef struct _ec_data_ex_t
+typedef struct 
 {
     uint8_t     key_size;
     uint8_t     digest_mdoe;
 
-    uint8_t     * r;
-    uint8_t     * gx;
-    uint8_t     * gy;
-} sgx_ec_data_ex_t;
+    uint8_t     r[];
+    uint8_t     gx[];
+    uint8_t     gy[];
+} ec_key_data_t;
 
 //hmac
-typedef struct _hmac_data_ex_t
+typedef struct
 {
     uint8_t     key_size;
     uint8_t     digest_mode;
 
-    uint8_t     * mac;
-    uint8_t     * key;
-} sgx_hmac_data_ex_t;
+    uint8_t     mac[];
+    uint8_t     key[];
+} hmac_key_data_t;
 
 //sm2
-typedef struct _sm2_data_ex_t
+typedef struct
 {
     uint8_t     digest_mdoe;
 
-    uint8_t     * r;
-    uint8_t     * gx;
-    uint8_t     * gy;
-} sgx_sm2_data_ex_t;
+    uint8_t     r[];
+    uint8_t     gx[];
+    uint8_t     gy[];
+} sm2_key_data_t;
 
 //sm4
-typedef struct _sm4_data_ex_t
+typedef struct 
 {
     uint8_t     key_size;
     uint8_t     padding_mode;
@@ -208,9 +197,40 @@ typedef struct _sm4_data_ex_t
     uint8_t     iv[SGX_AESGCM_IV_SIZE];
     uint8_t     mac[SGX_AESGCM_MAC_SIZE];
     uint8_t     payload[];   /* ciphertext + aad */
-} sgx_sm4_data_ex_t;
+} sm4_key_data_t;
+
+typedef enum {
+    EH_AES_GCM_128 = 0,
+    EH_AES_GCM_192,
+    EH_AES_GCM_256,
+    EH_RSA_2048,
+    EH_RSA_3072,
+    EH_EC_P224,
+    EH_EC_P256,
+    EH_EC_P384,
+    EH_EC_P512,
+    EH_EC_SM2,
+    EH_HMAC,
+    EH_SM4
+} ehsm_keyspec_t;
+
+typedef enum {
+    EH_RSA_PKCS1v2_OAEP = 0,
+    EH_RSA_PKCS1_v1_5,
+    EH_RSA_PKCS1v2_PSS,
+    EH_PKCS1_v1_5
+} ehsm_padding_mode_t;
+
+typedef enum {
+    EH_NONE = 0,
+    EH_MD5,
+    EH_SHA1,
+    EH_SHA_2_224,
+    EH_SHA_2_256,
+    EH_SHA_2_384,
+    EH_SHA_2_512
+} ehsm_digest_mode_t;
 
 #pragma pack(pop)
-
 
 #endif
