@@ -25,6 +25,14 @@ const {
 } = require('./key_management_apis')
 const {
   createSecret,
+  updateSecretDesc,
+  putSecretValue,
+  listSecretVersionIds,
+  listSecrets,
+  describeSecret,
+  deleteSecret,
+  getSecretValue,
+  restoreSecret
 } = require('./secret_manager_apis')
 const {
   generateQuote,
@@ -98,7 +106,11 @@ const GetRouter = async (p) => {
 
 const router = async (p) => {
   const { req, res, DB } = p
-  const { appid, payload } = req.body
+  const appid = req.body['appid']
+  let payload = req.body['payload']
+  if (payload == undefined) {
+    payload = {}
+  }
   const action = req.query.Action
   switch (action) {
     case enroll_apis.RA_GET_API_KEY:
@@ -241,13 +253,38 @@ const router = async (p) => {
       getQuotePolicy(res, appid, payload, DB)
       break
     case secret_manager_apis.CreateSecret:
-      createSecret(res, appid, payload, DB)
+      createSecret(res, appid, DB, payload)
+      break
+    case secret_manager_apis.UpdateSecretDesc:
+      updateSecretDesc(res, appid, DB, payload)
+      break
+    case secret_manager_apis.PutSecretValue:
+      putSecretValue(res, appid, DB, payload)
+      break
+    case secret_manager_apis.ListSecretVersionIds:
+      listSecretVersionIds(res, appid, DB, payload)
+      break
+    case secret_manager_apis.ListSecrets:
+      listSecrets(res, appid, DB, payload)
+      break
+    case secret_manager_apis.DescribeSecret:
+      describeSecret(res, appid, DB, payload)
+      break
+    case secret_manager_apis.DeleteSecret:
+      deleteSecret(res, appid, DB, payload)
+      break
+    case secret_manager_apis.GetSecretValue:
+      getSecretValue(res, appid, DB, payload)
+      break
+    case secret_manager_apis.RestoreSecret:
+      restoreSecret(res, appid, DB, payload)
       break
     default:
       res.send(_result(404, 'API Not Found', {}))
       break
   }
 }
+
 module.exports = {
   router,
   GetRouter

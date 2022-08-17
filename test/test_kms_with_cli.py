@@ -132,6 +132,7 @@ def no_bool_convert(pairs):
 
 def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     print('====================test_GenerateQuote_and_VerifyQuote start===========================')
+    # notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
     mr_enclave = '870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038';
     mr_signer = 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835';   
 

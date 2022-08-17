@@ -162,8 +162,8 @@ const verifyQuote = async (res, appid, payload, DB, action) => {
  * @param {String} appid : appid of user
  * @param {Object} DB : database controller
  * @param {Object} payload
- *          ==> {r}mr_enclave(String [1~1024]) : A string of length 64. eg. '870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038'
- *          ==> {r}mr_signer(String [1~1024]) : A string of length 64. eg. 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835'
+ *          ==> {r}mr_enclave(String [1~1024]) : stores the hash value of the enclave measurement. eg. '870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038'
+ *          ==> {r}mr_signer(String [1~1024]) : stores the hash value of the enclave author’s public key. eg. 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835'
  * @returns {Object}
  *          ==> {r}policyId(String) : a new policy ID. eg. '15ca0dd5-2d34-4221-a708-3171ffe6****'
  */
@@ -217,8 +217,8 @@ const uploadQuotePolicy = async (res, appid, payload, DB) => {
  *          ==> {r}policyId(String) : a policy ID. eg. '15ca0dd5-2d34-4221-a708-3171ffe6****'
  * @returns {Object}
  *          ==> {r}policyId(String) : a policy ID. eg. '15ca0dd5-2d34-4221-a708-3171ffe6****'
- *          ==> {r}mr_enclave(String) : A string of length 64. eg. '870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038'
- *          ==> {r}mr_signer(String) : A string of length 64. eg. 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835'
+ *          ==> {r}mr_enclave(String) : stores the hash value of the enclave measurement. eg. '870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038'
+ *          ==> {r}mr_signer(String) : stores the hash value of the enclave author’s public key. eg. 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835'
  */
 const getQuotePolicy = async (res, appid, payload, DB) => {
     try {
