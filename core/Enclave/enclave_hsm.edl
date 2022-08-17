@@ -129,6 +129,13 @@ enclave {
         public sgx_status_t enclave_get_rand([out, size=datalen] uint8_t *data,
                                                 uint32_t datalen);
 
+        public sgx_status_t enclave_verify_quote_policy([in, size=quote_len] uint8_t* quote, 
+                                                        uint32_t quote_len, 
+                                                        [in, size=mr_signer_good_len] const char* mr_signer_good, 
+                                                        uint32_t mr_signer_good_len, 
+                                                        [in, size=mr_enclave_good_len] const char* mr_enclave_good, 
+                                                        uint32_t mr_enclave_good_len);
+
         /* Interfaces for remote attestation */
         public sgx_status_t enclave_get_target_info([out] sgx_target_info_t* target_info);
 

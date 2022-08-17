@@ -956,11 +956,16 @@ void test_GenerateQuote_and_VerifyQuote()
     printf("============test_GenerateQuote_and_VerifyQuote start==========\n");
     char challenge[32] = "challenge123456";
     char nonce[16] = "nonce123456";
-
+    // the string generated after converting the value of mr_signer and mr_enclave to hexadecimal
+    // notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
+    // you can get mr_signer and mr_enclave through cmd: 
+    // "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
+    char mr_signer[65] = "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835";
+    char mr_enclave[65] = "3110bb76d4f73657fce77b148c04b2b59973fa7e8e77f4fbb6e433b58c88deb7";
     RetJsonObj retJsonObj;
     char* returnJsonChar = nullptr;
     char* quote_base64 = nullptr;
-
+    std::string input_nonce_base64 = base64_encode((const uint8_t*)nonce, sizeof(nonce)/sizeof(nonce[0]));
     returnJsonChar = NAPI_GenerateQuote(challenge);
     retJsonObj.parse(returnJsonChar);
     if(retJsonObj.getCode() != 200){
@@ -973,7 +978,7 @@ void test_GenerateQuote_and_VerifyQuote()
     quote_base64 = retJsonObj.readData_cstr("quote");
     printf("quote_base64 : %s\n", quote_base64);
 
-    returnJsonChar = NAPI_VerifyQuote(quote_base64, nonce);
+    returnJsonChar = NAPI_VerifyQuote(quote_base64, mr_signer, mr_enclave, input_nonce_base64.c_str());
     retJsonObj.parse(returnJsonChar);
     if(retJsonObj.getCode() != 200){
         printf("NAPI_VerifyQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());

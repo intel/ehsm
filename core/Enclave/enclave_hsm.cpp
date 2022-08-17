@@ -30,7 +30,9 @@
  */
 
 #include "enclave_hsm_t.h"
+#include "log_utils.h"
 #include "sgx_tseal.h"
+
 
 #include <string>
 #include <stdio.h>
@@ -41,6 +43,7 @@
 #include "sgx_utils.h"
 #include "sgx_tkey_exchange.h"
 
+using namespace std;
 typedef enum {
     EH_AES_GCM_128 = 0x00000000UL,
     EH_AES_GCM_256,
@@ -976,4 +979,48 @@ sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
     while(0);
 
     return ret;
+}
+
+/*
+ *  @brief check mr_signer and mr_enclave
+ *  @param quote quote data
+ *  @param quote_len the length of quote
+ *  @param mr_signer_good the mr_signer
+ *  @param mr_signer_good_len the length of mr_signer_good
+ *  @param mr_enclave_good the mr_enclave
+ *  @param mr_enclave_good_len the length of mr_enclave_good 
+ *  @return SGX_ERROR_INVALID_PARAMETER paramater is incorrect
+ *  @return SGX_ERROR_UNEXPECTED mr_signer or mr_enclave is invalid
+ */
+sgx_status_t enclave_verify_quote_policy(uint8_t* quote, uint32_t quote_len, 
+                            const char* mr_signer_good, uint32_t mr_signer_good_len, 
+                            const char* mr_enclave_good, uint32_t mr_enclave_good_len)
+{
+    if(quote == NULL || mr_signer_good == NULL || mr_enclave_good == NULL) {
+        printf("quote or mr_signer_good or mr_enclave_good is null");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    string mr_signer_str;
+    string mr_enclave_str;
+    char mr_signer_temp[3] = {0};
+    char mr_enclave_temp[3] = {0};
+    sgx_quote3_t *p_sgx_quote = (sgx_quote3_t *)quote;
+    for(int i = 0; i < SGX_HASH_SIZE; i++) {
+        snprintf(mr_signer_temp, sizeof(mr_signer_temp) , "%02x", p_sgx_quote->report_body.mr_signer.m[i]);
+        snprintf(mr_enclave_temp, sizeof(mr_enclave_temp), "%02x", p_sgx_quote->report_body.mr_enclave.m[i]);
+        mr_signer_str += mr_signer_temp;
+        mr_enclave_str += mr_enclave_temp;
+    }
+    if((mr_signer_str.size() != mr_signer_good_len) || 
+       (mr_enclave_str.size() != mr_enclave_good_len)) {
+        printf("mr_signer_str length is not same with mr_signer_good_len or\ 
+                mr_enclave_str length is not same with mr_enclave_good_len!\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+    if(strncmp(mr_signer_good, mr_signer_str.c_str(), mr_signer_str.size()) != 0 || 
+       strncmp(mr_enclave_good, mr_enclave_str.c_str(), mr_enclave_str.size()) != 0) {
+        printf("mr_signer or mr_enclave is invalid!\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+    return SGX_SUCCESS;
 }

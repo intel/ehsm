@@ -43,6 +43,7 @@
 
 #include "ehsm_marshal.h"
 #include "auto_version.h"
+#include "datatypes.h"
 
 using namespace std;
 using namespace EHsmProvider;
@@ -1537,6 +1538,8 @@ out:
 
 /*
  *  @param quote
+ *  @param mr_signer : base mr_signer.
+ *  @param mr_enclave : base mr_enclave.
  *  @param nonce
  *  @return
  *  [string] json string
@@ -1549,11 +1552,11 @@ out:
  *          }
  *      }
  */
-char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce)
+char* NAPI_VerifyQuote(const char *quote_base64, const char *mr_signer, const char *mr_enclave, const char *nonce_base64)
 {
     RetJsonObj retJsonObj;
 
-    if (quote_base64 == NULL || nonce == NULL) {
+    if (quote_base64 == NULL || nonce_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
         return retJsonObj.toChar();
@@ -1562,21 +1565,17 @@ char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce)
     ehsm_status_t ret = EH_OK;
     sgx_ql_qv_result_t verifyresult;
     bool result = false;
-
     ehsm_data_t quote;
     memset(&quote, 0, sizeof(quote));
-
     string quote_str = base64_decode(quote_base64);
     quote.datalen = quote_str.size();
     quote.data = (uint8_t*)quote_str.data();
-
     if(quote.datalen == 0 || quote.datalen > EH_QUOTE_MAX_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("The quote's length is invalid.");
         goto out;
     }
-
-    ret = VerifyQuote(&quote, &verifyresult);
+    ret = VerifyQuote(&quote, mr_signer, mr_enclave, &verifyresult);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
@@ -1588,7 +1587,7 @@ char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce)
         result = true;
 
     retJsonObj.addData_bool("result", result);
-    retJsonObj.addData_string("nonce", nonce);
+    retJsonObj.addData_string("nonce", nonce_base64);
 
 out:
     return retJsonObj.toChar();

@@ -290,7 +290,7 @@ char* NAPI_GenerateQuote(const char *challenge);
  *          }
  *      }
  */
-char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce);
+char* NAPI_VerifyQuote(const char *quote_base64, const char *mr_signer, const char *mr_enclave, const char *nonce_base64);
 
 /*
  *  @return

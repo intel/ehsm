@@ -53,9 +53,23 @@
 
 #include "log_utils.h"
 
+using namespace std;
+
 void ocall_print_string(const char *str)
 {
     printf("%s", str);
+}
+
+errno_t memcpy_s(
+    void *dest,
+    size_t numberOfElements,
+    const void *src,
+    size_t count)
+{
+    if(numberOfElements<count)
+        return -1;
+    memcpy(dest, src, count);
+    return 0;
 }
 
 namespace EHsmProvider
@@ -939,6 +953,8 @@ ehsm_status_t GenerateQuote(ehsm_data_t *quote)
 }
 
 ehsm_status_t VerifyQuote(ehsm_data_t *quote,
+            const char *mr_signer,
+            const char *mr_enclave,
             sgx_ql_qv_result_t *result)
 {
     ehsm_status_t rc = EH_OK;
@@ -1012,7 +1028,23 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
 
     //set current time. This is only for sample use, please use trusted time in product.
     current_time = time(NULL);
+    // check mr_signer and mr_enclave
+    if((mr_signer != NULL &&  strncmp(mr_signer, " ", strlen(mr_signer)) != 0) || 
+       (mr_enclave != NULL && strncmp(mr_enclave, " ", strlen(mr_enclave)) != 0)) {
+        ret = enclave_verify_quote_policy(g_enclave_id, 
+                                          &sgxStatus, 
+                                          quote->data, 
+                                          quote->datalen, mr_signer, 
+                                          strlen(mr_signer), 
+                                          mr_enclave, 
+                                          strlen(mr_enclave));
+        if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+            rc = EH_DEVICE_MEMORY;
+            goto out;
+        }
+    }
 
+    
     //call DCAP quote verify library for quote verification with Intel QvE.
     dcap_ret = sgx_qv_verify_quote(
                                 quote->data,
