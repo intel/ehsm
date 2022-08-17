@@ -32,11 +32,14 @@
 #ifndef EHSM_RPOVIDER_H
 #define EHSM_PROVIDER_H
 
+#include <string>
 #include <stdint.h>
 
 #include "sgx_ukey_exchange.h"
 #include "sgx_tkey_exchange.h"
 #include "sample_ra_msg.h"
+
+using namespace std;
 
 #define _T(x) x
 
@@ -372,6 +375,8 @@ Output:
 result -- verification result with type sgx_ql_qv_result_t.
 */
 ehsm_status_t VerifyQuote(ehsm_data_t *quote,
+            const char *mr_signer,
+            const char *mr_enclave,
             sgx_ql_qv_result_t *result);
 
 /*

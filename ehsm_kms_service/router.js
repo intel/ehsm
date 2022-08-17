@@ -34,6 +34,12 @@ const {
   getSecretValue,
   restoreSecret
 } = require('./secret_manager_apis')
+const {
+  generateQuote,
+  verifyQuote,
+  uploadQuotePolicy,
+  getQuotePolicy
+} = require('./quote_manager_apis')
 /**
  *
  * @param {string} id (keyid|ukeyid)
@@ -235,34 +241,16 @@ const router = async (p) => {
       disableKey(appid, payload, res, DB)
       break
     case remote_attestation_apis.GenerateQuote:
-      try {
-        const { challenge } = payload
-        if (challenge) {
-          napi_res = napi_result(action, res, [challenge])
-          napi_res && res.send(napi_res)
-        } else {
-          res.send(_result(400, 'Empty challenge', {}))
-        }
-      } catch (error) { }
+      generateQuote(res, payload, action)
       break
     case remote_attestation_apis.VerifyQuote:
-      try {
-        const { quote, nonce } = payload
-        if (quote && nonce) {
-          napi_res = napi_result(action, res, [quote, nonce])
-          if (napi_res) {
-            let { error, hmac } = await gen_hmac(DB, appid, napi_res.result)
-            if (hmac.length > 0) {
-              napi_res.result.sign = hmac
-              res.send(napi_res)
-            } else {
-              res.send(_result(400, 'Internal error', {}))
-            }
-          } else {
-            res.send(_result(400, 'Empty quote or nonce ', {}))
-          }
-        }
-      } catch (error) { }
+      verifyQuote(res, appid, payload, DB, action)
+      break
+    case remote_attestation_apis.UploadQuotePolicy:
+      uploadQuotePolicy(res, appid, payload, DB)
+      break
+    case remote_attestation_apis.GetQuotePolicy:
+      getQuotePolicy(res, appid, payload, DB)
       break
     case secret_manager_apis.CreateSecret:
       createSecret(res, appid, DB, payload)

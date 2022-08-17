@@ -21,6 +21,8 @@ const enroll_apis = {
 const remote_attestation_apis = {
   GenerateQuote: 'GenerateQuote',
   VerifyQuote: 'VerifyQuote',
+  UploadQuotePolicy: 'UploadQuotePolicy',
+  GetQuotePolicy: 'GetQuotePolicy'
 }
 
 const key_management_apis = {

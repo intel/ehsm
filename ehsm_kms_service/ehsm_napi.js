@@ -253,16 +253,16 @@ const ehsm_napi = ffi.Library('./libehsmnapi', {
     (aka ExportedDataKey). This ExportedDataKey (ciphertext) will be returned to caller.
   params:
     - cmk_base64:
-        des: A symmetric cmk
+        desc: A symmetric cmk
         type: string
     - ukey_base64:
-        des: An asymmetric key
+        desc: An asymmetric key
         type: string
     - aad: 
-        des: some extra datas input by the user, which could help to to ensure data integrity
+        desc: some extra datas input by the user, which could help to to ensure data integrity
         type: string
     - olddatakey_base:
-        des: the ciphertext of the datakey wrapped by the cmk
+        desc: the ciphertext of the datakey wrapped by the cmk
         type: string
   return json
     {
@@ -280,7 +280,33 @@ const ehsm_napi = ffi.Library('./libehsmnapi', {
   NAPI_RA_GET_API_KEY: ['string', ['string']],
   NAPI_Enroll: ['string', []],
   NAPI_GenerateQuote: ['string', ['string']],
-  NAPI_VerifyQuote: ['string', ['string', 'string']],
+  /**
+  NAPI_VerifyQuote
+  Description:
+    Users are expected already got a valid DCAP format QUOTE. And it could use this API to send it to eHSM-KMS to do a quote verification.
+  params:
+    - quote_base64:
+        desc: A valid DCAP quote in BASE64 string.
+        type: string
+    - mr_signer:
+        desc: stores the hash value of the enclave author’s public key
+        type: string
+    - mr_enclave: 
+        desc: stores the hash value of the enclave measurement
+        type: string
+    - nonce_base64:
+        desc: 	A nonce in BASE64 string.
+        type: string
+  return json
+    {
+      code: int,
+      message: string,
+      result: {
+        cipher_datakey_new_base64: string
+      }
+    }
+  */
+  NAPI_VerifyQuote: ['string', ['string', 'string', 'string', 'string']],
   /**
     get version
   */
