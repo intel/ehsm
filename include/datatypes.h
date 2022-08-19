@@ -112,6 +112,8 @@ typedef struct _session_id_tracker_t
 
 typedef struct {
     uint32_t keyspec;
+    uint32_t digest_mdoe;
+    uint32_t padding_mdoe;
     uint32_t origin;
     uint32_t purpose;
     uint32_t apiversion;
@@ -128,8 +130,6 @@ typedef struct {
 //aes
 typedef struct
 {
-    uint8_t     key_size;
-
     uint32_t    ciphertext_size;
     uint32_t    aad_size;
     uint8_t     iv[SGX_AESGCM_IV_SIZE];
@@ -140,58 +140,33 @@ typedef struct
 //rsa
 typedef struct
 {
-    uint32_t    key_size;
-    uint8_t     padding_mode;
-    uint8_t     digest_mdoe;
-    uint64_t    exponent;
-
-    uint8_t     n[];
-	uint8_t     e[];
-	uint8_t     d[];
-	uint8_t     p[];
-	uint8_t     q[];
-	uint8_t     dmp1[];
-	uint8_t     dmq1[];
-	uint8_t     iqmp[];
+    char* rsa_private_key;
+    char* rsa_public_key;
 } rsa_key_data_t;
 
 //ec:
 typedef struct 
 {
-    uint8_t     key_size;
-    uint8_t     digest_mdoe;
-
-    uint8_t     r[];
-    uint8_t     gx[];
-    uint8_t     gy[];
+    char* ec_private_key;
+    char* ec_public_key;
+    char* ec_parameters;
 } ec_key_data_t;
 
 //hmac
 typedef struct
 {
-    uint8_t     key_size;
-    uint8_t     digest_mode;
-
-    uint8_t     mac[];
-    uint8_t     key[];
+    //temporary
 } hmac_key_data_t;
 
 //sm2
 typedef struct
 {
-    uint8_t     digest_mdoe;
-
-    uint8_t     r[];
-    uint8_t     gx[];
-    uint8_t     gy[];
+    //temporary
 } sm2_key_data_t;
 
 //sm4
 typedef struct 
 {
-    uint8_t     key_size;
-    uint8_t     padding_mode;
-
     uint32_t    ciphertext_size;
     uint32_t    aad_size;
     uint8_t     iv[SGX_AESGCM_IV_SIZE];

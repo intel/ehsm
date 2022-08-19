@@ -42,18 +42,10 @@
 #include "sgx_tkey_exchange.h"
 
 #include "datatypes.h"
-
-typedef enum {
-    EH_AES_GCM_128 = 0x00000000UL,
-    EH_AES_GCM_256,
-    EH_RSA_2048,
-    EH_RSA_3072,
-    EH_EC_P256,
-    EH_EC_P512,
-    EH_EC_SM2,
-    EH_SM4,
-} ehsm_keyspec_t;
-
+#include "openssl/rsa.h"
+#include "openssl/evp.h"
+#include "openssl/bio.h"
+#include "openssl/pem.h"
 
 #define SGX_AES_KEY_SIZE 16
 
@@ -143,25 +135,12 @@ uint8_t GetPaddingMode(ehsm_keyblob_t cmk)
 const EVP_MD* GetDigestMode(ehsm_keyblob_t cmk)
 {
     //TODO: return EVP_MD function
-    switch (keyblob.digestMode)
-    {
-        case EH_SHA1:
-            return EVP_sha1; 
-        //TODO
-    }
-}
-
-/**
- * @brief Get the rsa public exponent from cmk
- * rsa key only
- * 
- * @param cmk use the keyblob passed in by cmk to get the struct for key
- * @return uint64_t, the prime number from 3 to 2^64-1
- */
-uint64_t GetRsaExponent(ehsm_keyblob_t cmk)
-{
-    //TODO: return rsa public exponent from keyblob
-
+    // switch (keyblob.digestMode)
+    // {
+    //     case EH_SHA1:
+    //         return EVP_sha1; 
+    //     //TODO
+    // }
 }
 
 /**
@@ -171,37 +150,14 @@ uint64_t GetRsaExponent(ehsm_keyblob_t cmk)
  * @param cmk use the keyblob passed in by cmk to get the struct for key
  * @return const CHIPER* (openssl callback, tempoary)
  */
-const CHIPER* GetAesGcmBlockMode(aes_gcm_key_data_t &keyblob)
-{
-    //TODO: return EVP method
-}
+// const CHIPER* GetAesGcmBlockMode(aes_gcm_key_data_t &keyblob)
+// {
+//     //TODO: return EVP method
+// }
 
 //TODO: get other parameters
 
-static uint32_t sgx_calc_gcm_data_size(const uint32_t aad_size, const uint32_t plaintext_size)
-{
-    if (aad_size > UINT32_MAX - sizeof(aes_gcm_key_data_t))
-        return UINT32_MAX;
 
-    if (plaintext_size > UINT32_MAX - sizeof(aes_gcm_key_data_t))
-        return UINT32_MAX;
-
-    if (aad_size > UINT32_MAX - plaintext_size)
-        return UINT32_MAX;
-
-    if (sizeof(aes_gcm_key_data_t) > UINT32_MAX - plaintext_size - aad_size)
-        return UINT32_MAX;
-
-    return (aad_size + plaintext_size + sizeof(aes_gcm_key_data_t));
-}
-
-static uint32_t sgx_get_gcm_ciphertext_size(const aes_gcm_key_data_t *gcm_data)
-{
-    if (NULL == gcm_data)
-        return UINT32_MAX;
-
-    return gcm_data->ciphertext_size;
-}
 
 /**
  * @brief encrypt the key with sgx_rijndael128GCM_encrypt
@@ -209,12 +165,35 @@ static uint32_t sgx_get_gcm_ciphertext_size(const aes_gcm_key_data_t *gcm_data)
  * sgx_rijndael128GCM_encrypt() is running in enclave
  * 
  */
-static sgx_status_t sgx_gcm_encrypt(/* param */)
+static sgx_status_t sgx_gcm_encrypt(const sgx_aes_gcm_128bit_key_t *key,
+                                    const uint32_t plaintext_size, const uint8_t *plaintext,
+                                    const uint32_t aad_size, const uint8_t *aad,
+                                    const uint32_t gcm_data_size, aes_gcm_key_data_t *gcm_data)
 {
-    //TODO: call sgx_rijndael128GCM_encrypt()
-    
-    sgx_status_t ret;
-    
+    uint32_t real_aad_size = aad_size;
+    if (NULL == aad)
+        real_aad_size = 0;
+
+    sgx_status_t ret = sgx_read_rand(gcm_data->iv, sizeof(gcm_data->iv));
+    if (ret != SGX_SUCCESS) {
+        printf("error generating iv.\n");
+        return ret;
+    }
+
+    ret = sgx_rijndael128GCM_encrypt(key,
+                                     plaintext, plaintext_size,
+                                     gcm_data->payload,
+                                     gcm_data->iv, sizeof(gcm_data->iv),
+                                     &(gcm_data->payload[gcm_data->ciphertext_size]), real_aad_size,
+                                     reinterpret_cast<uint8_t (*)[16]>(gcm_data->mac));
+    if (SGX_SUCCESS != ret) {
+        printf("gcm encrypting failed.\n");
+    }
+    else {
+        gcm_data->ciphertext_size = plaintext_size;
+        gcm_data->aad_size = real_aad_size;
+    }
+
     return ret;
 }
 
@@ -238,11 +217,25 @@ static sgx_status_t sgx_gcm_decrypt(/* param */)
  * running in enclave
  * 
  */
-sgx_status_t enclave_create_aes_key(/* param */)
+sgx_status_t enclave_create_aes_key(uint8_t *cmk_blob, uint32_t cmk_blob_size)
 {
     //TODO: create aes_gcm key
-    sgx_status_t ret;
-    ret = sgx_gcm_encrypt(/* param */);
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    // uint8_t* tmp = (uint8_t *)malloc(cmk_blob->key_size);
+    // if (tmp == NULL)
+    //     return SGX_ERROR_OUT_OF_MEMORY;
+
+    // ret = sgx_read_rand(tmp, cmk_blob->key_size);
+    // if (ret != SGX_SUCCESS) {
+    //     free(tmp);
+    //     return ret;
+    // }
+    // ret = sgx_gcm_encrypt(&g_domain_key, cmk_blob->key_size, tmp, 0, NULL, cmk_blob_size, (sgx_aes_gcm_data_ex_t *)cmk_blob);
+
+    // memset_s(tmp, cmk_blob->key_size, 0, cmk_blob->key_size);
+
+    // free(tmp);
 
     return ret;
 }
@@ -252,13 +245,38 @@ sgx_status_t enclave_create_aes_key(/* param */)
  * running in enclave
  * 
  */
-sgx_status_t enclave_create_rsa_key(/* param */)
+sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob, uint32_t cmk_blob_size)
 {
-    //TODO: create rsa key
-    sgx_status_t ret;
-    ret = sgx_gcm_encrypt(/* param */);
+    //temporary code
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    rsa_key_data_t *keyblob = (rsa_key_data_t *)cmk_blob;
+    
+    RSA *rsa = RSA_new();
+    BIGNUM *bne = BN_new();
+    BN_set_word(bne, RSA_F4);
+    RSA_generate_key_ex(rsa, 3072/*need to get keysize here*/, bne, nullptr);
 
-    return ret;
+    BIO *public_key = BIO_new(BIO_s_mem());
+    BIO *private_key = BIO_new(BIO_s_mem());
+
+    PEM_write_bio_RSAPrivateKey(private_key, rsa, NULL, NULL/*No encryption method has been specified*/, 0, NULL, &g_domain_key);
+    PEM_write_bio_RSAPublicKey(public_key, rsa);
+    
+    size_t public_key_len = BIO_pending(public_key);
+    size_t private_key_len = BIO_pending(private_key);
+    char* p_public_key = new char[public_key_len];
+    char* p_private_key = new char[private_key_len];
+    
+    BIO_read(public_key, p_public_key, public_key_len);
+    BIO_read(private_key, p_private_key, private_key_len);
+
+    keyblob->rsa_private_key = p_private_key;
+    keyblob->rsa_public_key = p_public_key;
+
+    delete [] p_public_key;
+    delete [] p_private_key;
+
+    return SGX_SUCCESS;
 }
 
 /**
@@ -270,7 +288,7 @@ sgx_status_t enclave_create_ec_key(/* param */)
 {
     //TODO: create ec key
     sgx_status_t ret;
-    ret = sgx_gcm_encrypt(/* param */);
+    // ret = sgx_gcm_encrypt(/* param */);
 
     return ret;
 }
@@ -284,7 +302,7 @@ sgx_status_t enclave_create_hmac_key(/* param */)
 {
     //TODO: create hmac key
     sgx_status_t ret;
-    ret = sgx_gcm_encrypt(/* param */);
+    // ret = sgx_gcm_encrypt(/* param */);
 
     return ret;
 }
@@ -294,11 +312,11 @@ sgx_status_t enclave_create_hmac_key(/* param */)
  * running in enclave
  * 
  */
-sgx_status_t enclave_create_sm2_key(uint8_t *cmk_blob, uint32_t cmk_blob_size, uint32_t *req_blob_size)
+sgx_status_t enclave_create_sm2_key(/* param */)
 {
     //TODO: create sm2 key
     sgx_status_t ret;
-    ret = sgx_gcm_encrypt(/* param */);
+    // ret = sgx_gcm_encrypt(/* param */);
 
     return ret;
 }
@@ -308,11 +326,11 @@ sgx_status_t enclave_create_sm2_key(uint8_t *cmk_blob, uint32_t cmk_blob_size, u
  * running in enclave
  * 
  */
-sgx_status_t enclave_create_sm4_key(uint8_t *cmk_blob, uint32_t cmk_blob_size, uint32_t *req_blob_size)
+sgx_status_t enclave_create_sm4_key(/* param */)
 {
     //TODO: create sm4 key
     sgx_status_t ret;
-    ret = sgx_gcm_encrypt(/* param */);
+    // ret = sgx_gcm_encrypt(/* param */);
 
     return ret;
 }
@@ -377,22 +395,43 @@ sgx_status_t enclave_sm4_decrypt(/* param */)
     return ret;
 }
 
-sgx_status_t enclave_rsa_encrypt(/* param */)
+sgx_status_t enclave_rsa_encrypt(const uint8_t *cmk_blob, const uint8_t *plaintext, uint32_t plaintext_len, uint8_t *ciphertext)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    //temporary ode
+    const rsa_key_data_t *temp_pub_key = (rsa_key_data_t *)cmk_blob;
 
-    //TODO: encrypt by rsa key
+    BIO *bio = BIO_new_mem_buf(temp_pub_key->rsa_public_key, -1);
 
-    return ret;
+    RSA* rsa = PEM_read_bio_RSAPublicKey(bio, NULL, NULL, NULL);
+
+    if(rsa == NULL)
+    {
+        printf("failed to load rsa key\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    RSA_public_encrypt(plaintext_len, plaintext, ciphertext, rsa, RSA_PKCS1_OAEP_PADDING);
+
+    return SGX_SUCCESS;
 }
 
-sgx_status_t enclave_rsa_decrypt(/* param */)
+sgx_status_t enclave_rsa_decrypt(const uint8_t *cmk_blob, const uint8_t *ciphertext, uint32_t ciphertext_len, uint8_t *plaintext)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    //temporary code
+    rsa_key_data_t *temp = (rsa_key_data_t*)cmk_blob;
 
-    //TODO: decrypt by rsa key
-    
-    return ret;
+    BIO *bio = BIO_new_mem_buf(temp->rsa_private_key, -1);
+    RSA *rsa = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, &g_domain_key);
+
+    if(rsa == NULL)
+    {
+        printf("failed to load rsa key\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    RSA_private_decrypt(ciphertext_len, ciphertext, plaintext, rsa, RSA_PKCS1_OAEP_PADDING);
+
+    return SGX_SUCCESS;
 }
 
 sgx_status_t enclave_sm2_decrypt(/* param */)
@@ -418,18 +457,18 @@ sgx_status_t enclave_generate_datakey(/* param */)
     //TODO: generate random number
 
     //TODO: encrypt key plaintext
-    switch(key_spec) {
-        case EH_AES_GCM_128:
-        case EH_AES_GCM_192:
-        case EH_AES_GCM_256:
-            //TODO: encrypt
-            break;
-        case EH_SM4:
-            /TODO: encrypt
-            break;
-        default:
-            return SGX_ERROR_INVALID_PARAMETER;
-    }
+    // switch(key_spec) {
+    //     case EH_AES_GCM_128:
+    //     case EH_AES_GCM_192:
+    //     case EH_AES_GCM_256:
+    //         //TODO: encrypt
+    //         break;
+    //     case EH_SM4:
+    //         //TODO: encrypt
+    //         break;
+    //     default:
+    //         return SGX_ERROR_INVALID_PARAMETER;
+    // }
 
     return ret;
 }

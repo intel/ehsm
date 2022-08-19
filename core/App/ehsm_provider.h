@@ -38,6 +38,7 @@
 #include "sgx_tkey_exchange.h"
 #include "sample_ra_msg.h"
 #include "datatypes.h"
+#include "json_utils.h"
 
 #define _T(x) x
 
@@ -112,74 +113,6 @@ ehsm_status_t Initialize();
 
 void Finalize();
 
-//sgx-ssl-param set
-
-/**
- * @brief Set the Padding Mode into keyblob
- * need to check validity
- * save the mode parameter by uint32_t
- * 
- * @tparam Keyblob the struct for cmk keyblob
- * @param paramJson pass in the parameters with json string
- * @param keyblob 
- * @return ehsm_status_t 
- */
-template <typename Keyblob>
-ehsm_status_t SetKeySize(JsonObj paramJson, Keyblob &keyblob)
-{
-    //TODO
-}
-
-/**
- * @brief Set the key size into keyblob
- * need to check validity
- * save the mode parameter by enum
- * 
- * @tparam Keyblob the struct for cmk keyblob
- * @param paramJson pass in the parameters with json string
- * @param keyblob 
- * @return ehsm_status_t 
- */
-template <typename Keyblob>
-ehsm_status_t SetPaddingMode(JsonObj paramJson, Keyblob &keyblob)
-{
-    //TODO : parameter check
-
-    //TODO : parameter set 
-    keyblob.paddingMode = paramJson.getPaddingMode();
-}
-
-/**
- * @brief Set the digest Mode into keyblob
- * need to check validity
- * save the mode parameter by enum
- * 
- * @tparam Keyblob the struct for cmk keyblob
- * @param paramJson pass in the parameters with json string
- * @param keyblob 
- * @return ehsm_status_t 
- */
-template <typename Keyblob>
-ehsm_status_t SetDigestMode(JsonObj paramJson, Keyblob &keyblob)
-{
-    //TODO
-}
-
-/**
- * @brief Set the rsa public exponent into key blob
- * need to check validity
- * save the mode parameter by uint64_t
- * 
- * @tparam Keyblob the struct for cmk keyblob
- * @param paramJson pass in the parameters with json string
- * @param keyblob 
- * @return ehsm_status_t 
- */
-ehsm_status_t SetRsaExponent(JsonObj paramJson, rsa_key_data_t &keyblob)
-{
-    //TODO
-}
-
 /**
  * @brief Create a Key object, get and storage the key parameter from @param paraJson
  * 
@@ -187,7 +120,7 @@ ehsm_status_t SetRsaExponent(JsonObj paramJson, rsa_key_data_t &keyblob)
  * @param paraJson Pass in the key parameter in the form of JSON string
  * @return ehsm_status_t 
  */
-ehsm_status_t CreateKey(ehsm_keyblob_t *cmk, ParaJsonObj paraJson);
+ehsm_status_t CreateKey(ehsm_keyblob_t *cmk, JsonObj paraJson);
 
 ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
         ehsm_data_t *plaintext,

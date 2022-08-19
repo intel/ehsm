@@ -56,6 +56,9 @@
 #include "datatypes.h"
 #include "json_utils.h"
 
+#include "openssl/evp.h"
+#include "openssl/rsa.h"
+
 void ocall_print_string(const char *str)
 {
     printf("%s", str);
@@ -134,6 +137,23 @@ void Finalize()
     sgx_destroy_enclave(g_enclave_id);
 }
 
+static uint32_t sgx_calc_gcm_data_size(const uint32_t aad_size, const uint32_t plaintext_size)
+{
+    if (aad_size > UINT32_MAX - sizeof(aes_gcm_key_data_t))
+        return UINT32_MAX;
+
+    if (plaintext_size > UINT32_MAX - sizeof(aes_gcm_key_data_t))
+        return UINT32_MAX;
+
+    if (aad_size > UINT32_MAX - plaintext_size)
+        return UINT32_MAX;
+
+    if (sizeof(aes_gcm_key_data_t) > UINT32_MAX - plaintext_size - aad_size)
+        return UINT32_MAX;
+
+    return (aad_size + plaintext_size + sizeof(aes_gcm_key_data_t));
+}
+
 /**
  * @brief Initialize the variables needed to generate the aes_gcm key
  * 
@@ -142,23 +162,32 @@ void Finalize()
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_aes_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJsonObj paramJson)
+sgx_status_t create_aes_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
 {
+    uint32_t key_size;
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
-
-        return;
+        
+        switch (cmk->metadata.keyspec)
+        {
+            case EH_AES_GCM_128:
+                key_size = 16;
+                break;
+            case EH_AES_GCM_192:
+                key_size = 24;
+                break;
+            case EH_AES_GCM_256:
+                key_size = 32;
+                break;
+            default:
+                return SGX_ERROR_INVALID_PARAMETER;
+        }
+        cmk->keybloblen = sgx_calc_gcm_data_size(0, key_size);
+        return SGX_SUCCESS;
     }
-    //TODO: calibration/set parameters
-    if(SetKeySize(paramJson, (aes_gcm_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-
-    //TODO: initialize variable
-
-    return enclave_create_aes_key(g_enclave_id, &sgxStatus, /*param*/);
+    
+    return enclave_create_aes_key(g_enclave_id, sgxStatus, cmk->keyblob, cmk->keybloblen);
 }
 
 /**
@@ -169,35 +198,30 @@ sgx_status_t create_aes_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJs
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_rsa_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJsonObj paramJson)
+sgx_status_t create_rsa_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
+        cmk->keybloblen = sgx_calc_gcm_data_size(0, sizeof(rsa_key_data_t));
 
-        return;
+        return SGX_SUCCESS;
     }
-    //TODO: calibration/set parameters
-    if(SetKeySize(paramJson, (rsa_key_data_t*)cmk->keyblob) != EH_OK)
+    uint32_t key_size;
+    switch (cmk->metadata.keyspec)
     {
-        return;
+        case EH_RSA_2048:
+            key_size = 256;
+            break;
+        case EH_RSA_3072:
+            key_size = 384;
+            break;
+        default:
+            return SGX_ERROR_INVALID_PARAMETER;
     }
-    if(SetPaddingMode(paramJson, (rsa_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-    if(SetDigestMode(paramJson, (rsa_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-    if(SetRsaExponent(paramJson, (rsa_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-
     //TODO: initialize variable
 
-    return enclave_create_rsa_key(g_enclave_id, &sgxStatus, /*param*/);
+    // return enclave_create_rsa_key(g_enclave_id, sgxStatus, cmk->keyblob);
 }
 
 /**
@@ -208,27 +232,18 @@ sgx_status_t create_rsa_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJs
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_ec_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJsonObj paramJson)
+sgx_status_t create_ec_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
 
-        return;
-    }
-    //TODO: calibration/set parameters
-    if(SetKeySize(paramJson, (ec_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-    if(SetDigestMode(paramJson, (ec_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
+        return SGX_SUCCESS;
     }
 
     //TODO: initialize variable
 
-    return enclave_create_ec_key(g_enclave_id, &sgxStatus, /*param*/);
+    // return enclave_create_ec_key(g_enclave_id, &sgxStatus, /*param*/);
 }
 
 /**
@@ -239,27 +254,17 @@ sgx_status_t create_ec_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJso
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_hmac_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJsonObj paramJson)
+sgx_status_t create_hmac_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
 
-        return;
+        return SGX_SUCCESS;
     }
-    //TODO: calibration/set parameters
-    if(SetKeySize(paramJson, (hmac_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-    if(SetDigestMode(paramJson, (hmac_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-
     //TODO: initialize variable
 
-    return enclave_create_hmac_key(g_enclave_id, &sgxStatus, /*param*/);
+    // return enclave_create_hmac_key(g_enclave_id, &sgxStatus, /*param*/);
 }
 
 /**
@@ -270,23 +275,17 @@ sgx_status_t create_hmac_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJ
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_sm2_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJsonObj paramJson)
+sgx_status_t create_sm2_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
 
-        return;
+        return SGX_SUCCESS;
     }
-    //TODO: calibration/set parameters
-    if(SetDigestMode(paramJson, (sm2_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-
     //TODO: initialize variable
 
-    return enclave_create_hsm2_key(g_enclave_id, &sgxStatus, /*param*/);
+    // return enclave_create_hsm2_key(g_enclave_id, &sgxStatus, /*param*/);
 }
 
 /**
@@ -297,27 +296,17 @@ sgx_status_t create_sm2_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJs
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_sm4_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJsonObj paramJson)
+sgx_status_t create_sm4_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
 
-        return;
+        return SGX_SUCCESS;
     }
-    //TODO: calibration/set parameters
-    if(SetKeySize(paramJson, (sm4_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-    if(SetPaddingMode(paramJson, (sm4_key_data_t*)cmk->keyblob) != EH_OK)
-    {
-        return;
-    }
-
     //TODO: initialize variable
 
-    return enclave_create_sm2_key(g_enclave_id, &sgxStatus, /*param*/);
+    // return enclave_create_sm2_key(g_enclave_id, &sgxStatus, /*param*/);
 }
 
 /**
@@ -327,7 +316,7 @@ sgx_status_t create_sm4_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ParaJs
  * @param paraJson Pass in the key parameter in the form of JSON string
  * @return ehsm_status_t 
  */
-ehsm_status_t CreateKey(ehsm_keyblob_t *cmk, ParaJsonObj paramJson)
+ehsm_status_t CreateKey(ehsm_keyblob_t *cmk, JsonObj paramJson)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -343,26 +332,26 @@ ehsm_status_t CreateKey(ehsm_keyblob_t *cmk, ParaJsonObj paramJson)
         case EH_AES_GCM_128:
         case EH_AES_GCM_192:
         case EH_AES_GCM_256:
-            ret = create_aes_key(&sgxStatus, &cmk, paramJson);
+            ret = create_aes_key(&sgxStatus, cmk, paramJson);
             break;
         case EH_RSA_2048:
         case EH_RSA_3072:
-            ret = create_rsa_key(&sgxStatus, &cmk, paramJson);
+            ret = create_rsa_key(&sgxStatus, cmk, paramJson);
             break;
         case EH_EC_P224:
         case EH_EC_P256:
         case EH_EC_P384:
         case EH_EC_P512:
-            ret = create_ec_key(&sgxStatus, &cmk, paramJson);
+            ret = create_ec_key(&sgxStatus, cmk, paramJson);
             break;
         case EH_EC_SM2:
-            ret = create_sm2_key(&sgxStatus, &cmk, paramJson);
+            ret = create_sm2_key(&sgxStatus, cmk, paramJson);
             break;
         case EH_HMAC:
-            ret = create_hmac_key(&sgxStatus, &cmk, paramJson);
+            ret = create_hmac_key(&sgxStatus, cmk, paramJson);
             break;
         case EH_SM4:
-            ret = create_sm4_key(&sgxStatus, &cmk, paramJson);
+            ret = create_sm4_key(&sgxStatus, cmk, paramJson);
             break;
         default:
             return EH_KEYSPEC_INVALID;
@@ -387,12 +376,12 @@ ehsm_status_t CreateKey(ehsm_keyblob_t *cmk, ParaJsonObj paramJson)
 sgx_status_t aes_encrypt(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ehsm_data_t *plaintext, ehsm_data_t *aad, ehsm_data_t *ciphertext)
 {
     //TODO: get parameters
-    uint8_t key_size = GetKeySize(cmk);
-    const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
+    // uint8_t key_size = GetKeySize(cmk);
+    // const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
 
     //TODO: initialize variable
 
-    enclave_aes_encrypt(g_enclave_id, &sgxStatus, /* param */);
+    // enclave_aes_encrypt(g_enclave_id, &sgxStatus, /* param */);
 }
 
 /**
@@ -408,12 +397,12 @@ sgx_status_t aes_encrypt(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ehsm_data
 sgx_status_t sm4_encrypt(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ehsm_data_t *plaintext, ehsm_data_t *aad, ehsm_data_t *ciphertext)
 {
     //TODO: get parameters
-    uint8_t key_size = GetKeySize(cmk);
-    const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
+    // uint8_t key_size = GetKeySize(cmk);
+    // const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
 
     //TODO: initialize variable
 
-    enclave_sm4_encrypt(g_enclave_id, &sgxStatus, /* param */);
+    // enclave_sm4_encrypt(g_enclave_id, &sgxStatus, /* param */);
 }
 
 sgx_status_t rsa_encrypt(/* param */)
@@ -422,7 +411,7 @@ sgx_status_t rsa_encrypt(/* param */)
 
     //TODO: initialize variable
 
-    enclave_rsa_encrypt(/* param */);
+    // enclave_rsa_encrypt(/* param */);
 }
 
 sgx_status_t sm2_encrypt(/* param */)
@@ -431,7 +420,7 @@ sgx_status_t sm2_encrypt(/* param */)
 
     //TODO: initialize variable
 
-    enclave_sm2_encrypt(/* param */);
+    // enclave_sm2_encrypt(/* param */);
 }
 
 ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
@@ -449,10 +438,10 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
         case EH_AES_GCM_128:
         case EH_AES_GCM_192:
         case EH_AES_GCM_256:
-            ret = aes_encrypt(&sgxStatus, &cmk, &plaintext, &aad, &ciphertext);
+            ret = aes_encrypt(&sgxStatus, cmk, plaintext, aad, ciphertext);
             break;
         case EH_SM4:
-            ret = sm4_encrypt(&sgxStatus, &cmk, &plaintext, &aad, &ciphertext);
+            ret = sm4_encrypt(&sgxStatus, cmk, plaintext, aad, ciphertext);
             break;
         default:
             return EH_KEYSPEC_INVALID;
@@ -495,12 +484,12 @@ sgx_status_t aes_decrypt(/* param */)
 {
     //TODO: get parameters
     //get openssl callback function and other parameter and send into enclave
-    uint8_t key_size = GetKeySize(cmk);
-    const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
+    // uint8_t key_size = GetKeySize(cmk);
+    // const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
 
     //TODO: initialize variable
 
-    enclave_aes_decrypt(/* param */);
+    // enclave_aes_decrypt(/* param */);
 }
 
 sgx_status_t rsa_decrypt(/* param */)
@@ -509,7 +498,7 @@ sgx_status_t rsa_decrypt(/* param */)
 
     //TODO: initialize variable
 
-    enclave_rsa_decrypt(/* param */);
+    // enclave_rsa_decrypt(/* param */);
 }
 
 sgx_status_t sm2_decrypt(/* param */)
@@ -518,19 +507,19 @@ sgx_status_t sm2_decrypt(/* param */)
 
     //TODO: initialize variable
 
-    enclave_sm2_decrypt(/* param */);
+    // enclave_sm2_decrypt(/* param */);
 }
 
 sgx_status_t sm4_decrypt(/* param */)
 {
     //TODO: get parameters
     //get openssl callback function and other parameter and send into enclave
-    uint8_t key_size = GetKeySize(cmk);
-    const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
+    // uint8_t key_size = GetKeySize(cmk);
+    // const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
 
     //TODO: initialize variable
 
-    enclave_sm4_decrypt(/* param */);
+    // enclave_sm4_decrypt(/* param */);
 }
 
 ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
@@ -598,7 +587,7 @@ sgx_status_t rsa_sign(/* param */)
 
     //TODO: initialize variable
 
-    enclave_rsa_sign(/* param */);
+    // enclave_rsa_sign(/* param */);
 }
 
 sgx_status_t ec_sign(/* param */)
@@ -609,7 +598,7 @@ sgx_status_t ec_sign(/* param */)
 
     //TODO: initialize variable
 
-    enclave_ec_sign(/* param */);
+    // enclave_ec_sign(/* param */);
 }
 
 sgx_status_t sm2_sign(/* param */)
@@ -620,7 +609,7 @@ sgx_status_t sm2_sign(/* param */)
 
     //TODO: initialize variable
 
-    enclave_sm2_sign(/* param */);
+    // enclave_sm2_sign(/* param */);
 }
 
 ehsm_status_t Sign(ehsm_keyblob_t *cmk,
@@ -663,7 +652,7 @@ sgx_status_t rsa_verify(/* param */)
 
     //TODO: initialize variable
 
-    enclave_rsa_verify(/* param */);
+    // enclave_rsa_verify(/* param */);
 }
 
 sgx_status_t ec_verify(/* param */)
@@ -674,7 +663,7 @@ sgx_status_t ec_verify(/* param */)
 
     //TODO: initialize variable
 
-    enclave_ec_verify(/* param */);
+    // enclave_ec_verify(/* param */);
 }
 
 sgx_status_t sm2_verify(/* param */)
@@ -685,7 +674,7 @@ sgx_status_t sm2_verify(/* param */)
 
     //TODO: initialize variable
 
-    enclave_sm2_verify(/* param */);
+    // enclave_sm2_verify(/* param */);
 }
 
 ehsm_status_t Verify(ehsm_keyblob_t *cmk,
@@ -726,7 +715,7 @@ sgx_status_t generate_datakey(/* param */)
     //TODO: get parameters
 
     //TODO: using switch-case in enclave, to use different encryption method for key plaintext
-    enclave_generate_datakey(/* param */)
+    // enclave_generate_datakey(/* param */)
 }
 
 /**
@@ -780,7 +769,7 @@ sgx_status_t export_rsa_datakey(/* param */)
 
     //TODO: initialize variable
     
-    enclave_export_rsa_datakey(/* param */);
+    // enclave_export_rsa_datakey(/* param */);
 }
 
 sgx_status_t export_ec_datakey(/* param */)
@@ -789,7 +778,7 @@ sgx_status_t export_ec_datakey(/* param */)
 
     //TODO: initialize variable
 
-    enclave_export_ec_datakey(/* param */);
+    // enclave_export_ec_datakey(/* param */);
 }
 
 ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,

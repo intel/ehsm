@@ -102,6 +102,9 @@ char* NAPI_CreateKey(const char* paramJson)
     RetJsonObj retJsonObj;
     ehsm_status_t ret = EH_OK;
     ehsm_keyblob_t master_key;
+    string cmk_base64;
+    uint8_t *resp = NULL;
+    uint32_t resp_len = 0;
 
     // parse paramJson into paramJsonObj
     JsonObj paramJsonObj;
@@ -114,10 +117,7 @@ char* NAPI_CreateKey(const char* paramJson)
 
     memset(&master_key, 0, sizeof(master_key));
 
-    string cmk_base64;
-
-    uint8_t *resp = NULL;
-    uint32_t resp_len = 0;
+    
 
     // storage common key properties into metadata of master_key 
     master_key.metadata.keyspec = paramJsonObj.readData_uint16("keyspec");
@@ -425,7 +425,7 @@ char* NAPI_GenerateDataKey(const char* paramJson)
     JsonObj paramJsonObj;
     paramJsonObj.parse(paramJson);
     char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
-    char* keylen = paramJsonObj.readData_uint32("keylen");
+    uint32_t keylen = paramJsonObj.readData_uint32("keylen");
     char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
 
     if (cmk_base64 == NULL) {
@@ -558,7 +558,7 @@ char* NAPI_GenerateDataKeyWithoutPlaintext(const char* paramJson)
     JsonObj paramJsonObj;
     paramJsonObj.parse(paramJson);
     char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
-    char* keylen = paramJsonObj.readData_uint32("keylen");
+    uint32_t keylen = paramJsonObj.readData_uint32("keylen");
     char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
 
     if (cmk_base64 == NULL) {
