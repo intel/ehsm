@@ -1,0 +1,22 @@
+{
+  "name": "ehsm_kms_service",
+  "version": "1.0.0",
+  "description": "ehsm kms service",
+  "main": "ehsm_kms_server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ehsm_kms_server.js"
+  },
+  "keywords": [
+    "ehsm"
+  ],
+  "author": "intel",
+  "license": "BSD",
+  "dependencies": {
+    "express": "^4.17.1",
+    "ffi-napi": "^4.0.3",
+    "log4js": "^6.3.0",
+    "nano": "^9.0.5",
+    "uuid": "^8.3.2"
+  }
+}
