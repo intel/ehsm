@@ -52,9 +52,26 @@ destory the enclave
 */
 void NAPI_Finalize();
 
-/*
-@return
-[string] json string
+/**
+ * @brief Create key and save the parameters when using the key for encrypt, decrypt, sign and verify
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string,
+            keyspec : int,
+            purpose : int,
+            origin : int,
+            padding_mode : int,
+            digest_mode : int
+        }
+    }
+ * 
+ * @return char* 
+ * [string] json string
     {
         code: int,
         message: string,
@@ -62,142 +79,254 @@ void NAPI_Finalize();
             cmk_base64 : string
         }
     }
-*/
-char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin);
+ */
+char* NAPI_CreateKey(const char* paramJson);
 
-/*
-@return
-[string] json string
+/**
+ * @brief encrypt plaintext with specicied key
+ * this function is used for aes_gcm and sm4
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            cipherText_base64 : string
+            cmk_base64 : string,
+            plaintext_base64 : string,
+            add_base64 : string
         }
     }
-*/
-char* NAPI_Encrypt(const char* cmk_base64,
-        const char* plaintext_base64,
-        const char* aad_base64);
-
-/*
-@return
-[string] json string
+ *
+ * @return char* 
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            plaintext_base64 : string
+            cmk_base64 : string
         }
     }
-*/
-char* NAPI_Decrypt(const char* cmk_base64,
-        const char* ciphertext_base64,
-        const char* aad_base64);
+ */
+char* NAPI_Encrypt(const char* paramJson);
 
-/*
-@return
-[string] json string
+/**
+ * @brief decrypt ciphertext with specicied key
+ * this function is used for aes_gcm and sm4
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
+            cmk_base64 : string,
+            ciphertext_base64 : string,
+            add_base64 : string
+        }
+    }
+ *   
+ * @return char* 
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_Decrypt(const char* paramJson);
+
+/**
+ * @brief encrypt plaintext with specicied key
+ * this function is used for aes_gcm and sm4
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string,
+            plaintext_base64 : string,
+        }
+    }
+ *
+ * @return char* 
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_AsymmetricEncrypt(const char* paramJson);
+
+/**
+ * @brief decrypt ciphertext with specicied key
+ * this function is used for aes_gcm and sm4
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string,
             ciphertext_base64 : string,
         }
     }
-*/
-char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
-    const char* plaintext_base64);
-
-/*
-@return
-[string] json string
+ *   
+ * @return char* 
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            plaintext_base64 : string,
+            cmk_base64 : string
         }
     }
-*/
-char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
-        const char* ciphertext_base64);
+ */
+char* NAPI_AsymmetricDecrypt(const char* paramJson);
 
-/*
-@return
-[string] json string
+/**
+ * @brief generate key and encrypt with specicied function
+ * only support symmetric key
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            plaintext_base64 : string,
-            cipherText_base64 : string
+            cmk_base64 : string,
+            keylen : int,
+            aad_base64 : string
         }
     }
-*/
-char* NAPI_GenerateDataKey(const char* cmk_base64,
-        const uint32_t keylen,
-        const char* aad_base64);
-
-/*
-@return
-[string] json string
+ *   
+ * @return char* return value have key plaintext and ciphertext
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            ciphertext_base64 : string
+            cmk_base64 : string
         }
     }
-*/
-char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
-        const uint32_t keylen,
-        const char* aad_base64);
+ */
+char* NAPI_GenerateDataKey(const char* paramJson);
 
-/*
-@return
-[string] json string
+/**
+ * @brief generate key and encrypt with specicied function
+ * only support symmetric key
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            newdatakey_base64 : string,
+            cmk_base64 : string,
+            keylen : int,
+            aad_base64 : string
         }
     }
-*/
-char* NAPI_ExportDataKey(const char* cmk_base64,
-        const char* ukey_base64,
-        const char* aad_base64,
-        const char* olddatakey_base64);
-
-/*
-@return
-[string] json string
+ *   
+ * @return char* return value have key ciphertext only
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            signature_base64 : string
+            cmk_base64 : string
         }
     }
-*/
-char* NAPI_Sign(const char* cmk_base64,
-        const char* digest_base64);
+ */
+char* NAPI_GenerateDataKeyWithoutPlaintext(const char* paramJson);
 
-/*
-@return
-[string] json string
+/**
+ * @brief pass in a key to decrypt the data key
+ * use after NAPI_GenerateDataKeyWithoutPlaintext
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            result : bool
+            cmk_base64 : string,
+            ukey_base64 : string,
+            aad_base64 : string,
+            olddatakey_base64 : string
         }
     }
-*/
-char* NAPI_Verify(const char* cmk_base64,
-        const char* digest_base64,
-        const char* signature_base64);
+ * 
+ * @return char*
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_ExportDataKey(const char* paramJson);
+
+/**
+ * @brief create key sign with rsa/ec/sm2
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ * 
+ * @return char*
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_Sign(const char* paramJson);
+
+/**
+ * @brief verify key sign
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string,
+            signature_base64 ： string
+        }
+    }
+ * 
+ * @return char*
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_Verify(const char* paramJson);
 
 /*
  *  @param p_msg0 : msg0 json string
@@ -290,7 +419,8 @@ char* NAPI_GenerateQuote(const char *challenge);
  *          }
  *      }
  */
-char* NAPI_VerifyQuote(const char *quote_base64, const char *nonce);
+char* NAPI_VerifyQuote(const char *quote_base64, const char *mr_signer, const char *mr_enclave, const char *nonce_base64);
+
 
 /*
  *  @return

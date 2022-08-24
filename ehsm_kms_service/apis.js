@@ -21,6 +21,8 @@ const enroll_apis = {
 const remote_attestation_apis = {
   GenerateQuote: 'GenerateQuote',
   VerifyQuote: 'VerifyQuote',
+  UploadQuotePolicy: 'UploadQuotePolicy',
+  GetQuotePolicy: 'GetQuotePolicy'
 }
 
 const key_management_apis = {
@@ -31,6 +33,18 @@ const key_management_apis = {
   DisableKey: 'DisableKey',
 }
 
+const secret_manager_apis = {
+  CreateSecret: 'CreateSecret',
+  UpdateSecretDesc: 'UpdateSecretDesc',
+  PutSecretValue: 'PutSecretValue',
+  ListSecretVersionIds: 'ListSecretVersionIds',
+  ListSecrets: 'ListSecrets',
+  DescribeSecret: 'DescribeSecret',
+  DeleteSecret: 'DeleteSecret',
+  GetSecretValue: 'GetSecretValue',
+  RestoreSecret: 'RestoreSecret'
+}
+
 const common_apis = {
   GetVersion: 'GetVersion'
 }
@@ -39,5 +53,6 @@ module.exports = {
   enroll_apis,
   key_management_apis,
   remote_attestation_apis,
-  common_apis
+  common_apis,
+  secret_manager_apis,
 }

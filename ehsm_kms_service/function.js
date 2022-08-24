@@ -37,9 +37,9 @@ const base64_decode = (base64_str) =>
   new Buffer.from(base64_str, 'base64').toString()
 const is_base64 = (base64_str) => {
   if (base64_str == undefined ||
-      typeof base64_str != 'string' ||
-      base64_str.length == 0 ||
-      (base64_str.length % 4) != 0) {
+    typeof base64_str != 'string' ||
+    base64_str.length == 0 ||
+    (base64_str.length % 4) != 0) {
     return false
   }
   return /^[a-zA-Z0-9\+\/]+(\={0,2})$/gi.test(base64_str)
@@ -203,7 +203,8 @@ function napi_result(action, res, params) {
     }
     // })
   } catch (e) {
-    res.send(_result(400, 'Parsing error'))
+    console.info('napi_result :: ', e)
+    res.send(_result(500, 'Server internal error, please contact the administrator.'))
     return false
   }
 }
@@ -264,8 +265,11 @@ const enroll_user_info = (action, DB, res, req) => {
   if (napi_res) {
     const { appid, apikey } = napi_res.result
     let cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
-    if (cmk_res) {
+    let sm_default_cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
+    if (cmk_res && sm_default_cmk_res) {
       const { cmk } = cmk_res.result
+      // create a default secret manager CMK for current appids
+      const sm_default_cmk = sm_default_cmk_res.result.cmk
       let apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [
         cmk,
         apikey,
@@ -278,6 +282,7 @@ const enroll_user_info = (action, DB, res, req) => {
           appid,
           apikey: ciphertext,
           cmk: cmk,
+          sm_default_cmk,
         })
           .then((r) => {
             res.send(_result(200, 'successful', { ...napi_res.result }))
@@ -286,6 +291,8 @@ const enroll_user_info = (action, DB, res, req) => {
             res.send(_result(400, 'enroll user info faild', e))
           })
       }
+    } else {
+      res.send(_result(400, 'enroll user info faild'))
     }
   }
 }
@@ -409,7 +416,7 @@ const _checkPayload = function (req, res) {
           return false
         }
         if (!is_base64(payload[key])) {
-          res.send(_result(400,  `${key} not a vailed base64 string`))
+          res.send(_result(400, `${key} not a vailed base64 string`))
           return false
         }
       }
@@ -468,17 +475,17 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       ip,
     }
     logger.info(JSON.stringify(_logData))
-    if ( ActionBypassList.includes(ACTION) ) {
+    if (ActionBypassList.includes(ACTION)) {
       next()
       return
     }
     const { appid, timestamp: nonce, timestamp, sign, payload } = req.body
-    if (
-      !appid ||
-      !timestamp ||
-      !sign ||
-      (ACTION !== key_management_apis[ACTION] && !payload)
-    ) {
+    if (!appid || !timestamp || !sign) {
+      res.send(_result(400, 'Missing required parameters'))
+      return
+    }
+    // cryptographic_apis must be has payload
+    if (ACTION === cryptographic_apis[ACTION] && !payload) {
       res.send(_result(400, 'Missing required parameters'))
       return
     }
@@ -526,7 +533,8 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       nonce_database[appid].unshift(nonce_data)
     }
 
-    if (ACTION !== key_management_apis[ACTION]) {
+    // check cryptographic_apis parameter
+    if (ACTION === cryptographic_apis[ACTION]) {
       // check payload
       const _checkPayload_res = _checkPayload(req, res, next)
       if (!_checkPayload_res) {
@@ -543,7 +551,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
           res.send(_result(400, result.error))
           return
         }
-        if (sign != result.hmac ) {
+        if (sign != result.hmac) {
           res.send(_result(400, 'sign error'))
           return
         } else {
@@ -566,7 +574,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
  * @param {NAPI_* function params} params
  * @returns napi result | false
  */
-function napi_result_local (action, params) {
+function napi_result_local(action, params) {
   try {
     const napi_res = ehsm_napi[`NAPI_${action}`](...params)
     let res = JSON.parse(napi_res)

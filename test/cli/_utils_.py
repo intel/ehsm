@@ -9,6 +9,10 @@ from hashlib import sha256
 from collections import OrderedDict
 import urllib.parse
 
+# For production environment, the web server should request a formally issued
+# cetificate, and change the below use_secure_cert to True.
+use_secure_cert = False
+
 # Using a dummy appid and app key
 appid='563173cf-f26d-4c74-82e1-a4105cf3fb48'
 apikey = 'xXH5nmw4J0NaKwKEJiKcxuJ859u1cwrE'
