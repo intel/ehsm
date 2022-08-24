@@ -27,7 +27,7 @@ def verify_quote(base_url, quote):
     f = open(quote_file, "r")
 
     payload["quote"] = quote
-    payload["nonce"] = "nonce12345"
+    payload["nonce"] = str(base64.b64encode("nonce12345".encode("utf-8")),'utf-8')
     params = _utils_.init_params(payload)
     print('verify_quote req:\n%s\n' %(params))
     resp = requests.post(url=base_url + "VerifyQuote", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
@@ -40,7 +40,7 @@ def verify_quote(base_url, quote):
 
     VerifyQuote_Result.pop('sign')
     ord_VerifyQuote_Result = OrderedDict(sorted(VerifyQuote_Result.items(), key=lambda k: k[0]))
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(ord_VerifyQuote_Result))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(ord_VerifyQuote_Result))
     sign = str(base64.b64encode(hmac.new(_utils_.apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))
 
@@ -50,7 +50,7 @@ def verify_quote_with_file(base_url, quote_file):
     f = open(quote_file, "r")
 
     payload["quote"] = f.read()
-    payload["nonce"] = "nonce12345"
+    payload["nonce"] = str(base64.b64encode("nonce12345".encode("utf-8")),'utf-8')
     params = _utils_.init_params(payload)
     print('verify_quote req:\n%s\n' %(params))
     resp = requests.post(url=base_url + "VerifyQuote", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
@@ -63,7 +63,7 @@ def verify_quote_with_file(base_url, quote_file):
 
     VerifyQuote_Result.pop('sign')
     ord_VerifyQuote_Result = OrderedDict(sorted(VerifyQuote_Result.items(), key=lambda k: k[0]))
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(ord_VerifyQuote_Result))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(ord_VerifyQuote_Result))
     sign = str(base64.b64encode(hmac.new(_utils_.apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))
 
@@ -74,7 +74,7 @@ def verify_quote_with_policyId(base_url, quote, policyId):
     f = open(quote_file, "r")
 
     payload["quote"] = quote
-    payload["nonce"] = "nonce12345"
+    payload["nonce"] = str(base64.b64encode("nonce12345".encode("utf-8")),'utf-8')
     payload["policyId"] = policyId
     params = _utils_.init_params(payload)
     print('verify_quote req:\n%s\n' %(params))
@@ -88,7 +88,7 @@ def verify_quote_with_policyId(base_url, quote, policyId):
 
     VerifyQuote_Result.pop('sign')
     ord_VerifyQuote_Result = OrderedDict(sorted(VerifyQuote_Result.items(), key=lambda k: k[0]))
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(ord_VerifyQuote_Result))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(ord_VerifyQuote_Result))
     sign = str(base64.b64encode(hmac.new(_utils_.apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))
 
@@ -98,7 +98,7 @@ def verify_quote_with_file_and_policyId(base_url, quote_file, policyId):
     f = open(quote_file, "r")
 
     payload["quote"] = f.read()
-    payload["nonce"] = "nonce12345"
+    payload["nonce"] = str(base64.b64encode("nonce12345".encode("utf-8")),'utf-8')
     payload["policyId"] = policyId
     params = _utils_.init_params(payload)
     print('verify_quote req:\n%s\n' %(params))
@@ -112,7 +112,7 @@ def verify_quote_with_file_and_policyId(base_url, quote_file, policyId):
 
     VerifyQuote_Result.pop('sign')
     ord_VerifyQuote_Result = OrderedDict(sorted(VerifyQuote_Result.items(), key=lambda k: k[0]))
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(ord_VerifyQuote_Result))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(ord_VerifyQuote_Result))
     sign = str(base64.b64encode(hmac.new(_utils_.apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))    
 

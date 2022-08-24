@@ -1,12 +1,7 @@
 const logger = require('./logger')
 const { v4: uuidv4 } = require('uuid')
 const {
-    QUOTE_LENGTH_MAX,
-    NONCE_LENGTH_MAX,
-    CHALLENGE_LENGTH_MAX,
-    UUID_LENGTH,
-    MR_ENCLAVE_LENGTH,
-    MR_SIGNER_LENGTH
+    Definition
 } = require('./constant')
 const {
     napi_result,
@@ -15,51 +10,6 @@ const {
     base64_decode,
     gen_hmac
 } = require('./function')
-const {
-    cryptographic_apis
-} = require('./apis')
-
-
-/**
- * Verify that the parameter is string and whether it is required and the maximum length
- * @param {object} param : Variables requiring validation
- * @param {boolean} required : Whether the parameter is required
- * @param {int} maxLength [defalut=undefined] : Maximum length of string, If maxLength is undefined, the length is not verified.
- * @returns {boolean}
- */
-function checkStringParam(param, required, maxLength) {
-    if (param == '' || param == undefined) {
-        if (required) {
-            return false
-        } else {
-            return true
-        }
-    } else {
-        if (typeof (param) == 'string') {
-            if (maxLength != undefined && param.length > maxLength) {
-                return false
-            } else {
-                return true
-            }
-        } else {
-            return false
-        }
-    }
-}
-
-/**
- * check uuid format
- * @param {String} uuid : a uuid string, eg. 0197ad2d-c4be-4948-996d-513c6f1e****
- * @returns {boolean}
- */
-function check_UUID_format(uuid) {
-    if (uuid != '' && uuid != undefined) {
-        if (!((/^([a-z\d]{8}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{12})$/).test(uuid))) {
-            return false
-        }
-    }
-    return true
-}
 
 /**
  * Generate a quote of the eHSM-KMS core enclave
@@ -72,16 +22,11 @@ function check_UUID_format(uuid) {
  */
 const generateQuote = async (res, payload, action) => {
     try {
-        const { challenge } = payload
-        if (checkStringParam(challenge, true, CHALLENGE_LENGTH_MAX)) {
-            napi_res = napi_result(action, res, [challenge])
-            napi_res && res.send(napi_res)
-        } else {
-            res.send(_result(400, `challenge cannot be empty, must be string and length not more than ${CHALLENGE_LENGTH_MAX}`))
-            return
-        }
+        const challenge = payload['challenge']
+        napi_res = napi_result(action, res, [challenge])
+        napi_res && res.send(napi_res)
     } catch (e) {
-        console.info('generateQuote :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -105,23 +50,12 @@ const generateQuote = async (res, payload, action) => {
  */
 const verifyQuote = async (res, appid, payload, DB, action) => {
     try {
-        const { quote, nonce, policyId } = payload
-        if (!checkStringParam(quote, true, QUOTE_LENGTH_MAX)) {
-            res.send(_result(400, `quote cannot be empty, must be string and length not more than ${QUOTE_LENGTH_MAX}.`))
-            return
-        }
-        if (!checkStringParam(nonce, true, NONCE_LENGTH_MAX)) {
-            res.send(_result(400, `nonce cannot be empty, must be string and length not more than ${NONCE_LENGTH_MAX}.`))
-            return
-        }
+        const quote = payload['quote']
+        const nonce = payload['nonce']
+        const policyId = payload['policyId']
         let mr_enclave = ''
         let mr_signer = ''
         if (policyId != '' && policyId != undefined) {
-            if (typeof (policyId) != 'string' || !check_UUID_format(policyId)) {
-                res.send(_result(400, 'policyId format wrong.'))
-                return
-            }
-
             // query quote policy by policyId
             const query_quote_policy = {
                 selector: {
@@ -158,7 +92,7 @@ const verifyQuote = async (res, appid, payload, DB, action) => {
             }
         }
     } catch (e) {
-        console.info('verifyQuote :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -177,23 +111,8 @@ const verifyQuote = async (res, appid, payload, DB, action) => {
  */
 const uploadQuotePolicy = async (res, appid, payload, DB) => {
     try {
-        const { mr_enclave, mr_signer } = payload
-        if (!checkStringParam(mr_enclave, true)) {
-            res.send(_result(400, `mr_enclave cannot be empty, must be string.`))
-            return
-        }
-        if (!checkStringParam(mr_signer, true)) {
-            res.send(_result(400, `mr_signer cannot be empty, must be string.`))
-            return
-        }
-        if (mr_enclave.length != MR_ENCLAVE_LENGTH) {
-            res.send(_result(400, `mr_enclave length must be ${MR_ENCLAVE_LENGTH}.`))
-            return
-        }
-        if (mr_signer.length != MR_SIGNER_LENGTH) {
-            res.send(_result(400, `mr_enclave length must be ${MR_ENCLAVE_LENGTH}.`))
-            return
-        }
+        const mr_enclave = payload['mr_enclave']
+        const mr_signer = payload['mr_signer']
         let policyId = uuidv4();
         const createTime = new Date().getTime()
         await DB.insert({
@@ -210,7 +129,7 @@ const uploadQuotePolicy = async (res, appid, payload, DB) => {
         res.send(_result(200, 'Upload quote policy success.', result))
         return
     } catch (e) {
-        console.info('uploadQuotePolicy :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -230,16 +149,7 @@ const uploadQuotePolicy = async (res, appid, payload, DB) => {
  */
 const getQuotePolicy = async (res, appid, payload, DB) => {
     try {
-        const { policyId } = payload
-        if (!checkStringParam(policyId, true, UUID_LENGTH)) {
-            res.send(_result(400, `policyId cannot be empty, must be string and length not more than ${UUID_LENGTH}.`))
-            return
-        }
-        if (!check_UUID_format(policyId)) {
-            res.send(_result(400, 'policyId format wrong.'))
-            return
-        }
-
+        const policyId = payload['policyId']
         let result = {
             policyId
         }
@@ -261,7 +171,7 @@ const getQuotePolicy = async (res, appid, payload, DB) => {
         res.send(_result(200, 'Query quote policy success.', result))
         return
     } catch (e) {
-        console.info('getQuotePolicy :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }

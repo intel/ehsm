@@ -22,7 +22,7 @@ def get_args():
 
 def generate_quote(base_url):
     payload = OrderedDict()
-    payload["challenge"] = "challenge123456"
+    payload["challenge"] = str(base64.b64encode("challenge123456".encode("utf-8")),'utf-8')
     params = _utils_.init_params(payload)
     print('generate_quote req:\n%s\n' %(params))
     GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
@@ -33,7 +33,7 @@ def generate_quote(base_url):
 
 def generate_quote_with_file(base_url, quote_file):
     payload = OrderedDict()
-    payload["challenge"] = "challenge123456"
+    payload["challenge"] = str(base64.b64encode("challenge123456".encode("utf-8")),'utf-8')
     params = _utils_.init_params(payload)
     print('generate_quote req:\n%s\n' %(params))
     GenerateQuote_resp = requests.post(url=base_url + "GenerateQuote", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)

@@ -1,6 +1,6 @@
-const {
-    base64_decode
-} = require('./function')
+const { base64_decode } = require('./function')
+
+const logger = require('./logger')
 
 // Set a queue to record the waiting time
 var delete_task_queue = {}
@@ -19,7 +19,7 @@ const remove_delete_task = (secretName, appid) => {
         }
         delete delete_task_queue[secretName + '_' + appid];
     } catch (error) {
-        console.error('error remove_delete_task :: ', error)
+        logger.error(error)
     }
 }
 
@@ -55,12 +55,12 @@ const add_delete_task = (DB, appid, secretName, plannedDeleteTime) => {
                 try {
                     const forceDeleteData = require('./secret_manager_apis').forceDeleteData
                     if (await forceDeleteData(DB, appid, secretName)) {
-                        console.info(`delete secret thread :: The ${base64_decode(secretName)} delete success`)
+                        logger.info(`delete secret thread :: The ${base64_decode(secretName)} delete success`)
                     } else {
-                        console.error(`delete secret thread :: The ${base64_decode(secretName)} delete failed`)
+                        logger.error(`delete secret thread :: The ${base64_decode(secretName)} delete failed`)
                     }
                 } catch (error) {
-                    console.error('error _deleteSecret :: ', error)
+                    logger.error(error)
                 }
                 // remove exist timer
                 remove_delete_task(secretName, appid, DB)
@@ -72,7 +72,7 @@ const add_delete_task = (DB, appid, secretName, plannedDeleteTime) => {
             }
         }
     } catch (error) {
-        console.error('error deleteSecret :: ', error)
+        logger.error(error)
     }
 }
 
@@ -85,7 +85,6 @@ const _secret_delete_timer = (DB) => {
     //Execute timer every six hours
     const timer = setInterval(async () => {
         try {
-            console.info('in interval')
             //Find secretName and appid in secret_metadata through planeddeletetime
             const query_plannedDeleteTime = {
                 selector: {
@@ -105,7 +104,7 @@ const _secret_delete_timer = (DB) => {
                 return
             }
         } catch (error) {
-            console.error('error startTimer :: ', error)
+            logger.error(error)
         }
     }, 6 * 1000 * 60 * 60, DB)
     return { timer }

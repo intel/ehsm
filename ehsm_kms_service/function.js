@@ -3,21 +3,9 @@ const { v4: uuidv4 } = require('uuid')
 
 const logger = require('./logger')
 const {
-  MAX_TIME_STAMP_DIFF,
-  TIMESTAMP_LEN,
-  NONCE_CACHE_TIME,
-  CMK_EFFECTIVE_DURATION,
-  CMK_LOOP_CLEAR_TIME,
-  CMK_EXPIRE_TIME_EXPAND,
-  CMK_LOOP_CLEAR_EXECUTION_TIME,
+  Definition
 } = require('./constant')
-const { ehsm_kms_params } = require('./ehsm_kms_params.js')
-const {
-  enroll_apis,
-  cryptographic_apis,
-  key_management_apis,
-  common_apis,
-} = require('./apis')
+const { KMS_ACTION } = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
 
 const _result = (code, msg, data = {}) => {
@@ -33,24 +21,14 @@ const _result = (code, msg, data = {}) => {
 const base64_encode = (str) => new Buffer.from(str).toString('base64')
 
 // base64 decode
-const base64_decode = (base64_str) =>
-  new Buffer.from(base64_str, 'base64').toString()
-const is_base64 = (base64_str) => {
-  if (base64_str == undefined ||
-    typeof base64_str != 'string' ||
-    base64_str.length == 0 ||
-    (base64_str.length % 4) != 0) {
-    return false
-  }
-  return /^[a-zA-Z0-9\+\/]+(\={0,2})$/gi.test(base64_str)
-};
+const base64_decode = (base64_str) => new Buffer.from(base64_str, 'base64').toString()
 
 const ActionBypassList = [
-  enroll_apis.RA_GET_API_KEY,
-  enroll_apis.RA_HANDSHAKE_MSG0,
-  enroll_apis.RA_HANDSHAKE_MSG2,
-  enroll_apis.Enroll,
-  common_apis.GetVersion,
+  KMS_ACTION.enroll.RA_GET_API_KEY,
+  KMS_ACTION.enroll.RA_HANDSHAKE_MSG0,
+  KMS_ACTION.enroll.RA_HANDSHAKE_MSG2,
+  KMS_ACTION.enroll.Enroll,
+  KMS_ACTION.common.GetVersion,
 ]
 
 /**
@@ -71,7 +49,7 @@ const _nonce_cache_timer = () => {
           nonce_database[appid].findIndex((nonce_data) => {
             return (
               new Date().getTime() - nonce_data.nonce_timestamp >
-              NONCE_CACHE_TIME
+              Definition.NONCE_CACHE_TIME
             )
           })
         // keep unexpired data
@@ -84,10 +62,10 @@ const _nonce_cache_timer = () => {
         }
       }
     } catch (error) {
-      res.send(_result(404, 'Not Found', {}))
-      logger.error(JSON.stringify(error))
+      logger.error(error)
+      res.send(_result(500, 'Server internal error, please contact the administrator.'))
     }
-  }, NONCE_CACHE_TIME / 2)
+  }, Definition.NONCE_CACHE_TIME / 2)
   return { timer, nonce_database }
 }
 
@@ -102,14 +80,14 @@ const _nonce_cache_timer = () => {
  */
 const _cmk_cache_timer = (DB) => {
   let nowTime = new Date().getTime()
-  let recent = new Date().setHours(CMK_LOOP_CLEAR_EXECUTION_TIME) // Time stamp at three o'clock of the day
+  let recent = new Date().setHours(Definition.CMK_LOOP_CLEAR_EXECUTION_TIME) // Time stamp at three o'clock of the day
   if (recent < nowTime) {
     recent += 24 * 3600000
   }
   const timer = setTimeout(() => {
     setInterval(() => {
       try {
-        const current_time = new Date().getTime() + CMK_EXPIRE_TIME_EXPAND
+        const current_time = new Date().getTime() + Definition.CMK_EXPIRE_TIME_EXPAND
         const query = {
           selector: {
             //Query criteria
@@ -126,17 +104,17 @@ const _cmk_cache_timer = (DB) => {
               }
               DB.bulk({ docs: cmks_res.docs }) // Batch delete expired cmks
                 .catch((err) => {
-                  console.log(err)
+                  logger.error(err)
                 })
             }
           })
           .catch((err) => {
-            console.log(err)
+            logger.error(err)
           })
       } catch (err) {
-        console.log(err)
+        logger.error(err)
       }
-    }, CMK_LOOP_CLEAR_TIME)
+    }, Definition.CMK_LOOP_CLEAR_TIME)
   }, recent - nowTime)
 
   return { timer }
@@ -165,7 +143,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
       keyBlob: napi_res.result.cmk,
       creator: appid,
       creationDate,
-      expireTime: creationDate + CMK_EFFECTIVE_DURATION,
+      expireTime: creationDate + Definition.CMK_EFFECTIVE_DURATION,
       alias: '',
       keyspec,
       origin,
@@ -203,7 +181,7 @@ function napi_result(action, res, params) {
     }
     // })
   } catch (e) {
-    console.info('napi_result :: ', e)
+    logger.error(e)
     res.send(_result(500, 'Server internal error, please contact the administrator.'))
     return false
   }
@@ -222,10 +200,10 @@ const create_user_info = (action, DB, res, req) => {
 
   if (napi_res) {
     const { appid, apikey } = napi_res.result
-    let cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
+    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
     if (cmk_res) {
       const { cmk } = cmk_res.result
-      let apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [
+      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [
         cmk,
         apikey,
         '',
@@ -264,13 +242,13 @@ const enroll_user_info = (action, DB, res, req) => {
 
   if (napi_res) {
     const { appid, apikey } = napi_res.result
-    let cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
-    let sm_default_cmk_res = napi_result(cryptographic_apis.CreateKey, res, [0, 0])
+    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
+    let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
     if (cmk_res && sm_default_cmk_res) {
       const { cmk } = cmk_res.result
       // create a default secret manager CMK for current appids
       const sm_default_cmk = sm_default_cmk_res.result.cmk
-      let apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [
+      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [
         cmk,
         apikey,
         '',
@@ -325,8 +303,8 @@ const params_sort_str = (sign_params) => {
     }
     return str
   } catch (error) {
-    res.send(_result(404, 'Not Found', {}))
-    logger.error(JSON.stringify(error))
+    logger.error(error)
+    res.send(_result(500, 'Server internal error, please contact the administrator.'))
     return str
   }
 }
@@ -337,7 +315,7 @@ const params_sort_str = (sign_params) => {
  * @returns true | false
  */
 const _checkTimestamp = (timestamp) => {
-  return Math.abs(new Date().getTime() - timestamp) < MAX_TIME_STAMP_DIFF
+  return Math.abs(new Date().getTime() - timestamp) < Definition.MAX_TIME_STAMP_DIFF
 }
 
 const getIPAdress = () => {
@@ -357,104 +335,8 @@ const getIPAdress = () => {
       }
     }
   } catch (error) {
-    logger.error(JSON.stringify(error))
-    res.send(_result(404, 'Not Found', {}))
-  }
-}
-
-/**
- * Verify each parameter in the payload, such as data type,
- * data length, whether it is the specified value,
- * whether it is required, etc.
- * For parameter description, see <ehsm_kms_params.js>
- * @param {object} req
- * @param {object} res
- * @returns true | false
- */
-const _checkPayload = function (req, res) {
-  try {
-    const action = req.query.Action
-    const { payload } = req.body
-    const currentPayLoad = ehsm_kms_params[action]
-    for (const key in currentPayLoad) {
-      if (
-        (payload[key] == undefined || payload[key] == '' || !payload[key]) &&
-        currentPayLoad[key].required
-      ) {
-        res.send(_result(400, 'Missing required parameters'))
-        return false
-      }
-      if (currentPayLoad[key].type == 'string' && payload[key]) {
-        if (typeof payload[key] != 'string') {
-          res.send(_result(400, `${key} must be of string type`))
-          return false
-        }
-        if (
-          payload[key] != undefined &&
-          ((currentPayLoad[key].maxLength &&
-            payload[key].length > currentPayLoad[key].maxLength) ||
-            (currentPayLoad[key].minLength &&
-              payload[key].length < currentPayLoad[key].minLength))
-        ) {
-          res.send(_result(400, `${key} length error`))
-          return false
-        }
-      }
-      if (currentPayLoad[key].type == 'base64' && payload[key]) {
-        if (typeof payload[key] != 'string') {
-          res.send(_result(400, `${key} must be of base64 string type`))
-          return false
-        }
-        if (
-          payload[key] != undefined &&
-          ((currentPayLoad[key].maxLength &&
-            payload[key].length > currentPayLoad[key].maxLength) ||
-            (currentPayLoad[key].minLength &&
-              payload[key].length < currentPayLoad[key].minLength))
-        ) {
-          res.send(_result(400, `${key} length error`))
-          return false
-        }
-        if (!is_base64(payload[key])) {
-          res.send(_result(400, `${key} not a vailed base64 string`))
-          return false
-        }
-      }
-      if (currentPayLoad[key].type == 'int' && payload[key]) {
-        if (!Number.isInteger(payload[key])) {
-          res.send(_result(400, `${key} must be of integer type`))
-          return false
-        }
-        if (
-          payload[key] != undefined &&
-          ((currentPayLoad[key].maxNum &&
-            payload[key] > currentPayLoad[key].maxNum) ||
-            (currentPayLoad[key].minNum &&
-              payload[key] < currentPayLoad[key].minNum))
-        ) {
-          res.send(
-            _result(
-              400,
-              `${key} must be between ${currentPayLoad[key].minNum} and ${currentPayLoad[key].maxNum}`
-            )
-          )
-          return false
-        }
-      }
-      if (currentPayLoad[key].type == 'const' && payload[key]) {
-        if (!currentPayLoad[key].arr.includes(payload[key])) {
-          res.send(
-            _result(400, currentPayLoad[key].errortext || `${key} error`)
-          )
-          return false
-        }
-      }
-    }
-    return true
-  } catch (error) {
-    res.send(_result(400, 'Parameter exception', {}))
-    logger.error(JSON.stringify(error))
-    return false
+    logger.error(error)
+    res.send(_result(500, 'Server internal error, please contact the administrator.'))
   }
 }
 
@@ -484,8 +366,8 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       res.send(_result(400, 'Missing required parameters'))
       return
     }
-    // cryptographic_apis must be has payload
-    if (ACTION === cryptographic_apis[ACTION] && !payload) {
+    // cryptographic must be has payload
+    if (ACTION === KMS_ACTION.cryptographic[ACTION] && !payload) {
       res.send(_result(400, 'Missing required parameters'))
       return
     }
@@ -498,7 +380,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       res.send(_result(400, 'param type error'))
       return
     }
-    if (timestamp.length != TIMESTAMP_LEN) {
+    if (timestamp.length != Definition.TIMESTAMP_LEN) {
       res.send(_result(400, 'Timestamp length error'))
       return
     }
@@ -533,13 +415,10 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
       nonce_database[appid].unshift(nonce_data)
     }
 
-    // check cryptographic_apis parameter
-    if (ACTION === cryptographic_apis[ACTION]) {
-      // check payload
-      const _checkPayload_res = _checkPayload(req, res, next)
-      if (!_checkPayload_res) {
-        return
-      }
+    // check payload
+    const checkPayload = require('./payload_checker').checkPayload
+    if (!checkPayload(req, res)) {
+      return
     }
 
     // check sign
@@ -562,8 +441,8 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
         res.send(_result(400, 'database error'))
       })
   } catch (error) {
-    res.send(_result(404, 'Not Found', {}))
-    logger.error(JSON.stringify(error))
+    logger.error(error)
+    res.send(_result(500, 'Server internal error, please contact the administrator.'))
   }
 }
 
@@ -608,7 +487,7 @@ const _query_api_key = async (DB, appid) => {
     }
     let { cmk, apikey } = query_result.docs[0]
     let decypt_result = napi_result_local(
-      cryptographic_apis.Decrypt,
+      KMS_ACTION.cryptographic.Decrypt,
       [cmk, apikey, '']
     )
     if (decypt_result) {
@@ -623,7 +502,7 @@ const _query_api_key = async (DB, appid) => {
       }
     }
   } catch (error) {
-    logger.error(JSON.stringify(error))
+    logger.error(error)
   }
   return {
     msg: 'Unexcept error',
@@ -657,7 +536,7 @@ const gen_hmac = async (DB, appid, sign_params) => {
       hmac: sign_result
     }
   } catch (error) {
-    logger.error(JSON.stringify(error))
+    logger.error(error)
     return {
       error: error,
       hmac: ''

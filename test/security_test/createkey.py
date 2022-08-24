@@ -26,14 +26,14 @@ def init_params(appid, apikey, timestamp_id, keyspec, origin, sign=None):
     payload["origin"] = origin
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     if timestamp_id in [0, 1, 2]:
         params["timestamp"] = str(int((time.time()-540+(int(timestamp_id)*540)) * 1000))
     else:
         params["timestamp"] = timestamp_id
     #params["timestamp"] = str(int((time.time()) * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -46,11 +46,11 @@ def init_params_with_invalid_sign(appid, apikey, timestamp_id, keyspec, origin, 
     payload["origin"] = origin
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = timestamp_id
     #params["timestamp"] = str(int((time.time()) * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["timestamp"] = str(int(timestamp_id)+1)

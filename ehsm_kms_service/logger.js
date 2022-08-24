@@ -5,7 +5,7 @@ log4js.configure({
   appenders: {
     cheese: {
       type: 'dateFile',
-      filename: `./logs/${new Date().getDate()}/info.log`,
+      filename: `./logs/${new Date().getTime()}/info.log`,
       encoding: 'utf-8',
       layout: {
         type: 'pattern',

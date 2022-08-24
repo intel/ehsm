@@ -30,9 +30,9 @@ def init_params(payload=False):
     params["appid"] = appid
     if payload!=False:
         ord_payload = OrderedDict(sorted(payload.items(), key=lambda k: k[0]))
-        params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(ord_payload))
+        params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(ord_payload))
     params["timestamp"] = str(int(time.time() * 1000))
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     #print(sign_string.encode('utf-8'))
     #print(apikey.encode('utf-8'))
     sign = str(base64.b64encode(hmac.new(apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
