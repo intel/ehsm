@@ -1,12 +1,5 @@
-const { ehsm_keySpec_t, ehsm_keyorigin_t } = require('./ehsm_kms_params.js')
-const {
-  cryptographic_apis,
-  enroll_apis,
-  key_management_apis,
-  secret_manager_apis,
-  remote_attestation_apis,
-  common_apis,
-} = require('./apis')
+const { ehsm_keySpec_t, ehsm_keyorigin_t } = require('./constant')
+const { KMS_ACTION } = require('./apis')
 const logger = require('./logger')
 const {
   napi_result,
@@ -91,15 +84,15 @@ const GetRouter = async (p) => {
   const { req, res, DB } = p
   const action = req.query.Action
   switch (action) {
-    case common_apis.GetVersion:
+    case KMS_ACTION.common.GetVersion:
       napi_res = napi_result(action, res, [])
       napi_res && res.send(napi_res)
       break;
-    case enroll_apis.Enroll:
+    case KMS_ACTION.enroll.Enroll:
       enroll_user_info(action, DB, res, req)
       break;
     default:
-      res.send(_result(404, 'Not Found', {}))
+      res.send(_result(404, 'API Not Found', {}))
       break
   }
 }
@@ -113,15 +106,15 @@ const router = async (p) => {
   }
   const action = req.query.Action
   switch (action) {
-    case enroll_apis.RA_GET_API_KEY:
+    case KMS_ACTION.enroll.RA_GET_API_KEY:
       create_user_info(action, DB, res, req)
       break
-    case cryptographic_apis.CreateKey:
+    case KMS_ACTION.cryptographic.CreateKey:
       try {
         let { keyspec, origin } = payload
         /**
          * keyspec、origin convert to enum type
-         * enum in thie ehsm_kms_params.js file
+         * enum in thie constant.js file
          */
         keyspec = ehsm_keySpec_t[keyspec]
         origin = ehsm_keyorigin_t[origin]
@@ -129,7 +122,7 @@ const router = async (p) => {
         napi_res && store_cmk(napi_res, res, appid, payload, DB)
       } catch (error) { }
       break
-    case cryptographic_apis.Encrypt:
+    case KMS_ACTION.cryptographic.Encrypt:
       try {
         const { keyid, plaintext, aad = '' } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -137,7 +130,7 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case cryptographic_apis.Decrypt:
+    case KMS_ACTION.cryptographic.Decrypt:
       try {
         const { keyid, ciphertext, aad = '' } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -145,7 +138,7 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case cryptographic_apis.GenerateDataKey:
+    case KMS_ACTION.cryptographic.GenerateDataKey:
       try {
         const { keyid, keylen, aad = '' } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -153,7 +146,7 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case cryptographic_apis.GenerateDataKeyWithoutPlaintext:
+    case KMS_ACTION.cryptographic.GenerateDataKeyWithoutPlaintext:
       try {
         const { keyid, keylen, aad = '' } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -161,7 +154,7 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case cryptographic_apis.Sign:
+    case KMS_ACTION.cryptographic.Sign:
       try {
         const { keyid, digest } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -169,7 +162,7 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case cryptographic_apis.Verify:
+    case KMS_ACTION.cryptographic.Verify:
       try {
         const { keyid, digest, signature } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -181,7 +174,7 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case cryptographic_apis.AsymmetricEncrypt:
+    case KMS_ACTION.cryptographic.AsymmetricEncrypt:
       try {
         const { keyid, plaintext } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -189,7 +182,7 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case cryptographic_apis.AsymmetricDecrypt:
+    case KMS_ACTION.cryptographic.AsymmetricDecrypt:
       try {
         const { keyid, ciphertext } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -197,7 +190,7 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case cryptographic_apis.ExportDataKey:
+    case KMS_ACTION.cryptographic.ExportDataKey:
       try {
         const { keyid, ukeyid, aad = '', olddatakey_base } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
@@ -211,72 +204,72 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case enroll_apis.RA_HANDSHAKE_MSG0:
+    case KMS_ACTION.enroll.RA_HANDSHAKE_MSG0:
       try {
         const json_str_params = JSON.stringify({ ...req.body })
         napi_res = napi_result(action, res, [json_str_params])
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case enroll_apis.RA_HANDSHAKE_MSG2:
+    case KMS_ACTION.enroll.RA_HANDSHAKE_MSG2:
       try {
         const json_str_params = JSON.stringify({ ...req.body })
         napi_res = napi_result(action, res, [json_str_params])
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
-    case key_management_apis.ListKey:
+    case KMS_ACTION.key_management.ListKey:
       listKey(appid, res, DB)
       break
-    case key_management_apis.DeleteKey:
+    case KMS_ACTION.key_management.DeleteKey:
       deleteKey(appid, payload, res, DB)
       break
-    case key_management_apis.DeleteAllKey:
+    case KMS_ACTION.key_management.DeleteAllKey:
       deleteALLKey(appid, res, DB)
       break
-    case key_management_apis.EnableKey:
+    case KMS_ACTION.key_management.EnableKey:
       enableKey(appid, payload, res, DB)
       break
-    case key_management_apis.DisableKey:
+    case KMS_ACTION.key_management.DisableKey:
       disableKey(appid, payload, res, DB)
       break
-    case remote_attestation_apis.GenerateQuote:
+    case KMS_ACTION.remote_attestation.GenerateQuote:
       generateQuote(res, payload, action)
       break
-    case remote_attestation_apis.VerifyQuote:
+    case KMS_ACTION.remote_attestation.VerifyQuote:
       verifyQuote(res, appid, payload, DB, action)
       break
-    case remote_attestation_apis.UploadQuotePolicy:
+    case KMS_ACTION.remote_attestation.UploadQuotePolicy:
       uploadQuotePolicy(res, appid, payload, DB)
       break
-    case remote_attestation_apis.GetQuotePolicy:
+    case KMS_ACTION.remote_attestation.GetQuotePolicy:
       getQuotePolicy(res, appid, payload, DB)
       break
-    case secret_manager_apis.CreateSecret:
+    case KMS_ACTION.secret_manager.CreateSecret:
       createSecret(res, appid, DB, payload)
       break
-    case secret_manager_apis.UpdateSecretDesc:
+    case KMS_ACTION.secret_manager.UpdateSecretDesc:
       updateSecretDesc(res, appid, DB, payload)
       break
-    case secret_manager_apis.PutSecretValue:
+    case KMS_ACTION.secret_manager.PutSecretValue:
       putSecretValue(res, appid, DB, payload)
       break
-    case secret_manager_apis.ListSecretVersionIds:
+    case KMS_ACTION.secret_manager.ListSecretVersionIds:
       listSecretVersionIds(res, appid, DB, payload)
       break
-    case secret_manager_apis.ListSecrets:
+    case KMS_ACTION.secret_manager.ListSecrets:
       listSecrets(res, appid, DB, payload)
       break
-    case secret_manager_apis.DescribeSecret:
+    case KMS_ACTION.secret_manager.DescribeSecret:
       describeSecret(res, appid, DB, payload)
       break
-    case secret_manager_apis.DeleteSecret:
+    case KMS_ACTION.secret_manager.DeleteSecret:
       deleteSecret(res, appid, DB, payload)
       break
-    case secret_manager_apis.GetSecretValue:
+    case KMS_ACTION.secret_manager.GetSecretValue:
       getSecretValue(res, appid, DB, payload)
       break
-    case secret_manager_apis.RestoreSecret:
+    case KMS_ACTION.secret_manager.RestoreSecret:
       restoreSecret(res, appid, DB, payload)
       break
 

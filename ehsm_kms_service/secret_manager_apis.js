@@ -2,12 +2,7 @@ const crypto = require('crypto')
 const logger = require('./logger')
 const { v4: uuidv4 } = require('uuid')
 const {
-    SM_SECRET_VERSION_STAGE_CURRENT,
-    SM_SECRET_VERSION_STAGE_PREVIOUS,
-    SECRETNAME_LENGTH_MAX,
-    SECRETDATA_LENGTH_MAX,
-    DESCRIPTION_LENGTH_MAX,
-    DEFAULT_DELETE_RECOVERY_DAYS
+    Definition
 } = require('./constant')
 const {
     napi_result,
@@ -15,14 +10,11 @@ const {
     base64_encode,
     base64_decode
 } = require('./function')
-const {
-    cryptographic_apis,
-} = require('./apis')
-const ehsm_napi = require('./ehsm_napi')
+const { KMS_ACTION } = require('./apis')
 const {
     add_delete_task,
     remove_delete_task
-  } = require('./delete_secret_thread')
+} = require('./delete_secret_thread')
 
 /**
  * get a string parameter from payload and base64 if you need
@@ -43,64 +35,6 @@ function getParam_String(payload, key, needBase64 = true) {
 }
 
 /**
- * Verify that the parameter is string and whether it is required and the maximum length
- * @param {object} param : Variables requiring validation
- * @param {boolean} required : Whether the parameter is required
- * @param {int} maxLength [defalut=undefined] : Maximum length of string, If maxLength is undefined, the length is not verified.
- * @returns {boolean}
- */
-function checkStringParam(param, required, maxLength) {
-    if (param == '' || param == undefined) {
-        if (required) {
-            return false
-        } else {
-            return true
-        }
-    } else {
-        if (typeof (param) == 'string') {
-            if (maxLength != undefined && param.length > maxLength) {
-                return false
-            } else {
-                return true
-            }
-        } else {
-            return false
-        }
-    }
-}
-
-/**
- * check encryptionKeyId format
- * @param {String} encryptionKeyId : The ID of CMK, eg. 0197ad2d-c4be-4948-996d-513c6f1e****
- * @returns {boolean}
- */
-function check_encryptionKeyId_format(encryptionKeyId) {
-    if (encryptionKeyId != '' && encryptionKeyId != undefined) {
-        if (!((/^([a-z\d]{8}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{12})$/).test(encryptionKeyId))) {
-            return false
-        }
-    }
-    return true
-}
-
-/**
- * check rotationInterval format
- * @param {String [0~5]} rotationInterval : The interval for automatic rotation. 
- *                                      format: integer[unit],
- *                                      unit can be d (day), h (hour), m (minute), or s (second)
- *                                      eg. '30d'
- * @returns {boolean}
- */
-function check_rotationInterval_format(rotationInterval) {
-    if (rotationInterval != '' && rotationInterval != undefined) {
-        if (!((/^(\d{1,4}[d,h,m,s]{1})$/).test(rotationInterval))) {
-            return false
-        }
-    }
-    return true
-}
-
-/**
  * Query SM_MasterKey through encryptionkeyid, if encryptionKeyId is undefined, will be return default CMK of appid.
  * @param {Object} DB : database controller
  * @param {String} appid : appid of user
@@ -116,7 +50,7 @@ const get_SM_Masterkey = async (DB, appid, encryptionKeyId) => {
         sm_masterKey: undefined,
         msg: ''
     }
-    if (encryptionKeyId == "" || encryptionKeyId == undefined) {
+    if (encryptionKeyId === "" || encryptionKeyId === undefined) {
         // query default SM_MasterKey
         const query = {
             selector: {
@@ -133,25 +67,20 @@ const get_SM_Masterkey = async (DB, appid, encryptionKeyId) => {
             ret.sm_masterKey = res.docs[0].sm_default_cmk
         }
     } else if (typeof (encryptionKeyId) == 'string') {
-        // query SM_MasterKey by encryptionKeyId
-        if (check_encryptionKeyId_format(encryptionKeyId)) {
-            const query = {
-                selector: {
-                    creator: appid,
-                    keyid: encryptionKeyId
-                },
-                fields: ['keyBlob'],
-                limit: 1
-            }
-            let res = await DB.partitionedFind('cmk', query)
-            if (res.docs.length == 0) {
-                ret.msg = 'Cannot find cmk by keyid.'
-            } else {
-                ret.isFind = true
-                ret.sm_masterKey = res.docs[0].keyBlob
-            }
+        const query = {
+            selector: {
+                creator: appid,
+                keyid: encryptionKeyId
+            },
+            fields: ['keyBlob'],
+            limit: 1
+        }
+        let res = await DB.partitionedFind('cmk', query)
+        if (res.docs.length == 0) {
+            ret.msg = 'Cannot find cmk by keyid.'
         } else {
-            ret.msg = 'The encryptionKeyId format error.'
+            ret.isFind = true
+            ret.sm_masterKey = res.docs[0].keyBlob
         }
     } else {
         ret.msg = 'Wrong parameter, please check your encryptionKeyId.'
@@ -231,7 +160,7 @@ const forceDeleteData = async (DB, appid, secretName) => {
             return false
         }
     } catch (e) {
-        console.info('forceDeleteData :: ', e)
+        logger.error(e)
         return false
     }
 }
@@ -262,30 +191,6 @@ const createSecret = async (res, appid, DB, payload) => {
         const createTime = new Date().getTime()
         let sm_masterKey
         let nextRotationDate
-        if (!checkStringParam(secretData, true, SECRETDATA_LENGTH_MAX)) {
-            res.send(_result(400, 'secretData cannot be empty, must be string and length not more than 4096'))
-            return
-        }
-        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, 'secretName cannot be empty, must be string and length not more than 64'))
-            return
-        }
-        if (!checkStringParam(description, false, DESCRIPTION_LENGTH_MAX)) {
-            res.send(_result(400, 'description must be string and length not more than 4096'))
-            return
-        }
-        if (!checkStringParam(rotationInterval, false)) {
-            res.send(_result(400, 'rotationInterval must be string'))
-            return
-        }
-        if (!check_encryptionKeyId_format(encryptionKeyId)) {
-            res.send(_result(400, 'encryptionKeyId format wrong'))
-            return
-        }
-        if (!check_rotationInterval_format(rotationInterval)) {
-            res.send(_result(400, 'rotationInterval format wrong'))
-            return
-        }
 
         //Query whether the secretname is duplicate
         const secret_name_query = {
@@ -310,7 +215,7 @@ const createSecret = async (res, appid, DB, payload) => {
             res.send(_result(400, retCMK.msg))
             return
         }
-        const apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [sm_masterKey, secretData, ''])
+        const apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [sm_masterKey, secretData, ''])
         // check encrypt status and get ciphertext
         if (!apikey_encrypt_res) {
             return
@@ -351,21 +256,21 @@ const createSecret = async (res, appid, DB, payload) => {
                 versionId: 1,
                 secretData: ciphertext,
                 createTime,
-                versionStage: SM_SECRET_VERSION_STAGE_CURRENT
+                versionStage: Definition.SM_SECRET_VERSION_STAGE_CURRENT
             }).then(() => {
                 res.send(_result(200, `The ${base64_decode(secretName)} create success.`))
-            }).catch((e) => {
-                console.info('createSecret :: ', e)
+            }).catch((e3) => {
+                logger.error(e3)
                 res.send(_result(500, 'Server internal error, please contact the administrator.'))
                 return
             })
-        }).catch((e) => {
-            console.info('createSecret :: ', e)
+        }).catch((e2) => {
+            logger.error(e2)
             res.send(_result(500, 'Server internal error, please contact the administrator.'))
             return
         })
-    } catch (e) {
-        console.info('createSecret :: ', e)
+    } catch (e1) {
+        logger.error(e1)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -386,14 +291,6 @@ const updateSecretDesc = async (res, appid, DB, payload) => {
         //get and check param in payload
         let secretName = getParam_String(payload, 'secretName')
         let description = getParam_String(payload, 'description')
-        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
-            return
-        }
-        if (!checkStringParam(description, false, DESCRIPTION_LENGTH_MAX)) {
-            res.send(_result(400, `description must be string and length not more than ${DESCRIPTION_LENGTH_MAX}`))
-            return
-        }
 
         //Query the description through secret name and update the description
         const secret_name_query = {
@@ -405,7 +302,7 @@ const updateSecretDesc = async (res, appid, DB, payload) => {
         }
         const secret_metadata_res = await DB.partitionedFind('secret_metadata', secret_name_query)
         if (secret_metadata_res.docs.length == 0) {
-            res.send(_result(400, 'cannot find secretName'))
+            res.send(_result(400, 'Cannot find secretName'))
             return
         } else if (secret_metadata_res.docs[0].deleteTime != null) {
             res.send(_result(400, 'Can not modify a deleted secret.'))
@@ -414,12 +311,12 @@ const updateSecretDesc = async (res, appid, DB, payload) => {
             // update description
             secret_metadata_res.docs[0].description = description
             DB.insert(secret_metadata_res.docs[0])
-            res.send(_result(200, 'update secret description success.'))
+            res.send(_result(200, 'Update secret description success.'))
             return
         }
 
     } catch (e) {
-        console.info('updateSecretDesc :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -444,14 +341,6 @@ const putSecretValue = async (res, appid, DB, payload) => {
         let sm_masterKey
         let encryptionKeyId
         let versionId
-        if (!checkStringParam(secretData, true, SECRETDATA_LENGTH_MAX)) {
-            res.send(_result(400, `secretData cannot be empty, must be string and length not more than ${SECRETDATA_LENGTH_MAX}`))
-            return
-        }
-        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
-            return
-        }
 
         //query SM_Masterkey and encrypt secretData
         const query_secertName = {
@@ -483,7 +372,7 @@ const putSecretValue = async (res, appid, DB, payload) => {
             res.send(_result(400, retCMK.msg))
             return
         }
-        const apikey_encrypt_res = napi_result(cryptographic_apis.Encrypt, res, [sm_masterKey, secretData, ''])
+        const apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [sm_masterKey, secretData, ''])
         // check encrypt status and get ciphertext
         if (!apikey_encrypt_res) {
             return
@@ -500,14 +389,14 @@ const putSecretValue = async (res, appid, DB, payload) => {
             selector: {
                 appid,
                 secretName,
-                versionStage: SM_SECRET_VERSION_STAGE_CURRENT,
+                versionStage: Definition.SM_SECRET_VERSION_STAGE_CURRENT,
             },
             limit: 1
         }
         const version_stage_res = await DB.partitionedFind('secret_version_data', query_version_stage)
         if (version_stage_res.docs.length > 0) {
             versionId = version_stage_res.docs[0].versionId + 1
-            version_stage_res.docs[0].versionStage = SM_SECRET_VERSION_STAGE_PREVIOUS
+            version_stage_res.docs[0].versionStage = Definition.SM_SECRET_VERSION_STAGE_PREVIOUS
             await DB.insert(version_stage_res.docs[0])
             await DB.insert({
                 _id: `secret_version_data:${uuidv4()}`,
@@ -516,7 +405,7 @@ const putSecretValue = async (res, appid, DB, payload) => {
                 versionId,
                 secretData: ciphertext,
                 createTime,
-                versionStage: SM_SECRET_VERSION_STAGE_CURRENT
+                versionStage: Definition.SM_SECRET_VERSION_STAGE_CURRENT
             })
             res.send(_result(200, `The ${base64_decode(secretName)} new version put success.`))
             return
@@ -525,7 +414,7 @@ const putSecretValue = async (res, appid, DB, payload) => {
             return
         }
     } catch (e) {
-        console.info('putSecretValue :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -549,10 +438,7 @@ const listSecretVersionIds = async (res, appid, DB, payload) => {
     try {
         // get and check parameter 
         let secretName = getParam_String(payload, 'secretName')
-        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
-            return
-        }
+
         // return result
         let result = {
             'secretName': base64_decode(secretName),
@@ -598,7 +484,7 @@ const listSecretVersionIds = async (res, appid, DB, payload) => {
         res.send(_result(200, 'List secret versionIds success.', result))
         return
     } catch (e) {
-        console.info('listSecretVersionIds :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -623,11 +509,6 @@ const listSecrets = async (res, appid, DB, payload) => {
     try {
         // get and check parameter 
         let secretName = getParam_String(payload, 'secretName')
-        if (!checkStringParam(secretName, false, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, `secretName must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
-            return
-        }
-
         // build selector for search secret_metadata
         let selector = {
             appid: appid
@@ -663,10 +544,10 @@ const listSecrets = async (res, appid, DB, payload) => {
             }
         }
 
-        res.send(_result(200, 'list secrets success.', result))
+        res.send(_result(200, 'List secrets success.', result))
         return
     } catch (e) {
-        console.info('listSecrets :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -695,10 +576,6 @@ const describeSecret = async (res, appid, DB, payload) => {
     try {
         // get and check parameter 
         let secretName = getParam_String(payload, 'secretName')
-        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
-            return
-        }
 
         // search secret_metadata 
         const query = {
@@ -728,10 +605,10 @@ const describeSecret = async (res, appid, DB, payload) => {
             }
         }
 
-        res.send(_result(200, 'describe secrets success.', result))
+        res.send(_result(200, 'Describe secrets success.', result))
         return
     } catch (e) {
-        console.info('describeSecrets :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -744,8 +621,8 @@ const describeSecret = async (res, appid, DB, payload) => {
  * @param {Object} DB : database controller
  * @param {Object} payload
  *          ==> {r}secretName(String [1~64]) : The name of the secret. eg. 'secretName01'
- *          ==> {o}recoveryPeriod(Number [1~365])[defalut='30']: Specifies the recovery period of the secret,The unit is day, if you do not forcibly delete it.
- *               eg. '50' 
+ *          ==> {o}recoveryPeriod(Number [1~365])[defalut=30]: Specifies the recovery period of the secret,The unit is day, if you do not forcibly delete it.
+ *               eg. 50 
  *          ==> {o}forceDelete(String [true/false])[defalut='false']: Specifies whether to forcibly delete the secret.
  *                 If this parameter is set to true, the secret cannot be recovered. eg. 'true'
  * @returns
@@ -757,32 +634,21 @@ const deleteSecret = async (res, appid, DB, payload) => {
         let secretName = getParam_String(payload, 'secretName')
         let recoveryPeriod = payload['recoveryPeriod']
         let forceDelete = payload['forceDelete']
-        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
-            return
-        }
-        // if recoveryPeriod is undefinied, default value is DEFAULT_DELETE_RECOVERY_DAYS
-        if (recoveryPeriod == '' || recoveryPeriod == undefined) {
-            recoveryPeriod = DEFAULT_DELETE_RECOVERY_DAYS
-        }
-        if (!((/^[0-9]*$/).test(recoveryPeriod))) {
-            res.send(_result(400, 'recoveryPeriod must be integer.'))
-            return
-        }
-        if (recoveryPeriod < 1 || recoveryPeriod > 365) {
-            res.send(_result(400, 'recoveryPeriod must be between 1 and 365.'))
-            return
-        }
+
+
         if (forceDelete != '' && forceDelete != undefined) {
             if (forceDelete.toUpperCase() != 'TRUE' && forceDelete.toUpperCase() != 'FALSE') {
-                res.send(_result(400, 'forceDelete must be true or false'))
+                res.send(_result(400, 'The forceDelete must be true or false'))
                 return
             }
         }
-        //Set default delete time
+
+        // if recoveryPeriod is undefinied, default value is DEFAULT_DELETE_RECOVERY_DAYS
         if (recoveryPeriod == '' || recoveryPeriod == undefined) {
-            recoveryPeriod = DEFAULT_DELETE_RECOVERY_DAYS
+            recoveryPeriod = Definition.DEFAULT_DELETE_RECOVERY_DAYS
         }
+
+        // calculate planned delete time
         let plannedDeleteTime = deleteTime + 24 * 60 * 60 * 1000 * recoveryPeriod
 
         //Query and change the secret metadata
@@ -802,7 +668,7 @@ const deleteSecret = async (res, appid, DB, payload) => {
                     res.send(_result(200, `The ${base64_decode(secretName)} delete success`))
                     return
                 } else {
-                    res.send(_result(400, 'force delete failed'))
+                    res.send(_result(400, 'Force delete failed'))
                     return
                 }
             } else {
@@ -811,15 +677,15 @@ const deleteSecret = async (res, appid, DB, payload) => {
                 secret_metadata_res.docs[0].plannedDeleteTime = plannedDeleteTime
                 await DB.insert(secret_metadata_res.docs[0])
                 add_delete_task(DB, appid, secretName, plannedDeleteTime)
-                res.send(_result(200, `The ${base64_decode(secretName)} will be delete after ${recoveryPeriod}d`))
+                res.send(_result(200, `The ${base64_decode(secretName)} will be deleted after ${recoveryPeriod} days.`))
                 return
             }
         } else {
-            res.send(_result(400, 'logically delete :: can not find secretName'))
+            res.send(_result(400, 'Delete error, Can not find the secretName'))
             return
         }
     } catch (e) {
-        console.info('deleteSecret :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -845,19 +711,6 @@ const getSecretValue = async (res, appid, DB, payload) => {
         let secretName = getParam_String(payload, 'secretName')
         let versionId = payload['versionId']
         let selector;
-        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
-            return
-        }
-        if (versionId != undefined) {
-            if (typeof (versionId) !== 'number') {
-                res.send(_result(400, 'versionId must be a integer.'))
-                return
-            } else if (versionId < 1) {
-                res.send(_result(400, 'versionId must be greater than 0.'))
-                return
-            }
-        }
 
         //query encryptionKeyId, just read undelete secret's value
         const query_encryptionKeyId = {
@@ -888,7 +741,7 @@ const getSecretValue = async (res, appid, DB, payload) => {
             selector = {
                 appid: appid,
                 secretName: secretName,
-                versionStage: SM_SECRET_VERSION_STAGE_CURRENT
+                versionStage: Definition.SM_SECRET_VERSION_STAGE_CURRENT
             }
         }
 
@@ -918,7 +771,7 @@ const getSecretValue = async (res, appid, DB, payload) => {
             }
 
             // decrypt secretData
-            const secretData_decypt_result = napi_result(cryptographic_apis.Decrypt, res, [sm_masterKey, secretData, ''])
+            const secretData_decypt_result = napi_result(KMS_ACTION.cryptographic.Decrypt, res, [sm_masterKey, secretData, ''])
             // check Decrypt status and get plaintext
             if (!secretData_decypt_result) {
                 return
@@ -936,7 +789,7 @@ const getSecretValue = async (res, appid, DB, payload) => {
         res.send(_result(200, 'successful', result))
         return
     } catch (e) {
-        console.info('getSecretValue :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }
@@ -954,10 +807,6 @@ const getSecretValue = async (res, appid, DB, payload) => {
 const restoreSecret = async (res, appid, DB, payload) => {
     try {
         let secretName = getParam_String(payload, 'secretName')
-        if (!checkStringParam(secretName, true, SECRETNAME_LENGTH_MAX)) {
-            res.send(_result(400, `secretName cannot be empty, must be string and length not more than ${SECRETNAME_LENGTH_MAX}`))
-            return
-        }
 
         //Query and change the secret metadata
         const query_matadata = {
@@ -982,7 +831,7 @@ const restoreSecret = async (res, appid, DB, payload) => {
             return
         }
     } catch (e) {
-        console.info('restoreSecret :: ', e)
+        logger.error(e)
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
         return
     }

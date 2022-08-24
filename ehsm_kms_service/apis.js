@@ -1,4 +1,4 @@
-const cryptographic_apis = {
+const cryptographic = {
   CreateKey: 'CreateKey',
   Encrypt: 'Encrypt',
   Decrypt: 'Decrypt',
@@ -11,21 +11,21 @@ const cryptographic_apis = {
   ExportDataKey: 'ExportDataKey',
 }
 
-const enroll_apis = {
+const enroll = {
   RA_GET_API_KEY: 'RA_GET_API_KEY',
   RA_HANDSHAKE_MSG0: 'RA_HANDSHAKE_MSG0',
   RA_HANDSHAKE_MSG2: 'RA_HANDSHAKE_MSG2',
   Enroll: 'Enroll',
 }
 
-const remote_attestation_apis = {
+const remote_attestation = {
   GenerateQuote: 'GenerateQuote',
   VerifyQuote: 'VerifyQuote',
   UploadQuotePolicy: 'UploadQuotePolicy',
   GetQuotePolicy: 'GetQuotePolicy'
 }
 
-const key_management_apis = {
+const key_management = {
   ListKey: 'ListKey',
   DeleteKey: 'DeleteKey',
   DeleteAllKey: 'DeleteAllKey',
@@ -33,7 +33,7 @@ const key_management_apis = {
   DisableKey: 'DisableKey',
 }
 
-const secret_manager_apis = {
+const secret_manager = {
   CreateSecret: 'CreateSecret',
   UpdateSecretDesc: 'UpdateSecretDesc',
   PutSecretValue: 'PutSecretValue',
@@ -45,14 +45,19 @@ const secret_manager_apis = {
   RestoreSecret: 'RestoreSecret'
 }
 
-const common_apis = {
+const common = {
   GetVersion: 'GetVersion'
 }
+
+const KMS_ACTION = {
+  cryptographic,
+  enroll,
+  key_management,
+  remote_attestation,
+  common,
+  secret_manager
+}
+
 module.exports = {
-  cryptographic_apis,
-  enroll_apis,
-  key_management_apis,
-  remote_attestation_apis,
-  common_apis,
-  secret_manager_apis,
+  KMS_ACTION
 }
