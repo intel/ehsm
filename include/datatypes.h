@@ -35,6 +35,9 @@
 #include "sgx_dh.h"
 #include "sgx_tseal.h"
 
+#include "openssl/rsa.h"
+#include "openssl/evp.h"
+
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
@@ -53,6 +56,20 @@
 #define ACTIVE 0x2
 
 #define SGX_DOMAIN_KEY_SIZE     16
+
+#define RSA_OAEP_2048_CIPHER_LENGTH       256
+#define RSA_OAEP_3072_CIPHER_LENGTH       384
+#define RSA_OAEP_4096_CIPHER_LENGTH       512
+
+#define RSA_PKCS1_OAEP_PADDING_SIZE       41
+#define RSA_PKCS1_PADDING_SIZE            11
+
+#define EH_AES_GCM_IV_SIZE  12
+#define EH_AES_GCM_MAC_SIZE 16
+
+#define SM2PKE_MAX_ENCRYPTION_SIZE                      6047
+#define EH_ENCRYPT_MAX_SIZE (6*1024)
+#define EH_DATA_KEY_MAX_SIZE 1024
 
 #define MESSAGE_EXCHANGE 0x0
 
@@ -139,35 +156,16 @@ typedef struct {
     uint8_t             *keyblob;
 } ehsm_keyblob_t;
 
-//aes
-typedef struct
-{
-    uint32_t    ciphertext_size;
-    uint32_t    aad_size;
-    uint8_t     iv[SGX_AESGCM_IV_SIZE];
-    uint8_t     mac[SGX_AESGCM_MAC_SIZE];
-    uint8_t     payload[];   /* ciphertext + aad */
-} aes_gcm_key_data_t;
-
-//rsa
-typedef struct
-{
-    char* rsa_private_key;
-    char* rsa_public_key;
-} rsa_key_data_t;
-
 //ec:
 typedef struct 
 {
-    char* ec_private_key;
-    char* ec_public_key;
-    char* ec_parameters;
+    //temporary
 } ec_key_data_t;
 
 //hmac
 typedef struct
 {
-    //temporary
+   
 } hmac_key_data_t;
 
 //sm2
@@ -192,22 +190,15 @@ typedef enum {
     EH_AES_GCM_256,
     EH_RSA_2048,
     EH_RSA_3072,
+    EH_RSA_4096,
     EH_EC_P224,
     EH_EC_P256,
     EH_EC_P384,
     EH_EC_P512,
     EH_EC_SM2,
-    EH_HMAC,
-    EH_SM3, 
+    EH_HMAC, 
     EH_SM4 
 } ehsm_keyspec_t;
-
-typedef enum {
-    EH_RSA_PKCS1v2_OAEP = 0,
-    EH_RSA_PKCS1_v1_5,
-    EH_RSA_PKCS1v2_PSS,
-    EH_PKCS1_v1_5
-} ehsm_padding_mode_t;
 
 typedef enum {
     EH_NONE = 0,
@@ -220,5 +211,47 @@ typedef enum {
 } ehsm_digest_mode_t;
 
 #pragma pack(pop)
+
+static uint32_t ehsm_get_rsa_padding_size(uint32_t padding_mode)
+{
+    switch (padding_mode) {
+        case RSA_PKCS1_OAEP_PADDING:
+            return RSA_PKCS1_OAEP_PADDING_SIZE;
+        case RSA_PKCS1_PADDING:
+            return RSA_PKCS1_PADDING_SIZE;
+        default:
+            return 0;
+    }
+}
+
+static uint32_t ehsm_get_rsa_max_encryption_size(const uint32_t keyspec, const uint32_t padding_mode)
+{
+    switch (keyspec) {
+        case EH_RSA_2048:
+            return RSA_OAEP_2048_CIPHER_LENGTH - ehsm_get_rsa_padding_size(padding_mode);
+        case EH_RSA_3072:
+            return RSA_OAEP_3072_CIPHER_LENGTH - ehsm_get_rsa_padding_size(padding_mode);
+        case EH_RSA_4096:
+            return RSA_OAEP_4096_CIPHER_LENGTH - ehsm_get_rsa_padding_size(padding_mode);
+        default:
+            return 0;
+    }
+}
+
+static uint32_t ehsm_get_rsa_cipher_len(const uint32_t keyspec)
+{
+    switch (keyspec) {
+        case EH_RSA_2048:
+            return RSA_OAEP_2048_CIPHER_LENGTH;
+        case EH_RSA_3072:
+            return RSA_OAEP_3072_CIPHER_LENGTH;
+        case EH_RSA_4096:
+            return RSA_OAEP_4096_CIPHER_LENGTH;
+        default:
+            return 0;
+    }
+}
+
+
 
 #endif

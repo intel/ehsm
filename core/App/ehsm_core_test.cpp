@@ -40,6 +40,7 @@
 #include "ehsm_napi.h"
 #include "dsohandle.h"
 #include "json_utils.h"
+#include "openssl/rsa.h"
 
 #include <pthread.h>
 #include <chrono>
@@ -647,58 +648,222 @@ void test_AES128()
 //     printf("============test_AES128 end==========\n");
 }
 
-void test_RSA3072_encrypt_decrypt()
+void test_RSA2048_encrypt_decrypt()
 {
-//     char* returnJsonChar = nullptr;
-//     char plaintext[] = "TestRSA-3072";
-//     char* cmk_base64 = nullptr;
-//     char* ciphertext_base64 = nullptr;
-//     char* plaintext_base64 = nullptr;
-//     RetJsonObj retJsonObj;
-//     std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    char* returnJsonChar = nullptr;
+    char plaintext[] = "TestRSA-2048";
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    RetJsonObj retJsonObj;
 
-//     printf("============test_RSA3072_encrypt_decrypt start==========\n");
+    JsonObj paramJsonCreatekey;
+    JsonObj paramJsonDecrypt;
+    JsonObj paramJsonEncrypt;
 
-//     returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
-//     printf("Create CMK with RAS SUCCESSFULLY!\n");
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
 
-//     cmk_base64 = retJsonObj.readData_cstr("cmk");
+    paramJsonCreatekey.addData_uint16("keyspec", EH_RSA_2048);
+    paramJsonCreatekey.addData_uint16("padding_mode", RSA_PKCS1_OAEP_PADDING);
 
-//     returnJsonChar = NAPI_AsymmetricEncrypt(cmk_base64, input_plaintext_base64.c_str());
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
-//     printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
+    printf("============test_RSA2048_encrypt_decrypt start==========\n");
 
-//     ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
-//     returnJsonChar = NAPI_AsymmetricDecrypt(cmk_base64, ciphertext_base64);
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
-//     plaintext_base64 = retJsonObj.readData_cstr("plaintext");
-//     printf("Decrypted plaintext : %s\n", plaintext_base64);
-//     printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
+    returnJsonChar = NAPI_CreateKey(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
 
-// cleanup:
-//         SAFE_FREE(cmk_base64);
-//         SAFE_FREE(ciphertext_base64);
-//         SAFE_FREE(plaintext_base64);
-//         SAFE_FREE(returnJsonChar);
-//         printf("============test_RSA3072_encrypt_decrypt End==========\n");
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    paramJsonEncrypt.addData_string("cmk_base64", cmk_base64);
+    paramJsonEncrypt.addData_string("plaintext_base64", input_plaintext_base64);
+
+    returnJsonChar = NAPI_AsymmetricEncrypt(paramJsonEncrypt.StringToChar(paramJsonEncrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
+    printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
+
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+ 
+    paramJsonDecrypt.addData_string("cmk_base64", cmk_base64);
+    paramJsonDecrypt.addData_string("ciphertext_base64", ciphertext_base64);
+
+    returnJsonChar = NAPI_AsymmetricDecrypt(paramJsonDecrypt.StringToChar(paramJsonDecrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+    printf("Decrypted plaintext : %s\n", plaintext_base64);
+
+    if (!strcmp(plaintext_base64, input_plaintext_base64.data()))
+        printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
+    else {
+        printf("NAPI_AsymmetricDecrypt data FAILED!\n");
+        goto cleanup;
+    }
+
+cleanup:
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_RSA2048_encrypt_decrypt End==========\n");
 }
 
+void test_RSA3072_encrypt_decrypt()
+{
+    char* returnJsonChar = nullptr;
+    char plaintext[] = "TestRSA-3072";
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    RetJsonObj retJsonObj;
+
+    JsonObj paramJsonCreatekey;
+    JsonObj paramJsonEncrypt;
+    JsonObj paramJsonDecrypt;
+
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+
+    paramJsonCreatekey.addData_uint16("keyspec", EH_RSA_3072);
+    paramJsonCreatekey.addData_uint16("padding_mode", RSA_PKCS1_OAEP_PADDING);
+
+    printf("============test_RSA3072_encrypt_decrypt start==========\n");
+
+    returnJsonChar = NAPI_CreateKey(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    paramJsonEncrypt.addData_string("cmk_base64", cmk_base64);
+    paramJsonEncrypt.addData_string("plaintext_base64", input_plaintext_base64);
+
+    returnJsonChar = NAPI_AsymmetricEncrypt(paramJsonEncrypt.StringToChar(paramJsonEncrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
+    printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
+
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+
+    paramJsonDecrypt.addData_string("cmk_base64", cmk_base64);
+    paramJsonDecrypt.addData_string("ciphertext_base64", ciphertext_base64);
+
+    returnJsonChar = NAPI_AsymmetricDecrypt(paramJsonDecrypt.StringToChar(paramJsonDecrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+    printf("Decrypted plaintext : %s\n", plaintext_base64);
+    if (!strcmp(plaintext_base64, input_plaintext_base64.data()))
+        printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
+    else {
+        printf("NAPI_AsymmetricDecrypt data FAILED!\n");
+        goto cleanup;
+    }
+
+cleanup:
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_RSA3072_encrypt_decrypt End==========\n");
+}
+
+void test_RSA4096_encrypt_decrypt()
+{
+    char* returnJsonChar = nullptr;
+    char plaintext[] = "TestRSA-4096";
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    RetJsonObj retJsonObj;
+
+    JsonObj paramJsonCreatekey;
+    JsonObj paramJsonEncrypt;
+    JsonObj paramJsonDecrypt;
+
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+
+    paramJsonCreatekey.addData_uint16("keyspec", EH_RSA_4096);
+    paramJsonCreatekey.addData_uint16("padding_mode", RSA_PKCS1_OAEP_PADDING);
+
+    printf("============test_RSA4096_encrypt_decrypt start==========\n");
+
+    returnJsonChar = NAPI_CreateKey(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    paramJsonEncrypt.addData_string("cmk_base64", cmk_base64);
+    paramJsonEncrypt.addData_string("plaintext_base64", input_plaintext_base64);
+
+    returnJsonChar = NAPI_AsymmetricEncrypt(paramJsonEncrypt.StringToChar(paramJsonEncrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
+    printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
+
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+
+    paramJsonDecrypt.addData_string("cmk_base64", cmk_base64);
+    paramJsonDecrypt.addData_string("ciphertext_base64", ciphertext_base64);
+
+    returnJsonChar = NAPI_AsymmetricDecrypt(paramJsonDecrypt.StringToChar(paramJsonDecrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+    printf("Decrypted plaintext : %s\n", plaintext_base64);
+    if (!strcmp(plaintext_base64, input_plaintext_base64.data()))
+        printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
+    else {
+        printf("NAPI_AsymmetricDecrypt data FAILED!\n");
+        goto cleanup;
+    }
+
+cleanup:
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_RSA4096_encrypt_decrypt End==========\n");
+}
 
 /*
 
@@ -1046,19 +1211,23 @@ int main(int argc, char* argv[])
     test_performance();
 #endif
 
-    test_AES128();
+    // test_AES128();
+
+    test_RSA2048_encrypt_decrypt();
 
     test_RSA3072_encrypt_decrypt();
 
-    test_RSA3072_sign_verify();
+    test_RSA4096_encrypt_decrypt();
 
-    test_generate_datakey();
+    // test_RSA3072_sign_verify();
 
-    test_export_datakey();
+    // test_generate_datakey();
 
-    test_GenerateQuote_and_VerifyQuote();
+    // test_export_datakey();
 
-    test_Enroll();
+    // test_GenerateQuote_and_VerifyQuote();
+
+    // test_Enroll();
 
     Finalize();
 

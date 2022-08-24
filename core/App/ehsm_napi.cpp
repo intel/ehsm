@@ -44,12 +44,13 @@
 #include "ehsm_marshal.h"
 #include "auto_version.h"
 
+#include "openssl/rsa.h"
+
 using namespace std;
 using namespace EHsmProvider;
 
 
 extern "C" {
-
 /*
 create the enclave
 @return
@@ -135,7 +136,15 @@ char* NAPI_CreateKey(const char* paramJson)
     master_key.metadata.keyspec = paramJsonObj.readData_uint16("keyspec");
     master_key.metadata.origin = paramJsonObj.readData_uint16("origin");
     master_key.metadata.purpose = paramJsonObj.readData_uint16("purpose");
-    master_key.keybloblen = 0;    
+    master_key.metadata.padding_mode = paramJsonObj.readData_uint16("padding_mode");
+    master_key.metadata.digest_mode = paramJsonObj.readData_uint16("digest_mode");
+    master_key.keybloblen = 0;
+
+    if (master_key.metadata.padding_mode == RSA_NO_PADDING) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("NO padding is unsafe.");
+        goto out;
+    } 
     
     // get keybloblen
     ret = CreateKey(&master_key);
@@ -247,6 +256,7 @@ char* NAPI_Encrypt(const char* paramJson)
     int plaintext_len = plaintext_str.size();
     int aad_len = aad_str.size();
 
+    printf("cmk_len=%d\n", cmk_len);
     if(cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("The cmk's length is invalid.");
@@ -1007,10 +1017,9 @@ char* NAPI_AsymmetricEncrypt(const char* paramJson)
     switch (cmk.metadata.keyspec)
     {
         case EH_RSA_2048:
-            // TODO
-            break;
         case EH_RSA_3072:
-            plaintext_maxLen = RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE;
+        case EH_RSA_4096:
+            plaintext_maxLen = ehsm_get_rsa_max_encryption_size(cmk.metadata.keyspec, cmk.metadata.padding_mode);
             break;
         case EH_EC_SM2:
             // TODO
@@ -1047,6 +1056,7 @@ char* NAPI_AsymmetricEncrypt(const char* paramJson)
 
     ret = AsymmetricEncrypt(&cmk, &plaint_data, &cipher_data);
     if (ret != EH_OK) {
+
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
@@ -1135,10 +1145,9 @@ char* NAPI_AsymmetricDecrypt(const char* paramJson)
     switch (cmk.metadata.keyspec)
     {
         case EH_RSA_2048:
-            // TODO
-            break;
         case EH_RSA_3072:
-            ciphertext_maxLen = RSA_OAEP_3072_CIPHER_LENGTH;
+        case EH_RSA_4096:
+            ciphertext_maxLen = ehsm_get_rsa_cipher_len(cmk.metadata.keyspec);
             break;
         case EH_EC_SM2:
             // TODO
@@ -1179,7 +1188,7 @@ char* NAPI_AsymmetricDecrypt(const char* paramJson)
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
-    
+
     plaintext_base64 = base64_encode(plaint_data.data, plaint_data.datalen);
     if(plaintext_base64.size() > 0){
         retJsonObj.addData_string("plaintext", plaintext_base64);
@@ -1276,11 +1285,12 @@ char* NAPI_ExportDataKey(const char* paramJson)
         retJsonObj.setMessage("The aad's length is invalid.");
         goto out;
     }
-    if(olddatakey_len == 0 || olddatakey_len > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE){
-        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-        retJsonObj.setMessage("The olddatakey's length is invalid.");
-        goto out;
-    }
+    // close there code temporary: RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE is deprecated
+    // if(olddatakey_len == 0 || olddatakey_len > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE){
+    //     retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+    //     retJsonObj.setMessage("The olddatakey's length is invalid.");
+    //     goto out;
+    // }
 
     ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {

@@ -149,23 +149,6 @@ void Finalize()
     sgx_destroy_enclave(g_enclave_id);
 }
 
-static uint32_t sgx_calc_gcm_data_size(const uint32_t aad_size, const uint32_t plaintext_size)
-{
-    if (aad_size > UINT32_MAX - sizeof(aes_gcm_key_data_t))
-        return UINT32_MAX;
-
-    if (plaintext_size > UINT32_MAX - sizeof(aes_gcm_key_data_t))
-        return UINT32_MAX;
-
-    if (aad_size > UINT32_MAX - plaintext_size)
-        return UINT32_MAX;
-
-    if (sizeof(aes_gcm_key_data_t) > UINT32_MAX - plaintext_size - aad_size)
-        return UINT32_MAX;
-
-    return (aad_size + plaintext_size + sizeof(aes_gcm_key_data_t));
-}
-
 /**
  * @brief Initialize the variables needed to generate the aes_gcm key
  * 
@@ -176,64 +159,7 @@ static uint32_t sgx_calc_gcm_data_size(const uint32_t aad_size, const uint32_t p
  */
 sgx_status_t create_aes_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
 {
-    uint32_t key_size;
-    if (cmk->keybloblen == 0)
-    {
-        //TODO: compute keybloblen
-        
-        switch (cmk->metadata.keyspec)
-        {
-            case EH_AES_GCM_128:
-                key_size = 16;
-                break;
-            case EH_AES_GCM_192:
-                key_size = 24;
-                break;
-            case EH_AES_GCM_256:
-                key_size = 32;
-                break;
-            default:
-                return SGX_ERROR_INVALID_PARAMETER;
-        }
-        cmk->keybloblen = sgx_calc_gcm_data_size(0, key_size);
-        return SGX_SUCCESS;
-    }
     
-    return enclave_create_aes_key(g_enclave_id, sgxStatus, cmk->keyblob, cmk->keybloblen);
-}
-
-/**
- * @brief Initialize the variables needed to generate the rsa key
- * 
- * @param sgxStatus result for enclave function
- * @param cmk storage key information
- * @param paramJson Pass in the key parameter in the form of JSON string
- * @return sgx_status_t 
- */
-sgx_status_t create_rsa_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
-{
-    if (cmk->keybloblen == 0)
-    {
-        //TODO: compute keybloblen
-        cmk->keybloblen = sgx_calc_gcm_data_size(0, sizeof(rsa_key_data_t));
-
-        return SGX_SUCCESS;
-    }
-    uint32_t key_size;
-    switch (cmk->metadata.keyspec)
-    {
-        case EH_RSA_2048:
-            key_size = 256;
-            break;
-        case EH_RSA_3072:
-            key_size = 384;
-            break;
-        default:
-            return SGX_ERROR_INVALID_PARAMETER;
-    }
-    //TODO: initialize variable
-
-    // return enclave_create_rsa_key(g_enclave_id, sgxStatus, cmk->keyblob);
 }
 
 /**
@@ -348,13 +274,14 @@ ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
             break;
         case EH_RSA_2048:
         case EH_RSA_3072:
+        case EH_RSA_4096:
             if (cmk->keybloblen == 0)
                 ret = enclave_create_rsa_key(g_enclave_id,
                                              &sgxStatus,
                                              NULL,
                                              0,
                                              &(cmk->keybloblen),
-                                             NULL,
+                                             cmk->metadata.keyspec,
                                              NULL);
             else
                 ret = enclave_create_rsa_key(g_enclave_id,
@@ -482,19 +409,20 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
 
     switch(cmk->metadata.keyspec) {
         case EH_RSA_2048:
-            break;
         case EH_RSA_3072:
-            if(plaintext->datalen > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE) {
-                printf("Error data len(%d) for rsa encryption, max is 318.\n", plaintext->datalen);
+        case EH_RSA_4096:
+            if(plaintext->datalen > ehsm_get_rsa_max_encryption_size(cmk->metadata.keyspec, cmk->metadata.padding_mode)) {
+                printf("Error data len(%d) for rsa encryption, max is (%d).\n", 
+                       plaintext->datalen, ehsm_get_rsa_max_encryption_size(cmk->metadata.keyspec, cmk->metadata.padding_mode));
                 return EH_ARGUMENTS_BAD;
             }
             /* calculate the ciphertext length  */
             if (ciphertext->datalen == 0) {
-                ciphertext->datalen = RSA_OAEP_3072_CIPHER_LENGTH;
+                ciphertext->datalen = ehsm_get_rsa_cipher_len(cmk->metadata.keyspec);
                 return EH_OK;
             }
             /* check if the datalen is valid */
-            if (ciphertext->data == NULL || ciphertext->datalen != RSA_OAEP_3072_CIPHER_LENGTH)
+            if (ciphertext->data == NULL || ciphertext->datalen != ehsm_get_rsa_cipher_len(cmk->metadata.keyspec))
                 return EH_ARGUMENTS_BAD;
             ret = enclave_rsa_encrypt(g_enclave_id,
                                       &sgxStatus,
@@ -514,8 +442,9 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
             return EH_KEYSPEC_INVALID;
     }
 
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
         return EH_FUNCTION_FAILED;
+    }
     else
         return EH_OK;
 }
@@ -595,22 +524,23 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
     switch(cmk->metadata.keyspec) {
         case EH_RSA_2048:
         case EH_RSA_3072:
+        case EH_RSA_4096:
             if (ciphertext->data == NULL || ciphertext->datalen == 0 ||
-                ciphertext->datalen > RSA_OAEP_3072_CIPHER_LENGTH) {
+                ciphertext->datalen > ehsm_get_rsa_cipher_len(cmk->metadata.keyspec)) {
                 return EH_ARGUMENTS_BAD;
             }
             /* calculate the ciphertext length */
             if (plaintext->datalen == 0) {
                 ret = enclave_rsa_decrypt(g_enclave_id,
-                                  &sgxStatus,
-                                  cmk->keyblob,
-                                  cmk->keybloblen,
-                                  ciphertext->data,
-                                  ciphertext->datalen,
-                                  NULL, 0,
-                                  &(plaintext->datalen),
-                                  cmk->metadata.keyspec,
-                                      cmk->metadata.padding_mode);
+                                          &sgxStatus,
+                                          cmk->keyblob,
+                                          cmk->keybloblen,
+                                          ciphertext->data,
+                                          ciphertext->datalen,
+                                          NULL, 0,
+                                          &(plaintext->datalen),
+                                          cmk->metadata.keyspec,
+                                          cmk->metadata.padding_mode);
                 return EH_OK;
             }
             /* check if the datalen is valid */
@@ -627,6 +557,7 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
                                       NULL,
                                       cmk->metadata.keyspec,
                                       cmk->metadata.padding_mode);
+            break;
         case EH_EC_SM2:
             sm2_decrypt(/* param */);
             break;
