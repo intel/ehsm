@@ -48,6 +48,13 @@
 #define TAG_SIZE        16
 #define IV_SIZE            12
 
+#define SGX_AESGCM_IV_SIZE      12
+#define SGX_AESGCM_MAC_SIZE     16 
+#define SGX_SM4_IV_SIZE         16
+#define AES_GCM_128_KEYSIZE     16
+#define AES_GCM_192_KEYSIZE     24
+#define AES_GCM_256_KEYSIZE     32
+
 #define CLOSED 0x0
 #define IN_PROGRESS 0x1
 #define ACTIVE 0x2
@@ -112,9 +119,7 @@ typedef struct _aes_gcm_data_ex_t
 {
     uint32_t  ciphertext_size;
     uint32_t  aad_size;
-    uint8_t   reserve1[8];
     uint8_t   iv[SGX_AESGCM_IV_SIZE];
-    uint8_t   reserve2[4];
     uint8_t   mac[SGX_AESGCM_MAC_SIZE];
     uint8_t   payload[];   /* ciphertext + aad */
 } sgx_aes_gcm_data_ex_t;
@@ -138,16 +143,6 @@ typedef struct {
     uint32_t            keybloblen;
     uint8_t             *keyblob;
 } ehsm_keyblob_t;
-
-//aes
-typedef struct
-{
-    uint32_t    ciphertext_size;
-    uint32_t    aad_size;
-    uint8_t     iv[SGX_AESGCM_IV_SIZE];
-    uint8_t     mac[SGX_AESGCM_MAC_SIZE];
-    uint8_t     payload[];   /* ciphertext + aad */
-} aes_gcm_key_data_t;
 
 //rsa
 typedef struct
@@ -181,8 +176,7 @@ typedef struct
 {
     uint32_t    ciphertext_size;
     uint32_t    aad_size;
-    uint8_t     iv[SGX_AESGCM_IV_SIZE];
-    uint8_t     mac[SGX_AESGCM_MAC_SIZE];
+    uint8_t     iv[SGX_SM4_IV_SIZE];
     uint8_t     payload[];   /* ciphertext + aad */
 } sm4_key_data_t;
 

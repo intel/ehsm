@@ -58,6 +58,7 @@
 
 #include "openssl/evp.h"
 #include "openssl/rsa.h"
+#include "openssl/aes.h"
 
 void ocall_print_string(const char *str)
 {
@@ -149,57 +150,74 @@ void Finalize()
     sgx_destroy_enclave(g_enclave_id);
 }
 
+uint32_t get_symmetric_key_size(ehsm_keyspec_t key_spec)
+{
+    switch(key_spec) {
+        case EH_AES_GCM_128:
+        case EH_SM4:
+            return 16;
+        case EH_AES_GCM_192:
+            return 24;
+        case EH_AES_GCM_256:
+            return 32;
+        default:
+            return UINT32_MAX;
+    }
+    return UINT32_MAX;
+}
+
 static uint32_t sgx_calc_gcm_data_size(const uint32_t aad_size, const uint32_t plaintext_size)
 {
-    if (aad_size > UINT32_MAX - sizeof(aes_gcm_key_data_t))
+    if (aad_size > UINT32_MAX - sizeof(sgx_aes_gcm_data_ex_t))
         return UINT32_MAX;
 
-    if (plaintext_size > UINT32_MAX - sizeof(aes_gcm_key_data_t))
+    if (plaintext_size > UINT32_MAX - sizeof(sgx_aes_gcm_data_ex_t))
         return UINT32_MAX;
 
     if (aad_size > UINT32_MAX - plaintext_size)
         return UINT32_MAX;
 
-    if (sizeof(aes_gcm_key_data_t) > UINT32_MAX - plaintext_size - aad_size)
+    if (sizeof(sgx_aes_gcm_data_ex_t) > UINT32_MAX - plaintext_size - aad_size)
         return UINT32_MAX;
 
-    return (aad_size + plaintext_size + sizeof(aes_gcm_key_data_t));
+    return (aad_size + plaintext_size + sizeof(sgx_aes_gcm_data_ex_t));
 }
 
 /**
  * @brief Initialize the variables needed to generate the aes_gcm key
- * 
- * @param sgxStatus result for enclave function
  * @param cmk storage key information
- * @param paramJson Pass in the key parameter in the form of JSON string
- * @return sgx_status_t 
+ * @return ehsm_status_t 
  */
-sgx_status_t create_aes_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
+ehsm_status_t create_aes_key(ehsm_keyblob_t* cmk)
 {
-    uint32_t key_size;
-    if (cmk->keybloblen == 0)
-    {
-        //TODO: compute keybloblen
-        
-        switch (cmk->metadata.keyspec)
-        {
-            case EH_AES_GCM_128:
-                key_size = 16;
-                break;
-            case EH_AES_GCM_192:
-                key_size = 24;
-                break;
-            case EH_AES_GCM_256:
-                key_size = 32;
-                break;
-            default:
-                return SGX_ERROR_INVALID_PARAMETER;
-        }
-        cmk->keybloblen = sgx_calc_gcm_data_size(0, key_size);
-        return SGX_SUCCESS;
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY) {
+        return EH_ARGUMENTS_BAD;
     }
-    
-    return enclave_create_aes_key(g_enclave_id, sgxStatus, cmk->keyblob, cmk->keybloblen);
+    uint32_t key_size = get_symmetric_key_size((ehsm_keyspec_t)cmk->metadata.keyspec);  
+    if(key_size == UINT32_MAX) {
+        return EH_KEYSPEC_INVALID;
+    }
+    if (cmk->keybloblen == 0) {
+        ret = enclave_create_aes_key(g_enclave_id,
+                                    &sgxStatus,
+                                    NULL,
+                                    0,
+                                    &(cmk->keybloblen),
+                                    key_size);
+    } else {
+        ret = enclave_create_aes_key(g_enclave_id,
+                                    &sgxStatus,
+                                    cmk->keyblob,
+                                    cmk->keybloblen,
+                                    NULL,
+                                    key_size);
+    }
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        return EH_FUNCTION_FAILED;
+    }
+    return EH_OK;
 }
 
 /**
@@ -210,14 +228,14 @@ sgx_status_t create_aes_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonOb
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_rsa_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
+ehsm_status_t create_rsa_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
         cmk->keybloblen = sgx_calc_gcm_data_size(0, sizeof(rsa_key_data_t));
 
-        return SGX_SUCCESS;
+        return EH_OK;
     }
     uint32_t key_size;
     switch (cmk->metadata.keyspec)
@@ -229,7 +247,7 @@ sgx_status_t create_rsa_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonOb
             key_size = 384;
             break;
         default:
-            return SGX_ERROR_INVALID_PARAMETER;
+            return EH_FUNCTION_FAILED;
     }
     //TODO: initialize variable
 
@@ -244,13 +262,13 @@ sgx_status_t create_rsa_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonOb
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_ec_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
+ehsm_status_t create_ec_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
 
-        return SGX_SUCCESS;
+        return EH_OK;
     }
 
     //TODO: initialize variable
@@ -266,13 +284,13 @@ sgx_status_t create_ec_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_hmac_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
+ehsm_status_t create_hmac_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
 
-        return SGX_SUCCESS;
+        return EH_OK;
     }
     //TODO: initialize variable
 
@@ -287,13 +305,13 @@ sgx_status_t create_hmac_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonO
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_sm2_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
+ehsm_status_t create_sm2_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk)
 {
     if (cmk->keybloblen == 0)
     {
         //TODO: compute keybloblen
 
-        return SGX_SUCCESS;
+        return EH_OK;
     }
     //TODO: initialize variable
 
@@ -308,17 +326,36 @@ sgx_status_t create_sm2_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonOb
  * @param paramJson Pass in the key parameter in the form of JSON string
  * @return sgx_status_t 
  */
-sgx_status_t create_sm4_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonObj paramJson)
+ehsm_status_t create_sm4_key(ehsm_keyblob_t* cmk)
 {
-    if (cmk->keybloblen == 0)
-    {
-        //TODO: compute keybloblen
-
-        return SGX_SUCCESS;
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY) {
+        return EH_ARGUMENTS_BAD;
     }
-    //TODO: initialize variable
-
-    // return enclave_create_sm2_key(g_enclave_id, &sgxStatus, /*param*/);
+    uint32_t key_size = get_symmetric_key_size((ehsm_keyspec_t)cmk->metadata.keyspec);  
+    if(key_size == UINT32_MAX) {
+        return EH_KEYSPEC_INVALID;
+    }
+    if (cmk->keybloblen == 0) {
+        ret = enclave_create_sm4_key(g_enclave_id,
+                                    &sgxStatus,
+                                    NULL,
+                                    0,
+                                    &(cmk->keybloblen),
+                                    key_size);
+    } else {
+        ret = enclave_create_sm4_key(g_enclave_id,
+                                    &sgxStatus,
+                                    cmk->keyblob,
+                                    cmk->keybloblen,
+                                    NULL,
+                                    key_size);
+    }
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        return EH_FUNCTION_FAILED;
+    }
+    return EH_OK;
 }
 
 /**
@@ -331,63 +368,79 @@ sgx_status_t create_sm4_key(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, JsonOb
 ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ehsm_status_t ret = EH_OK;
 
     if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY) {
         return EH_ARGUMENTS_BAD;
     }
-
-    //TODO: Verify the validity of parameters
-
-    //TODO: Create key by keyspec
     switch (cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
         case EH_AES_GCM_192:
         case EH_AES_GCM_256:
-            // ret = create_aes_key(&sgxStatus, cmk, paramJson);
+            ret = create_aes_key(cmk);
             break;
         case EH_RSA_2048:
         case EH_RSA_3072:
-            if (cmk->keybloblen == 0)
-                ret = enclave_create_rsa_key(g_enclave_id,
-                                             &sgxStatus,
-                                             NULL,
-                                             0,
-                                             &(cmk->keybloblen),
-                                             NULL,
-                                             NULL);
-            else
-                ret = enclave_create_rsa_key(g_enclave_id,
-                                             &sgxStatus,
-                                             cmk->keyblob,
-                                             cmk->keybloblen,
-                                             NULL,
-                                             cmk->metadata.keyspec,
-                                             cmk->metadata.padding_mode);
+            ret = create_rsa_key(&sgxStatus, cmk);
             break;
         case EH_EC_P224:
         case EH_EC_P256:
         case EH_EC_P384:
         case EH_EC_P512:
-            // ret = create_ec_key(&sgxStatus, cmk, paramJson);
+            ret = create_ec_key(&sgxStatus, cmk);
             break;
         case EH_EC_SM2:
-            // ret = create_sm2_key(&sgxStatus, cmk, paramJson);
+            ret = create_sm2_key(&sgxStatus, cmk);
             break;
         case EH_HMAC:
-            // ret = create_hmac_key(&sgxStatus, cmk, paramJson);
+            ret = create_hmac_key(&sgxStatus, cmk);
             break;
         case EH_SM4:
-            // ret = create_sm4_key(&sgxStatus, cmk, paramJson);
+            ret = create_sm4_key(cmk);
             break;
         default:
             return EH_KEYSPEC_INVALID;
     }
+    return ret;
+}
 
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+/**
+ * @brief encrypt with @param cmk
+ * 
+ * @param sgxStatus result for enclave function
+ * @param cmk storage key information
+ * @param plaintext 
+ * @param aad 
+ * @param ciphertext 
+ * @return ehsm_status_t 
+ */
+ehsm_status_t aes_encrypt(ehsm_keyblob_t* cmk, ehsm_data_t *plaintext, ehsm_data_t *aad, ehsm_data_t *ciphertext)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    if(cmk == NULL || plaintext == NULL || aad == NULL || ciphertext == NULL) {
         return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
+    }
+    uint32_t key_size = get_symmetric_key_size((ehsm_keyspec_t)cmk->metadata.keyspec);  
+    if(key_size == UINT32_MAX) {
+        return EH_KEYSPEC_INVALID;
+    }
+    ret = enclave_aes_encrypt(g_enclave_id, 
+                            &sgxStatus, 
+                            aad->data, 
+                            aad->datalen,
+                            cmk->keyblob,
+                            cmk->keybloblen,
+                            plaintext->data,
+                            plaintext->datalen,
+                            ciphertext->data,
+                            ciphertext->datalen,
+                            (ehsm_keyspec_t)cmk->metadata.keyspec,
+                            key_size);
+    if(ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        return EH_FUNCTION_FAILED;
+    }
+    return EH_OK;
 }
 
 /**
@@ -398,9 +451,35 @@ ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
  * @param plaintext 
  * @param aad 
  * @param ciphertext 
- * @return sgx_status_t 
+ * @return ehsm_status_t 
  */
-sgx_status_t aes_encrypt(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ehsm_data_t *plaintext, ehsm_data_t *aad, ehsm_data_t *ciphertext)
+ehsm_status_t sm4_encrypt(ehsm_keyblob_t* cmk, ehsm_data_t *plaintext, ehsm_data_t *aad, ehsm_data_t *ciphertext)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    uint32_t key_size = get_symmetric_key_size((ehsm_keyspec_t)cmk->metadata.keyspec);  
+    if(key_size == UINT32_MAX) {
+        return EH_KEYSPEC_INVALID;
+    }
+    ret = enclave_sm4_encrypt(g_enclave_id, 
+                            &sgxStatus, 
+                            aad->data, 
+                            aad->datalen,
+                            cmk->keyblob,
+                            cmk->keybloblen,
+                            plaintext->data,
+                            plaintext->datalen,
+                            ciphertext->data,
+                            ciphertext->datalen,
+                            (ehsm_keyspec_t)cmk->metadata.keyspec,
+                            key_size);
+    if(ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        return EH_FUNCTION_FAILED;
+    }
+    return EH_OK;
+}
+
+ehsm_status_t rsa_encrypt(/* param */)
 {
     //TODO: get parameters
     // uint8_t key_size = GetKeySize(cmk);
@@ -408,31 +487,10 @@ sgx_status_t aes_encrypt(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ehsm_data
 
     //TODO: initialize variable
 
-    // enclave_aes_encrypt(g_enclave_id, &sgxStatus, /* param */);
+    // enclave_rsa_encrypt(/* param */);
 }
 
-/**
- * @brief encrypt with @param cmk
- * 
- * @param sgxStatus result for enclave function
- * @param cmk storage key information
- * @param plaintext 
- * @param aad 
- * @param ciphertext 
- * @return sgx_status_t 
- */
-sgx_status_t sm4_encrypt(sgx_status_t* sgxStatus, ehsm_keyblob_t* cmk, ehsm_data_t *plaintext, ehsm_data_t *aad, ehsm_data_t *ciphertext)
-{
-    //TODO: get parameters
-    // uint8_t key_size = GetKeySize(cmk);
-    // const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
-
-    //TODO: initialize variable
-
-    // enclave_sm4_encrypt(g_enclave_id, &sgxStatus, /* param */);
-}
-
-sgx_status_t sm2_encrypt(/* param */)
+ehsm_status_t sm2_encrypt(/* param */)
 {
     //TODO: get parameters
 
@@ -441,6 +499,14 @@ sgx_status_t sm2_encrypt(/* param */)
     // enclave_sm2_encrypt(/* param */);
 }
 
+/**
+ * @brief Encrypt a Key object
+ * @param cmk storage the key metadata and keyblob
+ * @param plaintext Plaintext to be encrypted
+ * @param aad Additional data
+ * @param ciphertext Encrypted ciphertext
+ * @return ehsm_status_t 
+ */
 ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
             ehsm_data_t *plaintext,
             ehsm_data_t *aad,
@@ -449,26 +515,70 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    //TODO: Verify the validity of parameters
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || plaintext == NULL || ciphertext == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_AES_GCM_192 &&
+        cmk->metadata.keyspec != EH_AES_GCM_256 &&
+        cmk->metadata.keyspec != EH_SM4) {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    /* only support to directly encrypt data of less than 6 KB */
+    if (plaintext->data == NULL || plaintext->datalen == 0 ||
+        plaintext->datalen > EH_ENCRYPT_MAX_SIZE) {
+        return EH_ARGUMENTS_BAD;
+    }
     
-    //encrypt by cmk
+    if ((0 != aad->datalen) && (NULL == aad->data)) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    uint32_t key_size = get_symmetric_key_size((ehsm_keyspec_t)cmk->metadata.keyspec);  
+    if(key_size == UINT32_MAX) {
+        return EH_KEYSPEC_INVALID;
+    }
     switch(cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
         case EH_AES_GCM_192:
         case EH_AES_GCM_256:
-            ret = aes_encrypt(&sgxStatus, cmk, plaintext, aad, ciphertext);
+            /* calculate the ciphertext length */
+            if (ciphertext->datalen == 0) {
+                ciphertext->datalen = plaintext->datalen + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE;
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (ciphertext->data == NULL ||
+                ciphertext->datalen != plaintext->datalen + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE) {
+                return EH_ARGUMENTS_BAD;
+            }  
+            ret = enclave_aes_encrypt(g_enclave_id, 
+                                    &sgxStatus, 
+                                    aad->data, 
+                                    aad->datalen,
+                                    cmk->keyblob,
+                                    cmk->keybloblen,
+                                    plaintext->data,
+                                    plaintext->datalen,
+                                    ciphertext->data,
+                                    ciphertext->datalen,
+                                    (ehsm_keyspec_t)cmk->metadata.keyspec,
+                                    key_size);
             break;
         case EH_SM4:
-            ret = sm4_encrypt(&sgxStatus, cmk, plaintext, aad, ciphertext);
+            // ret = sm4_encrypt(&sgxStatus, cmk, plaintext, aad, ciphertext);
             break;
         default:
             return EH_KEYSPEC_INVALID;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    if(ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
         return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
+    }
+    return EH_OK;
 }
 
 ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
@@ -482,30 +592,8 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
 
     switch(cmk->metadata.keyspec) {
         case EH_RSA_2048:
-            break;
         case EH_RSA_3072:
-            if(plaintext->datalen > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE) {
-                printf("Error data len(%d) for rsa encryption, max is 318.\n", plaintext->datalen);
-                return EH_ARGUMENTS_BAD;
-            }
-            /* calculate the ciphertext length  */
-            if (ciphertext->datalen == 0) {
-                ciphertext->datalen = RSA_OAEP_3072_CIPHER_LENGTH;
-                return EH_OK;
-            }
-            /* check if the datalen is valid */
-            if (ciphertext->data == NULL || ciphertext->datalen != RSA_OAEP_3072_CIPHER_LENGTH)
-                return EH_ARGUMENTS_BAD;
-            ret = enclave_rsa_encrypt(g_enclave_id,
-                                      &sgxStatus,
-                                      cmk->keyblob,
-                                      cmk->keybloblen,
-                                      plaintext->data,
-                                      plaintext->datalen,
-                                      ciphertext->data,
-                                      ciphertext->datalen,
-                                      cmk->metadata.keyspec,
-                                      cmk->metadata.padding_mode);
+            rsa_encrypt(/* param */);
             break;
         case EH_EC_SM2:
             sm2_encrypt(/* param */);
@@ -541,18 +629,43 @@ sgx_status_t sm2_decrypt(/* param */)
     // enclave_sm2_decrypt(/* param */);
 }
 
-sgx_status_t sm4_decrypt(/* param */)
+ehsm_status_t sm4_decrypt(ehsm_keyblob_t* cmk, ehsm_data_t *plaintext, ehsm_data_t *aad, ehsm_data_t *ciphertext)
 {
-    //TODO: get parameters
-    //get openssl callback function and other parameter and send into enclave
-    // uint8_t key_size = GetKeySize(cmk);
-    // const CHIPER* blockMode = GetAesGcmBlockMode(cmk);
-
-    //TODO: initialize variable
-
-    // enclave_sm4_decrypt(/* param */);
+    sgx_status_t ret = SGX_SUCCESS;
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    if(cmk == NULL || plaintext->data == NULL || aad == NULL || ciphertext == NULL) {
+        return EH_FUNCTION_FAILED;
+    }
+    uint32_t key_size = get_symmetric_key_size((ehsm_keyspec_t)cmk->metadata.keyspec);  
+    if(key_size == UINT32_MAX) {
+        return EH_KEYSPEC_INVALID;
+    }
+    ret = enclave_sm4_decrypt(g_enclave_id, 
+                              &sgxStatus, 
+                              aad->data, 
+                              aad->datalen,
+                              cmk->keyblob,
+                              cmk->keybloblen,
+                              ciphertext->data,
+                              ciphertext->datalen,
+                              plaintext->data,
+                              plaintext->datalen,
+                              (ehsm_keyspec_t)cmk->metadata.keyspec,
+                              key_size);
+    if(ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+        return EH_FUNCTION_FAILED;
+    }
+    return EH_OK;
 }
 
+/**
+ * @brief Decrypt a Key object
+ * @param cmk storage the key metadata and keyblob
+ * @param ciphertext Ciphertext to be decrypted
+ * @param aad Additional data
+ * @param plaintext Decrypted plaintext
+ * @return ehsm_status_t 
+ */
 ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
             ehsm_data_t *ciphertext,
             ehsm_data_t *aad,
@@ -561,26 +674,67 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    //TODO: Verify the validity of parameters
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || plaintext == NULL || ciphertext == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
 
-    //decrypt with cmk
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_AES_GCM_192 &&
+        cmk->metadata.keyspec != EH_AES_GCM_256 &&
+        cmk->metadata.keyspec != EH_SM4) {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    if (ciphertext->data == NULL || ciphertext->datalen == 0) {
+        return EH_ARGUMENTS_BAD;
+    }
+
+    uint32_t key_size = get_symmetric_key_size((ehsm_keyspec_t)cmk->metadata.keyspec);  
+    if(key_size == UINT32_MAX) {
+        return EH_KEYSPEC_INVALID;
+    }
+
     switch(cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
         case EH_AES_GCM_192:
         case EH_AES_GCM_256:
-            ret = aes_decrypt(/* param */);
+            /* calculate the ciphertext length */
+            if (plaintext->datalen == 0) {
+                plaintext->datalen = ciphertext->datalen - SGX_AESGCM_IV_SIZE - SGX_AESGCM_MAC_SIZE;
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (plaintext->data == NULL ||
+                plaintext->datalen != ciphertext->datalen - SGX_AESGCM_IV_SIZE - SGX_AESGCM_MAC_SIZE)
+                return EH_ARGUMENTS_BAD;
+
+            if ((0 != aad->datalen) && (NULL == aad->data)) {
+                return EH_ARGUMENTS_BAD;
+            }
+            ret = enclave_aes_decrypt(g_enclave_id, 
+                                      &sgxStatus, 
+                                      aad->data, 
+                                      aad->datalen,
+                                      cmk->keyblob,
+                                      cmk->keybloblen,
+                                      ciphertext->data,
+                                      ciphertext->datalen,
+                                      plaintext->data,
+                                      plaintext->datalen,
+                                      (ehsm_keyspec_t)cmk->metadata.keyspec,
+                                      key_size);
             break;
         case EH_SM4:
-            ret = sm4_decrypt(/* param */);
             break;
         default:
             return EH_KEYSPEC_INVALID;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    if(ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
         return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
+    }
+    return EH_OK;
 }
 
 ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
@@ -640,7 +794,7 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
         return EH_OK;
 }
 
-sgx_status_t rsa_sign(/* param */)
+ehsm_status_t rsa_sign(/* param */)
 {
     //need to verify key purpose is sign and verify
 
@@ -651,7 +805,7 @@ sgx_status_t rsa_sign(/* param */)
     // enclave_rsa_sign(/* param */);
 }
 
-sgx_status_t ec_sign(/* param */)
+ehsm_status_t ec_sign(/* param */)
 {
     //need to verify key purpose is sign and verify
 
@@ -662,7 +816,7 @@ sgx_status_t ec_sign(/* param */)
     // enclave_ec_sign(/* param */);
 }
 
-sgx_status_t sm2_sign(/* param */)
+ehsm_status_t sm2_sign(/* param */)
 {
     //need to verify key purpose is sign and verify
 
@@ -678,7 +832,7 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
            ehsm_data_t *signature)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ehsm_status_t ret = EH_OK;
 
     //TODO: Verify the validity of parameters
 
@@ -698,14 +852,10 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
         default:
             return EH_KEYSPEC_INVALID;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
         return EH_OK;
 }
 
-sgx_status_t rsa_verify(/* param */)
+ehsm_status_t rsa_verify(/* param */)
 {
     //need to verify key purpose is sign and verify
 
@@ -716,7 +866,7 @@ sgx_status_t rsa_verify(/* param */)
     // enclave_rsa_verify(/* param */);
 }
 
-sgx_status_t ec_verify(/* param */)
+ehsm_status_t ec_verify(/* param */)
 {
     //need to verify key purpose is sign and verify
 
@@ -727,7 +877,7 @@ sgx_status_t ec_verify(/* param */)
     // enclave_ec_verify(/* param */);
 }
 
-sgx_status_t sm2_verify(/* param */)
+ehsm_status_t sm2_verify(/* param */)
 {
     //need to verify key purpose is sign and verify
     
@@ -744,7 +894,7 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                  bool* result)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ehsm_status_t ret = EH_OK;
 
     //TODO: Verify the validity of parameters
 
@@ -764,14 +914,10 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
         default:
             return EH_KEYSPEC_INVALID;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
+        return ret;
 }
 
-sgx_status_t generate_datakey(/* param */)
+ehsm_status_t generate_datakey(/* param */)
 {
     //TODO: get parameters
 
@@ -794,16 +940,12 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
             ehsm_data_t *ciphertext)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ehsm_status_t ret = EH_OK;
 
     //TODO: Verify the validity of parameters
 
     ret = generate_datakey(/* param */);
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
+    return ret;
 }
 
 ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
@@ -812,19 +954,16 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
         ehsm_data_t *ciphertext)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ehsm_status_t ret = EH_OK;
 
     //TODO: Verify the validity of parameters
 
     ret = generate_datakey(/* param */);
 
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
+    return EH_OK;
 }
 
-sgx_status_t export_rsa_datakey(/* param */)
+ehsm_status_t export_rsa_datakey(/* param */)
 {
     //TODO: get parameters
 
@@ -833,7 +972,7 @@ sgx_status_t export_rsa_datakey(/* param */)
     // enclave_export_rsa_datakey(/* param */);
 }
 
-sgx_status_t export_ec_datakey(/* param */)
+ehsm_status_t export_ec_datakey(/* param */)
 {
     //TODO: get parameters
 
@@ -848,9 +987,7 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
             ehsm_data_t *olddatakey,
             ehsm_data_t *newdatakey)
 {
-    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
+    ehsm_status_t ret = EH_OK;
     //TODO: Verify the validity of parameters
 
     switch(ukey->metadata.keyspec) {
@@ -868,10 +1005,10 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
             return EH_KEYSPEC_INVALID;
     }
 
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
+    // if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    //     return EH_FUNCTION_FAILED;
+    // else
+        return ret;
 }
 
 ehsm_status_t Enroll(ehsm_data_t *appid, ehsm_data_t *apikey)
@@ -910,7 +1047,7 @@ ehsm_status_t generate_apikey(ehsm_data_t *apikey, ehsm_data_t *cipherapikey)
     if (apikey == NULL || apikey->datalen > EH_API_KEY_SIZE) {
         return EH_ARGUMENTS_BAD;
     }
-    if (cipherapikey == NULL || cipherapikey->datalen < EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE) {
+    if (cipherapikey == NULL || cipherapikey->datalen < EH_API_KEY_SIZE + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE) {
         return EH_ARGUMENTS_BAD;
     }
 
