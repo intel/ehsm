@@ -31,6 +31,19 @@ Currently, the eHSM-KMS-Service now provides the following restful APIs to the c
   Notes: These below Rest APIs are used to do the remote attestation.
   - [GenerateQuote](#GenerateQuote)
   - [VerifyQuote](#VerifyQuote)
+  - [UploadQuotePolicy](#UploadQuotePolicy)
+  - [GetQuotePolicy](#GetQuotePolicy)
+- **Secret Manager APIs**
+  Notes: These below Rest APIs are used to do the secret management.
+  - [CreateSecret](#CreateSecret)
+  - [UpdateSecretDesc](#UpdateSecretDesc)
+  - [PutSecretValue](#PutSecretValue)
+  - [ListSecretVersionIds](#ListSecretVersionIds)
+  - [ListSecrets](#ListSecrets)
+  - [DescribeSecret](#DescribeSecret)
+  - [DeleteSecret](#DeleteSecret)
+  - [GetSecretValue](#GetSecretValue)
+  - [RestoreSecret](#RestoreSecret)
 
 ## Common Prameters
 This section describes the parameters that are common to all API requests and responses.
@@ -77,10 +90,10 @@ Create a customer master key(CMK) for the user, which can be a symmetric or an a
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -137,10 +150,10 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -198,10 +211,10 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -257,10 +270,10 @@ Encrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -316,10 +329,10 @@ Decrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -375,10 +388,10 @@ Performs sign operation using the cmk(only support asymmetric keyspec).
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -436,10 +449,10 @@ Performs verify operation using the cmk(only support asymmetric keyspec).
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -503,10 +516,10 @@ when you want to obtain the plaintext of datakey again, you can call the Decrypt
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -565,10 +578,10 @@ The same as GenerateDataKey, but it doesn’t return plaintext of generated Data
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -628,10 +641,10 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -753,7 +766,7 @@ Query all the CMKs generated by the current account.
     params["appid"] = appid
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["sign"] = sign
@@ -820,10 +833,10 @@ Delete a specific CMK generated by the current account.
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -864,7 +877,7 @@ Delete all the CMKs generated by the current account.
     params["appid"] = appid
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["sign"] = sign
@@ -915,10 +928,10 @@ Only when the CMK is enabled, it could be used to perform cryptographic operatio
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -970,10 +983,10 @@ If a CMK is disabled, it can't be used until you re-enable it by the EnableKey A
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -1005,8 +1018,7 @@ Generate a quote of the eHSM-KMS core enclave for user used to do the SGX DCAP R
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | challenge | String | "Y2hhbGxlbmdl" | 	
-A challenge in BASE64 string. |
+  | challenge | String | "Y2hhbGxlbmdl" | A challenge in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
 
@@ -1016,6 +1028,7 @@ A challenge in BASE64 string. |
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
+  | challenge | String | "Y2hhbGxlbmdl" | A challenge in BASE64 string. |
   | quote | String | "AwACAAAAAAAHAAwAk5pB&lowast;&lowast;&lowast;" | A quote for the eHSM-KMS core enclave format in BASE64 string. |
 
 - **Example**
@@ -1026,10 +1039,10 @@ A challenge in BASE64 string. |
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -1044,6 +1057,7 @@ A challenge in BASE64 string. |
       "code": 200,
       "message": "success!",
       "result": {
+         "quote": "Y2hhbGxlbmdl"
          "quote": "AwACAAAAAAAHAAwAk5pB***"
       }
     }
@@ -1067,6 +1081,7 @@ Users are expected already got a valid DCAP format QUOTE. And it could use this 
   |:-----------|:-----------|:-----------|:-----------|
   | quote | String | "AwACAAAAAAAHAAwAk5pB&lowast;&lowast;&lowast;" |A valid DCAP quote in BASE64 string. |
   | nonce | String | "bm9uY2U=" |A nonce in BASE64 string. |
+  | policyId | String | "326f2049-56ab-474f-a1c0-516de230****" |quote policy ID. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
 
@@ -1078,6 +1093,8 @@ Users are expected already got a valid DCAP format QUOTE. And it could use this 
   | message | String | "success" | The description of result. |
   | result | bool | "true or false" | The result of quote verification |
   | nonce | String | "bm9uY2U=" | The nonce in BASE64 string. |
+  | mr_enclave | String | "870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038" | stores the hash value of the enclave measurement. |
+  | mr_signer | String | "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835" | stores the hash value of the enclave author’s public key. |
   | sign  | String | "T4DRCEZAPLBbb+d3ObD&lowast;&lowast;&lowast;" | The HAMC sign of result and nonce calculated by the API Key. |
 
 - **Example**
@@ -1085,13 +1102,14 @@ Users are expected already got a valid DCAP format QUOTE. And it could use this 
   ```python
     payload = OrderedDict()
     payload["nonce"] = "bm9uY2U="
+    payload["policyId"] = "326f2049-56ab-474f-a1c0-516de230****"
 
     params = OrderedDict()
     params["appid"] = appid
-    params["payload"] = urllib.parse.unquote(urllib.parse.urlencode(payload))
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
     params["timestamp"] = str(int(time.time() * 1000))
 
-    sign_string = urllib.parse.unquote(urllib.parse.urlencode(params))
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
     sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
 
     params["payload"] = payload
@@ -1108,6 +1126,8 @@ Users are expected already got a valid DCAP format QUOTE. And it could use this 
       "result": {
          "result": true,
          "nonce": "bm9uY2U=",
+         "mr_enclave": "870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038",
+         "mr_signer": "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835",
          "sign": "T4DRCEZAPLBbb+d3ObD***"
       }
     }
@@ -1115,5 +1135,702 @@ Users are expected already got a valid DCAP format QUOTE. And it could use this 
   *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
 ---
 
+
+
+## UploadQuotePolicy
+The UploadQuotePolicy Support uploading MRenclave and MRsigner and returning new policyid.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=UploadQuotePolicy
+
+
+- **Request Payload:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | mr_enclave | String | "870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038" |stores the hash value of the enclave measurement. |
+  | mr_signer | String | "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835" |stores the hash value of the enclave author’s public key. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "success" | The description of result. |
+  | policyId | String | "15ca0dd5-2d34-4221-a708-3171ffe6&lowast;&lowast;&lowast;" | a new policy ID |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["mr_enclave"] = "870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038"
+    payload["mr_signer"] = "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=UploadQuotePolicy", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {
+         "policyId": "15ca0dd5-2d34-4221-a708-3171ffe6***"
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## GetQuotePolicy
+Query a quote policy information by policyid.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=GetQuotePolicy
+
+
+- **Request Payload:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | policyId | String | "15ca0dd5-2d34-4221-a708-3171ffe6&lowast;&lowast;&lowast;" | a policy ID |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "success" | The description of result. |
+  | policyId | String | "15ca0dd5-2d34-4221-a708-3171ffe6&lowast;&lowast;&lowast;" | a policy ID |
+  | mr_enclave | String | "870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038" |stores the hash value of the enclave measurement. |
+  | mr_signer | String | "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835" |stores the hash value of the enclave author’s public key. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["policyId"] = "15ca0dd5-2d34-4221-a708-3171ffe6***"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=UploadQuotePolicy", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "success!",
+      "result": {
+         "policyId": "15ca0dd5-2d34-4221-a708-3171ffe6***"
+         "mr_enclave": "870c42c59bc74c7ad22869411709e4f78ac3c76add6693bb43296b03362e5038"
+         "mr_signer": "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835"
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## CreateSecret
+Creates a secret and stores its initial version.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=CreateSecret
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Yes | "secretName01" | The name of the secret. |
+  | secretData | String | Yes | "secretData01" | The value of the secret. |
+  | encryptionKeyId | String | Optional | "0197ad2d-c4be-4948-996d-513c6f1e&lowast;&lowast;&lowast;" | The ID of the CMK that is used to encrypt the secret value. |
+  | description | String | Optional | "desc01" | The description of the secret. |
+  | rotationInterval | String | Optional | "30d" | The interval for automatic rotation. format: integer[unit],<br/>unit can be d (day), h (hour), m (minute), or s (second)<br/>defalut='30d' |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "The secretName01 create success." | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["description"] = "desc01"
+    payload["encryptionKeyId"] = "0197ad2d-c4be-4948-996d-513c6f1e***"
+    payload["rotationInterval"] = "30d"
+    payload["secretData"] = "secretData01"
+    payload["secretName"] = "secretName01"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=CreateSecret", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "The secretName01 create success.",
+      "result": {
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## UpdateSecretDesc
+Update the description of a secret.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=UpdateSecretDesc
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Yes | "secretName01" | The name of the secret. |
+  | description | String | Optional | "newDesc" | A new description of the secret. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "Update secret description success." | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["description"] = "newDesc"
+    payload["secretName"] = "secretName01"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=UpdateSecretDesc", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "Update secret description success.",
+      "result": {
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## PutSecretValue
+Stores the secret value of a new version into a secret object.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=PutSecretValue
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Yes | "secretName01" | The name of the secret. |
+  | secretData | String | Yes | "secretData02" | The value of the secret. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "The secretName01 new version put success." | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["secretData"] = "secretData02"
+    payload["secretName"] = "secretName01"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=PutSecretValue", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "The secretName01 new version put success.",
+      "result": {
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## ListSecretVersionIds
+Queries all versions of a secret. Maximum 4000 line.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=ListSecretVersionIds
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Yes | "secretName01" | The name of the secret. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "List secret versionIds success." | The description of result. |
+  | secretName | String | "secretName01" | The name of the secret. |
+  | totalCount | int | 2 | The number of returned secrets. |
+  | versionIds | JsonArray | [{"versionId":2,"createTime":1661393991091},{"versionId":1,"createTime":1661393990546}] | The list of secret versions. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["secretName"] = "secretName01"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=ListSecretVersionIds", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "List secret versionIds success.",
+      "result": {
+        "secretName": "secretName01",
+        "totalCount": 2,
+        "versionIds": [
+          {
+            "versionId": 2,
+            "createTime": 1661393991091
+          }, {
+            "versionId": 1,
+            "createTime": 1661393990546
+          }
+        ]
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## ListSecrets
+Queries all secrets created by your appid. Maximum 4000 line.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=ListSecrets
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Optional | "secretName01" | The name of the secret. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "List secrets success." | The description of result. |
+  | totalCount | int | 2 | The number of returned secrets. |
+  | secretList | JsonArray | [{"secretName":"secretName01","description":"myNewSecret","createTime":1661393990546},{"secretName":"secretName002","description":"mysecret","createTime":1661393990764}] | The list of secret. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["secretName"] = "secretName01"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=ListSecrets", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "List secrets success.",
+      "result": {
+        "totalCount": 1,
+        "secretList": [
+          {
+            "secretName": "secretName01",
+            "description": "myNewSecret",
+            "createTime": 1661393990546
+          }
+        ]
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## DescribeSecret
+Obtains the metadata of a secret.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=DescribeSecret
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Yes | "secretName01" | The name of the secret. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "List secrets success." | The description of result. |
+  | secretName | String | "secretName01" | The description of the secret. |
+  | description | String | "desc01" | The number of returned secrets. |
+  | createTime | long | 1661393990546 | The time when the secret was created. |
+  | plannedDeleteTime | long | 1659519772925 | The time when the secret is scheduled to be deleted. |
+  | rotationInterval | String | "30h" | The interval for automatic rotation.  |
+  | lastRotationDate | long | 1661393990546 | The time when the last rotation was performed. |
+  | nextRotationDate | long | 1661501990546 | The time when the next rotation will be performed. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["secretName"] = "secretName01"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=DescribeSecret", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "Describe secrets success.",
+      "result": {
+        "secretName": "secretName01",
+        "description": "desc01",
+        "createTime": 1661393990546,
+        "rotationInterval": "30h",
+        "lastRotationDate": "",
+        "nextRotationDate": 1661501990546
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## DeleteSecret
+Force delete secret or schedule a time to delete secret.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=DeleteSecret
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Yes | "secretName01" | The name of the secret. |
+  | recoveryPeriod | int | Optional | 50 | Specifies the recovery period of the secret, if you do not forcibly delete it, the unit is day. <br/>defalut=30 |
+  | forceDelete | String | Optional | "true" | Specifies whether to forcibly delete the secret. If this parameter is set to true, the secret cannot be recovered. defalut="false" |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "The secretName01 will be deleted after 50 days." | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["secretName"] = "secretName01"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=DeleteSecret", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "The secretName01 will be deleted after 50 days.",
+      "result": {
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## GetSecretValue
+Obtains a secret value.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=GetSecretValue
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Yes | "secretName01" | The name of the secret. |
+  | versionId | int | Optional | 2 | The version number of the secret value. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "successful" | The description of result. |
+  | secretName | String | "secretName01" | The name of the secret. |
+  | secretData | String | "secretData01" | The secret value. |
+  | versionId | int | 2 | The version number of the secret value. |
+  | createTime | long | 1659519772925 | The time when the secret value was created, millisecond unit. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["secretName"] = "secretName01"
+    payload["versionId"] = 2
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=GetSecretValue", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "successful",
+      "result": {
+        "secretName": "secretName01",
+        "secretData": "secretData02",
+        "versionId": 2,
+        "createTime": 1661393991091
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
+
+
+
+## RestoreSecret
+Restores a deleted secret.
+
+- **Rest API format:**
+
+  POST <ehsm_srv_address>/ehsm?Action=RestoreSecret
+
+
+- **Request Payload:**
+
+  | Name | Type | Required | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|:-----------|
+  | secretName | String | Yes | "secretName01" | The name of the secret. |
+
+  Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
+
+- **Response Data:**
+
+  | Name | Type | Reference Value | Description |
+  |:-----------|:-----------|:-----------|:-----------|
+  | code | int | 200 | The result of the method call, 200 is success, others are fail. |
+  | message | String | "The secretName01 restore success." | The description of result. |
+
+- **Example**
+  - Request sample in python
+  ```python
+    payload = OrderedDict()
+    payload["secretName"] = "secretName01"
+
+    params = OrderedDict()
+    params["appid"] = appid
+    params["payload"] = urllib.parse.unquote_plus(urllib.parse.urlencode(payload))
+    params["timestamp"] = str(int(time.time() * 1000))
+
+    sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(params))
+    sign = str(base64.b64encode(hmac.new(appkey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8').upper()
+
+    params["payload"] = payload
+    params["sign"] = sign
+    
+    requests.post(url="<ehsm_srv_address>/ehsm?Action=RestoreSecret", data=json.dumps(params), headers=headers)
+  ```
+
+  - Response data
+  ```python
+    Response= {
+      "code": 200,
+      "message": "The secretName01 restore success.",
+      "result": {
+      }
+    }
+  ```
+  *(return to the [Key Management APIs](#eHSM-REST-API-Reference).)*
+---
 
 
