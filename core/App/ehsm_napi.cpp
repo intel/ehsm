@@ -43,14 +43,14 @@
 
 #include "ehsm_marshal.h"
 #include "auto_version.h"
-#include "datatypes.h"
+
+#include "openssl/rsa.h"
 
 using namespace std;
 using namespace EHsmProvider;
 
 
 extern "C" {
-
 /*
 create the enclave
 @return
@@ -84,34 +84,69 @@ void NAPI_Finalize(){
     Finalize();
 }
 
-/*
-@return
-[string] json string
+/**
+ * @brief Create key and save the parameters when using the key for encrypt, decrypt, sign and verify
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
             cmk_base64 : string,
+            keyspec : int,
+            purpose : int,
+            origin : int,
+            padding_mode : int,
+            digest_mode : int
         }
     }
-*/
-char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
+ * 
+ * @return char* 
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_CreateKey(const char* paramJson)
 {
     RetJsonObj retJsonObj;
     ehsm_status_t ret = EH_OK;
     ehsm_keyblob_t master_key;
-
-    memset(&master_key, 0, sizeof(master_key));
-
     string cmk_base64;
-
     uint8_t *resp = NULL;
     uint32_t resp_len = 0;
 
-    master_key.metadata.keyspec = keyspec;
-    master_key.metadata.origin = origin;
-    master_key.keybloblen = 0;    
+    // parse paramJson into paramJsonObj
+    JsonObj paramJsonObj;
+    if (!paramJsonObj.parse(paramJson))
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
 
+    memset(&master_key, 0, sizeof(master_key));
+
+    // storage common key properties into metadata of master_key 
+    master_key.metadata.keyspec = paramJsonObj.readData_uint16("keyspec");
+    master_key.metadata.origin = paramJsonObj.readData_uint16("origin");
+    master_key.metadata.purpose = paramJsonObj.readData_uint16("purpose");
+    master_key.metadata.padding_mode = paramJsonObj.readData_uint16("padding_mode");
+    master_key.metadata.digest_mode = paramJsonObj.readData_uint16("digest_mode");
+    master_key.keybloblen = 0;
+
+    if (master_key.metadata.padding_mode == RSA_NO_PADDING) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("NO padding is unsafe.");
+        goto out;
+    } 
+    
+    // get keybloblen
     ret = CreateKey(&master_key);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -126,6 +161,7 @@ char* NAPI_CreateKey(const uint32_t keyspec, const uint32_t origin)
         goto out;
     }
 
+    // create key
     ret = CreateKey(&master_key);
     if (ret != EH_OK) {
         if(ret == EH_KEYSPEC_INVALID){
@@ -156,23 +192,42 @@ out:
     return retJsonObj.toChar();
 }
 
-
-/*
-@return
-[string] json string
+/**
+ * @brief encrypt plaintext with specicied key
+ * this function is used for aes_gcm and sm4
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            ciphertext_base64 : string,
+            cmk_base64 : string,
+            plaintext_base64 : string,
+            add_base64 : string
         }
     }
-*/
-char* NAPI_Encrypt(const char* cmk_base64,
-        const char* plaintext_base64,
-        const char* aad_base64)
+ *
+ * @return char* 
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_Encrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+    
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* plaintext_base64 = paramJsonObj.readData_cstr("plaintext_base64");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+
     if (cmk_base64 == NULL || plaintext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -267,22 +322,42 @@ out:
     return retJsonObj.toChar();
 }
 
-/*
-@return
-[string] json string
+/**
+ * @brief decrypt ciphertext with specicied key
+ * this function is used for aes_gcm and sm4
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            plaintext_base64 : string,
+            cmk_base64 : string,
+            ciphertext_base64 : string,
+            add_base64 : string
         }
     }
-*/
-char* NAPI_Decrypt(const char* cmk_base64,
-        const char* ciphertext_base64,
-        const char* aad_base64)
+ *   
+ * @return char* 
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_Decrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* ciphertext_base64 = paramJsonObj.readData_cstr("ciphertext_base64");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+
     if (cmk_base64 == NULL || ciphertext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -381,23 +456,42 @@ out:
     return retJsonObj.toChar();
 }
 
-/*
-@return
-[string] json string
+/**
+ * @brief generate key and encrypt with specicied function
+ * only support symmetric key
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            plaintext_base64 : string,
-            ciphertext_base64 : string,
+            cmk_base64 : string,
+            keylen : int,
+            aad_base64 : string
         }
     }
-*/
-char* NAPI_GenerateDataKey(const char* cmk_base64,
-        const uint32_t keylen,
-        const char* aad_base64)
+ *   
+ * @return char* return value have key plaintext and ciphertext
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_GenerateDataKey(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    uint32_t keylen = paramJsonObj.readData_uint32("keylen");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+
     if (cmk_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -510,22 +604,42 @@ out:
     return retJsonObj.toChar();
 }
 
-/*
-@return
-[string] json string
+/**
+ * @brief generate key and encrypt with specicied function
+ * only support symmetric key
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            ciphertext_base64 : string,
+            cmk_base64 : string,
+            keylen : int,
+            aad_base64 : string
         }
     }
-*/
-char* NAPI_GenerateDataKeyWithoutPlaintext(const char* cmk_base64,
-        const uint32_t keylen,
-        const char* aad_base64)
+ *   
+ * @return char* return value have key plaintext and ciphertext
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_GenerateDataKeyWithoutPlaintext(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    uint32_t keylen = paramJsonObj.readData_uint32("keylen");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+
     if (cmk_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -623,21 +737,38 @@ out:
 }
 
 
-/*
-@return
-[string] json string
+/**
+ * @brief create key sign with rsa/ec/sm2
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            signature_base64 : string,
+            cmk_base64 : string
         }
     }
-*/
-char* NAPI_Sign(const char* cmk_base64,
-        const char* digest_base64)
+ * 
+ * @return char*
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_Sign(const char* paramJson)
 {    
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* digest_base64 = paramJsonObj.readData_cstr("digest_base64");
+    
     if (cmk_base64 == NULL || digest_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -714,22 +845,40 @@ out:
     
 }
 
-/*
-@return
-[string] json string
+/**
+ * @brief verify key sign
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            result : bool,
+            cmk_base64 : string，
+            signature_base64 ： string
         }
     }
-*/
-char* NAPI_Verify(const char* cmk_base64,
-        const char* digest_base64,
-        const char* signature_base64)
+ * 
+ * @return char*
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_Verify(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* digest_base64 = paramJsonObj.readData_cstr("digest_base64");
+    char* signature_base64 = paramJsonObj.readData_cstr("signature_base64");
+
     if (cmk_base64 == NULL || digest_base64 == NULL || signature_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -795,22 +944,40 @@ out:
     return retJsonObj.toChar();
 }
 
-
-/*
-@return
-[string] json string
+/**
+ * @brief encrypt plaintext with specicied key
+ * this function is used for aes_gcm and sm4
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            ciphertext_base64 : string,
+            cmk_base64 : string,
+            plaintext_base64 : string,
         }
     }
-*/
-char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
-        const char* plaintext_base64)
+ *
+ * @return char* 
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_AsymmetricEncrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* plaintext_base64 = paramJsonObj.readData_cstr("plaintext_base64");
+
     if (cmk_base64 == NULL || plaintext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -849,16 +1016,9 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
     switch (cmk.metadata.keyspec)
     {
         case EH_RSA_2048:
-            // TODO
-            break;
         case EH_RSA_3072:
-            plaintext_maxLen = RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE;
-            break;
-        case EH_EC_P256:
-            // TODO
-            break;
-        case EH_EC_P512:
-            // TODO
+        case EH_RSA_4096:
+            plaintext_maxLen = ehsm_get_rsa_max_encryption_size(cmk.metadata.keyspec, cmk.metadata.padding_mode);
             break;
         case EH_EC_SM2:
             // TODO
@@ -895,6 +1055,7 @@ char* NAPI_AsymmetricEncrypt(const char* cmk_base64,
 
     ret = AsymmetricEncrypt(&cmk, &plaint_data, &cipher_data);
     if (ret != EH_OK) {
+
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
@@ -911,21 +1072,40 @@ out:
     return retJsonObj.toChar();
 }
 
-/*
-@return
-[string] json string
+/**
+ * @brief decrypt ciphertext with specicied key
+ * this function is used for aes_gcm and sm4
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            plaintext_base64 : string,
+            cmk_base64 : string,
+            ciphertext_base64 : string,
         }
     }
-*/
-char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
-        const char* ciphertext_base64)
+ *   
+ * @return char* 
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_AsymmetricDecrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* ciphertext_base64 = paramJsonObj.readData_cstr("ciphertext_base64");
+
     if (cmk_base64 == NULL || ciphertext_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -964,16 +1144,9 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
     switch (cmk.metadata.keyspec)
     {
         case EH_RSA_2048:
-            // TODO
-            break;
         case EH_RSA_3072:
-            ciphertext_maxLen = RSA_OAEP_3072_CIPHER_LENGTH;
-            break;
-        case EH_EC_P256:
-            // TODO
-            break;
-        case EH_EC_P512:
-            // TODO
+        case EH_RSA_4096:
+            ciphertext_maxLen = ehsm_get_rsa_cipher_len(cmk.metadata.keyspec);
             break;
         case EH_EC_SM2:
             // TODO
@@ -1014,7 +1187,7 @@ char* NAPI_AsymmetricDecrypt(const char* cmk_base64,
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
-    
+
     plaintext_base64 = base64_encode(plaint_data.data, plaint_data.datalen);
     if(plaintext_base64.size() > 0){
         retJsonObj.addData_string("plaintext", plaintext_base64);
@@ -1025,23 +1198,44 @@ out:
     return retJsonObj.toChar();
 }
 
-/*
-@return
-[string] json string
+/**
+ * @brief pass in a key to decrypt the data key
+ * use after NAPI_GenerateDataKeyWithoutPlaintext
+ * 
+ * @param paramJson Pass in the key parameter in the form of JSON string
+ * [string] json string
     {
         code: int,
         message: string,
         result: {
-            newdatakey_base64 : string,
+            cmk_base64 : string,
+            ukey_base64 : string,
+            aad_base64 : string,
+            olddatakey_base64 : string
         }
     }
-*/
-char* NAPI_ExportDataKey(const char* cmk_base64,
-        const char* ukey_base64,
-        const char* aad_base64,
-        const char* olddatakey_base64)
+ * 
+ * @return char*
+ * [string] json string
+    {
+        code: int,
+        message: string,
+        result: {
+            cmk_base64 : string
+        }
+    }
+ */
+char* NAPI_ExportDataKey(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+
+    JsonObj paramJsonObj;
+    paramJsonObj.parse(paramJson);
+    char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+    char* ukey_base64 = paramJsonObj.readData_cstr("ukey_base64");
+    char* aad_base64 = paramJsonObj.readData_cstr("aad_base64");
+    char* olddatakey_base64 = paramJsonObj.readData_cstr("olddatakey_base64");
+
     if (cmk_base64 == NULL || ukey_base64 == NULL || olddatakey_base64 == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("paramter invalid.");
@@ -1090,11 +1284,12 @@ char* NAPI_ExportDataKey(const char* cmk_base64,
         retJsonObj.setMessage("The aad's length is invalid.");
         goto out;
     }
-    if(olddatakey_len == 0 || olddatakey_len > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE){
-        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-        retJsonObj.setMessage("The olddatakey's length is invalid.");
-        goto out;
-    }
+    // close there code temporary: RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE is deprecated
+    // if(olddatakey_len == 0 || olddatakey_len > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE){
+    //     retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+    //     retJsonObj.setMessage("The olddatakey's length is invalid.");
+    //     goto out;
+    // }
 
     ret = ehsm_deserialize_cmk(&cmk, (const uint8_t*)cmk_str.data(), cmk_len);
     if (ret != EH_OK) {

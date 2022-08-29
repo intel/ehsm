@@ -38,11 +38,19 @@
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
-#define DH_KEY_SIZE        20
+#define RSA_PKCS1_PADDING       1
+#define RSA_SSLV23_PADDING      2
+#define RSA_NO_PADDING          3
+#define RSA_PKCS1_OAEP_PADDING  4
+#define RSA_X931_PADDING        5
+/* EVP_PKEY_ only */
+#define RSA_PKCS1_PSS_PADDING   6
+
+#define RSA_PKCS1_PADDING_SIZE  11
+
 #define NONCE_SIZE         16
 #define MAC_SIZE           16
 #define MAC_KEY_SIZE       16
-#define PADDING_SIZE       16
 
 #define EH_API_KEY_SIZE     32
 #define UUID_STR_LEN	   37
@@ -50,16 +58,25 @@
 #define TAG_SIZE        16
 #define IV_SIZE            12
 
-#define DERIVE_MAC_KEY      0x0
-#define DERIVE_SESSION_KEY  0x1
-#define DERIVE_VK1_KEY      0x3
-#define DERIVE_VK2_KEY      0x4
-
 #define CLOSED 0x0
 #define IN_PROGRESS 0x1
 #define ACTIVE 0x2
 
 #define SGX_DOMAIN_KEY_SIZE     16
+
+#define RSA_OAEP_2048_CIPHER_LENGTH       256
+#define RSA_OAEP_3072_CIPHER_LENGTH       384
+#define RSA_OAEP_4096_CIPHER_LENGTH       512
+
+#define RSA_PKCS1_OAEP_PADDING_SIZE       41
+#define RSA_PKCS1_PADDING_SIZE            11
+
+#define EH_AES_GCM_IV_SIZE  12
+#define EH_AES_GCM_MAC_SIZE 16
+
+#define SM2PKE_MAX_ENCRYPTION_SIZE                      6047
+#define EH_ENCRYPT_MAX_SIZE (6*1024)
+#define EH_DATA_KEY_MAX_SIZE 1024
 
 #define MESSAGE_EXCHANGE 0x0
 
@@ -67,39 +84,20 @@
 
 #define ENCLAVE_TO_ENCLAVE_CALL 0x1
 
-#define INVALID_ARGUMENT                   -2   ///< Invalid function argument
-#define LOGIC_ERROR                        -3   ///< Functional logic error
-#define FILE_NOT_FOUND                     -4   ///< File not found
-
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
-
-#define VMC_ATTRIBUTE_MASK  0xFFFFFFFFFFFFFFCB
 
 #define _T(x) x
 
 #define UNUSED(val) (void)(val)
 
-#define TCHAR   char
-
-#define _TCHAR  char
-
-#define scanf_s scanf
-
-#define _tmain  main
-
 #ifndef INT_MAX
 #define INT_MAX     0x7fffffff
-#endif
-
-#ifndef SAFE_FREE
-#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}}
 #endif
 
 #ifndef _ERRNO_T_DEFINED
 #define _ERRNO_T_DEFINED
 typedef int errno_t;
 #endif
-
 
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
@@ -134,7 +132,131 @@ typedef struct _session_id_tracker_t
     uint32_t          session_id;
 } session_id_tracker_t;
 
+typedef struct _aes_gcm_data_ex_t
+{
+    uint32_t  ciphertext_size;
+    uint32_t  aad_size;
+    uint8_t   reserve1[8];
+    uint8_t   iv[SGX_AESGCM_IV_SIZE];
+    uint8_t   reserve2[4];
+    uint8_t   mac[SGX_AESGCM_MAC_SIZE];
+    uint8_t   payload[];   /* ciphertext + aad */
+} sgx_aes_gcm_data_ex_t;
+
+//sgx-ssl framework
+
+typedef struct {
+    uint32_t keyspec;
+    uint32_t digest_mode;
+    uint32_t padding_mode;
+    uint32_t origin;
+    uint32_t purpose;
+
+    uint32_t apiversion;
+    uint8_t  descrption[16];
+    uint8_t  createdate[8];
+} ehsm_keymetadata_t;
+
+typedef struct {
+    ehsm_keymetadata_t  metadata;
+    uint32_t            keybloblen;
+    uint8_t             *keyblob;
+} ehsm_keyblob_t;
+
+//ec:
+typedef struct 
+{
+    //temporary
+} ec_key_data_t;
+
+//hmac
+typedef struct
+{
+   
+} hmac_key_data_t;
+
+//sm2
+typedef struct
+{
+    //temporary
+} sm2_key_data_t;
+
+//sm4
+typedef struct 
+{
+    uint32_t    ciphertext_size;
+    uint32_t    aad_size;
+    uint8_t     iv[SGX_AESGCM_IV_SIZE];
+    uint8_t     mac[SGX_AESGCM_MAC_SIZE];
+    uint8_t     payload[];   /* ciphertext + aad */
+} sm4_key_data_t;
+
+typedef enum {
+    EH_AES_GCM_128 = 0,
+    EH_AES_GCM_192,
+    EH_AES_GCM_256,
+    EH_RSA_2048,
+    EH_RSA_3072,
+    EH_RSA_4096,
+    EH_EC_P224,
+    EH_EC_P256,
+    EH_EC_P384,
+    EH_EC_P512,
+    EH_EC_SM2,
+    EH_HMAC, 
+    EH_SM4 
+} ehsm_keyspec_t;
+
+typedef enum {
+    EH_NONE = 0,
+    EH_MD5,
+    EH_SHA1,
+    EH_SHA_2_224,
+    EH_SHA_2_256,
+    EH_SHA_2_384,
+    EH_SHA_2_512
+} ehsm_digest_mode_t;
+
 #pragma pack(pop)
 
+static uint32_t ehsm_get_rsa_padding_size(uint32_t padding_mode)
+{
+    switch (padding_mode) {
+        case RSA_PKCS1_OAEP_PADDING:
+            return RSA_PKCS1_OAEP_PADDING_SIZE;
+        case RSA_PKCS1_PADDING:
+            return RSA_PKCS1_PADDING_SIZE;
+        default:
+            return 0;
+    }
+}
+
+static uint32_t ehsm_get_rsa_max_encryption_size(const uint32_t keyspec, const uint32_t padding_mode)
+{
+    switch (keyspec) {
+        case EH_RSA_2048:
+            return RSA_OAEP_2048_CIPHER_LENGTH - ehsm_get_rsa_padding_size(padding_mode);
+        case EH_RSA_3072:
+            return RSA_OAEP_3072_CIPHER_LENGTH - ehsm_get_rsa_padding_size(padding_mode);
+        case EH_RSA_4096:
+            return RSA_OAEP_4096_CIPHER_LENGTH - ehsm_get_rsa_padding_size(padding_mode);
+        default:
+            return 0;
+    }
+}
+
+static uint32_t ehsm_get_rsa_cipher_len(const uint32_t keyspec)
+{
+    switch (keyspec) {
+        case EH_RSA_2048:
+            return RSA_OAEP_2048_CIPHER_LENGTH;
+        case EH_RSA_3072:
+            return RSA_OAEP_3072_CIPHER_LENGTH;
+        case EH_RSA_4096:
+            return RSA_OAEP_4096_CIPHER_LENGTH;
+        default:
+            return 0;
+    }
+}
 
 #endif
