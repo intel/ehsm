@@ -913,62 +913,245 @@ step3. Verify the signature
 */
 void test_RSA3072_sign_verify()
 {
-//     printf("============test_RSA3072_sign_verify start==========\n");
-//     ehsm_status_t ret = EH_OK;
-//     char* returnJsonChar = nullptr;
-//     ehsm_data_t digest;
+    ehsm_status_t ret = EH_OK;
+    char* returnJsonChar = nullptr;
+    ehsm_data_t digest;
 
-//     char* cmk_base64 = nullptr;
-//     char* signature_base64 = nullptr;
-//     bool result = false;
-//     RetJsonObj retJsonObj;
-//     std::string input_digest_base64;
+    char* cmk_base64 = nullptr;
+    char* signature_base64 = nullptr;
+    bool result = false;
+    RetJsonObj retJsonObj;
+    std::string input_digest_base64;
 
+    JsonObj paramJsonCreatekey;
+    JsonObj paramJsonSign;
+    JsonObj paramJsonVerify;
 
-//     returnJsonChar = NAPI_CreateKey(EH_RSA_3072, EH_INTERNAL_KEY);
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
-//     printf("Create CMK with RAS SUCCESSFULLY!\n");
+    paramJsonCreatekey.addData_uint16("keyspec", EH_RSA_3072);
+    paramJsonCreatekey.addData_uint16("padding_mode", RSA_PKCS1_PSS_PADDING);
+    paramJsonCreatekey.addData_uint16("digest_mode", EH_SHA_2_512);
+    printf("============test_RSA3072_sign_verify start==========\n");
+    returnJsonChar = NAPI_CreateKey(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
 
-//     cmk_base64 = retJsonObj.readData_cstr("cmk");
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
 
-//     digest.datalen = 64;
-//     digest.data = (uint8_t*)malloc(digest.datalen);
-//     if (digest.data == NULL) {
-//     }
-//     memset(digest.data, 'B', digest.datalen);
-//     input_digest_base64 = base64_encode(digest.data, digest.datalen);
+    digest.datalen = 64;
+    digest.data = (uint8_t*)malloc(digest.datalen);
+    if (digest.data == NULL) {
+    }
+    memset(digest.data, 'D', digest.datalen);
+    input_digest_base64 = base64_encode(digest.data, digest.datalen);
 
-//     returnJsonChar = NAPI_Sign(cmk_base64, input_digest_base64.c_str());
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_Sign Json = %s\n", returnJsonChar);
-//     signature_base64 = retJsonObj.readData_cstr("signature");
-//     printf("Sign data SUCCESSFULLY!\n");
+    paramJsonSign.addData_string("cmk_base64", cmk_base64);
+    paramJsonSign.addData_string("digest_base64", input_digest_base64);
 
-//     returnJsonChar = NAPI_Verify(cmk_base64, input_digest_base64.c_str(), signature_base64);
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_Verify Json = %s\n", returnJsonChar);
-//     result = retJsonObj.readData_bool("result");
-//     printf("Verify result : %s\n", result ? "true" : "false");
-//     printf("Verify signature SUCCESSFULLY!\n");
+    returnJsonChar = NAPI_Sign(paramJsonSign.StringToChar(paramJsonSign.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Sign Json = %s\n", returnJsonChar);
+    signature_base64 = retJsonObj.readData_cstr("signature");
+    printf("Sign data SUCCESSFULLY!\n");
 
-// cleanup:
-//     SAFE_FREE(signature_base64);
-//     SAFE_FREE(cmk_base64);
-//     SAFE_FREE(digest.data);
-//     SAFE_FREE(returnJsonChar);
+    paramJsonVerify.addData_string("cmk_base64", cmk_base64);
+    paramJsonVerify.addData_string("digest_base64", input_digest_base64);
+    paramJsonVerify.addData_string("signature_base64", signature_base64);
+
+    returnJsonChar = NAPI_Verify(paramJsonVerify.StringToChar(paramJsonVerify.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Verify Json = %s\n", returnJsonChar);
+    result = retJsonObj.readData_bool("result");
+    printf("Verify result : %s\n", result ? "true" : "false");
+    printf("Verify signature SUCCESSFULLY!\n");
+
+cleanup:
+    SAFE_FREE(signature_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(digest.data);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_RSA3072_sign_verify end==========\n");
+    printf("\n");
+}
+
+/*
+
+step1. generate an rsa 2048 key as the CM(customer master key)
+
+step2. Sign the digest
+
+step3. Verify the signature
+
+*/
+void test_RSA2048_sign_verify()
+{
+    ehsm_status_t ret = EH_OK;
+    char* returnJsonChar = nullptr;
+    ehsm_data_t digest;
+
+    char* cmk_base64 = nullptr;
+    char* signature_base64 = nullptr;
+    bool result = false;
+    RetJsonObj retJsonObj;
+    std::string input_digest_base64;
+
+    JsonObj paramJsonCreatekey;
+    JsonObj paramJsonSign;
+    JsonObj paramJsonVerify;
+
+    paramJsonCreatekey.addData_uint16("keyspec", EH_RSA_2048);
+    paramJsonCreatekey.addData_uint16("padding_mode", RSA_PKCS1_PSS_PADDING);
+    paramJsonCreatekey.addData_uint16("digest_mode", EH_SHA1);
+    printf("============test_RSA2048_sign_verify start==========\n");
+    returnJsonChar = NAPI_CreateKey(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    digest.datalen = 64;
+    digest.data = (uint8_t*)malloc(digest.datalen);
+    if (digest.data == NULL) {
+    }
+    memset(digest.data, 'D', digest.datalen);
+    input_digest_base64 = base64_encode(digest.data, digest.datalen);
+
+    paramJsonSign.addData_string("cmk_base64", cmk_base64);
+    paramJsonSign.addData_string("digest_base64", input_digest_base64);
+
+    returnJsonChar = NAPI_Sign(paramJsonSign.StringToChar(paramJsonSign.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Sign Json = %s\n", returnJsonChar);
+    signature_base64 = retJsonObj.readData_cstr("signature");
+    printf("Sign data SUCCESSFULLY!\n");
+
+    paramJsonVerify.addData_string("cmk_base64", cmk_base64);
+    paramJsonVerify.addData_string("digest_base64", input_digest_base64);
+    paramJsonVerify.addData_string("signature_base64", signature_base64);
+
+    returnJsonChar = NAPI_Verify(paramJsonVerify.StringToChar(paramJsonVerify.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Verify Json = %s\n", returnJsonChar);
+    result = retJsonObj.readData_bool("result");
+    printf("Verify result : %s\n", result ? "true" : "false");
+    printf("Verify signature SUCCESSFULLY!\n");
+
+cleanup:
+    SAFE_FREE(signature_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(digest.data);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_RSA2048_sign_verify end==========\n");
+    printf("\n");
+}
+
+/*
+
+step1. generate an rsa 4096 key as the CM(customer master key)
+
+step2. Sign the digest
+
+step3. Verify the signature
+
+*/
+void test_RSA4096_sign_verify()
+{
+    ehsm_status_t ret = EH_OK;
+    char* returnJsonChar = nullptr;
+    ehsm_data_t digest;
+
+    char* cmk_base64 = nullptr;
+    char* signature_base64 = nullptr;
+    bool result = false;
+    RetJsonObj retJsonObj;
+    std::string input_digest_base64;
+
+    JsonObj paramJsonCreatekey;
+    JsonObj paramJsonSign;
+    JsonObj paramJsonVerify;
+
+    paramJsonCreatekey.addData_uint16("keyspec", EH_RSA_4096);
+    paramJsonCreatekey.addData_uint16("padding_mode", RSA_PKCS1_PADDING);
+    paramJsonCreatekey.addData_uint16("digest_mode", EH_MD5);
+    printf("============test_RSA4096_sign_verify start==========\n");
+    returnJsonChar = NAPI_CreateKey(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    digest.datalen = 64;
+    digest.data = (uint8_t*)malloc(digest.datalen);
+    if (digest.data == NULL) {
+    }
+    memset(digest.data, 'D', digest.datalen);
+    input_digest_base64 = base64_encode(digest.data, digest.datalen);
+
+    paramJsonSign.addData_string("cmk_base64", cmk_base64);
+    paramJsonSign.addData_string("digest_base64", input_digest_base64);
+
+    returnJsonChar = NAPI_Sign(paramJsonSign.StringToChar(paramJsonSign.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Sign Json = %s\n", returnJsonChar);
+    signature_base64 = retJsonObj.readData_cstr("signature");
+    printf("Sign data SUCCESSFULLY!\n");
+
+    paramJsonVerify.addData_string("cmk_base64", cmk_base64);
+    paramJsonVerify.addData_string("digest_base64", input_digest_base64);
+    paramJsonVerify.addData_string("signature_base64", signature_base64);
+
+    returnJsonChar = NAPI_Verify(paramJsonVerify.StringToChar(paramJsonVerify.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Verify Json = %s\n", returnJsonChar);
+    result = retJsonObj.readData_bool("result");
+    printf("Verify result : %s\n", result ? "true" : "false");
+    printf("Verify signature SUCCESSFULLY!\n");
+
+cleanup:
+    SAFE_FREE(signature_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(digest.data);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_RSA4096_sign_verify end==========\n");
+    printf("\n");
 }
 
 /*
@@ -1256,7 +1439,11 @@ int main(int argc, char* argv[])
 
     test_RSA4096_encrypt_decrypt();
 
-    // test_RSA3072_sign_verify();
+    test_RSA2048_sign_verify();
+
+    test_RSA3072_sign_verify();
+
+    test_RSA4096_sign_verify();
 
     test_sm2_createKey();
 

@@ -63,7 +63,7 @@ using namespace std;
 #define RSA_3072_PRIVATE_KEY_PEM_SIZE    2459
 
 #define RSA_4096_PUBLIC_KEY_PEM_SIZE    775
-#define RSA_4096_PRIVATE_KEY_PEM_SIZE    3243
+#define RSA_4096_PRIVATE_KEY_PEM_SIZE    3247
 
 #define ECC_PUBLIC_KEY_PEM_SIZE     178
 #define ECC_PRIVATE_KEY_PEM_SIZE     227
@@ -166,31 +166,63 @@ uint32_t GetKeySize(ehsm_keyblob_t cmk)
 }
 
 /**
- * @brief Get the padding mode from cmk
+ * @brief Get the digest mode from cmk
  * 
- * @param cmk use the keyblob passed in by cmk to get the struct for key
- * @return uint32_t (tempoary)
+ * @param digestMode use the digestMode passed in by cmk to get the struct for key
+ * @return const EVP_MD* (openssl callback, tempoary)
  */
-uint8_t GetPaddingMode(ehsm_keyblob_t cmk)
+const EVP_MD* GetDigestMode(uint32_t digestMode)
 {
-    //TODO: return padding mode enum
+     switch (digestMode)
+    {
+    case EH_SHA1:
+        return EVP_sha1();
+    case EH_MD5:
+        return EVP_md5();
+    case EH_SHA_2_224:
+        return EVP_sha224();
+    case EH_SHA_2_256:
+        return EVP_sha256();
+    case EH_SHA_2_384:
+        return EVP_sha384();
+    case EH_SHA_2_512:
+        return EVP_sha512();
+    default:
+        return NULL;
+    }
 }
 
 /**
- * @brief Get the digest mode from cmk
+ * @brief verify Padding Mode from cmk
  * 
- * @param cmk use the keyblob passed in by cmk to get the struct for key
- * @return const EVP_MD* (openssl callback, tempoary)
+ * @param paddingMode the paddingMode passed in by cmk 
+ * @param digestMode the digestMode passed in by cmk
+ * @param evpkey EVP_PKEY created by the context
+ * @return [false] unsupported padding mode/ [true] supported padding mode
  */
-const EVP_MD* GetDigestMode(ehsm_keyblob_t cmk)
+bool verifyPaddingMode(uint8_t paddingMode, const EVP_MD *digestMode, EVP_PKEY *evpkey)
 {
-    //TODO: return EVP_MD function
-    // switch (keyblob.digestMode)
-    // {
-    //     case EH_SHA1:
-    //         return EVP_sha1; 
-    //     //TODO
-    // }
+    switch (paddingMode)
+    {
+    case RSA_PKCS1_PADDING:
+        return true;
+    case RSA_SSLV23_PADDING:
+        return false;
+    case RSA_NO_PADDING:
+        return false;
+    case RSA_PKCS1_OAEP_PADDING:
+        return false;
+    case RSA_X931_PADDING:
+        return false;
+    case RSA_PKCS1_PSS_PADDING:
+        if (EVP_MD_size(digestMode) * 2 + 2 > (size_t)EVP_PKEY_size(evpkey))
+        {
+            return false;
+        }
+        return true;
+    default:
+        return -1;
+    }
 }
 
 /**
@@ -944,32 +976,418 @@ sgx_status_t enclave_export_datakey(/* param */)
 }
 
 /**
- * @brief make rsa sign with the designated digest mode
- * digest mode is optional (temporary)
+ * @brief make rsa sign with the designated digest mode and padding mode
+ * digest mode and padding mode is optional
  * running in enclave 
- * 
+ * @param cmk_blob cipher block for storing keys
+ * @param cmk_blob_size cipher block size
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param padding_mode padding_mode set when creating the key
+ * @param data data to be signed
+ * @param data_len data length
+ * @param signature used to receive signature
+ * @param signature_len signature length
+ * @return sgx_status_t 
  */
-sgx_status_t enclave_rsa_sign(/* param */)
+sgx_status_t enclave_rsa_sign(const uint8_t *cmk_blob,
+                              size_t cmk_blob_size, 
+                              uint8_t padding_mode,
+                              uint32_t digest_mode,
+                              uint8_t keyspec,
+                              const uint8_t *data, 
+                              size_t data_len,
+                              uint8_t *signature,
+                              size_t signature_len)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_SUCCESS;
+    //Verify parameters
+    if (digest_mode == NULL || padding_mode == NULL || keyspec == NULL) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
-    //TODO: create rsa key sign
+    uint32_t sign_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_rsa_key_pem_size(keyspec)); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    if (UINT32_MAX == sign_rsa_len) {
+        printf("ecall rsa_sign failed to calculate sign data size.\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    //check signatrue length
+    switch(keyspec)
+    {
+        case EH_RSA_2048:
+            if (signature_len < RSA_OAEP_2048_SIGNATURE_SIZE) {
+                printf("ecall rsa_sign 2048 signature_len is too small than the expected 256.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+        case EH_RSA_3072:
+            if (signature_len < RSA_OAEP_3072_SIGNATURE_SIZE) {
+                printf("ecall rsa_sign 3072 signature_len is too small than the expected 384.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+        case EH_RSA_4096:
+            if (signature_len < RSA_OAEP_4096_SIGNATURE_SIZE) {
+                printf("ecall rsa_sign 4096 signature_len is too small than the expected 512.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+    }
+
+    // check cmk_blob and cmk_blob_size
+    if (cmk_blob == NULL || cmk_blob_size < sign_rsa_len) {
+        printf("ecall rsa_sign cmk_blob_size is too small.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (data == NULL || data_len == 0) {
+        printf("ecall rsa_sign data or data len is wrong.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t private_key_size;
+    uint32_t public_key_size;
+    uint8_t* rsa_keypair     = NULL;
+    uint8_t* rsa_private_key = NULL;
+    BIO *bio                 = NULL;
+    RSA* rsa_prikey          = NULL;
+    EVP_PKEY *evpkey         = NULL;
+    EVP_MD_CTX *mdctx        = NULL;
+    EVP_PKEY_CTX *pkey_ctx   = NULL;
+    //rsa sign
+    do
+    {
+        // load private key
+        public_key_size = ehsm_get_rsa_public_key_pem_size(keyspec);
+        private_key_size = ehsm_get_rsa_key_pem_size(keyspec) - public_key_size;
+
+        rsa_keypair = (uint8_t*)malloc(sign_rsa_len);
+        ret = ehsm_gcm_decrypt(&g_domain_key,
+                              sign_rsa_len, rsa_keypair,
+                              (sgx_aes_gcm_data_ex_t *)cmk_blob);
+        if (ret != SGX_SUCCESS)
+            break;
+        rsa_private_key = (uint8_t*)malloc(private_key_size);
+        memcpy_s(rsa_private_key, private_key_size, rsa_keypair + public_key_size, private_key_size);
+
+        bio = BIO_new_mem_buf(rsa_private_key, -1);
+        if (bio == NULL) {
+            printf("ecall rsa_sign failed to load rsa key pem\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        rsa_prikey = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL);
+        if(rsa_prikey == NULL)
+        {
+            printf("ecall rsa_sign fail to read RSA key using bio\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall rsa_sign generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        //use EVP_PKEY store RSA private key
+        if (EVP_PKEY_set1_RSA(evpkey, rsa_prikey) != 1)
+        {
+            printf("ecall rsa_sign fail to set the evpkey by RSA_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        //Get Digest Mode
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall rsa_sign digest Mode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        //verify Padding Mode
+        if(!verifyPaddingMode(padding_mode, digestMode, evpkey))
+        {
+            printf("ecall rsa_sign unsupported padding mode.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall rsa_sign fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall rsa_sign EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        //Signature initialization, set digest mode
+        if (EVP_DigestSignInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall rsa_sign EVP_DigestSignInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        //set padding mode
+        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding_mode) != 1)
+        {
+            printf("ecall rsa_sign EVP_PKEY_CTX_set_rsa_padding failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (padding_mode == RSA_PKCS1_PSS_PADDING)
+        {
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
+            {
+                printf("ecall rsa_sign EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+        }
+        //update sign
+        if (EVP_DigestUpdate(mdctx, data, data_len) != 1)
+        {
+            printf("ecall rsa_sign EVP_DigestSignUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        //start sign
+        if (EVP_DigestSignFinal(mdctx, NULL, &signature_len) != 1)
+        {
+            printf("ecall rsa_sign first EVP_DigestSignFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (EVP_DigestSignFinal(mdctx, signature, &signature_len) != 1)
+        {
+            printf("ecall rsa_sign last EVP_DigestSignFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+    } while (0);
+    RSA_free(rsa_prikey);
+    BIO_free(bio);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    SAFE_FREE(rsa_keypair);
+    SAFE_FREE(rsa_private_key);
 
     return ret;
 }
 
 /**
- * @brief make rsa verify with the designated digest mode
- * digest mode is optional (temporary)
+ * @brief make rsa verify with the designated digest mode and padding mode
+ * digest mode and padding mode is optional
  * running in enclave 
- * 
+ * @param cmk_blob cipher block for storing keys
+ * @param cmk_blob_size cipher block size
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param padding_mode padding_mode set when creating the key
+ * @param data data to be signed
+ * @param data_len data length
+ * @param signature generated signature
+ * @param signature_len signature length
+ * @param result match result
+ * @return sgx_status_t 
  */
-sgx_status_t enclave_rsa_verify(/* param */)
+sgx_status_t enclave_rsa_verify(const uint8_t *cmk_blob,
+                                size_t cmk_blob_size, 
+                                uint8_t padding_mode,
+                                uint32_t digest_mode,
+                                uint8_t keyspec,
+                                const uint8_t *data,
+                                size_t data_len,
+                                const uint8_t *signature,
+                                size_t signature_len,
+                                bool *result)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_SUCCESS;
+    //Verify parameters
+    if (digest_mode == NULL || padding_mode == NULL || keyspec == NULL) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    //check signature length
+    switch(keyspec)
+    {
+        case EH_RSA_2048:
+            if (signature_len < RSA_OAEP_2048_SIGNATURE_SIZE) {
+                printf("ecall rsa_verify 2048 signature_len is too small than the expected 256.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+        case EH_RSA_3072:
+            if (signature_len < RSA_OAEP_3072_SIGNATURE_SIZE) {
+                printf("ecall rsa_verify 3072 signature_len is too small than the expected 384.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+        case EH_RSA_4096:
+            if (signature_len < RSA_OAEP_4096_SIGNATURE_SIZE) {
+                printf("ecall rsa_verify 4096 signature_len is too small than the expected 512.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+    }
 
-    //TODO: verify rsa key
+    uint32_t verify_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_rsa_key_pem_size(keyspec)); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    if (UINT32_MAX == verify_rsa_len) {
+        printf("ecall rsa_sign failed to calculate verify data size.\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
 
+    if (cmk_blob == NULL || cmk_blob_size < verify_rsa_len) {
+        printf("ecall rsa_verify cmk_blob_size is too small.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (data == NULL || data_len == 0) {
+        printf("ecall rsa_verify data or data len is wrong.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (result == NULL) {
+        printf("ecall rsa_verify result is NULL.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint8_t* rsa_keypair    = NULL;
+    uint8_t* rsa_public_key = NULL;
+    BIO *bio                = NULL;
+    RSA* rsa_pubkey         = NULL;
+    EVP_PKEY *evpkey        = NULL;
+    EVP_MD_CTX *mdctx       = NULL;
+    EVP_PKEY_CTX *pkey_ctx  = NULL;
+    uint32_t public_key_size;
+
+    //rsa verify
+    do
+    {
+        // load rsa public key
+        public_key_size = ehsm_get_rsa_public_key_pem_size(keyspec);
+        
+        rsa_keypair = (uint8_t*)malloc(verify_rsa_len);
+        ret = ehsm_gcm_decrypt(&g_domain_key,
+                              verify_rsa_len, rsa_keypair,
+                              (sgx_aes_gcm_data_ex_t *)cmk_blob);
+        if (ret != SGX_SUCCESS)
+            break;
+
+        rsa_public_key = (uint8_t*)malloc(public_key_size);
+        memcpy_s(rsa_public_key, public_key_size, rsa_keypair, public_key_size);
+
+        bio = BIO_new_mem_buf(rsa_public_key, -1);
+        if (bio == NULL) {
+            printf("ecall rsa_verify failed to load rsa key pem\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        rsa_pubkey = PEM_read_bio_RSAPublicKey(bio, NULL, NULL, NULL);
+        if(rsa_pubkey == NULL)
+        {
+            printf("ecall rsa_verify fail to read RSA key using bio\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall rsa_verify generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        //use EVP_PKEY store RSA public key
+        if (EVP_PKEY_set1_RSA(evpkey, rsa_pubkey) != 1)
+        {
+            printf("ecall rsa_verify fail to set the evpkey by RSA_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        //get digest mode
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall rsa_verify digestMode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        //verify Padding Mode
+        if(!verifyPaddingMode(padding_mode, digestMode, evpkey))
+        {
+            printf("ecall rsa_verify unsupported padding mode.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall rsa_verify fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall rsa_verify EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        //verify initialization, set digest mode
+        if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall rsa_verify EVP_DigestVerifyInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        //set padding mode
+        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding_mode) != 1)
+        {
+            printf("ecall rsa_verify EVP_PKEY_CTX_set_rsa_padding failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (padding_mode == RSA_PKCS1_PSS_PADDING)
+        {
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
+            {
+                printf("ecall rsa_verify EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+        }
+        //update verify
+        if (EVP_DigestVerifyUpdate(mdctx, data, data_len) != 1)
+        {
+            printf("ecall rsa_verify EVP_DigestVerifyUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        //start verify
+        if (EVP_DigestVerifyFinal(mdctx, signature, signature_len) != 1)
+        {
+            printf("ecall rsa_verify EVP_DigestVerifyFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+    } while (0);
+    RSA_free(rsa_pubkey);
+    BIO_free(bio);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    SAFE_FREE(rsa_keypair);
+    SAFE_FREE(rsa_public_key);
+
+    if (ret != SGX_SUCCESS)
+    {
+        *result = false;
+    }
+    else
+    {
+        *result = true;
+    }
     return ret;
 }
 
@@ -999,34 +1417,6 @@ sgx_status_t enclave_ec_verify(/* param */)
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     //TODO: verify ec key
-
-    return ret;
-}
-
-/**
- * @brief make rsa sign with the designated digest mode
- * running in enclave 
- * 
- */
-sgx_status_t enclave_sm2_sign(/* param */)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    //TODO: create sm2 key sign
-
-    return ret;
-}
-
-/**
- * @brief make sm2 verify with the designated digest mode
- * running in enclave 
- * 
- */
-sgx_status_t enclave_sm2_verify(/* param */)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    //TODO: verify sm2 key
 
     return ret;
 }

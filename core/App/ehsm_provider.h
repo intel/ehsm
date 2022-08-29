@@ -50,9 +50,6 @@
 
 #define EH_CMK_MAX_SIZE (8*1024)
 
-#define RSA_OAEP_3072_SIGNATURE_SIZE      384
-#define RSA_OAEP_3072_DIGEST_SIZE         256
-
 typedef enum {
     EH_OK                           = 0,
     EH_KEYSPEC_INVALID              = -1,

@@ -581,61 +581,112 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
         return EH_OK;
 }
 
-sgx_status_t rsa_sign(/* param */)
-{
-    //need to verify key purpose is sign and verify
-
-    //TODO: get parameters
-
-    //TODO: initialize variable
-
-    // enclave_rsa_sign(/* param */);
-}
-
-sgx_status_t ec_sign(/* param */)
-{
-    //need to verify key purpose is sign and verify
-
-    //TODO: get parameters
-
-    //TODO: initialize variable
-
-    // enclave_ec_sign(/* param */);
-}
-
-sgx_status_t sm2_sign(/* param */)
-{
-    //need to verify key purpose is sign and verify
-
-    //TODO: get parameters
-
-    //TODO: initialize variable
-
-    // enclave_sm2_sign(/* param */);
-}
-
+/**
+ * @brief Sign the message and store it in signature
+ * 
+ * @param cmk storage the key metadata and keyblob
+ * @param digest message to be signed
+ * @param signature generated signature
+ * @return ehsm_status_t 
+ */
 ehsm_status_t Sign(ehsm_keyblob_t *cmk,
-           ehsm_data_t *digest,
-           ehsm_data_t *signature)
+                ehsm_data_t *digest,
+                ehsm_data_t *signature)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || digest == NULL || signature == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+    if (digest->datalen == 0) {
+        return EH_ARGUMENTS_BAD;
+    }
 
-    //TODO: Verify the validity of parameters
+    if (cmk->metadata.keyspec != EH_RSA_2048 &&
+        cmk->metadata.keyspec != EH_RSA_3072 &&
+        cmk->metadata.keyspec != EH_RSA_4096 &&
+        cmk->metadata.keyspec != EH_EC_P256 &&
+        cmk->metadata.keyspec != EH_EC_SM2) {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    /* calculate the signature length */
+    if (signature->datalen == 0) {
+        switch(cmk->metadata.keyspec) {
+            case EH_RSA_2048:
+                signature->datalen = RSA_OAEP_2048_SIGNATURE_SIZE;
+                return EH_OK;
+            case EH_RSA_3072:
+                signature->datalen = RSA_OAEP_3072_SIGNATURE_SIZE;
+                return EH_OK;
+            case EH_RSA_4096:
+                signature->datalen = RSA_OAEP_4096_SIGNATURE_SIZE;
+                return EH_OK;
+            case EH_EC_P256:
+                signature->datalen = EC_P256_SIGNATURE_SIZE;
+                return EH_OK;
+            case EH_EC_SM2:
+                signature->datalen = EC_SM2_SIGNATURE_SIZE;
+                return EH_OK;
+            default:
+                printf("RSA keyspec not support for signature.\n");
+                return EH_ARGUMENTS_BAD;
+        }
+    }
 
     switch(cmk->metadata.keyspec) {
         case EH_RSA_2048:
         case EH_RSA_3072:
-            ret = rsa_sign(/* param */);
-        case EH_EC_P224:
+        case EH_RSA_4096:
+            if (signature->data == NULL) {
+                return EH_ARGUMENTS_BAD;
+            }
+            if (digest->datalen > RSA_OAEP_4096_DIGEST_SIZE) {
+                printf("rsa sign requires a <=264B message.\n");
+                return EH_ARGUMENTS_BAD;
+            }
+            if (signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE 
+                && signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE
+                && signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE) {
+                    return EH_ARGUMENTS_BAD;
+            }
+            ret = enclave_rsa_sign(g_enclave_id,
+                                &sgxStatus, 
+                                cmk->keyblob,
+                                cmk->keybloblen,
+                                cmk->metadata.padding_mode,
+                                cmk->metadata.digest_mode,
+                                cmk->metadata.keyspec,
+                                digest->data,
+                                digest->datalen,
+                                signature->data,
+                                signature->datalen);
+            break;
         case EH_EC_P256:
-        case EH_EC_P384:
-        case EH_EC_P512:
-            ret = ec_sign(/* param */);
-            return EH_OK;
         case EH_EC_SM2:
-            ret = sm2_sign(/* param */);
-            return EH_OK;
+            if (signature->data == NULL) {
+                return EH_ARGUMENTS_BAD;
+            }
+            if (digest->datalen > EC_MAX_DIGEST_SIZE) {
+                printf("EC digest exceeds the maximum size.\n");
+                return EH_ARGUMENTS_BAD;
+            }
+            if (signature->datalen != EC_P256_SIGNATURE_SIZE 
+                && signature->datalen != EC_SM2_SIGNATURE_SIZE) {
+                    return EH_ARGUMENTS_BAD;
+            }
+            // ret = enclave_ec_sign(g_enclave_id,
+            //                     &sgxStatus, 
+            //                     cmk->keyblob,
+            //                     cmk->keybloblen,
+            //                     cmk->metadata.digest_mode,
+            //                     cmk->metadata.keyspec,
+            //                     digest->data,
+            //                     digest->datalen,
+            //                     signature->data,
+            //                     signature->datalen);
+            break;
         default:
             return EH_KEYSPEC_INVALID;
     }
@@ -646,62 +697,92 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
         return EH_OK;
 }
 
-sgx_status_t rsa_verify(/* param */)
-{
-    //need to verify key purpose is sign and verify
-
-    //TODO: get parameters
-
-    //TODO: initialize variable
-
-    // enclave_rsa_verify(/* param */);
-}
-
-sgx_status_t ec_verify(/* param */)
-{
-    //need to verify key purpose is sign and verify
-
-    //TODO: get parameters
-
-    //TODO: initialize variable
-
-    // enclave_ec_verify(/* param */);
-}
-
-sgx_status_t sm2_verify(/* param */)
-{
-    //need to verify key purpose is sign and verify
-    
-    //TODO: get parameters
-
-    //TODO: initialize variable
-
-    // enclave_sm2_verify(/* param */);
-}
-
+/**
+ * @brief verify the signature is correct
+ * 
+ * @param cmk storage the key metadata and keyblob
+ * @param digest message for signature
+ * @param signature generated signature
+ * @param result Signature match result
+ * @return ehsm_status_t 
+ */
 ehsm_status_t Verify(ehsm_keyblob_t *cmk,
-                 ehsm_data_t *digest,
-                 ehsm_data_t *signature,
-                 bool* result)
+                    ehsm_data_t *digest,
+                    ehsm_data_t *signature,
+                    bool* result)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    //TODO: Verify the validity of parameters
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || digest == NULL || signature == NULL || result == NULL) {
+        return EH_ARGUMENTS_BAD;
+    }
+    if (digest->datalen == 0) {
+        return EH_ARGUMENTS_BAD;
+    }
+    if (cmk->metadata.keyspec != EH_RSA_2048 &&
+        cmk->metadata.keyspec != EH_RSA_3072 &&
+        cmk->metadata.keyspec != EH_RSA_4096 &&
+        cmk->metadata.keyspec != EH_EC_P256 &&
+        cmk->metadata.keyspec != EH_EC_SM2) {
+        return EH_KEYSPEC_INVALID;
+    }
 
     switch(cmk->metadata.keyspec) {
         case EH_RSA_2048:
         case EH_RSA_3072:
-            ret = rsa_verify(/* param */);
-        case EH_EC_P224:
+        case EH_RSA_4096:
+            if (signature->data == NULL) {
+                return EH_ARGUMENTS_BAD;
+            }
+            if (digest->datalen > RSA_OAEP_4096_DIGEST_SIZE) {
+                printf("rsa verify requires a <=264B message.\n");
+                return EH_ARGUMENTS_BAD;
+            }
+            if (signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE 
+                && signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE
+                && signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE) {
+                    return EH_ARGUMENTS_BAD;
+            }
+            ret = enclave_rsa_verify(g_enclave_id,
+                                    &sgxStatus,
+                                    cmk->keyblob,
+                                    cmk->keybloblen,
+                                    cmk->metadata.padding_mode,
+                                    cmk->metadata.digest_mode,
+                                    cmk->metadata.keyspec,
+                                    digest->data,
+                                    digest->datalen,
+                                    signature->data,
+                                    signature->datalen,
+                                    result);
+            break;
         case EH_EC_P256:
-        case EH_EC_P384:
-        case EH_EC_P512:
-            ret = ec_verify(/* param */);
-            return EH_OK;
         case EH_EC_SM2:
-            ret = sm2_verify(/* param */);
-            return EH_OK;
+            if (signature->data == NULL) {
+                return EH_ARGUMENTS_BAD;
+            }
+            if (digest->datalen > EC_MAX_DIGEST_SIZE) {
+                printf("EC digest exceeds the maximum size.\n");
+                return EH_ARGUMENTS_BAD;
+            }
+            if (signature->datalen != EC_P256_SIGNATURE_SIZE 
+                && signature->datalen != EC_SM2_SIGNATURE_SIZE) {
+                    return EH_ARGUMENTS_BAD;
+            }
+            // ret = enclave_ec_verify(g_enclave_id,
+            //                         &sgxStatus, 
+            //                         cmk->keyblob,
+            //                         cmk->keybloblen,
+            //                         cmk->metadata.digest_mode,
+            //                         cmk->metadata.keyspec,
+            //                         digest->data,
+            //                         digest->datalen,
+            //                         signature->data,
+            //                         signature->datalen,
+            //                         result);
+            break;
         default:
             return EH_KEYSPEC_INVALID;
     }

@@ -746,7 +746,8 @@ out:
         code: int,
         message: string,
         result: {
-            cmk_base64 : string
+            cmk_base64 : string,
+            digest_base64 : string,
         }
     }
  * 
@@ -756,7 +757,7 @@ out:
         code: int,
         message: string,
         result: {
-            cmk_base64 : string
+            signature_base64 : string
         }
     }
  */
@@ -764,7 +765,13 @@ char* NAPI_Sign(const char* paramJson)
 {    
     RetJsonObj retJsonObj;
 
+    //parse paramJson into paramJsonObj
     JsonObj paramJsonObj;
+    if(paramJson == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
     paramJsonObj.parse(paramJson);
     char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
     char* digest_base64 = paramJsonObj.readData_cstr("digest_base64");
@@ -795,7 +802,7 @@ char* NAPI_Sign(const char* paramJson)
         retJsonObj.setMessage("The cmk's length is invalid.");
         goto out;
     }
-    if(digest_len == 0 || digest_len > RSA_OAEP_3072_DIGEST_SIZE){
+    if(digest_len == 0 || digest_len > RSA_OAEP_4096_DIGEST_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("The digest's length is invalid.");
         goto out;
@@ -811,6 +818,7 @@ char* NAPI_Sign(const char* paramJson)
     digest_data.datalen = digest_len;
     digest_data.data = (uint8_t*)digest_str.data();
 
+    //get signature datalen
     signature.datalen = 0;
     ret = Sign(&cmk, &digest_data, &signature);
     if (ret != EH_OK) {
@@ -826,6 +834,7 @@ char* NAPI_Sign(const char* paramJson)
         goto out;
     }
 
+    //sign
     ret = Sign(&cmk, &digest_data, &signature);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -854,7 +863,8 @@ out:
         code: int,
         message: string,
         result: {
-            cmk_base64 : string，
+            cmk_base64 : string,
+            digest_base64 : string,
             signature_base64 ： string
         }
     }
@@ -865,7 +875,7 @@ out:
         code: int,
         message: string,
         result: {
-            cmk_base64 : string
+            result : bool,
         }
     }
  */
@@ -873,7 +883,13 @@ char* NAPI_Verify(const char* paramJson)
 {
     RetJsonObj retJsonObj;
 
+    // parse paramJson into paramJsonObj
     JsonObj paramJsonObj;
+    if(paramJson == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        retJsonObj.setMessage("paramter invalid.");
+        return retJsonObj.toChar();
+    }
     paramJsonObj.parse(paramJson);
     char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
     char* digest_base64 = paramJsonObj.readData_cstr("digest_base64");
@@ -907,12 +923,12 @@ char* NAPI_Verify(const char* paramJson)
         retJsonObj.setMessage("The cmk's length is invalid.");
         goto out;
     }
-    if(digest_len == 0 || digest_len > RSA_OAEP_3072_DIGEST_SIZE){
+    if(digest_len == 0 || digest_len > RSA_OAEP_4096_DIGEST_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("The digest's length is invalid.");
         goto out;
     }
-    if(signature_len == 0 || signature_len > RSA_OAEP_3072_SIGNATURE_SIZE){
+    if(signature_len == 0 || signature_len > RSA_OAEP_4096_SIGNATURE_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("The signature's length is invalid.");
         goto out;
@@ -931,6 +947,7 @@ char* NAPI_Verify(const char* paramJson)
     signature_data.datalen = signature_len;
     signature_data.data = (uint8_t*)signatur_str.data();
 
+    //verify sign
     ret = Verify(&cmk, &digest_data, &signature_data, &result);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);

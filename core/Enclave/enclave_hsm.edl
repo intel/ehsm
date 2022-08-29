@@ -112,8 +112,15 @@ enclave {
 
         //public sgx_status_t enclave_export_datakey(/* param */);
 
-        //public sgx_status_t enclave_rsa_sign(/* param */);
-        //public sgx_status_t enclave_rsa_verify(/* param */);
+        public sgx_status_t enclave_rsa_sign([in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
+                                         uint8_t padding_mode, uint32_t digest_mode, uint8_t keyspec,
+                                         [in, size=data_len] const uint8_t *data, size_t data_len,
+                                         [out, size=signature_len] uint8_t *signature, size_t signature_len);
+        public sgx_status_t enclave_rsa_verify([in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
+                                           uint8_t padding_mode, uint32_t digest_mode, uint8_t keyspec,
+                                           [in, size=data_len] const uint8_t *data, size_t data_len,
+                                           [in, size=signature_len] const uint8_t *signature, size_t signature_len,
+                                           [out] bool* result);
 
         //public sgx_status_t enclave_ec_sign(/* param */);
         //public sgx_status_t enclave_ec_verify(/* param */);

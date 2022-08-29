@@ -68,6 +68,16 @@
 #define RSA_OAEP_3072_CIPHER_LENGTH       384
 #define RSA_OAEP_4096_CIPHER_LENGTH       512
 
+#define RSA_OAEP_4096_SIGNATURE_SIZE      512
+#define RSA_OAEP_3072_SIGNATURE_SIZE      384
+#define RSA_OAEP_2048_SIGNATURE_SIZE      256
+
+#define EC_P256_SIGNATURE_SIZE            64
+#define EC_SM2_SIGNATURE_SIZE             64
+
+#define RSA_OAEP_4096_DIGEST_SIZE         264
+#define EC_MAX_DIGEST_SIZE                264
+
 #define RSA_PKCS1_OAEP_PADDING_SIZE       41
 #define RSA_PKCS1_PADDING_SIZE            11
 
@@ -214,7 +224,8 @@ typedef enum {
     EH_SHA_2_224,
     EH_SHA_2_256,
     EH_SHA_2_384,
-    EH_SHA_2_512
+    EH_SHA_2_512,
+    EH_SM3
 } ehsm_digest_mode_t;
 
 #pragma pack(pop)
