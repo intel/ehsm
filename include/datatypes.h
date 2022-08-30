@@ -83,6 +83,7 @@
 
 #define EH_AES_GCM_IV_SIZE  12
 #define EH_AES_GCM_MAC_SIZE 16
+#define SGX_SM4_IV_SIZE     16
 
 #define SM2PKE_MAX_ENCRYPTION_SIZE                      6047
 #define EH_ENCRYPT_MAX_SIZE (6*1024)
@@ -142,17 +143,6 @@ typedef struct _session_id_tracker_t
     uint32_t          session_id;
 } session_id_tracker_t;
 
-typedef struct _aes_gcm_data_ex_t
-{
-    uint32_t  ciphertext_size;
-    uint32_t  aad_size;
-    uint8_t   reserve1[8];
-    uint8_t   iv[SGX_AESGCM_IV_SIZE];
-    uint8_t   reserve2[4];
-    uint8_t   mac[SGX_AESGCM_MAC_SIZE];
-    uint8_t   payload[];   /* ciphertext + aad */
-} sgx_aes_gcm_data_ex_t;
-
 //sgx-ssl framework
 
 typedef struct {
@@ -172,34 +162,6 @@ typedef struct {
     uint32_t            keybloblen;
     uint8_t             *keyblob;
 } ehsm_keyblob_t;
-
-//ec:
-typedef struct 
-{
-    //temporary
-} ec_key_data_t;
-
-//hmac
-typedef struct
-{
-   
-} hmac_key_data_t;
-
-//sm2
-typedef struct
-{
-    //temporary
-} sm2_key_data_t;
-
-//sm4
-typedef struct 
-{
-    uint32_t    ciphertext_size;
-    uint32_t    aad_size;
-    uint8_t     iv[SGX_AESGCM_IV_SIZE];
-    uint8_t     mac[SGX_AESGCM_MAC_SIZE];
-    uint8_t     payload[];   /* ciphertext + aad */
-} sm4_key_data_t;
 
 typedef enum {
     EH_AES_GCM_128 = 0,

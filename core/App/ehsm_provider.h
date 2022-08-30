@@ -63,6 +63,17 @@ typedef enum {
     EH_LA_CLOSE_ERROR               = -9,
 } ehsm_status_t;
 
+typedef struct _aes_gcm_data_ex_t
+{
+    uint32_t  ciphertext_size;
+    uint32_t  aad_size;
+    uint8_t   reserve1[8];
+    uint8_t   iv[SGX_AESGCM_IV_SIZE];
+    uint8_t   reserve2[4];
+    uint8_t   mac[SGX_AESGCM_MAC_SIZE];
+    uint8_t   payload[];   /* ciphertext + aad */
+} sgx_aes_gcm_data_ex_t;
+
 typedef enum  {
     EH_INTERNAL_KEY,
     EXTERNAL_KEY,

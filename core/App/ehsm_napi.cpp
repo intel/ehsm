@@ -120,7 +120,10 @@ char* NAPI_CreateKey(const char* paramJson)
     string cmk_base64;
     uint8_t *resp = NULL;
     uint32_t resp_len = 0;
-
+    if(paramJson == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+    }
     // parse paramJson into paramJsonObj
     JsonObj paramJsonObj;
     if (!paramJsonObj.parse(paramJson))
@@ -221,7 +224,10 @@ out:
 char* NAPI_Encrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
-    
+    if(paramJson == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+    }
     JsonObj paramJsonObj;
     paramJsonObj.parse(paramJson);
     char* cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
@@ -351,6 +357,11 @@ out:
 char* NAPI_Decrypt(const char* paramJson)
 {
     RetJsonObj retJsonObj;
+    
+    if(paramJson == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+    }
 
     JsonObj paramJsonObj;
     paramJsonObj.parse(paramJson);
@@ -391,7 +402,7 @@ char* NAPI_Decrypt(const char* paramJson)
         retJsonObj.setMessage("The cmk's length is invalid.");
         goto out;
     }
-    if(ciphertext_len == 0 || ciphertext_len > EH_ENCRYPT_MAX_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE){
+    if(ciphertext_len == 0 || ciphertext_len > EH_ENCRYPT_MAX_SIZE + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE){
         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
         retJsonObj.setMessage("The ciphertext's length is invalid.");
         goto out;
@@ -1599,7 +1610,7 @@ char *NAPI_RA_GET_API_KEY(const char *p_att_result_msg)
     }
 
     // create cipherapikey
-    cipherapikey.datalen = EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
+    cipherapikey.datalen = EH_API_KEY_SIZE + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE;
     cipherapikey.data = (uint8_t*)calloc(cipherapikey.datalen, sizeof(uint8_t));
     if (cipherapikey.data == NULL) {
         ret = EH_DEVICE_MEMORY;
