@@ -72,9 +72,6 @@ errno_t memcpy_s(
     return 0;
 }
 
-namespace EHsmProvider
-{
-
 sgx_ra_context_t g_context = INT_MAX;
 
 sgx_enclave_id_t g_enclave_id;
@@ -111,6 +108,96 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
     return EH_OK;
 }
 
+
+/**
+ * @brief The unique ffi entry for the ehsm provider libaray.
+ * 
+ * @param paramJson the request parameters in the form of JSON string
+ * [string] json string
+    {
+        Action: string [CreateKey, Encrypt, Decrypt, Sign, Verify...]
+        payload: {
+            [additional parameter]
+        }
+    }
+ * 
+ * @return char* response in json string
+    {
+        code: int,
+        message: string,
+        result: {
+            xxx : xxx
+        }
+    }
+ */
+char* EHSM_NAPI_CALL(const char* paramJson)
+{
+    char *resp = NULL;
+    ehsm_status_t ret = EH_OK;
+    RetJsonObj retJsonObj;
+    uint32_t action = -1;
+
+    if(paramJson == NULL) {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+    }
+    // parse paramJson into paramJsonObj
+    JsonObj paramJsonObj;
+    if (!paramJsonObj.parse(paramJson))
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Server exception.");
+        goto out;
+    }
+
+    action = paramJsonObj.readData_uint16("action");
+    payload = paramJsonObj.readData_string("payload");
+
+    switch (action) {
+        case EH_INITIALIZE:
+            resp = NAPI_Initialize();
+            break;
+        case EH_FINALIZE:
+            resp = NAPI_Finalize();
+            break;
+        case EH_CREATE_KEY:
+            resp = NAPI_CreateKey(payload);
+            break;
+        case EH_ENCRYPT:
+            resp = NAPI_Encrypt(payload);
+            break;
+        case EH_DECRYPT:
+            break;
+        case EH_ASYMMETRIC_ENCRYPT:
+            break;
+        case EH_ASYMMETRIC_DECRYPT:
+            break;
+        case EH_SIGN:
+            break;
+        case EH_VERIFY:
+            break;
+        case EH_GENERATE_DATAKEY:
+            break;
+        case EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT:
+            break;
+        case EH_EXPORT_DATAKEY:
+            break;
+        case EH_GET_VERSION:
+            break;
+        case EH_ENROLL:
+            break;
+        case EH_GENERATE_QUOTE:
+            break;
+        case EH_VERIFY_QUOTE:
+            break;
+        default:
+            break;
+    }
+
+out:
+    return retJsonObj.toChar();
+}
+
 ehsm_status_t Initialize()
 {
     ehsm_status_t rc = EH_OK;
@@ -137,6 +224,8 @@ ehsm_status_t Initialize()
         sgx_destroy_enclave(g_enclave_id);
     }
 
+    //TODO: add self-test cases for FIPS-140
+
     return rc;
 }
 
@@ -144,6 +233,8 @@ void Finalize()
 {
     sgx_destroy_enclave(g_enclave_id);
 }
+
+
 ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
@@ -1226,4 +1317,3 @@ ehsm_status_t verify_att_result_msg(sample_ra_att_result_msg_t *p_att_result_msg
     return EH_OK; 
 }
 
-}

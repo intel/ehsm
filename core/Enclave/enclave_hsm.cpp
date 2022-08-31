@@ -43,18 +43,9 @@
 #include "sgx_utils.h"
 #include "sgx_tkey_exchange.h"
 
-using namespace std;
-typedef enum {
-    EH_AES_GCM_128 = 0x00000000UL,
-    EH_AES_GCM_256,
-    EH_RSA_2048,
-    EH_RSA_3072,
-    EH_EC_P256,
-    EH_EC_P512,
-    EH_EC_SM2,
-    EH_SM4,
-} ehsm_keyspec_t;
+#include "datatypes.h"
 
+using namespace std;
 
 #define SGX_AES_KEY_SIZE 16
 
@@ -122,6 +113,122 @@ typedef struct _aes_gcm_data_ex_t
     uint8_t   payload[];   /* ciphertext + aad */
 } sgx_aes_gcm_data_ex_t;
 
+sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (cmk->keybloblen == 0) {
+        ret = ehsm_calc_keyblob_len(cmk->metadata);
+        return ret;
+    }
+
+    switch (cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+        case EH_AES_GCM_192:
+        case EH_AES_GCM_256:
+            ret = ehsm_create_aes_key(cmk);
+            break;
+        case EH_RSA_2048:
+        case EH_RSA_3072:
+        case EH_RSA_4096:
+            ret = ehsm_create_rsa_key(cmk);
+            break;
+        case EH_EC_P224:
+        case EH_EC_P256:
+        case EH_EC_P384:
+        case EH_EC_P512:
+            ret = ehsm_create_ec_key(cmk);
+        case SM2:
+            break;
+        case SM4:
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
+    }
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+
+    return ret;
+}
+
+sgx_status_t enclave_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                        const ehsm_data_t *aad, size_t aad_len,
+                        const ehsm_data_t *plaintext, size_t plaintext_len,
+                        ehsm_data_t *ciphertext, size_t ciphertext_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    return ret;
+}
+        
+sgx_status_t enclave_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *aad, size_t aad_len,
+                    const ehsm_data_t *ciphertext, size_t ciphertext_len,
+                    ehsm_data_t *plaintext, size_t plaintext_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    return ret;
+}
+
+sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *plaintext, size_t plaintext_len,
+                    ehsm_data_t *ciphertext, size_t ciphertext_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    return ret;
+}
+
+sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *ciphertext, uint32_t ciphertext_len,
+                    ehsm_data_t *plaintext, uint32_t plaintext_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    return ret;
+}
+
+sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *data, size_t data_len,
+                    ehsm_data_t *signature, size_t signature_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    return ret;
+}
+                                    
+sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *data, size_t data_len,
+                    const ehsm_data_t *signature, size_t signature_len,
+                    bool* result)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    return ret;
+}
+
+sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *aad, size_t aad_len,
+                    ehsm_data_t *plaintext, size_t plaintext_len,
+                    ehsm_data_t *ciphertext, size_t ciphertext_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    return ret;
+}
+
+sgx_status_t enclave_export_datakey(const ehsm_keyblob_t* s_cmk, size_t s_cmk_len,
+                    const ehsm_data_t *aad, size_t aad_len,
+                    ehsm_data_t *oldkey, size_t oldkey_len,
+                    const ehsm_keyblob_t* d_cmk, size_t d_cmk_len,
+                    ehsm_data_t *newkey, size_t newkey_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    return ret;
+}
+
+#if 0
 static uint32_t sgx_calc_gcm_data_size(const uint32_t aad_size, const uint32_t plaintext_size)
 {
     if (aad_size > UINT32_MAX - sizeof(sgx_aes_gcm_data_ex_t))
@@ -793,6 +900,7 @@ out:
 
     return ret;
 }
+#endif
 
 sgx_status_t enclave_get_target_info(sgx_target_info_t* target_info)
 {
