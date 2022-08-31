@@ -1066,11 +1066,9 @@ sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob,
 
     RSA     *rsa            = NULL;
     BIGNUM  *bne            = NULL;
-    BIO     *public_key     = NULL;
-    BIO     *private_key    = NULL;
-    uint8_t *p_public_key   = NULL;
-    uint8_t *p_private_key  = NULL;
-    uint8_t *payload        = NULL;
+    BIO     *bio            = NULL;
+    uint8_t *key_len        = NULL;
+    uint8_t *p_key          = NULL;
     // create rsa key
     //
     do {
@@ -1110,45 +1108,37 @@ sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob,
         }
 
         // storage rsa key with pem format
-        public_key = BIO_new(BIO_s_mem());
-        private_key = BIO_new(BIO_s_mem());
-        if (public_key == NULL || private_key == NULL) {
+        bio = BIO_new(BIO_s_mem());
+        if (bio == NULL) {
             break;
         }
 
-        PEM_write_bio_RSAPrivateKey(private_key, rsa, NULL, NULL, 0, NULL, NULL);
-        PEM_write_bio_RSAPublicKey(public_key, rsa);
+        if(!PEM_write_bio_RSAPublicKey(bio, rsa))
+            break;
+        if(!PEM_write_bio_RSAPrivateKey(bio, rsa, NULL, NULL, 0, NULL, NULL))
+            break;
+        
+        int key_len = BIO_pending(bio);
+        if (key_len == 0)
+            break;
+            
+        p_key = (uint8_t*)malloc(key_len + 1); // add '\0'
 
-        int public_key_len = BIO_pending(public_key);
-        int private_key_len = BIO_pending(private_key);
+        p_key[key_len] = '\0';
 
-        p_public_key = (uint8_t*)malloc(public_key_len + 1); // add '\0'
-        p_private_key = (uint8_t*)malloc(private_key_len + 1);
+        BIO_read(bio, (char*)p_key, key_len);
 
-        p_public_key[public_key_len] = '\0';
-        p_private_key[private_key_len] = '\0';
-
-        BIO_read(public_key, (char*)p_public_key, public_key_len);
-        BIO_read(private_key, (char*)p_private_key, private_key_len);
-
-        if (p_public_key == NULL && p_private_key == NULL)
+        if (p_key == NULL)
             break;
 
-        payload = (uint8_t*)malloc(public_key_len + private_key_len + 1);
-        memcpy_s(payload, public_key_len, p_public_key, public_key_len);
-        memcpy_s(payload + public_key_len, private_key_len, p_private_key, private_key_len);
-
-        ret = ehsm_gcm_encrypt(&g_domain_key, key_size, payload, 0, NULL, cmk_blob_size, (sgx_aes_gcm_data_ex_t *)cmk_blob);
+        ret = ehsm_gcm_encrypt(&g_domain_key, key_size, p_key, 0, NULL, cmk_blob_size, (sgx_aes_gcm_data_ex_t *)cmk_blob);
     } while(0);
 
     RSA_free(rsa);
-    BIO_free(public_key);
-    BIO_free(private_key);
+    BIO_free(bio);
     BN_free(bne);
 
-    SAFE_FREE(p_public_key);
-    SAFE_FREE(p_private_key);
-    SAFE_FREE(payload);
+    SAFE_FREE(p_key);
 
     return ret;
 }
