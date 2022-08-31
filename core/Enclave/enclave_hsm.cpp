@@ -68,7 +68,8 @@ using namespace std;
 #define RSA_4096_PRIVATE_KEY_PEM_SIZE    3247
 
 #define ECC_PUBLIC_KEY_PEM_SIZE     178
-#define ECC_PRIVATE_KEY_PEM_SIZE     227
+#define ECC_PRIVATE_KEY_PEM_SIZE    227
+#define ECC_MAX_PLAINTEXT_SIZE      256
 
 // Used to store the secret passed by the SP in the sample code.
 sgx_aes_gcm_128bit_key_t g_domain_key = {0};
@@ -1121,7 +1122,7 @@ sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob,
         int key_len = BIO_pending(bio);
         if (key_len == 0)
             break;
-            
+
         p_key = (uint8_t*)malloc(key_len + 1); // add '\0'
 
         p_key[key_len] = '\0';
@@ -1156,14 +1157,12 @@ sgx_status_t enclave_create_ecc_key(uint8_t *cmk_blob,
     //temporary
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    EC_GROUP        *ec_group       = NULL;
-    EC_KEY          *ec_key         = NULL;
-    BIO             *pri_bio        = NULL;
-    BIO             *pub_bio        = NULL;
-    uint8_t         *private_key    = NULL;
-    uint8_t         *public_key     = NULL;
+    EC_GROUP    *ec_group   = NULL;
+    EC_KEY      *ec_key     = NULL;
+    BIO         *bio        = NULL;
+    uint8_t     *p_key      = NULL;
 
-    int pri_len = 0, pub_len = 0;
+    uint32_t key_len = 0;
 
     // get keybloblen
     //
@@ -1220,70 +1219,43 @@ sgx_status_t enclave_create_ecc_key(uint8_t *cmk_blob,
             break;
         }
 
-        // Generate SM2 private key
+        // Generate SM2 key pair
         //
-        pri_bio = BIO_new(BIO_s_mem());
-        if (pri_bio == NULL) {
+        bio = BIO_new(BIO_s_mem());
+        if (bio == NULL) {
             printf("Error: fail to create a BIO for SM2 private key\n");
             break;
         }
 
-        if (!PEM_write_bio_ECPrivateKey(pri_bio, ec_key, NULL, NULL, 0, NULL, NULL)) {
-            printf("Error: fail to write SM2 private key from ec_key to the BIO\n");
-            break;
-        }
-
-        pri_len = BIO_pending(pri_bio);
-        if (pri_len == 0) {
-            printf("Error: fail to get size of the BIO for SM2 private key\n");
-            break;
-        }
-        private_key = (uint8_t*)malloc(pri_len+1);
-        if (BIO_read(pri_bio, private_key, pri_len) <= 0) {
-            printf("Error: fail to read SM2 private key from the BIO\n");
-            break;
-        }
-        private_key[pri_len] = '\0';
-
-        // Generate SM2 public key
-        //
-        pub_bio = BIO_new(BIO_s_mem());
-        if (pub_bio == NULL) {
-            printf("Error: fail to create a BIO for SM2 public key\n");
-            break;
-        }
-
-        if (!PEM_write_bio_EC_PUBKEY(pub_bio, ec_key)) {
+        if (!PEM_write_bio_EC_PUBKEY(bio, ec_key)) {
             printf("Error: fail to write SM2 public key from ec_key to the BIO\n");
             break;
         }
-
-        pub_len = BIO_pending(pub_bio);
-        if (pub_len == 0) {
+        if (!PEM_write_bio_ECPrivateKey(bio, ec_key, NULL, NULL, 0, NULL, NULL)) {
+            printf("Error: fail to write SM2 private key from ec_key to the BIO\n");
+            break;
+        }
+        
+        key_len = BIO_pending(bio);
+        if (key_len == 0) {
             printf("Error: fail to get size of the BIO for SM2 public key\n");
             break;
         }
-        public_key = (uint8_t*)malloc(pub_len+1);
-        if (BIO_read(pub_bio, public_key, pub_len) <= 0) {
+        p_key = (uint8_t*)malloc(key_len+1);
+        if (BIO_read(bio, p_key, key_len) <= 0) {
             printf("Error: fail to read SM2 public key from the BIO\n");
             break;
         }
-        public_key[pub_len] = '\0';
+        p_key[key_len] = '\0';
 
-        uint8_t *payload = (uint8_t*)malloc(pub_len + pri_len + 1);
-        memcpy(payload, public_key, pub_len);
-        memcpy(payload + pub_len, private_key, pri_len);
-
-        ret = ehsm_gcm_encrypt(&g_domain_key, key_size, payload, 0, NULL, cmk_blob_size, (sgx_aes_gcm_data_ex_t *)cmk_blob);
+        ret = ehsm_gcm_encrypt(&g_domain_key, key_size, p_key, 0, NULL, cmk_blob_size, (sgx_aes_gcm_data_ex_t *)cmk_blob);
     } while(0);
 
-    SAFE_FREE(private_key);
-    SAFE_FREE(public_key);
-
-    BIO_free_all(pri_bio);
-    BIO_free_all(pub_bio);
+    BIO_free(bio);
     EC_GROUP_free(ec_group);
     EC_KEY_free(ec_key);
+
+    SAFE_FREE(p_key);
 
     return ret;
 }
@@ -1296,20 +1268,6 @@ sgx_status_t enclave_create_ecc_key(uint8_t *cmk_blob,
 sgx_status_t enclave_create_hmac_key(/* param */)
 {
     //TODO: create hmac key
-    sgx_status_t ret;
-    // ret = ehsm_gcm_encrypt(/* param */);
-
-    return ret;
-}
-
-/**
- * @brief generate sm2 key with openssl api
- * running in enclave
- *
- */
-sgx_status_t enclave_create_sm2_key(/* param */)
-{
-    //TODO: create sm2 key
     sgx_status_t ret;
     // ret = ehsm_gcm_encrypt(/* param */);
 
@@ -1407,7 +1365,6 @@ sgx_status_t enclave_aes_encrypt(const uint8_t *aad, size_t aad_len,
     return ret;
 }
 
-
 /**
  * @brief Check parameters and decrypted data
  * @param aad Additional data
@@ -1503,11 +1460,113 @@ sgx_status_t enclave_aes_decrypt(const uint8_t *aad, size_t aad_len,
  * running in enclave
  *
  */
-sgx_status_t enclave_sm2_encrypt(/* param */)
+sgx_status_t enclave_sm2_encrypt(const uint8_t *cmk_blob,
+                                 size_t cmk_blob_size,
+                                 const uint8_t *plaintext,
+                                 uint32_t plaintext_len,
+                                 uint8_t *ciphertext,
+                                 uint32_t ciphertext_len,
+                                 uint32_t *req_blob_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    //TODO: encrypt by sm2 key
+    // check plaintext and plaintext_len
+    //
+    if (plaintext == NULL || plaintext_len == 0) {
+        printf("ecall sm2_encrypt plaintext or len is wrong.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (plaintext_len > ECC_MAX_PLAINTEXT_SIZE) {
+        printf("ecall sm2_encrypt plaintext_len is up to %d.\n", ECC_MAX_PLAINTEXT_SIZE);
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    // check cmk_blob and cmk_blob_size
+    //
+    uint32_t encrypted_sm2_len = ehsm_calc_gcm_data_size(0, ECC_PRIVATE_KEY_PEM_SIZE + ECC_PUBLIC_KEY_PEM_SIZE); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    if (UINT32_MAX == encrypted_sm2_len) {
+        printf("ecall rsa_encrypt failed to calculate encrypted data size.\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    if (cmk_blob == NULL || cmk_blob_size < encrypted_sm2_len) {
+        printf("ecall rsa_encrypt cmk_blob_size is too small.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    // do rsa public key encrypt
+    //
+    uint8_t         *sm2_keypair    = NULL;
+    uint8_t         *sm2_public_key = NULL;
+    BIO             *bio            = NULL;
+
+    EVP_PKEY        *pkey           = NULL;
+    EVP_PKEY_CTX    *ectx           = NULL;
+
+    do {
+        // load rsa public key
+        //
+        sm2_keypair = (uint8_t*)malloc(encrypted_sm2_len);
+        ret = ehsm_gcm_decrypt(&g_domain_key,
+                              encrypted_sm2_len, sm2_keypair,
+                              (sgx_aes_gcm_data_ex_t *)cmk_blob);
+        if (ret != SGX_SUCCESS)
+            break;
+
+        sm2_public_key = (uint8_t*)malloc(ECC_PUBLIC_KEY_PEM_SIZE);
+        memcpy_s(sm2_public_key, ECC_PUBLIC_KEY_PEM_SIZE, sm2_keypair, ECC_PUBLIC_KEY_PEM_SIZE);
+
+        bio = BIO_new_mem_buf(sm2_public_key, -1); // use -1 to auto compute length
+        if (bio == NULL) {
+            printf("failed to load sm2 key pem\n");
+            break;
+        }
+
+        pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+        if (pkey == NULL) {
+            printf("failed to load sm2 key\n");
+            break;
+        }
+
+        // make encryption
+        //
+        if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1)
+            break;
+        
+        if (!(ectx = EVP_PKEY_CTX_new(pkey, NULL)))
+            break;
+        
+        if (EVP_PKEY_encrypt_init(ectx) != 1)
+            break;
+
+        size_t strLen;
+        if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext, (size_t)plaintext_len) != 1) {
+            break;
+        }
+
+        if (ciphertext_len == 0) {
+            *req_blob_size = strLen;
+            return SGX_SUCCESS;
+        }
+
+        if (ciphertext != NULL) {
+            if (EVP_PKEY_encrypt(ectx, ciphertext, &strLen, plaintext, (size_t)plaintext_len) != 1) {
+                break;
+            }
+        } else {
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        ret = SGX_SUCCESS;
+    } while(0);
+
+    BIO_free(bio);
+    SAFE_FREE(sm2_keypair);
+    SAFE_FREE(sm2_public_key);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ectx);
 
     return ret;
 }
@@ -1725,11 +1784,104 @@ sgx_status_t enclave_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size,
     return ret;
 }
 
-sgx_status_t enclave_sm2_decrypt(/* param */)
+sgx_status_t enclave_sm2_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size,
+                                 const uint8_t *ciphertext, uint32_t ciphertext_len,
+                                 uint8_t *plaintext, uint32_t plaintext_len,
+                                 uint32_t *req_plaintext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    //TODO: decrypt by sm2 key
+    // check ciphertext and ciphertext_len
+    //
+    uint32_t encrypted_sm2_len = ehsm_calc_gcm_data_size(0, ECC_PRIVATE_KEY_PEM_SIZE + ECC_PUBLIC_KEY_PEM_SIZE); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    if (UINT32_MAX == encrypted_sm2_len) {
+        printf("ecall sm2_encrypt failed to calculate encrypted data size.\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // if (ciphertext == NULL || ciphertext_len < (ECC_MAX_PLAINTEXT_SIZE + 96*8)) {
+    //     printf("ecall rsa_encrypt ciphertext len is too small, it should be %d\n", ECC_MAX_PLAINTEXT_SIZE + 96*8);
+    //     return SGX_ERROR_INVALID_PARAMETER;
+    // }
+
+    // check cmk_blob and cmk_blob_size
+    //
+    if (cmk_blob == NULL || cmk_blob_size < encrypted_sm2_len) {
+        printf("ecall sm2_decrypt cmk_blob_size is too small.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    // do rsa private key decrypt
+    //
+    uint8_t* sm2_keypair = NULL;
+    uint8_t* sm2_private_key = NULL;
+    BIO *bio = NULL;
+    EVP_PKEY *pkey;
+    EVP_PKEY_CTX *ectx = NULL;
+
+    do {
+        // load private key
+        //
+        sm2_keypair = (uint8_t*)malloc(encrypted_sm2_len);
+        ret = ehsm_gcm_decrypt(&g_domain_key,
+                              encrypted_sm2_len, sm2_keypair,
+                              (sgx_aes_gcm_data_ex_t *)cmk_blob);
+        if (ret != SGX_SUCCESS)
+            break;
+
+        sm2_private_key = (uint8_t*)malloc(ECC_PRIVATE_KEY_PEM_SIZE);
+        memcpy_s(sm2_private_key, ECC_PRIVATE_KEY_PEM_SIZE, sm2_keypair + ECC_PUBLIC_KEY_PEM_SIZE, ECC_PRIVATE_KEY_PEM_SIZE);
+
+        bio = BIO_new_mem_buf(sm2_private_key, -1); // use -1 to auto compute length
+        if (bio == NULL) {
+            printf("failed to load rsa key pem\n");
+            break;
+        }
+
+        pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+        if (pkey == NULL) {
+            printf("failed to load rsa key\n");
+            break;
+        }
+
+        // make decryption and compute plaintext length
+        //
+         if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1)
+            break;
+        
+        if (!(ectx = EVP_PKEY_CTX_new(pkey, NULL)))
+            break;
+        
+        if (EVP_PKEY_decrypt_init(ectx) != 1)
+            break;
+        
+        size_t strLen;
+        if (EVP_PKEY_decrypt(ectx, NULL, &strLen, ciphertext, (size_t)ciphertext_len) != 1) {
+            break;
+        }
+
+        if (plaintext_len == 0) {
+            *req_plaintext_len = strLen;
+            return SGX_SUCCESS;
+        }
+
+        if (ciphertext != NULL) {
+            if (EVP_PKEY_decrypt(ectx, plaintext, &strLen, ciphertext, (size_t)ciphertext_len) != 1) {
+                break;
+            }
+        } else {
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        ret = SGX_SUCCESS;
+    } while(0);
+
+    BIO_free(bio);
+    SAFE_FREE(sm2_keypair);
+    SAFE_FREE(sm2_private_key);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ectx);
 
     return ret;
 }

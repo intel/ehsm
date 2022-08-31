@@ -1057,10 +1057,10 @@ cleanup:
     printf("============test_RSA4096_encrypt_decrypt End==========\n");
 }
 
-void test_sm2_createKey()
+void test_sm2_encrypt_decrypt()
 {
     char* returnJsonChar = nullptr;
-    char plaintext[] = "TestECC-SM2";
+    char plaintext[] = "Test1234-SM2";
     char* cmk_base64 = nullptr;
     char* ciphertext_base64 = nullptr;
     char* plaintext_base64 = nullptr;
@@ -1084,7 +1084,42 @@ void test_sm2_createKey()
         goto cleanup;
     }
     printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
-    printf("Create CMK with RAS SUCCESSFULLY!\n");
+    printf("Create CMK with SM2 SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    paramJsonEncrypt.addData_string("cmk_base64", cmk_base64);
+    paramJsonEncrypt.addData_string("plaintext_base64", input_plaintext_base64);
+
+    returnJsonChar = NAPI_AsymmetricEncrypt(paramJsonEncrypt.StringToChar(paramJsonEncrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
+    printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
+
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+
+    paramJsonDecrypt.addData_string("cmk_base64", cmk_base64);
+    paramJsonDecrypt.addData_string("ciphertext_base64", ciphertext_base64);
+
+    returnJsonChar = NAPI_AsymmetricDecrypt(paramJsonDecrypt.StringToChar(paramJsonDecrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+    printf("Decrypted plaintext : %s\n", plaintext_base64);
+    if (!strcmp(plaintext_base64, input_plaintext_base64.data()))
+        printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
+    else {
+        printf("NAPI_AsymmetricDecrypt data FAILED!\n");
+        goto cleanup;
+    }
 
 cleanup:
     SAFE_FREE(cmk_base64);
@@ -1643,7 +1678,7 @@ int main(int argc, char* argv[])
 
     test_RSA4096_sign_verify();
 
-    test_sm2_createKey();
+    test_sm2_encrypt_decrypt();
 
     // test_generate_datakey();
 

@@ -39,24 +39,19 @@
 #define DATATYPES_H_
 
 #define RSA_PKCS1_PADDING       1
-#define RSA_SSLV23_PADDING      2
 #define RSA_NO_PADDING          3
 #define RSA_PKCS1_OAEP_PADDING  4
-#define RSA_X931_PADDING        5
-/* EVP_PKEY_ only */
 #define RSA_PKCS1_PSS_PADDING   6
-
-#define RSA_PKCS1_PADDING_SIZE  11
 
 #define NONCE_SIZE         16
 #define MAC_SIZE           16
 #define MAC_KEY_SIZE       16
 
 #define EH_API_KEY_SIZE     32
-#define UUID_STR_LEN	   37
+#define UUID_STR_LEN	    37
 
 #define TAG_SIZE        16
-#define IV_SIZE            12
+#define IV_SIZE         12
 
 #define CLOSED 0x0
 #define IN_PROGRESS 0x1

@@ -547,7 +547,27 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
                                       cmk->metadata.padding_mode);
             break;
         case EH_EC_SM2:
-            sm2_encrypt(/* param */);
+            if (ciphertext->datalen == 0) {
+                ret = enclave_sm2_encrypt(g_enclave_id,
+                                        &sgxStatus,
+                                        cmk->keyblob,
+                                        cmk->keybloblen,
+                                        plaintext->data,
+                                        plaintext->datalen,
+                                        NULL,
+                                        0,
+                                        &ciphertext->datalen);
+                return EH_OK;
+            }
+            ret = enclave_sm2_encrypt(g_enclave_id,
+                                      &sgxStatus,
+                                      cmk->keyblob,
+                                      cmk->keybloblen,
+                                      plaintext->data,
+                                      plaintext->datalen,
+                                      ciphertext->data,
+                                      ciphertext->datalen,
+                                      NULL);
             break;
         default:
             return EH_KEYSPEC_INVALID;
@@ -558,16 +578,6 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
     }
     else
         return EH_OK;
-}
-
-
-sgx_status_t sm2_decrypt(/* param */)
-{
-    //TODO: get parameters
-
-    //TODO: initialize variable
-
-    // enclave_sm2_decrypt(/* param */);
 }
 
 /**
@@ -718,7 +728,29 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
                                       cmk->metadata.padding_mode);
             break;
         case EH_EC_SM2:
-            sm2_decrypt(/* param */);
+            if (plaintext->datalen == 0) {
+                ret = enclave_sm2_decrypt(g_enclave_id,
+                                          &sgxStatus,
+                                          cmk->keyblob,
+                                          cmk->keybloblen,
+                                          ciphertext->data,
+                                          ciphertext->datalen,
+                                          NULL, 0,
+                                          &(plaintext->datalen));
+                return EH_OK;
+            }
+            /* check if the datalen is valid */
+            if (plaintext->data == NULL || plaintext->datalen == 0)
+                return EH_ARGUMENTS_BAD;
+            ret = enclave_sm2_decrypt(g_enclave_id,
+                                      &sgxStatus,
+                                      cmk->keyblob,
+                                      cmk->keybloblen,
+                                      ciphertext->data,
+                                      ciphertext->datalen,
+                                      plaintext->data,
+                                      plaintext->datalen,
+                                      NULL);
             break;
         default:
             return EH_KEYSPEC_INVALID;

@@ -1049,7 +1049,8 @@ char* NAPI_AsymmetricEncrypt(const char* paramJson)
             plaintext_maxLen = ehsm_get_rsa_max_encryption_size(cmk.metadata.keyspec, cmk.metadata.padding_mode);
             break;
         case EH_EC_SM2:
-            // TODO
+            // TODO : make sure this value
+            plaintext_maxLen = 1024; // temporary, not done
             break;
         default:
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -1070,14 +1071,14 @@ char* NAPI_AsymmetricEncrypt(const char* paramJson)
     ret = AsymmetricEncrypt(&cmk, &plaint_data, &cipher_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception1.");
         goto out;
     }
 
     cipher_data.data = (uint8_t*)malloc(cipher_data.datalen);
     if (cipher_data.data == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception2.");
         goto out;
     }
 
@@ -1085,7 +1086,7 @@ char* NAPI_AsymmetricEncrypt(const char* paramJson)
     if (ret != EH_OK) {
 
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception3.");
         goto out;
     }
 
@@ -1177,7 +1178,8 @@ char* NAPI_AsymmetricDecrypt(const char* paramJson)
             ciphertext_maxLen = ehsm_get_rsa_cipher_len(cmk.metadata.keyspec);
             break;
         case EH_EC_SM2:
-            // TODO
+            // TODO : make sure this value
+            ciphertext_maxLen = 1024; //temporary, not done
             break;
         default:
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -1198,21 +1200,21 @@ char* NAPI_AsymmetricDecrypt(const char* paramJson)
     ret = AsymmetricDecrypt(&cmk, &cipher_data, &plaint_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception1.");
         goto out;
     }
 
     plaint_data.data = (uint8_t*)malloc(plaint_data.datalen);
     if (plaint_data.data == NULL) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception2.");
         goto out;
     }
 
     ret = AsymmetricDecrypt(&cmk, &cipher_data, &plaint_data);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception3.");
         goto out;
     }
 
