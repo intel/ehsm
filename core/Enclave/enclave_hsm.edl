@@ -140,6 +140,17 @@ enclave {
                                            [in, size=signature_len] const uint8_t *signature, size_t signature_len,
                                            [out] bool* result);
 
+        public sgx_status_t enclave_ec_sign([in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
+                                         uint32_t digest_mode, uint8_t keyspec,
+                                         [in, size=data_len] const uint8_t *data, uint32_t data_len,
+                                         [out, size=signature_len] uint8_t *signature, size_t signature_len);
+        public sgx_status_t enclave_ec_verify([in, size=cmk_blob_size] const uint8_t *cmk_blob, size_t cmk_blob_size,
+                                           uint32_t digest_mode, uint8_t keyspec,
+                                           [in, size=data_len] const uint8_t *data, uint32_t data_len,
+                                           [in, size=signature_len] const uint8_t *signature, size_t signature_len,
+                                           [out] bool* result);
+
+
         public sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
                                                     [out, size=apikey_len] uint8_t *p_apikey,
                                                     uint32_t apikey_len,

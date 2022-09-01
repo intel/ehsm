@@ -158,7 +158,7 @@ static uint32_t sgx_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_dat
     return gcm_data->ciphertext_size;
 }
 
-static uint32_t ehsm_get_rsa_key_pem_size(const uint32_t keyspec)
+static uint32_t ehsm_get_key_pem_size(const uint32_t keyspec)
 {
     switch (keyspec)
     {
@@ -168,12 +168,15 @@ static uint32_t ehsm_get_rsa_key_pem_size(const uint32_t keyspec)
             return RSA_3072_PUBLIC_KEY_PEM_SIZE + RSA_3072_PRIVATE_KEY_PEM_SIZE;
         case EH_RSA_4096:
             return RSA_4096_PUBLIC_KEY_PEM_SIZE + RSA_4096_PRIVATE_KEY_PEM_SIZE;
+        case EH_EC_P256:
+        case EH_EC_SM2:
+            return ECC_PUBLIC_KEY_PEM_SIZE + ECC_PRIVATE_KEY_PEM_SIZE;
         default:
             return UINT32_MAX;
     }
 }
 
-static uint32_t ehsm_get_rsa_public_key_pem_size(const uint32_t keyspec)
+static uint32_t ehsm_get_public_key_pem_size(const uint32_t keyspec)
 {
     switch(keyspec)
     {
@@ -183,6 +186,9 @@ static uint32_t ehsm_get_rsa_public_key_pem_size(const uint32_t keyspec)
             return RSA_3072_PUBLIC_KEY_PEM_SIZE;
         case EH_RSA_4096:
             return RSA_4096_PUBLIC_KEY_PEM_SIZE;
+        case EH_EC_P256:
+        case EH_EC_SM2:
+            return ECC_PUBLIC_KEY_PEM_SIZE;
         default:
             return 0;
     }
@@ -668,6 +674,8 @@ const EVP_MD* GetDigestMode(uint32_t digestMode)
         return EVP_sha384();
     case EH_SHA_2_512:
         return EVP_sha512();
+    case EH_SM3:
+        return EVP_sm3();
     default:
         return NULL;
     }
@@ -1042,7 +1050,7 @@ sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     // get keybloblen
     //
-    int32_t key_size = ehsm_get_rsa_key_pem_size(keyspec);
+    int32_t key_size = ehsm_get_key_pem_size(keyspec);
     if (key_size == 0)
         return SGX_ERROR_INVALID_PARAMETER;
 
@@ -1484,7 +1492,7 @@ sgx_status_t enclave_sm2_encrypt(const uint8_t *cmk_blob,
 
     // check cmk_blob and cmk_blob_size
     //
-    uint32_t encrypted_sm2_len = ehsm_calc_gcm_data_size(0, ECC_PRIVATE_KEY_PEM_SIZE + ECC_PUBLIC_KEY_PEM_SIZE); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    uint32_t encrypted_sm2_len = ehsm_calc_gcm_data_size(0, ECC_PRIVATE_KEY_PEM_SIZE + ECC_PUBLIC_KEY_PEM_SIZE); // ehsm_get_key_pem_size() will return INT_MAX if keyspec is invalid
     if (UINT32_MAX == encrypted_sm2_len) {
         printf("ecall rsa_encrypt failed to calculate encrypted data size.\n");
         return SGX_ERROR_UNEXPECTED;
@@ -1613,7 +1621,7 @@ sgx_status_t enclave_rsa_encrypt(const uint8_t *cmk_blob,
 
     // check cmk_blob and cmk_blob_size
     //
-    uint32_t encrypted_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_rsa_key_pem_size(keyspec)); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    uint32_t encrypted_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_key_pem_size(keyspec)); // ehsm_get_key_pem_size() will return INT_MAX if keyspec is invalid
     if (UINT32_MAX == encrypted_rsa_len) {
         printf("ecall rsa_encrypt failed to calculate encrypted data size.\n");
         return SGX_ERROR_UNEXPECTED;
@@ -1635,7 +1643,7 @@ sgx_status_t enclave_rsa_encrypt(const uint8_t *cmk_blob,
     do {
         // load rsa public key
         //
-        public_key_size = ehsm_get_rsa_public_key_pem_size(keyspec);
+        public_key_size = ehsm_get_public_key_pem_size(keyspec);
 
         rsa_keypair = (uint8_t*)malloc(encrypted_rsa_len);
         ret = ehsm_gcm_decrypt(&g_domain_key,
@@ -1695,7 +1703,7 @@ sgx_status_t enclave_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size,
 
     // check ciphertext and ciphertext_len
     //
-    uint32_t encrypted_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_rsa_key_pem_size(keyspec)); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    uint32_t encrypted_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_key_pem_size(keyspec)); // ehsm_get_key_pem_size() will return INT_MAX if keyspec is invalid
     if (UINT32_MAX == encrypted_rsa_len) {
         printf("ecall rsa_encrypt failed to calculate encrypted data size.\n");
         return SGX_ERROR_UNEXPECTED;
@@ -1725,8 +1733,8 @@ sgx_status_t enclave_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size,
     do {
         // load private key
         //
-        public_key_size = ehsm_get_rsa_public_key_pem_size(keyspec);
-        private_key_size = ehsm_get_rsa_key_pem_size(keyspec) - public_key_size;
+        public_key_size = ehsm_get_public_key_pem_size(keyspec);
+        private_key_size = ehsm_get_key_pem_size(keyspec) - public_key_size;
 
         rsa_keypair = (uint8_t*)malloc(encrypted_rsa_len);
         ret = ehsm_gcm_decrypt(&g_domain_key,
@@ -1793,7 +1801,7 @@ sgx_status_t enclave_sm2_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size,
 
     // check ciphertext and ciphertext_len
     //
-    uint32_t encrypted_sm2_len = ehsm_calc_gcm_data_size(0, ECC_PRIVATE_KEY_PEM_SIZE + ECC_PUBLIC_KEY_PEM_SIZE); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    uint32_t encrypted_sm2_len = ehsm_calc_gcm_data_size(0, ECC_PRIVATE_KEY_PEM_SIZE + ECC_PUBLIC_KEY_PEM_SIZE); // ehsm_get_key_pem_size() will return INT_MAX if keyspec is invalid
     if (UINT32_MAX == encrypted_sm2_len) {
         printf("ecall sm2_encrypt failed to calculate encrypted data size.\n");
         return SGX_ERROR_UNEXPECTED;
@@ -1958,7 +1966,7 @@ sgx_status_t enclave_rsa_sign(const uint8_t *cmk_blob,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t sign_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_rsa_key_pem_size(keyspec)); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    uint32_t sign_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_key_pem_size(keyspec)); // ehsm_get_key_pem_size() will return INT_MAX if keyspec is invalid
     if (UINT32_MAX == sign_rsa_len) {
         printf("ecall rsa_sign failed to calculate sign data size.\n");
         return SGX_ERROR_UNEXPECTED;
@@ -2010,8 +2018,8 @@ sgx_status_t enclave_rsa_sign(const uint8_t *cmk_blob,
     do
     {
         // load private key
-        public_key_size = ehsm_get_rsa_public_key_pem_size(keyspec);
-        private_key_size = ehsm_get_rsa_key_pem_size(keyspec) - public_key_size;
+        public_key_size = ehsm_get_public_key_pem_size(keyspec);
+        private_key_size = ehsm_get_key_pem_size(keyspec) - public_key_size;
 
         rsa_keypair = (uint8_t*)malloc(sign_rsa_len);
         ret = ehsm_gcm_decrypt(&g_domain_key,
@@ -2186,7 +2194,7 @@ sgx_status_t enclave_rsa_verify(const uint8_t *cmk_blob,
             break;
     }
 
-    uint32_t verify_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_rsa_key_pem_size(keyspec)); // ehsm_get_rsa_key_pem_size() will return INT_MAX if keyspec is invalid
+    uint32_t verify_rsa_len = ehsm_calc_gcm_data_size(0, ehsm_get_key_pem_size(keyspec)); // ehsm_get_key_pem_size() will return INT_MAX if keyspec is invalid
     if (UINT32_MAX == verify_rsa_len) {
         printf("ecall rsa_sign failed to calculate verify data size.\n");
         return SGX_ERROR_UNEXPECTED;
@@ -2219,7 +2227,7 @@ sgx_status_t enclave_rsa_verify(const uint8_t *cmk_blob,
     do
     {
         // load rsa public key
-        public_key_size = ehsm_get_rsa_public_key_pem_size(keyspec);
+        public_key_size = ehsm_get_public_key_pem_size(keyspec);
 
         rsa_keypair = (uint8_t*)malloc(verify_rsa_len);
         ret = ehsm_gcm_decrypt(&g_domain_key,
@@ -2344,34 +2352,442 @@ sgx_status_t enclave_rsa_verify(const uint8_t *cmk_blob,
 }
 
 /**
- * @brief make ec sign with the designated digest mode
- * digest mode is necessary
- * running in enclave
- *
+ * @brief make ec or sm2 sign with the designated digest mode
+ * digest mode is optional
+ * running in enclave 
+ * @param cmk_blob cipher block for storing keys
+ * @param cmk_blob_size cipher block size
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param data data to be signed
+ * @param data_len data length
+ * @param signature used to receive signature
+ * @param signature_len signature length
+ * @return sgx_status_t 
  */
-sgx_status_t enclave_ec_sign(/* param */)
+sgx_status_t enclave_ec_sign(const uint8_t *cmk_blob,
+                             size_t cmk_blob_size, 
+                             uint32_t digest_mode,
+                             uint8_t keyspec,
+                             const uint8_t *data,
+                             uint32_t data_len,
+                             uint8_t *signature,
+                             size_t signature_len)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_SUCCESS;
 
-    //TODO: create ec key sign
+    if (digest_mode == NULL || keyspec == NULL) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t sign_ec_len = ehsm_calc_gcm_data_size(0, ehsm_get_key_pem_size(keyspec)); // ehsm_get_key_pem_size() will return INT_MAX if keyspec is invalid
+    if (UINT32_MAX == sign_ec_len) {
+        printf("ecall ec_sign failed to calculate sign data size.\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    //check signatrue length
+    switch(keyspec)
+    {
+        case EH_EC_P256:
+            if (signature_len > EC_P256_SIGNATURE_SIZE) {
+                printf("ecall ec_sign 256 or sm2 signature_len is too large than the expected 64.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+        case EH_EC_SM2:
+            if (signature_len > EC_SM2_SIGNATURE_SIZE) {
+                printf("ecall ec_sign sm2 signature_len is too large than the expected 64.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            if (digest_mode != EH_SM3) {
+                printf("ecall ec_sign sm2 digest made not support.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+    }
+
+
+    // check cmk_blob and cmk_blob_size
+    if (cmk_blob == NULL || cmk_blob_size < sign_ec_len) {
+        printf("ecall ec_sign cmk_blob_size is too small.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (data == NULL || data_len == 0) {
+        printf("ecall ec_sign data or data len is wrong.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t private_key_size;
+    uint32_t public_key_size;
+    uint8_t* ec_keypair      = NULL;
+    uint8_t* ec_private_key  = NULL;
+    BIO *bio                 = NULL;
+    EVP_PKEY *evpkey         = NULL;
+    EVP_MD_CTX *mdctx        = NULL;
+    EVP_PKEY_CTX *pkey_ctx   = NULL;
+    EC_KEY *ec_key           = NULL;
+
+    do 
+    {
+        public_key_size = ehsm_get_public_key_pem_size(keyspec);
+        private_key_size = ehsm_get_key_pem_size(keyspec) - public_key_size;
+
+        ec_keypair = (uint8_t*)malloc(sign_ec_len);
+        ret = ehsm_gcm_decrypt(&g_domain_key,
+                              sign_ec_len, ec_keypair,
+                              (sgx_aes_gcm_data_ex_t *)cmk_blob);
+        if (ret != SGX_SUCCESS) {
+            printf("ecall ec_sign failed to ehsm_gcm_decrypt\n");
+            break;
+        }
+        ec_private_key = (uint8_t*)malloc(private_key_size);
+        memcpy_s(ec_private_key, private_key_size, ec_keypair + public_key_size, private_key_size);
+
+        bio = BIO_new_mem_buf(ec_private_key, -1);
+        if (bio == NULL) {
+            printf("ecall ec_sign failed to load rsa key pem\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        ec_key = PEM_read_bio_ECPrivateKey(bio, NULL, NULL, NULL);
+        if(ec_key == NULL)
+        {
+            printf("Eecall ec_sign fail to read ec_key using bio\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall ec_sign generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
+        {
+            printf("ecall ec_sign fail to set the evpkey by EC_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall ec_sign digestMode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall ec_sign fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall ec_sign EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if(keyspec == EH_EC_SM2)
+        {
+            //set sm2 id and id len
+            unsigned char sm2_id[] = "12345";
+            unsigned int sm2_id_len = sizeof(sm2_id)-1;
+
+            if (EVP_PKEY_set_alias_type(evpkey, EVP_PKEY_SM2) != 1)
+            {
+                printf("ecall ec_sign fail to modify the evpkey to use SM2\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+            pkey_ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+            if (pkey_ctx == NULL) {
+                printf("ecall ec_sign fail to create a EVP_PKEY_CTX\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+            if (EVP_PKEY_CTX_set1_id(pkey_ctx, sm2_id, sm2_id_len) != 1) {
+                printf("ecall ec_sign fail to set sm2_user_id to the EVP_PKEY_CTX\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+            EVP_MD_CTX_set_pkey_ctx(mdctx, pkey_ctx);
+        }
+
+        if (EVP_DigestSignInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall ec_sign EVP_DigestSignInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestUpdate(mdctx, data, data_len) != 1)
+        {
+            printf("ecall ec_sign EVP_DigestSignUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (EVP_DigestSignFinal(mdctx, NULL, &signature_len) != 1)
+        {
+            printf("ecall ec_sign EVP_DigestSignFinal1 failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestSignFinal(mdctx, signature, &signature_len) != 1)
+        {
+            printf("ecall ec_sign EVP_DigestSignFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // unsigned int lsize = 72;
+        // if(ECDSA_sign(0, data, data_len, signature, &lsize, ec_key) != 1)
+        // {
+        //     printf("ecall ec_sign ECDSA_sign failed.\n");
+        //     ret = SGX_ERROR_UNEXPECTED;
+        //     break;
+        // }
+    } while (0);
+    BIO_free(bio);
+    EC_KEY_free(ec_key);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    if(keyspec == EH_EC_SM2) {
+        EVP_PKEY_CTX_free(pkey_ctx);
+    }
+    SAFE_FREE(ec_keypair);
+    SAFE_FREE(ec_private_key);
 
     return ret;
 }
 
 /**
- * @brief make rsa verify with the designated digest mode
- * digest mode is necessary
- * running in enclave
- *
+ * @brief make ec or sm2 verify with the designated digest mode
+ * digest mode is optional
+ * running in enclave 
+ * @param cmk_blob cipher block for storing keys
+ * @param cmk_blob_size cipher block size
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param data data to be signed
+ * @param data_len data length
+ * @param signature generated signature
+ * @param signature_len signature length
+ * @param result match result
+ * @return sgx_status_t 
  */
-sgx_status_t enclave_ec_verify(/* param */)
+sgx_status_t enclave_ec_verify(const uint8_t *cmk_blob,
+                               size_t cmk_blob_size,
+                               uint32_t digest_mode,
+                               uint8_t keyspec,
+                               const uint8_t *data,
+                               uint32_t data_len,
+                               const uint8_t *signature,
+                               size_t signature_len,
+                               bool *result)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_SUCCESS;
 
-    //TODO: verify ec key
+    if (digest_mode == NULL || keyspec == NULL) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t verify_ec_len = ehsm_calc_gcm_data_size(0, ehsm_get_key_pem_size(keyspec)); // ehsm_get_key_pem_size() will return INT_MAX if keyspec is invalid
+    if (UINT32_MAX == verify_ec_len) {
+        printf("ecall ec_verify failed to calculate sign data size.\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    //check signatrue length and digest mode
+    switch(keyspec)
+    {
+        case EH_EC_P256:
+            if (signature_len < EC_P256_SIGNATURE_SIZE) {
+                printf("ecall ec_sign 256 or sm2 signature_len is too small than the expected 64.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+        case EH_EC_SM2:
+            if (signature_len < EC_SM2_SIGNATURE_SIZE) {
+                printf("ecall ec_sign sm2 signature_len is too small than the expected 64.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            if (digest_mode != EH_SM3) {
+                printf("ecall ec_sign sm2 digest made not support.\n");
+                return SGX_ERROR_INVALID_PARAMETER;
+            }
+            break;
+    }
+
+    // check cmk_blob and cmk_blob_size
+    if (cmk_blob == NULL || cmk_blob_size < verify_ec_len) {
+        printf("ecall ec_verify cmk_blob_size is too small.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (data == NULL || data_len == 0) {
+        printf("ecall ec_verify data or data len is wrong.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (result == NULL) {
+        printf("ecall ec_verify result is NULL.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint8_t* ec_keypair    = NULL;
+    uint8_t* ec_public_key = NULL;
+    BIO *bio               = NULL;
+    EC_KEY *ec_key         = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    uint32_t public_key_size;
+
+    do
+    {
+        public_key_size = ehsm_get_public_key_pem_size(keyspec);
+        
+        ec_keypair = (uint8_t*)malloc(verify_ec_len);
+        ret = ehsm_gcm_decrypt(&g_domain_key,
+                              verify_ec_len, ec_keypair,
+                              (sgx_aes_gcm_data_ex_t *)cmk_blob);
+        if (ret != SGX_SUCCESS) {
+            printf("ecall ec_verify failed to ehsm_gcm_decrypt\n");
+            break;
+        }
+        ec_public_key = (uint8_t*)malloc(public_key_size);
+        memcpy_s(ec_public_key, public_key_size, ec_keypair, public_key_size);
+
+        bio = BIO_new_mem_buf(ec_public_key, -1);
+        if (bio == NULL) {
+            printf("ecall ec_verify failed to load rsa key pem\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        ec_key = PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL);
+        if(ec_key == NULL)
+        {
+            printf("ecall ec_verify fail to read ec_key using bio\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall ec_verify generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
+        {
+            printf("ecall ec_verify fail to set the evpkey by RSA_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall ec_verify digestMode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall ec_verify fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall ec_verify EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        //sm2 add
+        if(keyspec == EH_EC_SM2)
+        {
+            //set sm2 id and id len
+            unsigned char sm2_id[] = "12345";
+            unsigned int sm2_id_len = sizeof(sm2_id)-1;
+
+            if (EVP_PKEY_set_alias_type(evpkey, EVP_PKEY_SM2) != 1)
+            {
+                printf("ecall ec_verify fail to modify the evpkey to use SM2\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+            pkey_ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+            if (pkey_ctx == NULL) {
+                printf("ecall ec_verify fail to create a EVP_PKEY_CTX\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+            //set sm2 id and len for pkeyctx
+            if (EVP_PKEY_CTX_set1_id(pkey_ctx, sm2_id, sm2_id_len) != 1) {
+                printf("ecall ec_verify fail to set sm2_user_id to the EVP_PKEY_CTX\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+            EVP_MD_CTX_set_pkey_ctx(mdctx, pkey_ctx);
+        }
+
+        if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall ec_verify EVP_DigestVerifyInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestVerifyUpdate(mdctx, data, data_len) != 1)
+        {
+            printf("ecall ec_verify EVP_DigestVerifyUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }  
+        if (EVP_DigestVerifyFinal(mdctx, signature, signature_len) != 1)
+        {
+            printf("ecall ec_verify EVP_DigestVerifyFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // printf("in verify\n");
+        // if(ECDSA_verify(0, data, data_len, signature, 72, ec_key) != 1)
+        // {
+        //     printf("ecall ec_verify ECDSA_verify failed.\n");
+        //     ret = SGX_ERROR_UNEXPECTED;
+        //     break;
+        // }
+    } while (0);
+    BIO_free(bio);
+    EC_KEY_free(ec_key);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    if(keyspec == EH_EC_SM2) {
+        EVP_PKEY_CTX_free(pkey_ctx);
+    }
+    SAFE_FREE(ec_keypair);
+    SAFE_FREE(ec_public_key);
+
+    if (ret != SGX_SUCCESS)
+    {
+        *result = false;
+    }
+    else
+    {
+        *result = true;
+    }
 
     return ret;
 }
+
 
 // sgx-ssl-framework end
 

@@ -67,8 +67,8 @@
 #define RSA_OAEP_3072_SIGNATURE_SIZE      384
 #define RSA_OAEP_2048_SIGNATURE_SIZE      256
 
-#define EC_P256_SIGNATURE_SIZE            64
-#define EC_SM2_SIGNATURE_SIZE             64
+#define EC_P256_SIGNATURE_SIZE            72
+#define EC_SM2_SIGNATURE_SIZE             72
 
 #define RSA_OAEP_4096_DIGEST_SIZE         264
 #define EC_MAX_DIGEST_SIZE                264

@@ -857,16 +857,16 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
                 && signature->datalen != EC_SM2_SIGNATURE_SIZE) {
                     return EH_ARGUMENTS_BAD;
             }
-            // ret = enclave_ec_sign(g_enclave_id,
-            //                     &sgxStatus,
-            //                     cmk->keyblob,
-            //                     cmk->keybloblen,
-            //                     cmk->metadata.digest_mode,
-            //                     cmk->metadata.keyspec,
-            //                     digest->data,
-            //                     digest->datalen,
-            //                     signature->data,
-            //                     signature->datalen);
+            ret = enclave_ec_sign(g_enclave_id,
+                                &sgxStatus,
+                                cmk->keyblob,
+                                cmk->keybloblen,
+                                cmk->metadata.digest_mode,
+                                cmk->metadata.keyspec,
+                                digest->data,
+                                digest->datalen,
+                                signature->data,
+                                signature->datalen);
             break;
         default:
             return EH_KEYSPEC_INVALID;
@@ -952,17 +952,17 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                 && signature->datalen != EC_SM2_SIGNATURE_SIZE) {
                     return EH_ARGUMENTS_BAD;
             }
-            // ret = enclave_ec_verify(g_enclave_id,
-            //                         &sgxStatus,
-            //                         cmk->keyblob,
-            //                         cmk->keybloblen,
-            //                         cmk->metadata.digest_mode,
-            //                         cmk->metadata.keyspec,
-            //                         digest->data,
-            //                         digest->datalen,
-            //                         signature->data,
-            //                         signature->datalen,
-            //                         result);
+            ret = enclave_ec_verify(g_enclave_id,
+                                    &sgxStatus,
+                                    cmk->keyblob,
+                                    cmk->keybloblen,
+                                    cmk->metadata.digest_mode,
+                                    cmk->metadata.keyspec,
+                                    digest->data,
+                                    digest->datalen,
+                                    signature->data,
+                                    signature->datalen,
+                                    result);
             break;
         default:
             return EH_KEYSPEC_INVALID;
