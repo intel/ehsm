@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,29 +28,49 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+
+#include "enclave_hsm_t.h"
+#include "log_utils.h"
+#include "sgx_tseal.h"
+
+
+#include <string>
 #include <stdio.h>
-#include <stdlib.h>
-#include <cstdlib>
-#include <cstring>
-#include "serialize.h"
+#include <stdbool.h>
+#include <mbusafecrt.h>
 
+#include "sgx_report.h"
+#include "sgx_utils.h"
+#include "sgx_tkey_exchange.h"
 
-uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_len)
-{
-    if (data && data_len) {
-        memcpy(buf, (void *)data, data_len);
-    }
-    return buf + data_len;
-}
+sgx_status_t ehsm_aes_gcm_encrypt(ehsm_keymetadata_t *key_metadata);
 
-uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val)
-{
-    return append_to_buf(buf, &val, sizeof(val));
-}
+sgx_status_t ehsm_aes_gcm_derypt(ehsm_keymetadata_t *key_metadata);
 
-uint8_t *append_sized_buf_to_buf(uint8_t *buf, const uint8_t *data,
-                                 uint32_t data_len)
-{
-    return append_to_buf(buf, data, data_len);
-}
+sgx_status_t ehsm_sm4_encrypt(ehsm_keyblob_t *cmk);
 
+sgx_status_t ehsm_sm4_decrypt(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_rsa_encrypt(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_rsa_decrypt(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_rsa_sign(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_rsa_verify(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_ec_encrypt(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_ec_decrypt(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_ec_sign(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_ec_verify(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_sm2_sign(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_sm2_verify(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_aes_gcm_generate_datakey(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_sm4_generate_datakey(ehsm_keyblob_t *cmk);

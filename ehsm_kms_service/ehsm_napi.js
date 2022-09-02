@@ -23,7 +23,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi', {
       -EH_RSA_3072,
       -EH_EC_P256,
       -EH_EC_P512,
-      -EH_EC_SM2,
+      -EH_SM2,
       -EH_SM4,
     .origin;
       -EH_INTERNAL_KEY (generated from the eHSM inside)

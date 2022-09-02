@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,29 +28,60 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+
+#include "enclave_hsm_t.h"
+#include "log_utils.h"
+#include "sgx_tseal.h"
+
+
+#include <string>
 #include <stdio.h>
-#include <stdlib.h>
-#include <cstdlib>
-#include <cstring>
-#include "serialize.h"
+#include <stdbool.h>
+#include <mbusafecrt.h>
 
+#include "sgx_report.h"
+#include "sgx_utils.h"
+#include "sgx_tkey_exchange.h"
 
-uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_len)
+sgx_status_t ehsm_calc_keyblob_len(ehsm_keymetadata_t *key_metadata)
 {
-    if (data && data_len) {
-        memcpy(buf, (void *)data, data_len);
-    }
-    return buf + data_len;
+    return SGX_ERROR_UNEXPECTED;
 }
 
-uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val)
+// use the g_domain_key to encrypt the cmk and get it ciphertext
+sgx_status_t ehsm_create_keyblob()
 {
-    return append_to_buf(buf, &val, sizeof(val));
+    return SGX_ERROR_UNEXPECTED;
 }
 
-uint8_t *append_sized_buf_to_buf(uint8_t *buf, const uint8_t *data,
-                                 uint32_t data_len)
+// use the g_domain_key to decrypt the cmk and get it plaintext
+sgx_status_t ehsm_parse_keyblob()
 {
-    return append_to_buf(buf, data, data_len);
+    return SGX_ERROR_UNEXPECTED;
 }
 
+sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
+{
+    return SGX_ERROR_UNEXPECTED;
+}
+
+sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
+{
+    return SGX_ERROR_UNEXPECTED;
+}
+
+sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
+{
+    return SGX_ERROR_UNEXPECTED;
+}
+
+
+sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
+{
+    return SGX_ERROR_UNEXPECTED;
+}
+
+sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk)
+{
+    return SGX_ERROR_UNEXPECTED;
+}

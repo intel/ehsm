@@ -18,7 +18,7 @@ const ehsm_keySpec_t = {
   EH_RSA_3072: 3,
   EH_EC_P256: 4,
   EH_EC_P512: 5,
-  EH_EC_SM2: 6,
+  EH_SM2: 6,
   EH_SM4: 7,
 }
 const ehsm_keyorigin_t = {

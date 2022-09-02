@@ -43,18 +43,9 @@
 #include "sgx_utils.h"
 #include "sgx_tkey_exchange.h"
 
-using namespace std;
-typedef enum {
-    EH_AES_GCM_128 = 0x00000000UL,
-    EH_AES_GCM_256,
-    EH_RSA_2048,
-    EH_RSA_3072,
-    EH_EC_P256,
-    EH_EC_P512,
-    EH_EC_SM2,
-    EH_SM4,
-} ehsm_keyspec_t;
+#include "datatypes.h"
 
+using namespace std;
 
 #define SGX_AES_KEY_SIZE 16
 
@@ -122,675 +113,279 @@ typedef struct _aes_gcm_data_ex_t
     uint8_t   payload[];   /* ciphertext + aad */
 } sgx_aes_gcm_data_ex_t;
 
-static uint32_t sgx_calc_gcm_data_size(const uint32_t aad_size, const uint32_t plaintext_size)
-{
-    if (aad_size > UINT32_MAX - sizeof(sgx_aes_gcm_data_ex_t))
-        return UINT32_MAX;
-
-    if (plaintext_size > UINT32_MAX - sizeof(sgx_aes_gcm_data_ex_t))
-        return UINT32_MAX;
-
-    if (aad_size > UINT32_MAX - plaintext_size)
-        return UINT32_MAX;
-
-    if (sizeof(sgx_aes_gcm_data_ex_t) > UINT32_MAX - plaintext_size - aad_size)
-        return UINT32_MAX;
-
-    return (aad_size + plaintext_size + sizeof(sgx_aes_gcm_data_ex_t));
-}
-
-static uint32_t sgx_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
-{
-    if (NULL == gcm_data)
-        return UINT32_MAX;
-
-    return gcm_data->ciphertext_size;
-}
-
-
-static sgx_status_t sgx_gcm_encrypt(const sgx_aes_gcm_128bit_key_t *key,
-                                    const uint32_t plaintext_size, const uint8_t *plaintext,
-                                    const uint32_t aad_size, const uint8_t *aad,
-                                    const uint32_t gcm_data_size, sgx_aes_gcm_data_ex_t *gcm_data)
-{
-    if (NULL == gcm_data || gcm_data_size < sgx_calc_gcm_data_size(aad_size, plaintext_size))
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (plaintext_size == 0 || NULL == plaintext)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (plaintext_size > UINT32_MAX - aad_size)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint32_t real_aad_size = aad_size;
-    if (NULL == aad)
-        real_aad_size = 0;
-
-    sgx_status_t ret = sgx_read_rand(gcm_data->iv, sizeof(gcm_data->iv));
-    if (ret != SGX_SUCCESS) {
-        printf("error generating iv.\n");
-        return ret;
-    }
-
-    ret = sgx_rijndael128GCM_encrypt(key,
-                                     plaintext, plaintext_size,
-                                     gcm_data->payload,
-                                     gcm_data->iv, sizeof(gcm_data->iv),
-                                     &(gcm_data->payload[gcm_data->ciphertext_size]), real_aad_size,
-                                     reinterpret_cast<uint8_t (*)[16]>(gcm_data->mac));
-    if (SGX_SUCCESS != ret) {
-        printf("gcm encrypting failed.\n");
-    }
-    else {
-        gcm_data->ciphertext_size = plaintext_size;
-        gcm_data->aad_size = real_aad_size;
-    }
-
-    return ret;
-}
-
-static sgx_status_t sgx_gcm_decrypt(const sgx_aes_gcm_128bit_key_t *key,
-                                    uint32_t *plaintext_size, uint8_t *plaintext,
-                                    const sgx_aes_gcm_data_ex_t *gcm_data)
-{
-    if (NULL == gcm_data || NULL == plaintext || NULL == *plaintext_size
-                 || *plaintext_size < sgx_get_gcm_ciphertext_size(gcm_data))
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    sgx_status_t ret = sgx_rijndael128GCM_decrypt(key,
-                                                  gcm_data->payload, gcm_data->ciphertext_size,
-                                                  plaintext,
-                                                  gcm_data->iv, sizeof(gcm_data->iv),
-                                                  &(gcm_data->payload[gcm_data->ciphertext_size]), gcm_data->aad_size,
-                                                  (const sgx_aes_gcm_128bit_tag_t*)gcm_data->mac);
-    if (SGX_SUCCESS != ret)
-        printf("gcm decrypting failed.\n");
-    else
-        *plaintext_size = sgx_get_gcm_ciphertext_size(gcm_data);
-
-    return ret;
-}
-
-
-sgx_status_t enclave_create_aes_key(uint8_t *cmk_blob, uint32_t cmk_blob_size, uint32_t *req_blob_size)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint32_t real_blob_len = sgx_calc_gcm_data_size(0, SGX_AES_KEY_SIZE);
-
-    if (real_blob_len == UINT32_MAX)
-        return SGX_ERROR_UNEXPECTED;
-
-    if (req_blob_size != NULL) {
-        *req_blob_size = real_blob_len;
-        return SGX_SUCCESS;
-    }
-
-    if (cmk_blob == NULL || cmk_blob_size != real_blob_len)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint8_t* tmp = (uint8_t *)malloc(SGX_AES_KEY_SIZE);
-    if (tmp == NULL)
-        return SGX_ERROR_OUT_OF_MEMORY;
-
-    ret = sgx_read_rand(tmp, SGX_AES_KEY_SIZE);
-    if (ret != SGX_SUCCESS) {
-        free(tmp);
-        return ret;
-    }
-
-    ret = sgx_gcm_encrypt(&g_domain_key, SGX_AES_KEY_SIZE, tmp, 0, NULL, cmk_blob_size, (sgx_aes_gcm_data_ex_t *)cmk_blob);
-
-    memset_s(tmp, SGX_AES_KEY_SIZE, 0, SGX_AES_KEY_SIZE);
-
-    free(tmp);
-
-    return ret;
-}
-
-/*
- * struct cipherblob {
- *    OUT uint8_t ciphertext[SGX_AES_KEY_SIZE];
- *    OUT uint8_t iv[EH_AES_GCM_IV_SIZE];   // 12B
- *    OUT uint8_t mac[EH_AES_GCM_MAC_SIZE]; // 16B
- * }
- */
-sgx_status_t enclave_aes_encrypt(const uint8_t *aad, size_t aad_len,
-                             const uint8_t *cmk_blob, size_t cmk_blob_size,
-                             const uint8_t *plaintext, size_t plaintext_len,
-                             uint8_t *cipherblob, size_t cipherblob_len)
+sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk_blob == NULL)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint32_t real_cmk_blob_size = sgx_calc_gcm_data_size(0, SGX_AES_KEY_SIZE);
-    if (UINT32_MAX == real_cmk_blob_size || cmk_blob_size < real_cmk_blob_size)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint32_t enc_key_size = sgx_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk_blob);
-    if (enc_key_size == UINT32_MAX || enc_key_size != sizeof(sgx_key_128bit_t)) {
-        printf("enc_key_size:%d is not expected: %lu.\n", enc_key_size, sizeof(sgx_key_128bit_t));
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY) {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || plaintext_len > EH_ENCRYPT_MAX_SIZE)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (cipherblob == NULL ||
-            cipherblob_len < plaintext_len + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint8_t *iv = (uint8_t *)(cipherblob + plaintext_len);
-    uint8_t *mac = (uint8_t *)(cipherblob + plaintext_len + EH_AES_GCM_IV_SIZE);
-
-    ret = sgx_read_rand(iv, EH_AES_GCM_IV_SIZE);
-    if (ret != SGX_SUCCESS) {
-        printf("error generating IV\n");
+    if (cmk->keybloblen == 0) {
+        ret = ehsm_calc_keyblob_len(cmk->metadata);
         return ret;
     }
 
-    sgx_key_128bit_t enc_key;
-    ret = sgx_gcm_decrypt(&g_domain_key,
-                          &enc_key_size, (uint8_t *)&enc_key,
-                          (sgx_aes_gcm_data_ex_t *)cmk_blob);
-    if (ret != SGX_SUCCESS) {
-        printf("failed to decrypt key\n");
-		return ret;
-    }
-
-    ret = sgx_rijndael128GCM_encrypt(&enc_key, plaintext, plaintext_len,
-            cipherblob, iv, EH_AES_GCM_IV_SIZE, aad, aad_len,
-            reinterpret_cast<uint8_t (*)[16]>(mac));
-    if (SGX_SUCCESS != ret) {
-        printf("error encrypting plain text\n");
-    }
-
-    memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
-
-    return ret;
-}
-
-sgx_status_t enclave_aes_decrypt(const uint8_t *aad, size_t aad_len,
-                             const uint8_t *cmk_blob, size_t cmk_blob_size,
-                             const uint8_t *cipherblob, size_t cipherblob_len,
-                             uint8_t *plaintext, size_t plaintext_len)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    if (cmk_blob == NULL)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint32_t real_cmk_blob_size = sgx_calc_gcm_data_size(0, SGX_AES_KEY_SIZE);
-    if (UINT32_MAX == real_cmk_blob_size || cmk_blob_size < real_cmk_blob_size)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint32_t dec_key_size = sgx_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk_blob);
-    if (dec_key_size == UINT32_MAX || dec_key_size != sizeof(sgx_key_128bit_t)) {
-        printf("dec_key_size size:%d is not expected: %lu.\n", dec_key_size, sizeof(sgx_key_128bit_t));
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (plaintext == NULL || plaintext_len > EH_ENCRYPT_MAX_SIZE)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (cipherblob == NULL ||
-            cipherblob_len < plaintext_len + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint8_t *iv = (uint8_t *)(cipherblob + plaintext_len);
-    uint8_t *mac = (uint8_t *)(cipherblob + plaintext_len + EH_AES_GCM_IV_SIZE );
-
-    sgx_key_128bit_t dec_key;
-    ret = sgx_gcm_decrypt(&g_domain_key,
-                          &dec_key_size, (uint8_t *)&dec_key,
-                          (sgx_aes_gcm_data_ex_t *)cmk_blob);
-    if (ret != SGX_SUCCESS) {
-        printf("error(%d) unsealing key.\n", ret);
-        return ret;
-    }
-
-    ret = sgx_rijndael128GCM_decrypt(&dec_key, cipherblob, plaintext_len, plaintext,
-            iv, EH_AES_GCM_IV_SIZE, aad, aad_len,
-            reinterpret_cast<uint8_t (*)[16]>(mac));
-    if (SGX_SUCCESS != ret) {
-        printf("error decrypting encrypted text\n");
-    }
-
-    memset_s(&dec_key, sizeof(dec_key), 0, sizeof(dec_key));
-
-    return ret;
-}
-
-sgx_status_t enclave_generate_datakey(uint32_t key_spec,
-                                  const uint8_t *cmk_blob,
-                                  size_t cmk_blob_size,
-                                  const uint8_t *context,
-                                  size_t context_len,
-                                  uint8_t *plain_key,
-                                  size_t plain_key_len,
-                                  uint8_t *encrypted_key,
-                                  size_t encrypted_key_len)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint8_t *datakey = NULL;
-
-    if (cmk_blob == NULL || encrypted_key ==  NULL)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (plain_key_len > 1024 || plain_key_len == 0)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    datakey = (uint8_t *)malloc(plain_key_len);
-    if (datakey == NULL) {
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-
-    ret = sgx_read_rand(datakey, plain_key_len);
-    if (ret != SGX_SUCCESS) {
-        free(datakey);
-        return ret;
-    }
-
-    switch(key_spec) {
+    switch (cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
-            ret = enclave_aes_encrypt(context, context_len, cmk_blob, cmk_blob_size,
-                    datakey, plain_key_len, encrypted_key, encrypted_key_len);
+        case EH_AES_GCM_192:
+        case EH_AES_GCM_256:
+            ret = ehsm_create_aes_key(cmk);
+            break;
+        case EH_RSA_2048:
+        case EH_RSA_3072:
+        case EH_RSA_4096:
+            ret = ehsm_create_rsa_key(cmk);
+            break;
+        case EH_EC_P224:
+        case EH_EC_P256:
+        case EH_EC_P384:
+        case EH_EC_P512:
+            ret = ehsm_create_ec_key(cmk);
+            break;
+        case EH_SM2:
+            ret = ehsm_create_sm2_key(cmk);
+            break;
+        case EH_SM4:
+            ret = ehsm_create_sm4_key(cmk);
             break;
         default:
-            return SGX_ERROR_INVALID_PARAMETER;
+            return EH_KEYSPEC_INVALID;
     }
 
-    if (plain_key != NULL)
-        memcpy_s(plain_key, plain_key_len, datakey, plain_key_len);
-
-    memset_s(datakey, plain_key_len, 0, plain_key_len);
-
-    free(datakey);
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
 
     return ret;
 }
 
-sgx_status_t enclave_export_datakey(uint32_t cmk_key_spec,
-                                  const uint8_t *cmk_blob,
-                                  size_t cmk_blob_size,
-                                  const uint8_t *context,
-                                  size_t context_len,
-                                  uint8_t *encrypted_key,
-                                  size_t encrypted_key_len,
-                                  uint32_t uk_key_spec,
-                                  const uint8_t *uk_blob,
-                                  size_t uk_blob_size,
-                                  uint8_t *new_encrypted_key,
-                                  size_t new_encrypted_key_len)
+sgx_status_t enclave_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                        const ehsm_data_t *aad, size_t aad_len,
+                        const ehsm_data_t *plaintext, size_t plaintext_len,
+                        ehsm_data_t *ciphertext, size_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint8_t *tmp_datakey = NULL;
-    uint32_t tmp_datakey_len = 0;
+    // todo: check parameter like enclave_create_key
 
-    if (cmk_blob == NULL || uk_blob == NULL || encrypted_key ==  NULL || new_encrypted_key == NULL)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (encrypted_key_len > 1024 ||
-        encrypted_key_len < EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (new_encrypted_key_len > RSA_OAEP_3072_CIPHER_LENGTH || new_encrypted_key_len == 0)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (cmk_key_spec != EH_AES_GCM_128)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (uk_key_spec != EH_RSA_3072)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    tmp_datakey_len = encrypted_key_len - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
-    tmp_datakey = (uint8_t *)malloc(tmp_datakey_len);
-    if (tmp_datakey == NULL) {
-        return SGX_ERROR_OUT_OF_MEMORY;
+    switch (cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+        case EH_AES_GCM_192:
+        case EH_AES_GCM_256:
+            ret = ehsm_aes_gcm_encrypt(cmk);
+            break;
+        case EH_SM4:
+            ret = ehsm_sm4_encrypt(cmk);
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
     }
 
-    // use the cmk to decrypt the datakey cipher text
-    ret = enclave_aes_decrypt(context, context_len, cmk_blob, cmk_blob_size,
-                    encrypted_key, encrypted_key_len, tmp_datakey, tmp_datakey_len);
-    if (SGX_SUCCESS != ret) {
-        printf("error decrypting encrypted text with cmk!\n");
-        goto out;
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+
+    return ret;
+}
+        
+sgx_status_t enclave_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *aad, size_t aad_len,
+                    const ehsm_data_t *ciphertext, size_t ciphertext_len,
+                    ehsm_data_t *plaintext, size_t plaintext_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    // todo: check parameter like enclave_create_key
+
+    switch (cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+        case EH_AES_GCM_192:
+        case EH_AES_GCM_256:
+            ret = ehsm_aes_gcm_derypt(cmk);
+            break;
+        case EH_SM4:
+            ret = ehsm_sm4_decrypt(cmk);
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
     }
 
-    // use the user-suplied rsa key to encrypt the datakey plaint text again.
-    ret = enclave_rsa_encrypt(uk_blob, uk_blob_size, tmp_datakey, tmp_datakey_len,
-                    new_encrypted_key, new_encrypted_key_len);
-    if (SGX_SUCCESS != ret) {
-        printf("error enrypting plaint text!\n");
-        goto out;
-    }
-
-out:
-    memset_s(tmp_datakey, tmp_datakey_len, 0, tmp_datakey_len);
-
-    if (tmp_datakey)
-        free(tmp_datakey);
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
 
     return ret;
 }
 
-/*
- * struct cmk_blob {
- *     sgx_rsa3072_public_key_t;
- *     enc(rsa_params_t);
- * }
-*/
-sgx_status_t enclave_create_rsa_key(uint8_t *cmk_blob, uint32_t cmk_blob_size, uint32_t *req_blob_size)
+sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *plaintext, size_t plaintext_len,
+                    ehsm_data_t *ciphertext, size_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    // todo: check parameter like enclave_create_key
 
-    uint32_t real_keyblob_size = sgx_calc_gcm_data_size(0, sizeof(rsa_params_t));
-    if (UINT32_MAX == real_keyblob_size)
-        return SGX_ERROR_UNEXPECTED;
-
-    real_keyblob_size += sizeof(sgx_rsa3072_public_key_t);
-
-    if (req_blob_size) {
-        *req_blob_size = real_keyblob_size;
-        return SGX_SUCCESS;
+    switch (cmk->metadata.keyspec) {
+        case EH_RSA_2048:
+        case EH_RSA_3072:
+        case EH_RSA_4096:
+            ret = ehsm_rsa_encrypt(cmk);
+            break;
+        case EH_EC_P224:
+        case EH_EC_P256:
+        case EH_EC_P384:
+        case EH_EC_P512:
+            ret = ehsm_ec_encrypt(cmk);
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
     }
 
-    if (cmk_blob == NULL || cmk_blob_size < real_keyblob_size) {
-        printf("ecall create_rsa_key cmk_keyblob_size:%lu < key_blob_size:%d.\n", cmk_blob_size, real_keyblob_size);
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    /* common/inc/sgx_tcrypto.h */
-    rsa_params_t rsa_key = {0};
-    rsa_key.e[0] = 0x10001;
-
-    ret = sgx_create_rsa_key_pair(RSA_OAEP_3072_MOD_SIZE,
-                                  RSA_OAEP_3072_EXP_SIZE,
-                                  (unsigned char*)rsa_key.n,
-                                  (unsigned char*)rsa_key.d,
-                                  (unsigned char*)rsa_key.e,
-                                  (unsigned char*)rsa_key.p,
-                                  (unsigned char*)rsa_key.q,
-                                  (unsigned char*)rsa_key.dmp1,
-                                  (unsigned char*)rsa_key.dmq1,
-                                  (unsigned char*)rsa_key.iqmp);
-    if (ret != SGX_SUCCESS) {
-        printf("ecall create_rsa_key sgx_create_rsa_key_pair failed: %d\n", ret);
-        return ret;
-    }
-
-    sgx_rsa3072_public_key_t pub_verify_key = {0};
-    memcpy_s(pub_verify_key.mod, sizeof(pub_verify_key.mod), rsa_key.n, sizeof(rsa_key.n));
-    memcpy_s(pub_verify_key.exp, sizeof(pub_verify_key.exp), rsa_key.e, sizeof(rsa_key.e));
-    memcpy_s(cmk_blob, sizeof(sgx_rsa3072_public_key_t), &pub_verify_key, sizeof(sgx_rsa3072_public_key_t));
-
-    ret = sgx_gcm_encrypt(&g_domain_key, sizeof(rsa_params_t), (uint8_t*)&rsa_key, 0, NULL,
-                         real_keyblob_size - sizeof(sgx_rsa3072_public_key_t),
-                         (sgx_aes_gcm_data_ex_t *)((uint8_t*)cmk_blob + sizeof(sgx_rsa3072_public_key_t)));
-    if (ret != SGX_SUCCESS) {
-        printf("create rsa_key failed to seal cmk.\n");
-    }
-
-    memset_s(&rsa_key, sizeof(rsa_params_t), 0, sizeof(rsa_params_t));
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
 
     return ret;
 }
 
-sgx_status_t enclave_rsa_sign(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *data, uint32_t data_len, uint8_t *signature, uint32_t signature_len)
+sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *ciphertext, uint32_t ciphertext_len,
+                    ehsm_data_t *plaintext, uint32_t plaintext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    // todo: check parameter like enclave_create_key
 
-    uint32_t sealed_rsa_len = sgx_calc_gcm_data_size(0, sizeof(rsa_params_t));
-    if (UINT32_MAX == sealed_rsa_len) {
-        printf("ecall rsa_sign failed to calculate sealed data size.\n");
-        return SGX_ERROR_UNEXPECTED;
+    switch (cmk->metadata.keyspec) {
+        case EH_RSA_2048:
+        case EH_RSA_3072:
+        case EH_RSA_4096:
+            ret = ehsm_rsa_decrypt(cmk);
+            break;
+        case EH_EC_P224:
+        case EH_EC_P256:
+        case EH_EC_P384:
+        case EH_EC_P512:
+            ret = ehsm_ec_decrypt(cmk);
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
     }
 
-    if (cmk_blob == NULL || cmk_blob_size < sealed_rsa_len + sizeof(sgx_rsa3072_public_key_t)) {
-        printf("ecall rsa_sign cmk_blob_size is too small.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+        
+    return ret;
+}
+
+sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *data, size_t data_len,
+                    ehsm_data_t *signature, size_t signature_len)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    // todo: check parameter like enclave_create_key
+
+    switch (cmk->metadata.keyspec) {
+        case EH_RSA_2048:
+        case EH_RSA_3072:
+        case EH_RSA_4096:
+            ret = ehsm_rsa_sign(cmk);
+            break;
+        case EH_EC_P224:
+        case EH_EC_P256:
+        case EH_EC_P384:
+        case EH_EC_P512:
+            ret = ehsm_ec_sign(cmk);
+            break;
+        case EH_SM2:
+            ret = ehsm_sm2_sign(cmk);
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
     }
 
-    if (data == NULL || data_len == 0) {
-        printf("ecall rsa_sign data or data len is wrong.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+
+    return ret;
+}
+                                    
+sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *data, size_t data_len,
+                    const ehsm_data_t *signature, size_t signature_len,
+                    bool* result)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    // todo: check parameter like enclave_create_key
+
+    switch (cmk->metadata.keyspec) {
+        case EH_RSA_2048:
+        case EH_RSA_3072:
+        case EH_RSA_4096:
+            ret = ehsm_rsa_verify(cmk);
+            break;
+        case EH_EC_P224:
+        case EH_EC_P256:
+        case EH_EC_P384:
+        case EH_EC_P512:
+            ret = ehsm_ec_verify(cmk);
+            break;
+        case EH_SM2:
+            ret = ehsm_sm2_verify(cmk);
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
     }
 
-    if (signature_len < RSA_OAEP_3072_SIGNATURE_SIZE) {
-        printf("ecall rsa_sign signature_len is too small than the expected 384.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    const sgx_aes_gcm_data_ex_t *rsa_key_blob = (sgx_aes_gcm_data_ex_t *)(cmk_blob + sizeof(sgx_rsa3072_public_key_t));
-    uint32_t rsa_key_len = sgx_get_gcm_ciphertext_size(rsa_key_blob);
-    if (rsa_key_len == UINT32_MAX || rsa_key_len != sizeof(rsa_params_t)) {
-        printf("ecall rsa_sign rsa key size:%d is not expected: %lu.\n", rsa_key_len, sizeof(rsa_params_t));
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    rsa_params_t rsa_key = {0};
-    ret = sgx_gcm_decrypt(&g_domain_key, &rsa_key_len, (uint8_t*)&rsa_key, (sgx_aes_gcm_data_ex_t *)rsa_key_blob);
-    if (SGX_SUCCESS != ret) {
-        printf("ecall rsa_sign unseal rsa_key failed: %d.\n", ret);
-        return ret;
-    }
-
-    sgx_rsa3072_key_t pri_key = {0};
-    memcpy_s(pri_key.mod, sizeof(pri_key.mod), rsa_key.n, sizeof(rsa_key.n));
-    memcpy_s(pri_key.d, sizeof(pri_key.d), rsa_key.d, sizeof(rsa_key.d));
-    memcpy_s(pri_key.e, sizeof(pri_key.e), rsa_key.e, sizeof(rsa_key.e));
-
-    ret = sgx_rsa3072_sign(data, data_len, (const sgx_rsa3072_key_t*)&pri_key, (sgx_rsa3072_signature_t*)signature);
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_sign sgx_rsa3072_sign failed: %d.\n", ret);
-    }
-
-    memset_s(&rsa_key, sizeof(rsa_params_t), 0, sizeof(rsa_params_t));
-    memset_s(&pri_key, sizeof(sgx_rsa3072_key_t), 0, sizeof(sgx_rsa3072_key_t));
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
 
     return ret;
 }
 
-sgx_status_t enclave_rsa_verify(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *data, uint32_t data_len, const uint8_t *signature, uint32_t signature_len, bool* result)
+sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t* cmk, size_t cmk_len,
+                    const ehsm_data_t *aad, size_t aad_len,
+                    ehsm_data_t *plaintext, size_t plaintext_len,
+                    ehsm_data_t *ciphertext, size_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    // todo: check parameter like enclave_create_key
 
-    uint32_t sealed_rsa_len = sgx_calc_gcm_data_size(0, sizeof(rsa_params_t));
-    if (UINT32_MAX == sealed_rsa_len) {
-        printf("ecall rsa_verify failed to calculate sealed data size.\n");
-        return SGX_ERROR_UNEXPECTED;
+    switch (cmk->metadata.keyspec) {
+        case EH_AES_GCM_128:
+        case EH_AES_GCM_192:
+        case EH_AES_GCM_256:
+            ret = ehsm_aes_gcm_generate_datakey(cmk);
+            break;
+        case EH_SM4:
+            ret = ehsm_sm4_generate_datakey(cmk);
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
     }
 
-    if (cmk_blob == NULL || cmk_blob_size < sealed_rsa_len + sizeof(sgx_rsa3072_public_key_t)) {
-        printf("ecall rsa_verify cmk_blob_size is too small.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (data == NULL || data_len == 0) {
-        printf("ecall rsa_verify data or data len is wrong.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (result == NULL) {
-        printf("ecall rsa_verify result is NULL.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (signature == NULL || signature_len < RSA_OAEP_3072_SIGNATURE_SIZE) {
-        printf("ecall rsa_verify signature_len is too small than the expected 384.\n");
-        *result = false;
-        return SGX_SUCCESS;
-    }
-
-    const sgx_rsa3072_public_key_t *pub_key = (sgx_rsa3072_public_key_t *)cmk_blob;
-
-    sgx_rsa_result_t verifed_result = SGX_RSA_INVALID_SIGNATURE;
-    ret = sgx_rsa3072_verify(data, data_len, pub_key, (sgx_rsa3072_signature_t *)signature, &verifed_result);
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_verify sgx_rsa3072_verify failed: %d.\n", ret);
-        return ret;
-    }
-
-    if (verifed_result == SGX_RSA_VALID)
-        *result = true;
-    else // SGX_RSA_INVALID_SIGNATURE
-        *result = false;
-
-    return SGX_SUCCESS;
-}
-
-sgx_status_t enclave_rsa_encrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *plaintext, uint32_t plaintext_len, uint8_t *ciphertext, uint32_t ciphertext_len)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    uint32_t sealed_rsa_len = sgx_calc_gcm_data_size(0, sizeof(rsa_params_t));
-    if (UINT32_MAX == sealed_rsa_len) {
-        printf("ecall rsa_encrypt failed to calculate sealed data size.\n");
-        return SGX_ERROR_UNEXPECTED;
-    }
-
-    if (cmk_blob == NULL || cmk_blob_size < sealed_rsa_len + sizeof(sgx_rsa3072_public_key_t)) {
-        printf("ecall rsa_encrypt cmk_blob_size is too small.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (plaintext == NULL || plaintext_len == 0) {
-        printf("ecall rsa_encrypt plaintext or len is wrong.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (plaintext_len > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE) {
-        printf("ecall rsa_encrypt plain len is up to 318B.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (ciphertext == NULL || ciphertext_len < RSA_OAEP_3072_CIPHER_LENGTH) {
-        printf("ecall rsa_encrypt ciphertext len is too small.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    const sgx_rsa3072_public_key_t *temp_pub_key = (sgx_rsa3072_public_key_t *)cmk_blob;
-    void *pub_key = NULL;
-    ret = sgx_create_rsa_pub1_key(RSA_OAEP_3072_MOD_SIZE,
-                                  RSA_OAEP_3072_EXP_SIZE,
-                                  (const unsigned char*)temp_pub_key->mod,
-                                  (const unsigned char*)temp_pub_key->exp,
-                                  &pub_key);
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_encrypt sgx_create_rsa_pub1_key failed: %d.\n", ret);
-        return ret;
-    }
-
-    size_t encrypted_len = 0;
-    /* Get output buffer size */
-    ret = sgx_rsa_pub_encrypt_sha256(pub_key, NULL, &encrypted_len, plaintext, plaintext_len);
-    if (SGX_SUCCESS != ret) {
-        printf("ecall rsa_encrypt sgx_create_rsa_pub1_key failed: %d.\n", ret);
-        goto out;
-    }
-
-    if (ciphertext_len < encrypted_len) {
-        printf("ecall rsa_encrypt ciphertext is too small!! \n");
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        goto out;
-    }
-
-    ret = sgx_rsa_pub_encrypt_sha256(pub_key, ciphertext, &encrypted_len, plaintext, plaintext_len);
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_encrypt sgx_rsa_pub_encrypt_sha256 failed: %d.\n", ret);
-        goto out;
-    }
-
-out:
-    if (pub_key)
-        sgx_free_rsa_key(pub_key, SGX_RSA_PUBLIC_KEY, RSA_OAEP_3072_MOD_SIZE, RSA_OAEP_3072_EXP_SIZE);
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
 
     return ret;
 }
 
-sgx_status_t enclave_rsa_decrypt(const uint8_t *cmk_blob, size_t cmk_blob_size, const uint8_t *ciphertext, uint32_t ciphertext_len, uint8_t *plaintext, uint32_t plaintext_len, uint32_t *req_plaintext_len)
+sgx_status_t enclave_export_datakey(const ehsm_keyblob_t* s_cmk, size_t s_cmk_len,
+                    const ehsm_data_t *aad, size_t aad_len,
+                    ehsm_data_t *oldkey, size_t oldkey_len,
+                    const ehsm_keyblob_t* d_cmk, size_t d_cmk_len,
+                    ehsm_data_t *newkey, size_t newkey_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    uint32_t sealed_rsa_len = sgx_calc_gcm_data_size(0, sizeof(rsa_params_t));
-    if (UINT32_MAX == sealed_rsa_len) {
-        printf("ecall rsa_decrypt failed to calculate sealed data size.\n");
-        return SGX_ERROR_UNEXPECTED;
-    }
-
-    if (cmk_blob == NULL || cmk_blob_size < sealed_rsa_len + sizeof(sgx_rsa3072_public_key_t)) {
-        printf("ecall rsa_decrypt cmk_blob_size is too small.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    /* if ciphertext_len > 384, only decrypt the first 384 */
-    if (ciphertext == NULL || ciphertext_len < RSA_OAEP_3072_CIPHER_LENGTH) {
-        printf("ecall rsa_decrypt ciphertext len is too small.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    const sgx_aes_gcm_data_ex_t *rsa_key_blob = (sgx_aes_gcm_data_ex_t *)(cmk_blob + sizeof(sgx_rsa3072_public_key_t));
-    uint32_t rsa_key_len = sgx_get_gcm_ciphertext_size(rsa_key_blob);
-    if (rsa_key_len == UINT32_MAX || rsa_key_len != sizeof(rsa_params_t)) {
-        printf("ecall rsa_decrypt rsa key size:%d is not expected: %lu.\n", rsa_key_len, sizeof(rsa_params_t));
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    rsa_params_t rsa_key = {0};
-    ret = sgx_gcm_decrypt(&g_domain_key, &rsa_key_len, (uint8_t *)&rsa_key, (sgx_aes_gcm_data_ex_t *)rsa_key_blob);
-    if (SGX_SUCCESS != ret) {
-        printf("ecall rsa_decrypt unseal rsa_key failed: %d.\n", ret);
-        return ret;
-    }
-
-    size_t real_plaintext_len = 0;
-    void *pri_key = NULL;
-    ret = sgx_create_rsa_priv2_key(RSA_OAEP_3072_MOD_SIZE,
-                                   RSA_OAEP_3072_EXP_SIZE,
-                                   (const unsigned char*)rsa_key.e,
-                                   (const unsigned char*)rsa_key.p,
-                                   (const unsigned char*)rsa_key.q,
-                                   (const unsigned char*)rsa_key.dmp1,
-                                   (const unsigned char*)rsa_key.dmq1,
-                                   (const unsigned char*)rsa_key.iqmp,
-                                   &pri_key);
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_decrypt sgx_create_rsa_priv2_key failed: %d.\n", ret);
-        goto out;
-    }
-
-    ret = sgx_rsa_priv_decrypt_sha256(pri_key, NULL, &real_plaintext_len, ciphertext, ciphertext_len);
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_decrypt sgx_rsa_priv_decrypt_sha256 failed: %d.\n", ret);
-        goto out;
-    }
-
-    /* return the plaintext len */
-    if (req_plaintext_len) {
-        //printf("ecall rsa_decrypt real_plaintext_len is %d.\n", real_plaintext_len);
-        *req_plaintext_len = real_plaintext_len;
-        ret = SGX_SUCCESS;
-        goto out;
-    }
-
-    if (plaintext == NULL || plaintext_len < real_plaintext_len) {
-        printf("ecall rsa_decrypt plaintext_len(%d) is smaller than expected: %d.\n", plaintext_len, real_plaintext_len);
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        goto out;
-    }
-
-    ret = sgx_rsa_priv_decrypt_sha256(pri_key, plaintext, &real_plaintext_len, ciphertext, ciphertext_len);
-    if (ret != SGX_SUCCESS) {
-        printf("ecall rsa_decrypt sgx_rsa_priv_decrypt_sha256 failed: %d.\n", ret);
-        goto out;
-    }
-
-out:
-    if (pri_key)
-        sgx_free_rsa_key(pri_key, SGX_RSA_PRIVATE_KEY, RSA_OAEP_3072_MOD_SIZE, RSA_OAEP_3072_EXP_SIZE);
-    memset_s(&rsa_key, sizeof(rsa_params_t), 0, sizeof(rsa_params_t));
-
     return ret;
 }
 
