@@ -44,6 +44,8 @@
 #include "sgx_tkey_exchange.h"
 
 #include "datatypes.h"
+#include "key_factory.h"
+#include "key_operation.h"
 
 using namespace std;
 
@@ -121,11 +123,6 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (cmk->keybloblen == 0) {
-        ret = ehsm_calc_keyblob_len(cmk->metadata);
-        return ret;
-    }
-
     switch (cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
         case EH_AES_GCM_192:
@@ -150,13 +147,8 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
             ret = ehsm_create_sm4_key(cmk);
             break;
         default:
-            return EH_KEYSPEC_INVALID;
+            break;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
 
     return ret;
 }
@@ -179,13 +171,8 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
             ret = ehsm_sm4_encrypt(cmk);
             break;
         default:
-            return EH_KEYSPEC_INVALID;
+            break;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
 
     return ret;
 }
@@ -208,13 +195,8 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
             ret = ehsm_sm4_decrypt(cmk);
             break;
         default:
-            return EH_KEYSPEC_INVALID;
+            break;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
 
     return ret;
 }
@@ -239,13 +221,8 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_le
             ret = ehsm_ec_encrypt(cmk);
             break;
         default:
-            return EH_KEYSPEC_INVALID;
+            break;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
 
     return ret;
 }
@@ -270,13 +247,8 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_le
             ret = ehsm_ec_decrypt(cmk);
             break;
         default:
-            return EH_KEYSPEC_INVALID;
+            break;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
         
     return ret;
 }
@@ -304,13 +276,8 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
             ret = ehsm_sm2_sign(cmk);
             break;
         default:
-            return EH_KEYSPEC_INVALID;
+            break;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
 
     return ret;
 }
@@ -339,13 +306,8 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
             ret = ehsm_sm2_verify(cmk);
             break;
         default:
-            return EH_KEYSPEC_INVALID;
+            break;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
 
     return ret;
 }
@@ -368,13 +330,8 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t* cmk, size_t cmk_len,
             ret = ehsm_sm4_generate_datakey(cmk);
             break;
         default:
-            return EH_KEYSPEC_INVALID;
+            break;
     }
-
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-        return EH_FUNCTION_FAILED;
-    else
-        return EH_OK;
 
     return ret;
 }

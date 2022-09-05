@@ -43,82 +43,82 @@
 #include "sgx_utils.h"
 #include "sgx_tkey_exchange.h"
 
-sgx_status_t ehsm_aes_gcm_encrypt(ehsm_keymetadata_t *key_metadata)
+sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_aes_gcm_derypt(ehsm_keymetadata_t *key_metadata)
+sgx_status_t ehsm_aes_gcm_derypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_sm4_encrypt(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_sm4_encrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_sm4_decrypt(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_sm4_decrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_rsa_encrypt(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_rsa_decrypt(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_rsa_sign(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_rsa_verify(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_ec_encrypt(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_ec_encrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_ec_decrypt(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_ec_decrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_ec_sign(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_ec_sign(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_ec_verify(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_ec_verify(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_sm2_sign(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_sm2_verify(ehsm_keyblob_t *cmk)
-{
-    
-}
-
-sgx_status_t ehsm_aes_gcm_generate_datakey(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk)
 {
     
 }
 
-sgx_status_t ehsm_sm4_generate_datakey(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_aes_gcm_generate_datakey(const ehsm_keyblob_t *cmk)
+{
+    
+}
+
+sgx_status_t ehsm_sm4_generate_datakey(const ehsm_keyblob_t *cmk)
 {
     
 }
