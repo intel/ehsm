@@ -101,11 +101,28 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
+    if (cmk->metadata.keyspec >= INVALID_VALUE)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
     switch (cmk->metadata.keyspec) {
         case EH_AES_GCM_128:
         case EH_AES_GCM_192:
         case EH_AES_GCM_256:
-            ret = ehsm_create_aes_key(cmk);
+        if (cmk->keybloblen == 0)
+        {
+            ret = ehsm_create_aes_key(NULL,
+                                      0,
+                                      &(cmk->keybloblen),
+                                      (ehsm_keyspec_t)(cmk->metadata.keyspec));
+        }
+        else
+        {
+            ret = ehsm_create_aes_key(cmk->keyblob,
+                                      cmk->keybloblen,
+                                      NULL,
+                                      (ehsm_keyspec_t)(cmk->metadata.keyspec));
+        }
             break;
         case EH_RSA_2048:
         case EH_RSA_3072:
@@ -118,7 +135,20 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
             ret = ehsm_create_asymmetric_key(cmk);
             break;
         case EH_SM4:
-            ret = ehsm_create_sm4_key(cmk);
+        if (cmk->keybloblen == 0)
+        {
+            ret = ehsm_create_sm4_key(NULL,
+                                      0,
+                                      &(cmk->keybloblen),
+                                      (ehsm_keyspec_t)(cmk->metadata.keyspec));
+        }
+        else
+        {
+            ret = ehsm_create_sm4_key(cmk->keyblob,
+                                      cmk->keybloblen,
+                                      NULL,
+                                      (ehsm_keyspec_t)(cmk->metadata.keyspec));
+        }
             break;
         default:
             break;
@@ -133,43 +163,113 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
                         ehsm_data_t *ciphertext, size_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    // todo: check parameter like enclave_create_key
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
-    switch (cmk->metadata.keyspec) {
-        case EH_AES_GCM_128:
-        case EH_AES_GCM_192:
-        case EH_AES_GCM_256:
-            ret = ehsm_aes_gcm_encrypt(cmk);
-            break;
-        case EH_SM4:
-            ret = ehsm_sm4_encrypt(cmk);
-            break;
-        default:
-            break;
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_AES_GCM_192 &&
+        cmk->metadata.keyspec != EH_AES_GCM_256 &&
+        cmk->metadata.keyspec != EH_SM4)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    /* only support to directly encrypt data of less than 6 KB */
+    if (plaintext->data == NULL || plaintext->datalen == 0 ||
+        plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_AES_GCM_128:
+    case EH_AES_GCM_192:
+    case EH_AES_GCM_256:
+        ret = ehsm_aes_gcm_encrypt(aad->data,
+                                   aad->datalen,
+                                   cmk->keyblob,
+                                   cmk->keybloblen,
+                                   plaintext->data,
+                                   plaintext->datalen,
+                                   ciphertext->data,
+                                   ciphertext->datalen,
+                                   (ehsm_keyspec_t)cmk->metadata.keyspec);
+        break;
+    case EH_SM4:
+        ret = ehsm_sm4_encrypt(aad->data,
+                               aad->datalen,
+                               cmk->keyblob,
+                               cmk->keybloblen,
+                               plaintext->data,
+                               plaintext->datalen,
+                               ciphertext->data,
+                               ciphertext->datalen,
+                               (ehsm_keyspec_t)cmk->metadata.keyspec);
+        break;
+    default:
+        break;
     }
 
     return ret;
 }
-        
-sgx_status_t enclave_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
-                    const ehsm_data_t *aad, size_t aad_len,
-                    const ehsm_data_t *ciphertext, size_t ciphertext_len,
-                    ehsm_data_t *plaintext, size_t plaintext_len)
+
+sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
+                             const ehsm_data_t *aad, size_t aad_len,
+                             const ehsm_data_t *ciphertext, size_t ciphertext_len,
+                             ehsm_data_t *plaintext, size_t plaintext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    // todo: check parameter like enclave_create_key
 
-    switch (cmk->metadata.keyspec) {
-        case EH_AES_GCM_128:
-        case EH_AES_GCM_192:
-        case EH_AES_GCM_256:
-            ret = ehsm_aes_gcm_derypt(cmk);
-            break;
-        case EH_SM4:
-            ret = ehsm_sm4_decrypt(cmk);
-            break;
-        default:
-            break;
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_AES_GCM_192 &&
+        cmk->metadata.keyspec != EH_AES_GCM_256 &&
+        cmk->metadata.keyspec != EH_SM4)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (ciphertext->data == NULL || ciphertext->datalen == 0)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_AES_GCM_128:
+    case EH_AES_GCM_192:
+    case EH_AES_GCM_256:
+        ret = ehsm_aes_gcm_decrypt(aad->data,
+                                   aad->datalen,
+                                   cmk->keyblob,
+                                   cmk->keybloblen,
+                                   ciphertext->data,
+                                   ciphertext->datalen,
+                                   plaintext->data,
+                                   plaintext->datalen,
+                                   (ehsm_keyspec_t)cmk->metadata.keyspec);
+        break;
+    case EH_SM4:
+        ret = ehsm_sm4_decrypt(aad->data,
+                               aad->datalen,
+                               cmk->keyblob,
+                               cmk->keybloblen,
+                               ciphertext->data,
+                               ciphertext->datalen,
+                               plaintext->data,
+                               plaintext->datalen,
+                               (ehsm_keyspec_t)cmk->metadata.keyspec);
+        break;
+    default:
+        break;
     }
 
     return ret;
