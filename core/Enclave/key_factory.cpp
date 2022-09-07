@@ -265,7 +265,6 @@ sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
     if (key_len == 0) {
         goto out;
     }
-
     if (cmk->keybloblen == 0) {
         cmk->keybloblen = ehsm_calc_gcm_data_size(0, key_len);
         if (cmk->keybloblen != UINT32_MAX) {
