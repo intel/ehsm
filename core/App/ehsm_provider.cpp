@@ -145,7 +145,7 @@ char *EHSM_NAPI_CALL(const char *paramJson)
     if (paramJson == NULL)
     {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception1.");
         return retJsonObj.toChar();
     }
     // parse paramJson into paramJsonObj
@@ -153,7 +153,7 @@ char *EHSM_NAPI_CALL(const char *paramJson)
     if (!paramJsonObj.parse(paramJson))
     {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception.");
+        retJsonObj.setMessage("Server exception2.");
         return retJsonObj.toChar();
     }
 
@@ -264,7 +264,7 @@ ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
         return EH_ARGUMENTS_BAD;
     }
 
-    ret = enclave_create_key(g_enclave_id, &sgxStatus, cmk, cmk->keybloblen);
+    ret = enclave_create_key(g_enclave_id, &sgxStatus, cmk, CMK_BLOB_SIZE(cmk->keybloblen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;
@@ -454,8 +454,6 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
     switch (cmk->metadata.keyspec)
     {
     case EH_RSA_2048:
-        // TODO
-        break;
     case EH_RSA_3072:
         // if (plaintext->datalen > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE)
         // {
@@ -473,15 +471,15 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
         {
             return EH_ARGUMENTS_BAD;
         }
-        // todo : call enclave
-        // ret = enclave_asymmetric_encrypt(g_enclave_id,
-        //                                  &sgxStatus,
-        //                                  cmk->keyblob,
-        //                                  cmk->keybloblen,
-        //                                  plaintext->data,
-        //                                  plaintext->datalen,
-        //                                  ciphertext->data,
-        //                                  ciphertext->datalen);
+        // TODO : call enclave
+        ret = enclave_asymmetric_encrypt(g_enclave_id,
+                                         &sgxStatus,
+                                         cmk,
+                                         CMK_BLOB_SIZE(cmk->keybloblen),
+                                         plaintext,
+                                         EHSM_DATA_SIZE(plaintext->datalen),
+                                         ciphertext,
+                                         EHSM_DATA_SIZE(ciphertext->datalen));
         break;
     case EH_EC_P256:
         // TODO
@@ -539,14 +537,14 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
         if (plaintext->datalen == 0)
         {
             // todo : call enclave
-            // ret = enclave_asymmetric_decrypt(g_enclave_id,
-            //                                  &sgxStatus,
-            //                                  cmk->keyblob,
-            //                                  cmk->keybloblen,
-            //                                  ciphertext->data,
-            //                                  ciphertext->datalen,
-            //                                  NULL, 0,
-            //                                  &(plaintext->datalen));
+            ret = enclave_asymmetric_decrypt(g_enclave_id,
+                                             &sgxStatus,
+                                             cmk,
+                                             CMK_BLOB_SIZE(cmk->keybloblen),
+                                             ciphertext,
+                                             EHSM_DATA_SIZE(ciphertext->datalen),
+                                             plaintext,
+                                             EHSM_DATA_SIZE(plaintext->datalen));
             return EH_OK;
         }
         /* check if the datalen is valid */
@@ -555,15 +553,14 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
             return EH_ARGUMENTS_BAD;
         }
         // todo : call enclave
-        // ret = enclave_asymmetric_decrypt(g_enclave_id,
-        //                                  &sgxStatus,
-        //                                  cmk->keyblob,
-        //                                  cmk->keybloblen,
-        //                                  ciphertext->data,
-        //                                  ciphertext->datalen,
-        //                                  plaintext->data,
-        //                                  plaintext->datalen,
-        //                                  NULL);
+        ret = enclave_asymmetric_decrypt(g_enclave_id,
+                                        &sgxStatus,
+                                        cmk,
+                                        CMK_BLOB_SIZE(cmk->keybloblen),
+                                        ciphertext,
+                                        EHSM_DATA_SIZE(ciphertext->datalen),
+                                        plaintext,
+                                        EHSM_DATA_SIZE(plaintext->datalen));
     case EH_EC_P256:
         // TODO
         return EH_OK;

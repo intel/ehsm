@@ -76,7 +76,6 @@ using namespace std;
 
 
 // Used to store the secret passed by the SP in the sample code.
-sgx_aes_gcm_128bit_key_t g_domain_key = {0};
 
 static const sgx_ec256_public_t g_sp_pub_key = {
     {
@@ -93,27 +92,6 @@ static const sgx_ec256_public_t g_sp_pub_key = {
     }
 
 };
-
-void printf(const char *fmt, ...)
-{
-    char buf[BUFSIZ] = {'\0'};
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZ, fmt, ap);
-    va_end(ap);
-    ocall_print_string(buf);
-}
-
-typedef struct _aes_gcm_data_ex_t
-{
-    uint32_t  ciphertext_size;
-    uint32_t  aad_size;
-    uint8_t   reserve1[8];
-    uint8_t   iv[SGX_AESGCM_IV_SIZE];
-    uint8_t   reserve2[4];
-    uint8_t   mac[SGX_AESGCM_MAC_SIZE];
-    uint8_t   payload[];   /* ciphertext + aad */
-} sgx_aes_gcm_data_ex_t;
 
 sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
 {
@@ -132,16 +110,12 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
         case EH_RSA_2048:
         case EH_RSA_3072:
         case EH_RSA_4096:
-            ret = ehsm_create_rsa_key(cmk);
-            break;
         case EH_EC_P224:
         case EH_EC_P256:
         case EH_EC_P384:
         case EH_EC_P512:
-            ret = ehsm_create_ec_key(cmk);
-            break;
         case EH_SM2:
-            ret = ehsm_create_sm2_key(cmk);
+            ret = ehsm_create_asymmetric_key(cmk);
             break;
         case EH_SM4:
             ret = ehsm_create_sm4_key(cmk);
@@ -202,33 +176,19 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
 }
 
 sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
-                    const ehsm_data_t *plaintext, size_t plaintext_len,
+                    ehsm_data_t *plaintext, size_t plaintext_len,
                     ehsm_data_t *ciphertext, size_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     // todo: check parameter like enclave_create_key
 
-    switch (cmk->metadata.keyspec) {
-        case EH_RSA_2048:
-        case EH_RSA_3072:
-        case EH_RSA_4096:
-            ret = ehsm_rsa_encrypt(cmk);
-            break;
-        case EH_EC_P224:
-        case EH_EC_P256:
-        case EH_EC_P384:
-        case EH_EC_P512:
-            ret = ehsm_ec_encrypt(cmk);
-            break;
-        default:
-            break;
-    }
+    ret = ehsm_asymmetric_encrypt(cmk, plaintext, ciphertext);
 
     return ret;
 }
 
 sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
-                    const ehsm_data_t *ciphertext, uint32_t ciphertext_len,
+                    ehsm_data_t *ciphertext, uint32_t ciphertext_len,
                     ehsm_data_t *plaintext, uint32_t plaintext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -238,7 +198,7 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_le
         case EH_RSA_2048:
         case EH_RSA_3072:
         case EH_RSA_4096:
-            ret = ehsm_rsa_decrypt(cmk);
+            ret = ehsm_rsa_decrypt(cmk, ciphertext, plaintext);
             break;
         case EH_EC_P224:
         case EH_EC_P256:

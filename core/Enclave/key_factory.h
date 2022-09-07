@@ -29,10 +29,9 @@
  *
  */
 
-#include "enclave_hsm_t.h"
+
 #include "log_utils.h"
 #include "sgx_tseal.h"
-
 
 #include <string>
 #include <stdio.h>
@@ -43,21 +42,33 @@
 #include "sgx_utils.h"
 #include "sgx_tkey_exchange.h"
 
-// calculate the keyblob size based on the key metadata infomations.
-sgx_status_t ehsm_calc_keyblob_len(ehsm_keymetadata_t *key_metadata);
+#ifndef _KEY_FACTORY_H_
+#define _KEY_FACTORY_H_
+
+typedef struct _aes_gcm_data_ex_t
+{
+    uint32_t  ciphertext_size;
+    uint32_t  aad_size;
+    uint8_t   reserve1[8];
+    uint8_t   iv[SGX_AESGCM_IV_SIZE];
+    uint8_t   reserve2[4];
+    uint8_t   mac[SGX_AESGCM_MAC_SIZE];
+    uint8_t   payload[];   /* ciphertext + aad */
+} sgx_aes_gcm_data_ex_t;
 
 // use the g_domain_key to encrypt the cmk and get it ciphertext
-sgx_status_t ehsm_create_keyblob();
+sgx_status_t ehsm_parse_keyblob(uint32_t plaintext_size, uint8_t *plaintext,
+                                 const sgx_aes_gcm_data_ex_t *gcm_data);
 
 // use the g_domain_key to decrypt the cmk and get it plaintext
-sgx_status_t ehsm_parse_keyblob();
+sgx_status_t ehsm_create_keyblob(const uint32_t plaintext_size, const uint8_t *plaintext,
+                                const uint32_t aad_size, const uint8_t *aad,
+                                const uint32_t gcm_data_size, sgx_aes_gcm_data_ex_t *gcm_data);
 
 sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk);
 
-sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk);
-
-sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk);
-
-sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk);
+
+#endif

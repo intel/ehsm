@@ -35,13 +35,22 @@
 #include "sgx_dh.h"
 #include "sgx_tseal.h"
 
+#include "log_utils.h"
+#include "sgx_tseal.h"
+
+#include <stdio.h>
+#include <stdbool.h>
+
+#include "sgx_report.h"
+#include "sgx_utils.h"
+#include "sgx_tkey_exchange.h"
+
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
 #define CMK_BLOB_SIZE(x)    (sizeof(ehsm_keyblob_t) + x*sizeof(uint8_t))
 #define EHSM_DATA_SIZE(x)    (sizeof(ehsm_data_t) + x*sizeof(uint8_t))
-
 
 #define _T(x) x
 
@@ -107,6 +116,24 @@ typedef int errno_t;
 #define EH_AAD_MAX_SIZE (8*1024)
 #define EH_QUOTE_MAX_SIZE (8*1024)
 
+#define SGX_DOMAIN_KEY_SIZE     16
+
+#define RSA_2048_KEY_BITS   2048
+#define RSA_3072_KEY_BITS   3072
+#define RSA_4096_KEY_BITS   4096
+
+#define RSA_2048_PUBLIC_KEY_PEM_SIZE    426
+#define RSA_2048_PRIVATE_KEY_PEM_SIZE    1679
+
+#define RSA_3072_PUBLIC_KEY_PEM_SIZE    625
+#define RSA_3072_PRIVATE_KEY_PEM_SIZE    2484
+
+#define RSA_4096_PUBLIC_KEY_PEM_SIZE    775
+#define RSA_4096_PRIVATE_KEY_PEM_SIZE    3247
+
+#define ECC_PUBLIC_KEY_PEM_SIZE     178
+#define ECC_PRIVATE_KEY_PEM_SIZE    227
+#define ECC_MAX_PLAINTEXT_SIZE      256
 
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
