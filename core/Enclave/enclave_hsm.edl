@@ -80,12 +80,12 @@ enclave {
                             [out, size=plaintext_len] ehsm_data_t *plaintext, size_t plaintext_len);
 
         public sgx_status_t enclave_asymmetric_encrypt([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=plaintext_len] const ehsm_data_t *plaintext, size_t plaintext_len,
-                            [out, size=ciphertext_len] ehsm_data_t *ciphertext, size_t ciphertext_len);
+                            [in, size=plaintext_len] ehsm_data_t *plaintext, size_t plaintext_len,
+                            [in, out, size=ciphertext_len] ehsm_data_t *ciphertext, size_t ciphertext_len);
 
         public sgx_status_t enclave_asymmetric_decrypt([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=ciphertext_len] const ehsm_data_t *ciphertext, uint32_t ciphertext_len,
-                            [out, size=plaintext_len] ehsm_data_t *plaintext, uint32_t plaintext_len);
+                            [in, size=ciphertext_len] ehsm_data_t *ciphertext, uint32_t ciphertext_len,
+                            [in, out, size=plaintext_len] ehsm_data_t *plaintext, uint32_t plaintext_len);
 
         public sgx_status_t enclave_sign([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
                             [in, size=data_len] const ehsm_data_t *data, size_t data_len,

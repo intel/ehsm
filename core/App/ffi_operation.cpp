@@ -120,7 +120,7 @@ extern "C"
         if (payload == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception1.");
             return retJsonObj.toChar();
         }
         // parse payload into paramJsonObj
@@ -128,7 +128,7 @@ extern "C"
         if (!paramJsonObj.parse(payload))
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception2.");
             return retJsonObj.toChar();
         }
 
@@ -136,7 +136,7 @@ extern "C"
         if (master_key == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception3.");
             goto out;
         }
         // storage common key properties into metadata of master_key
@@ -159,15 +159,15 @@ extern "C"
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception4.");
             goto out;
         }
 
-        master_key = (ehsm_keyblob_t *) realloc(master_key, CMK_BLOB_SIZE(master_key->keybloblen));
+        master_key = (ehsm_keyblob_t *)realloc(master_key, CMK_BLOB_SIZE(master_key->keybloblen));
         if (master_key == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception5.");
             goto out;
         }
 
@@ -183,12 +183,12 @@ extern "C"
             else
             {
                 retJsonObj.setCode(retJsonObj.CODE_FAILED);
-                retJsonObj.setMessage("Server exception.");
+                retJsonObj.setMessage("Server exception6.");
             }
             goto out;
         }
 
-        cmk_base64 = base64_encode((uint8_t *)master_key, resp_len);
+        cmk_base64 = base64_encode((uint8_t *)master_key, CMK_BLOB_SIZE(master_key->keybloblen));
         if (cmk_base64.size() > 0)
         {
             retJsonObj.addData_string("cmk", cmk_base64);
@@ -557,123 +557,112 @@ extern "C"
     {
         RetJsonObj retJsonObj;
 
-    //     if (payload == NULL)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception.");
-    //         return retJsonObj.toChar();
-    //     }
-    //     // parse payload into paramJsonObj
-    //     JsonObj paramJsonObj;
-    //     if (!paramJsonObj.parse(payload))
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception.");
-    //         return retJsonObj.toChar();
-    //     }
-    //     char *cmk_base64 = paramJsonObj.readData_cstr("cmk");
-    //     char *plaintext_base64 = paramJsonObj.readData_cstr("plaintext");
+        if (payload == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            return retJsonObj.toChar();
+        }
+        // parse payload into paramJsonObj
+        JsonObj paramJsonObj;
+        if (!paramJsonObj.parse(payload))
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            return retJsonObj.toChar();
+        }
+        char *cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+        char *plaintext_base64 = paramJsonObj.readData_cstr("plaintext_base64");
 
-    //     if (cmk_base64 == NULL || plaintext_base64 == NULL)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-    //         retJsonObj.setMessage("paramter invalid.");
-    //         return retJsonObj.toChar();
-    //     }
+        if (cmk_base64 == NULL || plaintext_base64 == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("paramter invalid.");
+            return retJsonObj.toChar();
+        }
 
-    //     ehsm_status_t ret = EH_OK;
-    //     ehsm_keyblob_t cmk;
-    //     ehsm_data_t plaint_data;
-    //     ehsm_data_t cipher_data;
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *cmk;
+        ehsm_data_t *plaint_data;
+        ehsm_data_t *cipher_data;
 
-    //     memset(&cmk, 0, sizeof(cmk));
-    //     memset(&plaint_data, 0, sizeof(plaint_data));
-    //     memset(&cipher_data, 0, sizeof(cipher_data));
+        string cmk_str = base64_decode(cmk_base64);
+        string plaintext_str = base64_decode(plaintext_base64);
+        string cipherText_base64;
+        int cmk_len = cmk_str.size();
+        int plaintext_len = plaintext_str.size();
+        int plaintext_maxLen = 0;
 
-    //     string cmk_str = base64_decode(cmk_base64);
-    //     string plaintext_str = base64_decode(plaintext_base64);
-    //     string cipherText_base64;
-    //     int cmk_len = cmk_str.size();
-    //     int plaintext_len = plaintext_str.size();
-    //     int plaintext_maxLen = 0;
+        if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's length is invalid.");
+            goto out;
+        }
+        cmk = (ehsm_keyblob_t*)malloc(cmk_len);
+        memcpy(cmk, (uint8_t*)cmk_str.data(), cmk_len);
 
-    //     if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-    //         retJsonObj.setMessage("The cmk's length is invalid.");
-    //         goto out;
-    //     }
+        switch (cmk->metadata.keyspec)
+        {
+            case EH_RSA_2048:
+            case EH_RSA_3072:
+            case EH_RSA_4096:
+                plaintext_maxLen = ehsm_get_rsa_max_encryption_size(cmk->metadata.keyspec, cmk->metadata.padding_mode);
+                break;
+            case EH_SM2:
+                // TODO : make sure this value
+                plaintext_maxLen = 1024; // temporary, not done
+                break;
+            default:
+                retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+                retJsonObj.setMessage("The cmk's keyspec is invalid.");
+                goto out;
+        }
 
-    //     ret = ehsm_deserialize_cmk(&cmk, (const uint8_t *)cmk_str.data(), cmk_str.size());
-    //     if (ret != EH_OK)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception.");
-    //         goto out;
-    //     }
+        if (plaintext_len == 0 || plaintext_len > plaintext_maxLen)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The plaintext's length is invalid.");
+            goto out;
+        }
 
-    //     switch (cmk.metadata.keyspec)
-    //     {
-    //     case EH_RSA_2048:
-    //     case EH_RSA_3072:
-    //     case EH_RSA_4096:
-    //         plaintext_maxLen = ehsm_get_rsa_max_encryption_size(cmk.metadata.keyspec, cmk.metadata.padding_mode);
-    //         break;
-    //     case EH_SM2:
-    //         // TODO : make sure this value
-    //         plaintext_maxLen = 1024; // temporary, not done
-    //         break;
-    //     default:
-    //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-    //         retJsonObj.setMessage("The cmk's keyspec is invalid.");
-    //         goto out;
-    //     }
+        plaint_data = (ehsm_data_t*)malloc(EHSM_DATA_SIZE(plaintext_len));
+        plaint_data->datalen = plaintext_len;
+        memcpy(plaint_data->data, (uint8_t *)plaintext_str.data(), plaintext_len);
 
-    //     if (plaintext_len == 0 || plaintext_len > plaintext_maxLen)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-    //         retJsonObj.setMessage("The plaintext's length is invalid.");
-    //         goto out;
-    //     }
+        cipher_data = (ehsm_data_t*)malloc(EHSM_DATA_SIZE(0));
+        cipher_data->datalen = 0;
+        ret = AsymmetricEncrypt(cmk, plaint_data, cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception1.");
+            goto out;
+        }
 
-    //     plaint_data.datalen = plaintext_len;
-    //     plaint_data.data = (uint8_t *)plaintext_str.data();
+        cipher_data = (ehsm_data_t*)realloc(cipher_data, EHSM_DATA_SIZE(cipher_data->datalen));
+        if (cipher_data->data == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception2.");
+            goto out;
+        }
 
-    //     cipher_data.datalen = 0;
-    //     ret = AsymmetricEncrypt(&cmk, &plaint_data, &cipher_data);
-    //     if (ret != EH_OK)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception1.");
-    //         goto out;
-    //     }
+        ret = AsymmetricEncrypt(cmk, plaint_data, cipher_data);
+        if (ret != EH_OK)
+        {
 
-    //     cipher_data.data = (uint8_t *)malloc(cipher_data.datalen);
-    //     if (cipher_data.data == NULL)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception2.");
-    //         goto out;
-    //     }
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception3.");
+            goto out;
+        }
 
-    //     ret = AsymmetricEncrypt(&cmk, &plaint_data, &cipher_data);
-    //     if (ret != EH_OK)
-    //     {
-
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception3.");
-    //         goto out;
-    //     }
-
-    //     cipherText_base64 = base64_encode(cipher_data.data, cipher_data.datalen);
-    //     if (cipherText_base64.size() > 0)
-    //     {
-    //         retJsonObj.addData_string("ciphertext", cipherText_base64);
-    //     }
-
-    // out:
-    //     SAFE_FREE(cmk.keyblob);
-    //     SAFE_FREE(cipher_data.data);
+        cipherText_base64 = base64_encode(cipher_data->data, cipher_data->datalen);
+        if (cipherText_base64.size() > 0)
+        {
+            retJsonObj.addData_string("ciphertext", cipherText_base64);
+        }
+    out:
         return retJsonObj.toChar();
     }
 
@@ -716,121 +705,91 @@ extern "C"
     {
         RetJsonObj retJsonObj;
 
-    //     if (payload == NULL)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception.");
-    //         return retJsonObj.toChar();
-    //     }
-    //     // parse payload into paramJsonObj
-    //     JsonObj paramJsonObj;
-    //     if (!paramJsonObj.parse(payload))
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception.");
-    //         return retJsonObj.toChar();
-    //     }
-    //     char *cmk_base64 = paramJsonObj.readData_cstr("cmk");
-    //     char *ciphertext_base64 = paramJsonObj.readData_cstr("ciphertext");
+        if (payload == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            return retJsonObj.toChar();
+        }
+        // parse payload into paramJsonObj
+        JsonObj paramJsonObj;
+        if (!paramJsonObj.parse(payload))
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            return retJsonObj.toChar();
+        }
+        char *cmk_base64 = paramJsonObj.readData_cstr("cmk_base64");
+        char *ciphertext_base64 = paramJsonObj.readData_cstr("ciphertext_base64");
 
-    //     if (cmk_base64 == NULL || ciphertext_base64 == NULL)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-    //         retJsonObj.setMessage("paramter invalid.");
-    //         return retJsonObj.toChar();
-    //     }
+        if (cmk_base64 == NULL || ciphertext_base64 == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("paramter invalid.");
+            return retJsonObj.toChar();
+        }
 
-    //     ehsm_status_t ret = EH_OK;
-    //     ehsm_keyblob_t cmk;
-    //     ehsm_data_t cipher_data;
-    //     ehsm_data_t plaint_data;
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *cmk;
+        ehsm_data_t *cipher_data;
+        ehsm_data_t *plaint_data;
 
-    //     memset(&cmk, 0, sizeof(cmk));
-    //     memset(&cipher_data, 0, sizeof(cipher_data));
-    //     memset(&plaint_data, 0, sizeof(plaint_data));
+        uint32_t ciphertext_maxLen;
 
-    //     string cmk_str = base64_decode(cmk_base64);
-    //     string ciphertext_str = base64_decode(ciphertext_base64);
-    //     string plaintext_base64;
-    //     int cmk_len = cmk_str.size();
-    //     int ciphertext_len = ciphertext_str.size();
-    //     int ciphertext_maxLen = 0;
+        string cmk_str = base64_decode(cmk_base64);
+        string ciphertext_str = base64_decode(ciphertext_base64);
+        string plaintext_base64;
+        int cmk_len = cmk_str.size();
+        int ciphertext_len = ciphertext_str.size();
 
-    //     if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-    //         retJsonObj.setMessage("The cmk's length is invalid.");
-    //         goto out;
-    //     }
+        if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's length is invalid.");
+            goto out;
+        }
+        cmk = (ehsm_keyblob_t*)malloc(cmk_len);
+        memcpy(cmk, (const uint8_t *)cmk_str.data(), cmk_len);
 
-    //     ret = ehsm_deserialize_cmk(&cmk, (const uint8_t *)cmk_str.data(), cmk_len);
-    //     if (ret != EH_OK)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception.");
-    //         goto out;
-    //     }
+        cipher_data = (ehsm_data_t*)malloc(EHSM_DATA_SIZE(ciphertext_len));
+        cipher_data->datalen = ciphertext_len;
+        memcpy(cipher_data->data, (uint8_t *)ciphertext_str.data(), ciphertext_len);
 
-    //     switch (cmk.metadata.keyspec)
-    //     {
-    //     case EH_RSA_2048:
-    //     case EH_RSA_3072:
-    //     case EH_RSA_4096:
-    //         ciphertext_maxLen = ehsm_get_rsa_cipher_len(cmk.metadata.keyspec);
-    //         break;
-    //     case EH_SM2:
-    //         // TODO : make sure this value
-    //         ciphertext_maxLen = 1024; // temporary, not done
-    //         break;
-    //     default:
-    //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-    //         retJsonObj.setMessage("The cmk's keyspec is invalid.");
-    //         goto out;
-    //     }
+        plaint_data = (ehsm_data_t*)malloc(EHSM_DATA_SIZE(0));
+        plaint_data->datalen = 0;
+       
+        ret = AsymmetricDecrypt(cmk, cipher_data, plaint_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception1.");
+            goto out;
+        }
 
-    //     if (ciphertext_len == 0 || ciphertext_len > ciphertext_maxLen)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-    //         retJsonObj.setMessage("The ciphertext's length is invalid.");
-    //         goto out;
-    //     }
+        plaint_data = (ehsm_data_t *)realloc(plaint_data, EHSM_DATA_SIZE(plaint_data->datalen));
+        if (plaint_data->data == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception2.");
+            goto out;
+        }
 
-    //     cipher_data.datalen = ciphertext_len;
-    //     cipher_data.data = (uint8_t *)ciphertext_str.data();
+        ret = AsymmetricDecrypt(cmk, cipher_data, plaint_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception3.");
+            goto out;
+        }
 
-    //     plaint_data.datalen = 0;
-    //     ret = AsymmetricDecrypt(&cmk, &cipher_data, &plaint_data);
-    //     if (ret != EH_OK)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception1.");
-    //         goto out;
-    //     }
-
-    //     plaint_data.data = (uint8_t *)malloc(plaint_data.datalen);
-    //     if (plaint_data.data == NULL)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception2.");
-    //         goto out;
-    //     }
-
-    //     ret = AsymmetricDecrypt(&cmk, &cipher_data, &plaint_data);
-    //     if (ret != EH_OK)
-    //     {
-    //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-    //         retJsonObj.setMessage("Server exception3.");
-    //         goto out;
-    //     }
-
-    //     plaintext_base64 = base64_encode(plaint_data.data, plaint_data.datalen);
-    //     if (plaintext_base64.size() > 0)
-    //     {
-    //         retJsonObj.addData_string("plaintext", plaintext_base64);
-    //     }
-    // out:
-    //     SAFE_FREE(cmk.keyblob);
-    //     SAFE_FREE(plaint_data.data);
+        plaintext_base64 = base64_encode(plaint_data->data, plaint_data->datalen);
+        if (plaintext_base64.size() > 0)
+        {
+            retJsonObj.addData_string("plaintext", plaintext_base64);
+        }
+        
+    out:
+        
         return retJsonObj.toChar();
     }
 
