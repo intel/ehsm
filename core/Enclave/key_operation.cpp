@@ -115,7 +115,7 @@ sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *pla
             printf("failed to load rsa key\n");
             break;
         }
-        RSA_public_encrypt(plaintext->datalen, plaintext->data, ciphertext->data, rsa_pubkey, 4);
+        RSA_public_encrypt(plaintext->datalen, plaintext->data, ciphertext->data, rsa_pubkey, cmk->metadata.padding_mode);
     } while(0);
 
     BIO_free(bio);
@@ -156,7 +156,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext
 
         if (plaintext->datalen == 0) {
             uint8_t* temp_plaintext = (uint8_t*)malloc(RSA_size(rsa_prikey));
-            plaintext->datalen = RSA_private_decrypt(ciphertext->datalen, ciphertext->data, temp_plaintext, rsa_prikey, 4);
+            plaintext->datalen = RSA_private_decrypt(ciphertext->datalen, ciphertext->data, temp_plaintext, rsa_prikey, cmk->metadata.padding_mode);
             return SGX_SUCCESS;
         }
 

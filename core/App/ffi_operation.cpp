@@ -116,10 +116,11 @@ extern "C"
         ehsm_keyblob_t *master_key;
         string cmk_base64;
         uint32_t req_len = 0;
+
         if (payload == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception1.");
+            retJsonObj.setMessage("Server exception.");
             return retJsonObj.toChar();
         }
         // parse payload into paramJsonObj
@@ -127,7 +128,7 @@ extern "C"
         if (!paramJsonObj.parse(payload))
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception2.");
+            retJsonObj.setMessage("Server exception.");
             return retJsonObj.toChar();
         }
 
@@ -135,7 +136,7 @@ extern "C"
         if (master_key == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception3.");
+            retJsonObj.setMessage("Server exception.");
             goto out;
         }
         // storage common key properties into metadata of master_key
@@ -155,7 +156,7 @@ extern "C"
 
         do {
             req_len = master_key->keybloblen;
-            // get keybloblen
+            
             ret = CreateKey(master_key);
             if (ret != EH_OK)
             {
@@ -168,7 +169,7 @@ extern "C"
                 if (master_key == NULL)
                 {
                     retJsonObj.setCode(retJsonObj.CODE_FAILED);
-                    retJsonObj.setMessage("Server exception5.");
+                    retJsonObj.setMessage("Server exception.");
                     goto out;
                 }
                 continue;

@@ -666,7 +666,7 @@ void test_RSA3072_encrypt_decrypt()
 
     paramJsonCreatekey.addData_uint16("action", EH_CREATE_KEY);
     paramJsonCreatekey2.addData_uint16("keyspec", EH_RSA_3072);
-    paramJsonCreatekey2.addData_uint16("padding_mode", EH_PAD_RSA_OAEP);
+    paramJsonCreatekey2.addData_uint16("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
     paramJsonCreatekey2.addData_uint16("origin", EH_INTERNAL_KEY);
     paramJsonCreatekey.addData_string("payload", paramJsonCreatekey2.toString());
     

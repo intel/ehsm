@@ -191,14 +191,11 @@ typedef enum {
 } ehsm_digest_mode_t;
 
 typedef enum {
-    EH_PAD_NONE = 0,
-    //for sign/verify
-    EH_PAD_RSA_PKCS1_1_5_SIGN,
-    EH_PAD_RSA_PSS,
-
-    //for encrypt/decrypt
-    EH_PAD_RSA_PKCS1_1_5_ENCRYPT,
-    EH_PAD_RSA_OAEP
+    EH_PAD_RSA_PKCS1 = 1,      
+    EH_PAD_RSA_SSLV23,      
+    EH_PAD_RSA_NO,          
+    EH_PAD_RSA_PKCS1_OAEP,  
+    EH_PAD_RSA_X931,        
 } ehsm_padding_mode_t;
 
 typedef enum {
