@@ -49,8 +49,8 @@
 #define DATATYPES_H_
 
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
-#define CMK_BLOB_SIZE(x)    (sizeof(ehsm_keyblob_t) + x*sizeof(uint8_t))
-#define EHSM_DATA_SIZE(x)    (sizeof(ehsm_data_t) + x*sizeof(uint8_t))
+#define SIZE_OF_KEYBLOB_T(x)    (sizeof(ehsm_keyblob_t) + x*sizeof(uint8_t))
+#define SIZE_OF_DATA_T(x)    (sizeof(ehsm_data_t) + x*sizeof(uint8_t))
 
 #define _T(x) x
 
@@ -210,17 +210,6 @@ typedef struct {
     uint32_t    datalen;
     uint8_t     data[0];
 } ehsm_data_t;
-
-// typedef struct _aes_gcm_data_ex_t
-// {
-//     uint32_t  ciphertext_size;
-//     uint32_t  aad_size;
-//     uint8_t   reserve1[8];
-//     uint8_t   iv[SGX_AESGCM_IV_SIZE];
-//     uint8_t   reserve2[4];
-//     uint8_t   mac[SGX_AESGCM_MAC_SIZE];
-//     uint8_t   payload[];   /* ciphertext + aad */
-// } sgx_aes_gcm_data_ex_t;
 
 typedef struct {
     ehsm_keyspec_t        keyspec;

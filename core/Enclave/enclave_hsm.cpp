@@ -280,11 +280,12 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t* cmk, size_t cmk_le
                     ehsm_data_t *ciphertext, size_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    // todo: check parameter like enclave_create_key
+    // TODO : check parameter like enclave_create_key
+    if (cmk == NULL || plaintext == NULL || ciphertext == NULL) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
-    ret = ehsm_asymmetric_encrypt(cmk, plaintext, ciphertext);
-
-    return ret;
+    return ehsm_asymmetric_encrypt(cmk, plaintext, ciphertext);
 }
 
 sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_len,
@@ -292,25 +293,12 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_le
                     ehsm_data_t *plaintext, uint32_t plaintext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    // todo: check parameter like enclave_create_key
-
-    switch (cmk->metadata.keyspec) {
-        case EH_RSA_2048:
-        case EH_RSA_3072:
-        case EH_RSA_4096:
-            ret = ehsm_rsa_decrypt(cmk, ciphertext, plaintext);
-            break;
-        case EH_EC_P224:
-        case EH_EC_P256:
-        case EH_EC_P384:
-        case EH_EC_P512:
-            ret = ehsm_ec_decrypt(cmk);
-            break;
-        default:
-            break;
+    // TODO : check parameter like enclave_create_key
+    if (cmk == NULL || plaintext == NULL || ciphertext == NULL) {
+        return SGX_ERROR_INVALID_PARAMETER;
     }
-        
-    return ret;
+
+    return ehsm_rsa_decrypt(cmk, ciphertext, plaintext);
 }
 
 sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,

@@ -46,25 +46,25 @@
 void printf(const char *fmt, ...);
 
 sgx_status_t ehsm_aes_gcm_encrypt(const uint8_t *aad, size_t aad_len,
-                                  const uint8_t *cmk_blob, size_t cmk_blob_size,
+                                  const uint8_t *cmk_blob, size_t SIZE_OF_KEYBLOB_T,
                                   const uint8_t *plaintext, size_t plaintext_len,
                                   uint8_t *cipherblob, size_t cipherblob_len,
                                   ehsm_keyspec_t keyspec);
 
 sgx_status_t ehsm_aes_gcm_decrypt(const uint8_t *aad, size_t aad_len,
-                                  const uint8_t *cmk_blob, size_t cmk_blob_size,
+                                  const uint8_t *cmk_blob, size_t SIZE_OF_KEYBLOB_T,
                                   const uint8_t *cipherblob, size_t cipherblob_len,
                                   uint8_t *plaintext, size_t plaintext_len,
                                   ehsm_keyspec_t keyspec);
 
 sgx_status_t ehsm_sm4_encrypt(const uint8_t *aad, size_t aad_len,
-                              const uint8_t *cmk_blob, size_t cmk_blob_size,
+                              const uint8_t *cmk_blob, size_t SIZE_OF_KEYBLOB_T,
                               const uint8_t *plaintext, size_t plaintext_len,
                               uint8_t *cipherblob, size_t cipherblob_len,
                               ehsm_keyspec_t keyspec);
 
 sgx_status_t ehsm_sm4_decrypt(const uint8_t *aad, size_t aad_len,
-                              const uint8_t *cmk_blob, size_t cmk_blob_size,
+                              const uint8_t *cmk_blob, size_t SIZE_OF_KEYBLOB_T,
                               const uint8_t *cipherblob, size_t cipherblob_len,
                               uint8_t *plaintext, size_t plaintext_len,
                               ehsm_keyspec_t keyspec);
@@ -76,10 +76,6 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext
 sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk);
-
-sgx_status_t ehsm_ec_encrypt(const ehsm_keyblob_t *cmk);
-
-sgx_status_t ehsm_ec_decrypt(const ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_ec_sign(const ehsm_keyblob_t *cmk);
 
