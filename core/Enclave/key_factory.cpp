@@ -97,6 +97,32 @@ static uint32_t ehsm_calc_gcm_data_size(const uint32_t aad_size, const uint32_t 
     return (aad_size + plaintext_size + sizeof(sgx_aes_gcm_data_ex_t));
 }
 
+uint32_t ehsm_calc_keyblob_len(const uint32_t aad_size, const uint32_t plaintext_size)
+{
+    if (aad_size > UINT32_MAX - sizeof(sgx_aes_gcm_data_ex_t))
+        return UINT32_MAX;
+
+    if (plaintext_size > UINT32_MAX - sizeof(sgx_aes_gcm_data_ex_t))
+        return UINT32_MAX;
+
+    if (aad_size > UINT32_MAX - plaintext_size)
+        return UINT32_MAX;
+
+    if (sizeof(sgx_aes_gcm_data_ex_t) > UINT32_MAX - plaintext_size - aad_size)
+        return UINT32_MAX;
+
+    return (aad_size + plaintext_size + sizeof(sgx_aes_gcm_data_ex_t));
+}
+
+uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
+{
+    if (NULL == gcm_data)
+        return UINT32_MAX;
+
+    return gcm_data->ciphertext_size;
+}
+
+
 static uint32_t ehsm_get_public_key_pem_size(const uint32_t keyspec)
 {
     switch(keyspec)
@@ -115,6 +141,7 @@ static uint32_t ehsm_get_public_key_pem_size(const uint32_t keyspec)
     }
 }
 
+// use the g_domain_key to encrypt the cmk and get it ciphertext
 sgx_status_t ehsm_create_keyblob(const uint32_t plaintext_size, const uint8_t *plaintext,
                                         const uint32_t aad_size, const uint8_t *aad,
                                         const uint32_t gcm_data_size, sgx_aes_gcm_data_ex_t *gcm_data)
@@ -146,6 +173,7 @@ sgx_status_t ehsm_create_keyblob(const uint32_t plaintext_size, const uint8_t *p
     return ret;
 }
 
+// use the g_domain_key to decrypt the cmk and get it plaintext
 sgx_status_t ehsm_parse_keyblob(uint32_t plaintext_size, uint8_t *plaintext,
                                         const sgx_aes_gcm_data_ex_t *gcm_data)
 {
@@ -167,10 +195,88 @@ sgx_status_t ehsm_parse_keyblob(uint32_t plaintext_size, uint8_t *plaintext,
     return ret;
 }
 
-sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
+uint32_t ehsm_get_symmetric_key_size(ehsm_keyspec_t key_spec)
 {
-    return SGX_ERROR_UNEXPECTED;
+    switch (key_spec)
+    {
+    case EH_AES_GCM_128:
+    case EH_SM4:
+        return 16;
+    case EH_AES_GCM_192:
+        return 24;
+    case EH_AES_GCM_256:
+        return 32;
+    default:
+        return UINT32_MAX;
+    }
+    return UINT32_MAX;
 }
+
+/**
+ * @brief generate aes_gcm key with openssl api
+ * @param cmk_blob storage key information
+ * @param cmk_blob_size the size of cmk_blob
+ * @param req_blob_size the gcm data size
+ * @param keyspec key type, refer to [ehsm_keyspec_t]
+ * @return sgx_status_t
+ */
+sgx_status_t ehsm_create_aes_key(uint8_t *cmk_blob, uint32_t cmk_blob_size,
+                                 uint32_t *req_blob_size, ehsm_keyspec_t keyspec)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (keyspec != EH_AES_GCM_128 &&
+        keyspec != EH_AES_GCM_192 &&
+        keyspec != EH_AES_GCM_256)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
+    if (keysize == UINT32_MAX)
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+    uint32_t real_blob_len = ehsm_calc_keyblob_len(0, keysize);
+
+    if (real_blob_len == UINT32_MAX)
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+    if (req_blob_size != NULL)
+    {
+        *req_blob_size = real_blob_len;
+        return SGX_SUCCESS;
+    }
+    if (cmk_blob == NULL || cmk_blob_size != real_blob_len)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint8_t *tmp = (uint8_t *)malloc(keysize);
+    if (tmp == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+    ret = sgx_read_rand(tmp, keysize);
+    if (ret != SGX_SUCCESS)
+    {
+        free(tmp);
+        return ret;
+    }
+    ret = ehsm_create_keyblob(keysize,
+                              tmp,
+                              0,
+                              NULL,
+                              cmk_blob_size,
+                              (sgx_aes_gcm_data_ex_t *)cmk_blob);
+
+    memset_s(tmp, keysize, 0, keysize);
+
+    free(tmp);
+    return ret;
+}
+
 
 sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
 {
@@ -290,7 +396,58 @@ out:
     return ret;
 }
 
-sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk)
+
+sgx_status_t ehsm_create_sm4_key(uint8_t *cmk_blob, uint32_t cmk_blob_size,
+                                 uint32_t *req_blob_size, ehsm_keyspec_t keyspec)
 {
-    return SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (keyspec != EH_SM4)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
+    if (keysize == UINT32_MAX)
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+    uint32_t real_blob_len = ehsm_calc_keyblob_len(0, keysize);
+
+    if (real_blob_len == UINT32_MAX)
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+    if (req_blob_size != NULL)
+    {
+        *req_blob_size = real_blob_len;
+        return SGX_SUCCESS;
+    }
+    if (cmk_blob == NULL || cmk_blob_size != real_blob_len)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint8_t *tmp = (uint8_t *)malloc(keysize);
+    if (tmp == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+    ret = sgx_read_rand(tmp, keysize);
+    if (ret != SGX_SUCCESS)
+    {
+        free(tmp);
+        return ret;
+    }
+    ret = ehsm_create_keyblob(keysize,
+                              tmp,
+                              0,
+                              NULL,
+                              cmk_blob_size,
+                              (sgx_aes_gcm_data_ex_t *)cmk_blob);
+
+    memset_s(tmp, keysize, 0, keysize);
+
+    free(tmp);
+    return ret;
 }
