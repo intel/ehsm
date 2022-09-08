@@ -121,7 +121,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const uint8_t *aad, size_t aad_len,
         return SGX_ERROR_INVALID_PARAMETER;
     }
     uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
-    if (keysize == UINT32_MAX)
+    if (keysize == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -285,7 +285,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const uint8_t *aad, size_t aad_len,
     }
 
     uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
-    if (keysize == UINT32_MAX)
+    if (keysize == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -429,7 +429,7 @@ sgx_status_t ehsm_sm4_encrypt(const uint8_t *aad, size_t aad_len,
         return SGX_ERROR_INVALID_PARAMETER;
     }
     uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
-    if (keysize == UINT32_MAX)
+    if (keysize == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -564,7 +564,7 @@ sgx_status_t ehsm_sm4_decrypt(const uint8_t *aad, size_t aad_len,
     }
 
     uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
-    if (keysize == UINT32_MAX)
+    if (keysize == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -675,7 +675,7 @@ sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *pla
 {
     // TODO : add sm2 encrypt
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-            
+
     uint8_t* rsa_keypair = NULL;
     BIO *bio = NULL;
     RSA* rsa_pubkey = NULL;
@@ -683,7 +683,7 @@ sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *pla
     // load rsa public key
     rsa_keypair = (uint8_t*)malloc(cmk->keybloblen);
 
-    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen, 
+    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
         goto out;
@@ -729,7 +729,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext
 
     // load private key
     rsa_keypair = (uint8_t*)malloc(cmk->keybloblen);
-    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen, 
+    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
         goto out;
@@ -760,7 +760,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
-        
+
 out:
     BIO_free(bio);
     RSA_free(rsa_prikey);
@@ -796,15 +796,15 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk)
 
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk)
 {
-    
+
 }
 
 sgx_status_t ehsm_aes_gcm_generate_datakey(const ehsm_keyblob_t *cmk)
 {
-    
+
 }
 
 sgx_status_t ehsm_sm4_generate_datakey(const ehsm_keyblob_t *cmk)
 {
-    
+
 }

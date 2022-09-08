@@ -88,8 +88,8 @@ uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
 }
 
 // use the g_domain_key to encrypt the cmk and get it ciphertext
-sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaintext_size, 
-                                 const uint8_t *aad, const uint32_t aad_size, 
+sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaintext_size,
+                                 const uint8_t *aad, const uint32_t aad_size,
                                  sgx_aes_gcm_data_ex_t *keyblob_data)
 {
     uint32_t real_aad_size = aad_size;
@@ -153,9 +153,9 @@ uint32_t ehsm_get_symmetric_key_size(ehsm_keyspec_t key_spec)
     case EH_AES_GCM_256:
         return 32;
     default:
-        return UINT32_MAX;
+        return 0;
     }
-    return UINT32_MAX;
+    return 0;
 }
 
 /**
@@ -179,7 +179,7 @@ sgx_status_t ehsm_create_aes_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
     }
 
     uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
-    if (keysize == UINT32_MAX)
+    if (keysize == 0)
     {
         return SGX_ERROR_UNEXPECTED;
     }
@@ -281,7 +281,7 @@ sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
         default:
             break;
     }
-    
+
     if (!EVP_PKEY_keygen(pkey_ctx, &pkey)) {
         goto out;
     }
@@ -352,7 +352,7 @@ sgx_status_t ehsm_create_sm4_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
     }
 
     uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
-    if (keysize == UINT32_MAX)
+    if (keysize == 0)
     {
         return SGX_ERROR_UNEXPECTED;
     }
