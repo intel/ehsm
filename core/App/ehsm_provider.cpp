@@ -119,7 +119,7 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
  * @param paramJson the request parameters in the form of JSON string
  * [string] json string
     {
-        Action: string [CreateKey, Encrypt, Decrypt, Sign, Verify...]
+        action: int
         payload: {
             [additional parameter]
         }
@@ -140,8 +140,7 @@ char *EHSM_NAPI_CALL(const char *paramJson)
     ehsm_status_t ret = EH_OK;
     RetJsonObj retJsonObj;
     uint32_t action = -1;
-    char *payload = NULL;
-
+    JsonObj payloadJson;
     if (paramJson == NULL)
     {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -158,8 +157,7 @@ char *EHSM_NAPI_CALL(const char *paramJson)
     }
 
     action = paramJsonObj.readData_uint16("action");
-    payload = paramJsonObj.readData_cstr("payload");
-
+    payloadJson.setJson(paramJsonObj.readData_JsonValue("payload"));
     switch (action)
     {
     case EH_INITIALIZE:
@@ -169,34 +167,34 @@ char *EHSM_NAPI_CALL(const char *paramJson)
         ffi_finalize();
         break;
     case EH_CREATE_KEY:
-        resp = ffi_createKey(payload);
+        resp = ffi_createKey(payloadJson);
         break;
     case EH_ENCRYPT:
-        resp = ffi_encrypt(payload);
+        resp = ffi_encrypt(payloadJson);
         break;
     case EH_DECRYPT:
-        resp = ffi_decrypt(payload);
+        resp = ffi_decrypt(payloadJson);
         break;
     case EH_ASYMMETRIC_ENCRYPT:
-        resp = ffi_asymmetricEncrypt(payload);
+        resp = ffi_asymmetricEncrypt(payloadJson);
         break;
     case EH_ASYMMETRIC_DECRYPT:
-        resp = ffi_asymmetricDecrypt(payload);
+        resp = ffi_asymmetricDecrypt(payloadJson);
         break;
     case EH_SIGN:
-        resp = ffi_sign(payload);
+        resp = ffi_sign(payloadJson);
         break;
     case EH_VERIFY:
-        resp = ffi_verify(payload);
+        resp = ffi_verify(payloadJson);
         break;
     case EH_GENERATE_DATAKEY:
-        resp = ffi_generateDataKey(payload);
+        resp = ffi_generateDataKey(payloadJson);
         break;
     case EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT:
-        resp = ffi_generateDataKeyWithoutPlaintext(payload);
+        resp = ffi_generateDataKeyWithoutPlaintext(payloadJson);
         break;
     case EH_EXPORT_DATAKEY:
-        resp = ffi_exportDataKey(payload);
+        resp = ffi_exportDataKey(payloadJson);
         break;
     case EH_GET_VERSION:
         resp = ffi_getVersion();
@@ -205,10 +203,10 @@ char *EHSM_NAPI_CALL(const char *paramJson)
         resp = ffi_enroll();
         break;
     case EH_GENERATE_QUOTE:
-        resp = ffi_generateQuote(payload);
+        resp = ffi_generateQuote(payloadJson);
         break;
     case EH_VERIFY_QUOTE:
-        resp = ffi_verifyQuote(payload);
+        resp = ffi_verifyQuote(payloadJson);
         break;
     default:
         break;
