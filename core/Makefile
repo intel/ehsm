@@ -207,7 +207,7 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 	@echo "SIGN =>  $@"
 
 ######## NAPI Objects ########
-App/ehsm_napi.o: App/ehsm_napi.cpp
+App/ehsm_provider.o: App/ehsm_provider.cpp
 	@$(CXX) $(Napi_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
