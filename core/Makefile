@@ -144,20 +144,16 @@ Napi_Cpp_Objects := $(Napi_Cpp_Files:.cpp=.o)
 all: target
 	@$(MAKE) target
 	@mkdir -p $(OUT)
-	@mv $(App_Test_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
-	# @mv $(App_Test_Name) $(Napi_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
+	@mv $(App_Test_Name) $(Napi_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
 
 ifeq ($(Build_Mode), HW_RELEASE)
-# target: $(App_Test_Name) $(Enclave_Name)
 target: $(App_Test_Name) $(Napi_Name) $(Enclave_Name)
 else
-# target: $(App_Test_Name) $(Signed_Enclave_Name)
 target: $(App_Test_Name) $(Napi_Name) $(Signed_Enclave_Name)
 endif
 
 clean:
-	@rm -f $(App_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*	
-	# @rm -f $(App_Cpp_Objects) $(Napi_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
+	@rm -f $(App_Cpp_Objects) $(Napi_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
 	@rm -rf $(OUT)
 
 
