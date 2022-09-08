@@ -145,7 +145,7 @@ char *EHSM_NAPI_CALL(const char *paramJson)
     if (paramJson == NULL)
     {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception1.");
+        retJsonObj.setMessage("Server exception.");
         return retJsonObj.toChar();
     }
     // parse paramJson into paramJsonObj
@@ -153,7 +153,7 @@ char *EHSM_NAPI_CALL(const char *paramJson)
     if (!paramJsonObj.parse(paramJson))
     {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        retJsonObj.setMessage("Server exception2.");
+        retJsonObj.setMessage("Server exception.");
         return retJsonObj.toChar();
     }
 
@@ -547,64 +547,45 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
     /* this api only support for asymmetric keys */
     if (cmk->metadata.keyspec != EH_RSA_2048 &&
         cmk->metadata.keyspec != EH_RSA_3072 &&
-        cmk->metadata.keyspec != EH_EC_P256 &&
-        cmk->metadata.keyspec != EH_EC_P512 &&
+        cmk->metadata.keyspec != EH_RSA_4096 &&
         cmk->metadata.keyspec != EH_SM2)
     {
         return EH_KEYSPEC_INVALID;
     }
 
-    switch (cmk->metadata.keyspec)
+    // if (ciphertext->data == NULL || ciphertext->datalen == 0 ||
+    //     ciphertext->datalen > RSA_OAEP_3072_CIPHER_LENGTH)
+    // {
+    //     return EH_ARGUMENTS_BAD;
+    // }
+    /* calculate the ciphertext length */
+    if (plaintext->datalen == 0)
     {
-    case EH_RSA_2048:
-        // TODO
-        return EH_OK;
-    case EH_RSA_3072:
-        if (ciphertext->data == NULL || ciphertext->datalen == 0 ||
-            ciphertext->datalen > RSA_OAEP_3072_CIPHER_LENGTH)
-        {
-            return EH_ARGUMENTS_BAD;
-        }
-        /* calculate the ciphertext length */
-        if (plaintext->datalen == 0)
-        {
-            // todo : call enclave
-            ret = enclave_asymmetric_decrypt(g_enclave_id,
-                                             &sgxStatus,
-                                             cmk,
-                                             SIZE_OF_KEYBLOB_T(cmk->keybloblen),
-                                             ciphertext,
-                                             SIZE_OF_DATA_T(ciphertext->datalen),
-                                             plaintext,
-                                             SIZE_OF_DATA_T(plaintext->datalen));
-            return EH_OK;
-        }
-        /* check if the datalen is valid */
-        if (plaintext->data == NULL || plaintext->datalen == 0)
-        {
-            return EH_ARGUMENTS_BAD;
-        }
         // todo : call enclave
         ret = enclave_asymmetric_decrypt(g_enclave_id,
-                                        &sgxStatus,
-                                        cmk,
-                                        SIZE_OF_KEYBLOB_T(cmk->keybloblen),
-                                        ciphertext,
-                                        SIZE_OF_DATA_T(ciphertext->datalen),
-                                        plaintext,
-                                        SIZE_OF_DATA_T(plaintext->datalen));
-    case EH_EC_P256:
-        // TODO
-        return EH_OK;
-    case EH_EC_P512:
-        // TODO
-        return EH_OK;
-    case EH_SM2:
-        // TODO
-        return EH_OK;
-    default:
-        return EH_KEYSPEC_INVALID;
+                                         &sgxStatus,
+                                         cmk,
+                                         SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                                         ciphertext,
+                                         SIZE_OF_DATA_T(ciphertext->datalen),
+                                         plaintext,
+                                         SIZE_OF_DATA_T(plaintext->datalen));
+    return EH_OK;
     }
+    /* check if the datalen is valid */
+    if (plaintext->data == NULL || plaintext->datalen == 0)
+    {
+        return EH_ARGUMENTS_BAD;
+    }
+    // todo : call enclave
+    ret = enclave_asymmetric_decrypt(g_enclave_id,
+                                     &sgxStatus,
+                                     cmk,
+                                     SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                                     ciphertext,
+                                     SIZE_OF_DATA_T(ciphertext->datalen),
+                                     plaintext,
+                                     SIZE_OF_DATA_T(plaintext->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;

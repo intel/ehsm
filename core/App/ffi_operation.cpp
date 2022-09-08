@@ -161,7 +161,7 @@ extern "C"
             if (ret != EH_OK)
             {
                 retJsonObj.setCode(retJsonObj.CODE_FAILED);
-                retJsonObj.setMessage("Server exception.");
+                retJsonObj.setMessage("Server exception1.");
                 goto out;
             }
             if (master_key->keybloblen > req_len) {
@@ -169,7 +169,7 @@ extern "C"
                 if (master_key == NULL)
                 {
                     retJsonObj.setCode(retJsonObj.CODE_FAILED);
-                    retJsonObj.setMessage("Server exception.");
+                    retJsonObj.setMessage("Server exception2.");
                     goto out;
                 }
                 continue;

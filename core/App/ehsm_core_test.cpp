@@ -990,6 +990,90 @@ cleanup:
     printf("============test_RSA3072_encrypt_decrypt End==========\n");
 }
 
+void test_SM2_encrypt_decrypt()
+{
+    char* returnJsonChar = nullptr;
+    char plaintext[] = "Test1234-SM2";
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    RetJsonObj retJsonObj;
+
+    JsonObj paramJsonCreatekey;
+    JsonObj paramJsonCreatekey2;
+    JsonObj paramJsonEncrypt;
+    JsonObj paramJsonEncrypt2;
+    JsonObj paramJsonDecrypt;
+    JsonObj paramJsonDecrypt2;
+
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+
+    paramJsonCreatekey.addData_uint16("action", EH_CREATE_KEY);
+    paramJsonCreatekey2.addData_uint16("keyspec", EH_SM2);
+    paramJsonCreatekey2.addData_uint16("origin", EH_INTERNAL_KEY);
+    paramJsonCreatekey.addData_string("payload", paramJsonCreatekey2.toString());
+    
+
+    printf("============test_SM2_encrypt_decrypt start==========\n");
+
+    returnJsonChar = EHSM_NAPI_CALL(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("Create CMK with RAS SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    paramJsonEncrypt2.addData_string("cmk_base64", cmk_base64);
+    paramJsonEncrypt2.addData_string("plaintext_base64", input_plaintext_base64);
+
+    paramJsonEncrypt.addData_uint16("action", EH_ASYMMETRIC_ENCRYPT);
+    paramJsonEncrypt.addData_string("payload", paramJsonEncrypt2.toString());
+
+    returnJsonChar = EHSM_NAPI_CALL(paramJsonEncrypt.StringToChar(paramJsonEncrypt.toString()));
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
+    printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
+
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+    
+    paramJsonDecrypt2.addData_string("cmk_base64", cmk_base64);
+    paramJsonDecrypt2.addData_string("ciphertext_base64", ciphertext_base64);
+
+    paramJsonDecrypt.addData_uint16("action", EH_ASYMMETRIC_DECRYPT);
+    paramJsonDecrypt.addData_string("payload", paramJsonDecrypt2.toString());
+
+    returnJsonChar = EHSM_NAPI_CALL(paramJsonDecrypt.StringToChar(paramJsonDecrypt.toString()));
+    
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+    printf("Decrypted plaintext : %s\n", plaintext_base64);
+    if (!strcmp(plaintext_base64, input_plaintext_base64.data()))
+        printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
+    else {
+        printf("NAPI_AsymmetricDecrypt data FAILED!\n");
+        goto cleanup;
+    }
+
+cleanup:
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_SM2_encrypt_decrypt End==========\n");
+}
 
 // /*
 
@@ -1345,21 +1429,24 @@ int main(int argc, char* argv[])
     test_AES256();
 
     // test_SM4();
+
     test_RSA3072_encrypt_decrypt();
 
-//     test_RSA3072_sign_verify();
+    // test_SM2_encrypt_decrypt();
 
-//     test_generate_datakey();
+    // test_RSA3072_sign_verify();
 
-//     test_export_datakey();
+    // test_generate_datakey();
 
-//     test_GenerateQuote_and_VerifyQuote();
+    // test_export_datakey();
 
-//     test_Enroll();
+    // test_GenerateQuote_and_VerifyQuote();
 
-//     Finalize();
+    // test_Enroll();
 
-//     printf("All of tests done\n");
+    // Finalize();
+
+    // printf("All of tests done\n");
 
     return ret;
 }

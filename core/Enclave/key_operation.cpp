@@ -673,12 +673,13 @@ out:
 
 sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *ciphertext)
 {
-    // TODO : add sm2 encrypt
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
             
-    uint8_t* rsa_keypair = NULL;
-    BIO *bio = NULL;
-    RSA* rsa_pubkey = NULL;
+    uint8_t         *rsa_keypair    = NULL;
+    BIO             *bio            = NULL;
+    RSA             *rsa_pubkey     = NULL;
+    EVP_PKEY        *pkey           = NULL;
+    EVP_PKEY_CTX    *ectx           = NULL;
 
     // load rsa public key
     rsa_keypair = (uint8_t*)malloc(cmk->keybloblen);
@@ -690,42 +691,102 @@ sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *pla
 
     bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
     if (bio == NULL) {
-        printf("failed to load rsa key pem\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-    PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
-    if (rsa_pubkey == NULL) {
-        printf("failed to load rsa key\n");
+        printf("failed to load public key pem\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
-    if (ciphertext->datalen == 0) {
-        ciphertext->datalen = RSA_size(rsa_pubkey);
-        ret = SGX_SUCCESS;
-        goto out;
-    }
-    if (RSA_public_encrypt(plaintext->datalen, plaintext->data, ciphertext->data, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey)) {
-        printf("failed to make rsa encryption\n");
-        goto out;
+    // make encryption
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
+        if (rsa_pubkey == NULL) {
+            printf("failed to load rsa key\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+
+        if (ciphertext->datalen == 0) {
+            ciphertext->datalen = RSA_size(rsa_pubkey); // TODO : compute padding size
+            ret = SGX_SUCCESS;
+            goto out;
+        }
+        if (RSA_public_encrypt(plaintext->datalen, plaintext->data, ciphertext->data, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey)) {
+            printf("failed to make rsa encryption\n");
+            goto out;
+        }
+        break;
+    case EH_SM2:
+        pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+        if (pkey == NULL) {
+            printf("failed to load sm2 key\n");
+            goto out;
+        }
+        if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+        
+        if (!(ectx = EVP_PKEY_CTX_new(pkey, NULL))) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+        
+        if (EVP_PKEY_encrypt_init(ectx) != 1) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+
+        size_t strLen;
+        if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) != 1) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+
+        if (ciphertext->datalen == 0) {
+            ciphertext->datalen = strLen;
+            ret = SGX_SUCCESS;
+            goto out;
+        }
+
+        if (plaintext->data != NULL) {
+            if (EVP_PKEY_encrypt(ectx, ciphertext->data, &strLen, plaintext->data, (size_t)plaintext->datalen) != 1) {
+                printf("failed to make sm2 encryption\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                goto out;
+            }
+        } else {
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            goto out;
+        }
+    default:
+        ret = SGX_ERROR_UNEXPECTED;
+        break;
     }
 
+    ret = SGX_SUCCESS;
 out:
     BIO_free(bio);
     RSA_free(rsa_pubkey);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ectx);
     SAFE_FREE(rsa_keypair);
 
     return ret;
 }
 
-sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext)
+sgx_status_t ehsm_asymmetric_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    uint8_t* rsa_keypair = NULL;
-    BIO *bio = NULL;
-    RSA* rsa_prikey = NULL;
+    uint8_t         *rsa_keypair    = NULL;
+    BIO             *bio            = NULL;
+    RSA             *rsa_prikey     = NULL;
+    EVP_PKEY        *pkey           = NULL;
+    EVP_PKEY_CTX    *dctx           = NULL;
 
     // load private key
     rsa_keypair = (uint8_t*)malloc(cmk->keybloblen);
@@ -736,34 +797,92 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext
 
     bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
     if (bio == NULL) {
-        printf("failed to load rsa key pem\n");
+        printf("failed to load key pem\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
-    PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
-    if (rsa_prikey == NULL) {
-        printf("failed to load rsa key\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
+        if (rsa_prikey == NULL) {
+            printf("failed to load private key\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
 
-    if (plaintext->datalen == 0) {
-        uint8_t* temp_plaintext = (uint8_t*)malloc(RSA_size(rsa_prikey));
-        plaintext->datalen = RSA_private_decrypt(ciphertext->datalen, ciphertext->data, temp_plaintext, rsa_prikey, cmk->metadata.padding_mode);
-        ret = SGX_SUCCESS;
-        goto out;
-    }
+        if (plaintext->datalen == 0) {
+            uint8_t* temp_plaintext = (uint8_t*)malloc(RSA_size(rsa_prikey));
+            plaintext->datalen = RSA_private_decrypt(ciphertext->datalen, ciphertext->data, temp_plaintext, rsa_prikey, cmk->metadata.padding_mode);
+            ret = SGX_SUCCESS;
+            goto out;
+        }
 
-    if (!RSA_private_decrypt(ciphertext->datalen, ciphertext->data, plaintext->data, rsa_prikey, cmk->metadata.padding_mode)) {
-        printf("failed to make rsa decrypt\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
+        if (!RSA_private_decrypt(ciphertext->datalen, ciphertext->data, plaintext->data, rsa_prikey, cmk->metadata.padding_mode)) {
+            printf("failed to make rsa decrypt\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+        break;
+    case EH_SM2:
+        pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+        if (pkey == NULL) {
+            printf("failed to load sm2 key\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+
+        // make decryption and compute plaintext length
+        if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+
+        if (!(dctx = EVP_PKEY_CTX_new(pkey, NULL))) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+
+        if (EVP_PKEY_decrypt_init(dctx) != 1) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+
+        if (plaintext->datalen == 0) {
+            size_t strLen;
+            if (EVP_PKEY_decrypt(dctx, NULL, &strLen, ciphertext->data, (size_t)ciphertext->datalen) != 1) {
+                ret = SGX_ERROR_UNEXPECTED;
+                goto out;
+            }
+            plaintext->datalen = strLen;
+            ret = SGX_SUCCESS;
+            goto out;
+        }
+
+        if (ciphertext->data != NULL) {
+            size_t strLen = plaintext->datalen;
+            if (EVP_PKEY_decrypt(dctx, plaintext->data, &strLen, ciphertext->data, (size_t)ciphertext->datalen) != 1) { 
+                ret = SGX_ERROR_UNEXPECTED;
+                goto out;
+            }
+        } else {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+        break;
+    default:
+        ret = SGX_ERROR_INVALID_PARAMETER;
+        break;
     }
-        
+    
 out:
     BIO_free(bio);
     RSA_free(rsa_prikey);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(dctx);
     SAFE_FREE(rsa_keypair);
 
     return ret;
