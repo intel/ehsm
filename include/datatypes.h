@@ -112,7 +112,7 @@ typedef int errno_t;
 
 #define ENCLAVE_TO_ENCLAVE_CALL 0x1
 
-#define EH_CMK_MAX_SIZE (4*1024)
+#define EH_CMK_MAX_SIZE (8*1024)
 #define EH_AAD_MAX_SIZE (8*1024)
 #define EH_QUOTE_MAX_SIZE (8*1024)
 

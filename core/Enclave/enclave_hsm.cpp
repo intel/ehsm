@@ -298,7 +298,7 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t* cmk, size_t cmk_le
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    return ehsm_rsa_decrypt(cmk, ciphertext, plaintext);
+    return ehsm_asymmetric_decrypt(cmk, ciphertext, plaintext);
 }
 
 sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,

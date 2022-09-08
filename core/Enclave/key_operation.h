@@ -71,7 +71,7 @@ sgx_status_t ehsm_sm4_decrypt(const uint8_t *aad, size_t aad_len,
 
 sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *ciphertext);
 
-sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext);
+sgx_status_t ehsm_asymmetric_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext);
 
 sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk);
 
