@@ -73,20 +73,51 @@ sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *pla
 
 sgx_status_t ehsm_asymmetric_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext);
 
-sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk_blob,
+                           ehsm_padding_mode_t padding_mode,
+                           ehsm_digest_mode_t digest_mode,
+                           ehsm_keyspec_t keyspec,
+                           const ehsm_data_t *data,
+                           ehsm_data_t *signature);
 
-sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_padding_mode_t padding_mode,
+                             ehsm_digest_mode_t digest_mode,
+                             ehsm_keyspec_t keyspec,
+                             const ehsm_data_t *data,
+                             const ehsm_data_t *signature,
+                             bool *result);
 
-sgx_status_t ehsm_ec_sign(const ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_ec_encrypt(const ehsm_keyblob_t *cmk);
 
-sgx_status_t ehsm_ec_verify(const ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_ec_decrypt(const ehsm_keyblob_t *cmk);
 
-sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
+                           ehsm_digest_mode_t digest_mode,
+                           ehsm_keyspec_t keyspec,
+                           const ehsm_data_t *data,
+                           ehsm_data_t *signature,
+                           uint32_t *req_signature_len);
 
-sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_digest_mode_t digest_mode,
+                             ehsm_keyspec_t keyspec,
+                             const ehsm_data_t *data,
+                             const ehsm_data_t *signature,
+                             bool *result);
 
-sgx_status_t ehsm_aes_gcm_generate_datakey(const ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
+                           ehsm_digest_mode_t digest_mode,
+                           ehsm_keyspec_t keyspec,
+                           const ehsm_data_t *data,
+                           ehsm_data_t *signature,
+                           uint32_t *req_signature_len);
 
-sgx_status_t ehsm_sm4_generate_datakey(const ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
+                            ehsm_digest_mode_t digest_mode,
+                            ehsm_keyspec_t keyspec,
+                            const ehsm_data_t *data,
+                            const ehsm_data_t *signature,
+                            bool *result);
 
 #endif

@@ -89,6 +89,64 @@ static const EVP_CIPHER *ehsm_get_symmetric_block_mode(ehsm_keyspec_t keyspec)
 }
 
 /**
+ * @brief Get the digest mode from cmk
+ *
+ * @param digestMode use the digestMode passed in by cmk to get the struct for key
+ * @return const EVP_MD* (openssl callback, tempoary)
+ */
+const EVP_MD* GetDigestMode(ehsm_digest_mode_t digestMode)
+{
+     switch (digestMode)
+    {
+    case EH_SHA_2_224:
+        return EVP_sha224();
+    case EH_SHA_2_256:
+        return EVP_sha256();
+    case EH_SHA_2_384:
+        return EVP_sha384();
+    case EH_SHA_2_512:
+        return EVP_sha512();
+    case EH_SM3:
+        return EVP_sm3();
+    default:
+        return NULL;
+    }
+}
+
+/**
+ * @brief verify Padding Mode from cmk
+ *
+ * @param paddingMode the paddingMode passed in by cmk
+ * @param digestMode the digestMode passed in by cmk
+ * @param evpkey EVP_PKEY created by the context
+ * @return [false] unsupported padding mode/ [true] supported padding mode
+ */
+bool verifyPaddingMode(uint8_t paddingMode, const EVP_MD *digestMode, EVP_PKEY *evpkey)
+{
+    switch (paddingMode)
+    {
+    case EH_PAD_RSA_PKCS1:
+        return true;
+    case EH_PAD_RSA_SSLV23:
+        return false;
+    case EH_PAD_RSA_NO:
+        return false;
+    case EH_PAD_RSA_PKCS1_OAEP:
+        return false;
+    case EH_PAD_RSA_X931:
+        return false;
+    case EH_PAD_RSA_PKCS1_PSS:
+        if (EVP_MD_size(digestMode) * 2 + 2 > (size_t)EVP_PKEY_size(evpkey))
+        {
+            return false;
+        }
+        return true;
+    default:
+        return -1;
+    }
+}
+
+/**
  * @brief Check parameters and encrypted data
  * @param aad Additional data
  * @param aad_len Lenghth of aad
@@ -888,42 +946,853 @@ out:
     return ret;
 }
 
-sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk)
+/**
+ * @brief make rsa sign with the designated digest mode and padding mode
+ * digest mode and padding mode is optional
+ * running in enclave
+ * @param cmk_blob cipher block for storing keys
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param padding_mode padding_mode set when creating the key
+ * @param data data to be signed
+ * @param signature used to receive signature
+ * @return sgx_status_t
+ */
+sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
+                           ehsm_padding_mode_t padding_mode,
+                           ehsm_digest_mode_t digest_mode,
+                           ehsm_keyspec_t keyspec,
+                           const ehsm_data_t *data,
+                           ehsm_data_t *signature)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    
+    uint8_t *rsa_keypair   = NULL;
+    BIO *bio               = NULL;
+    RSA *rsa_prikey        = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    // rsa sign
+    do
+    {
+        // load private key
+        rsa_keypair = (uint8_t*)malloc(cmk->keybloblen);
+        ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
+                              (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+        if (ret != SGX_SUCCESS)
+            break;
+
+        bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
+        if (bio == NULL) {
+            printf("failed to load rsa key pem\n");
+            break;
+        }
+
+        PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
+        if (rsa_prikey == NULL) {
+            printf("failed to load rsa key\n");
+            break;
+        }
+
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall rsa_sign generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        // use EVP_PKEY store RSA private key
+        if (EVP_PKEY_set1_RSA(evpkey, rsa_prikey) != 1)
+        {
+            printf("ecall rsa_sign fail to set the evpkey by RSA_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // Get Digest Mode
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall rsa_sign digest Mode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        // verify Padding Mode
+        if (!verifyPaddingMode(padding_mode, digestMode, evpkey))
+        {
+            printf("ecall rsa_sign unsupported padding mode.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall rsa_sign fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall rsa_sign EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // Signature initialization, set digest mode
+        if (EVP_DigestSignInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall rsa_sign EVP_DigestSignInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // set padding mode
+        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding_mode) != 1)
+        {
+            printf("ecall rsa_sign EVP_PKEY_CTX_set_rsa_padding failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (padding_mode == RSA_PKCS1_PSS_PADDING)
+        {
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
+            {
+                printf("ecall rsa_sign EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+        }
+        // update sign
+        if (EVP_DigestUpdate(mdctx, data->data, data->datalen) != 1)
+        {
+            printf("ecall rsa_sign EVP_DigestSignUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // start sign
+        size_t temp_signature_len = 0;
+        if (EVP_DigestSignFinal(mdctx, NULL, &temp_signature_len) != 1)
+        {
+            printf("ecall rsa_sign first EVP_DigestSignFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (EVP_DigestSignFinal(mdctx, signature->data, &temp_signature_len) != 1)
+        {
+            printf("ecall rsa_sign last EVP_DigestSignFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+    } while (0);
+    RSA_free(rsa_prikey);
+    BIO_free(bio);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    SAFE_FREE(rsa_keypair);
+
+    return ret;
+}
+
+/**
+ * @brief make rsa verify with the designated digest mode and padding mode
+ * digest mode and padding mode is optional
+ * running in enclave
+ * @param cmk_blob cipher block for storing keys
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param padding_mode padding_mode set when creating the key
+ * @param data data to be signed
+ * @param signature generated signature
+ * @param result match result
+ * @return sgx_status_t
+ */
+sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_padding_mode_t padding_mode,
+                             ehsm_digest_mode_t digest_mode,
+                             ehsm_keyspec_t keyspec,
+                             const ehsm_data_t *data,
+                             const ehsm_data_t *signature,
+                             bool *result)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+
+    uint8_t *rsa_keypair   = NULL;
+    BIO *bio               = NULL;
+    RSA *rsa_pubkey        = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+
+    // rsa verify
+    do
+    {
+        // load rsa public key
+        rsa_keypair = (uint8_t*)malloc(cmk->keybloblen);
+
+        ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
+                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+        if (ret != SGX_SUCCESS)
+            break;
+
+        bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
+        if (bio == NULL) {
+            printf("failed to load rsa key pem\n");
+            break;
+        }
+        PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
+        if (rsa_pubkey == NULL) {
+            printf("failed to load rsa key\n");
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall rsa_verify generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        // use EVP_PKEY store RSA public key
+        if (EVP_PKEY_set1_RSA(evpkey, rsa_pubkey) != 1)
+        {
+            printf("ecall rsa_verify fail to set the evpkey by RSA_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        // get digest mode
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall rsa_verify digestMode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        // verify Padding Mode
+        if (!verifyPaddingMode(padding_mode, digestMode, evpkey))
+        {
+            printf("ecall rsa_verify unsupported padding mode.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall rsa_verify fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall rsa_verify EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // verify initialization, set digest mode
+        if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall rsa_verify EVP_DigestVerifyInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // set padding mode
+        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding_mode) != 1)
+        {
+            printf("ecall rsa_verify EVP_PKEY_CTX_set_rsa_padding failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (padding_mode == RSA_PKCS1_PSS_PADDING)
+        {
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
+            {
+                printf("ecall rsa_verify EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
+                ret = SGX_ERROR_UNEXPECTED;
+                break;
+            }
+        }
+        // update verify
+        if (EVP_DigestVerifyUpdate(mdctx, data->data, data->datalen) != 1)
+        {
+            printf("ecall rsa_verify EVP_DigestVerifyUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // start verify
+        if (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen) != 1)
+        {
+            printf("ecall rsa_verify EVP_DigestVerifyFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+    } while (0);
+    RSA_free(rsa_pubkey);
+    BIO_free(bio);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    SAFE_FREE(rsa_keypair);
+
+    if (ret != SGX_SUCCESS)
+    {
+        *result = false;
+    }
+    else
+    {
+        *result = true;
+    }
+    return ret;
+}
+
+sgx_status_t ehsm_ecc_encrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_ecc_decrypt(const ehsm_keyblob_t *cmk)
 {
 
 }
 
-sgx_status_t ehsm_ec_sign(const ehsm_keyblob_t *cmk)
+/**
+ * @brief make ec sign with the designated digest mode
+ * digest mode is optional
+ * running in enclave
+ * @param cmk_blob cipher block for storing keys
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param data data to be signed
+ * @param signature used to receive signature
+ * @param req_signature_len Exact length after sign
+ * @return sgx_status_t
+ */
+sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
+                          ehsm_digest_mode_t digest_mode,
+                          ehsm_keyspec_t keyspec,
+                          const ehsm_data_t *data,
+                          ehsm_data_t *signature,
+                          uint32_t *req_signature_len)
 {
+    sgx_status_t ret = SGX_SUCCESS;
+
+    uint8_t *ec_keypair    = NULL;
+    BIO *bio               = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EC_KEY *ec_key         = NULL;
+
+    do
+    {
+        ec_keypair = (uint8_t*)malloc(cmk->keybloblen);
+        ret = ehsm_parse_keyblob(ec_keypair, cmk->keybloblen,
+                              (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+        if (ret != SGX_SUCCESS)
+            break;
+
+        bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
+        if (bio == NULL) {
+            printf("failed to load ecc key pem\n");
+            break;
+        }
+
+        PEM_read_bio_ECPrivateKey(bio, &ec_key, NULL, NULL);
+        if (ec_key == NULL) {
+            printf("failed to load ecc key\n");
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall ecc_sign generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
+        {
+            printf("ecall ecc_sign fail to set the evpkey by EC_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall ec_sign digestMode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall ec_sign fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall ec_sign EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestSignInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall ec_sign EVP_DigestSignInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestUpdate(mdctx, data->data, data->datalen) != 1)
+        {
+            printf("ecall ec_sign EVP_DigestSignUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        size_t temp_signature_len = 0;
+        if (EVP_DigestSignFinal(mdctx, NULL, &temp_signature_len) != 1)
+        {
+            printf("ecall ec_sign EVP_DigestSignFinal1 failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (EVP_DigestSignFinal(mdctx, signature->data, &temp_signature_len) != 1)
+        {
+            printf("ecall ec_sign EVP_DigestSignFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // return the exact length
+        *req_signature_len = temp_signature_len;
+
+    } while (0);
+    
+    BIO_free(bio);
+    EC_KEY_free(ec_key);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    SAFE_FREE(ec_keypair);
+
+    return ret;
 
 }
 
-sgx_status_t ehsm_ec_verify(const ehsm_keyblob_t *cmk)
+/**
+ * @brief make ec verify with the designated digest mode
+ * digest mode is optional
+ * running in enclave
+ * @param cmk_blob cipher block for storing keys
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param data data to be signed
+ * @param signature generated signature
+ * @param result match result
+ * @return sgx_status_t
+ */
+sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
+                            ehsm_digest_mode_t digest_mode,
+                            ehsm_keyspec_t keyspec,
+                            const ehsm_data_t *data,
+                            const ehsm_data_t *signature,
+                            bool *result)
 {
+    sgx_status_t ret = SGX_SUCCESS;
+
+    uint8_t *ec_keypair    = NULL;
+    BIO *bio               = NULL;
+    EC_KEY *ec_key         = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+
+    do
+    {
+        ec_keypair = (uint8_t*)malloc(cmk->keybloblen);
+
+        ret = ehsm_parse_keyblob(ec_keypair, cmk->keybloblen,
+                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+        if (ret != SGX_SUCCESS)
+            break;
+
+        bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
+        if (bio == NULL) {
+            printf("failed to load ec key pem\n");
+            break;
+        }
+        PEM_read_bio_EC_PUBKEY(bio, &ec_key, NULL, NULL);
+        if (ec_key == NULL) {
+            printf("failed to load ec key\n");
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall ec_verify generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
+        {
+            printf("ecall ec_verify fail to set the evpkey by RSA_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall ec_verify digestMode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall ec_verify fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall ec_verify EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall ec_verify EVP_DigestVerifyInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestVerifyUpdate(mdctx, data->data, data->datalen) != 1)
+        {
+            printf("ecall ec_verify EVP_DigestVerifyUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen) != 1)
+        {
+            printf("ecall ec_verify EVP_DigestVerifyFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+    } while (0);
+
+    BIO_free(bio);
+    EC_KEY_free(ec_key);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    SAFE_FREE(ec_keypair);
+
+    if (ret != SGX_SUCCESS)
+    {
+        *result = false;
+    }
+    else
+    {
+        *result = true;
+    }
+
+    return ret;
+}
+
+/**
+ * @brief make sm2 sign with the designated digest mode
+ * digest mode is optional
+ * running in enclave
+ * @param cmk_blob cipher block for storing keys
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param data data to be signed
+ * @param signature used to receive signature
+ * @param req_signature_len Exact length after sign
+ * @return sgx_status_t
+ */
+sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
+                          ehsm_digest_mode_t digest_mode,
+                          ehsm_keyspec_t keyspec,
+                          const ehsm_data_t *data,
+                          ehsm_data_t *signature,
+                          uint32_t *req_signature_len)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+
+    uint8_t *ec_keypair    = NULL;
+    BIO *bio               = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EC_KEY *ec_key         = NULL;
+    // set sm2 id and id len
+    unsigned char sm2_id[] = "12345_asdfa";
+    unsigned int sm2_id_len = sizeof(sm2_id) - 1;
+
+    do
+    {
+        ec_keypair = (uint8_t*)malloc(cmk->keybloblen);
+        ret = ehsm_parse_keyblob(ec_keypair, cmk->keybloblen,
+                              (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+        if (ret != SGX_SUCCESS)
+            break;
+
+        bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
+        if (bio == NULL) {
+            printf("failed to load ec key pem\n");
+            break;
+        }
+
+        PEM_read_bio_ECPrivateKey(bio, &ec_key, NULL, NULL);
+        if (ec_key == NULL) {
+            printf("failed to load ec key\n");
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall sm2_sign generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
+        {
+            printf("ecall sm2_sign fail to set the evpkey by EC_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall sm2_sign digestMode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall sm2_sign fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall sm2_sign EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_PKEY_set_alias_type(evpkey, EVP_PKEY_SM2) != 1)
+        {
+            printf("ecall sm2_sign fail to modify the evpkey to use SM2\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        pkey_ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+        if (pkey_ctx == NULL)
+        {
+            printf("ecall sm2_sign fail to create a EVP_PKEY_CTX\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (EVP_PKEY_CTX_set1_id(pkey_ctx, sm2_id, sm2_id_len) != 1)
+        {
+            printf("ecall sm2_sign fail to set sm2_user_id to the EVP_PKEY_CTX\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        EVP_MD_CTX_set_pkey_ctx(mdctx, pkey_ctx);
+
+        if (EVP_DigestSignInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall sm2_sign EVP_DigestSignInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestUpdate(mdctx, data->data, data->datalen) != 1)
+        {
+            printf("ecall sm2_sign EVP_DigestSignUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        size_t temp_signature_len = 0;
+        if (EVP_DigestSignFinal(mdctx, NULL, &temp_signature_len) != 1)
+        {
+            printf("ecall sm2_sign EVP_DigestSignFinal1 failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (EVP_DigestSignFinal(mdctx, signature->data, &temp_signature_len) != 1)
+        {
+            printf("ecall sm2_sign EVP_DigestSignFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // return the exact length
+        *req_signature_len = temp_signature_len;
+
+    } while (0);
+
+    BIO_free(bio);
+    EC_KEY_free(ec_key);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    SAFE_FREE(ec_keypair);
+
+    return ret;
 
 }
 
-sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk)
+/**
+ * @brief make sm2 verify with the designated digest mode
+ * digest mode is optional
+ * running in enclave
+ * @param cmk_blob cipher block for storing keys
+ * @param digest_mode digest mode set when creating the key
+ * @param keyspec keyspec set when creating the key
+ * @param data data to be signed
+ * @param signature generated signature
+ * @param result match result
+ * @return sgx_status_t
+ */
+sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
+                            ehsm_digest_mode_t digest_mode,
+                            ehsm_keyspec_t keyspec,
+                            const ehsm_data_t *data,
+                            const ehsm_data_t *signature,
+                            bool *result)
 {
+    sgx_status_t ret = SGX_SUCCESS;
 
-}
+    uint8_t *ec_keypair    = NULL;
+    BIO *bio               = NULL;
+    EC_KEY *ec_key         = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    // set sm2 id and id len
+    unsigned char sm2_id[] = "12345_asdfa";
+    unsigned int sm2_id_len = sizeof(sm2_id) - 1;
 
-sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk)
-{
+    do
+    {
+        ec_keypair = (uint8_t*)malloc(cmk->keybloblen);
 
-}
+        ret = ehsm_parse_keyblob(ec_keypair, cmk->keybloblen,
+                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+        if (ret != SGX_SUCCESS)
+            break;
 
-sgx_status_t ehsm_aes_gcm_generate_datakey(const ehsm_keyblob_t *cmk)
-{
+        bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
+        if (bio == NULL) {
+            printf("failed to load ec key pem\n");
+            break;
+        }
+        PEM_read_bio_EC_PUBKEY(bio, &ec_key, NULL, NULL);
+        if (ec_key == NULL) {
+            printf("failed to load ec key\n");
+            break;
+        }
+        evpkey = EVP_PKEY_new();
+        if (evpkey == NULL)
+        {
+            printf("ecall sm2_verify generate evpkey failed.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
+        {
+            printf("ecall sm2_verify fail to set the evpkey by RSA_KEY\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
 
-}
+        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        if (digestMode == NULL)
+        {
+            printf("ecall sm2_verify digestMode error.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            break;
+        }
 
-sgx_status_t ehsm_sm4_generate_datakey(const ehsm_keyblob_t *cmk)
-{
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL)
+        {
+            printf("ecall sm2_verify fail to create a EVP_MD_CTX.\n");
+            ret = SGX_ERROR_OUT_OF_MEMORY;
+            break;
+        }
+        if (EVP_MD_CTX_init(mdctx) != 1)
+        {
+            printf("ecall sm2_verify EVP_MD_CTX initialize failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        
+        // sm2 add
+        if (EVP_PKEY_set_alias_type(evpkey, EVP_PKEY_SM2) != 1)
+        {
+            printf("ecall sm2_verify fail to modify the evpkey to use SM2\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        pkey_ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+        if (pkey_ctx == NULL)
+        {
+            printf("ecall sm2_verify fail to create a EVP_PKEY_CTX\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        // set sm2 id and len to pkeyctx
+        if (EVP_PKEY_CTX_set1_id(pkey_ctx, sm2_id, sm2_id_len) != 1)
+        {
+            printf("ecall sm2_verify fail to set sm2_user_id to the EVP_PKEY_CTX\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        EVP_MD_CTX_set_pkey_ctx(mdctx, pkey_ctx);
 
+
+        if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+        {
+            printf("ecall sm2_verify EVP_DigestVerifyInit failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+        if (EVP_DigestVerifyUpdate(mdctx, data->data, data->datalen) != 1)
+        {
+            printf("ecall sm2_verify EVP_DigestVerifyUpdate failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+        if (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen) != 1)
+        {
+            printf("ecall sm2_verify EVP_DigestVerifyFinal failed.\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            break;
+        }
+
+    } while (0);
+
+    BIO_free(bio);
+    EC_KEY_free(ec_key);
+    EVP_PKEY_free(evpkey);
+    EVP_MD_CTX_free(mdctx);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    SAFE_FREE(ec_keypair);
+
+    if (ret != SGX_SUCCESS)
+    {
+        *result = false;
+    }
+    else
+    {
+        *result = true;
+    }
+
+    return ret;
 }

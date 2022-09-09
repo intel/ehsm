@@ -48,6 +48,7 @@
 #include "openssl/ec.h"
 #include "openssl/pem.h"
 #include "openssl/bio.h"
+#include "openssl/rand.h"
 #include "openssl/err.h"
 
 #include "key_factory.h"
@@ -394,5 +395,74 @@ sgx_status_t ehsm_create_sm4_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
     memset_s(tmp, keysize, 0, keysize);
 
     free(tmp);
+    return ret;
+}
+sgx_status_t ehsm_aes_gcm_generate_datakey(const ehsm_keyblob_t *cmk,
+                                           const ehsm_data_t *aad,
+                                           ehsm_data_t *plaintext,
+                                           ehsm_data_t *ciphertext)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    uint8_t *datakey = NULL;
+    datakey = (uint8_t *)malloc(plaintext->datalen);
+    if (datakey == NULL) {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+    if(RAND_bytes(datakey, plaintext->datalen) != 1) 
+    {
+        free(datakey);
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+    ret = ehsm_aes_gcm_encrypt(aad->data, 
+                              aad->datalen, 
+                              cmk->keyblob, 
+                              cmk->keybloblen, 
+                              datakey, 
+                              plaintext->datalen, 
+                              ciphertext->data, 
+                              ciphertext->datalen, 
+                              cmk->metadata.keyspec);
+    if (plaintext->data != NULL)
+        memcpy_s(plaintext->data, plaintext->datalen, datakey, plaintext->datalen);
+
+    memset_s(datakey, plaintext->datalen, 0, plaintext->datalen);
+
+    free(datakey);
+
+    return ret;
+}
+
+sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
+                                       const ehsm_data_t *aad,
+                                       ehsm_data_t *plaintext,
+                                       ehsm_data_t *ciphertext)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    uint8_t *datakey = NULL;
+    datakey = (uint8_t *)malloc(plaintext->datalen);
+    if (datakey == NULL) {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+    if(RAND_bytes(datakey, plaintext->datalen) != 1) 
+    {
+        free(datakey);
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+    ret = ehsm_sm4_encrypt(aad->data, 
+                           aad->datalen, 
+                           cmk->keyblob, 
+                           cmk->keybloblen, 
+                           datakey, 
+                           plaintext->datalen, 
+                           ciphertext->data, 
+                           ciphertext->datalen, 
+                           cmk->metadata.keyspec);
+    if (plaintext->data != NULL)
+        memcpy_s(plaintext->data, plaintext->datalen, datakey, plaintext->datalen);
+
+    memset_s(datakey, plaintext->datalen, 0, plaintext->datalen);
+
+    free(datakey);
+
     return ret;
 }

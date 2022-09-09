@@ -89,7 +89,7 @@ enclave {
 
         public sgx_status_t enclave_sign([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
                             [in, size=data_len] const ehsm_data_t *data, size_t data_len,
-                            [out, size=signature_len] ehsm_data_t *signature, size_t signature_len);
+                            [in, out, size=signature_len] ehsm_data_t *signature, size_t signature_len);
                                          
         public sgx_status_t enclave_verify([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
                             [in, size=data_len] const ehsm_data_t *data, size_t data_len,
@@ -98,8 +98,8 @@ enclave {
 
         public sgx_status_t enclave_generate_datakey([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
                             [in, size=aad_len] const ehsm_data_t *aad, size_t aad_len,
-                            [out, size=plaintext_len] ehsm_data_t *plaintext, size_t plaintext_len,
-                            [out, size=ciphertext_len] ehsm_data_t *ciphertext, size_t ciphertext_len);
+                            [in, out, size=plaintext_len] ehsm_data_t *plaintext, size_t plaintext_len,
+                            [in, out, size=ciphertext_len] ehsm_data_t *ciphertext, size_t ciphertext_len);
 
         public sgx_status_t enclave_export_datakey([in, size=s_cmk_len] const ehsm_keyblob_t* s_cmk, size_t s_cmk_len,
                             [in, size=aad_len] const ehsm_data_t *aad, size_t aad_len,

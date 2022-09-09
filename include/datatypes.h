@@ -89,8 +89,8 @@ typedef int errno_t;
 #define RSA_OAEP_3072_SIGNATURE_SIZE      384
 #define RSA_OAEP_2048_SIGNATURE_SIZE      256
 
-#define EC_P256_SIGNATURE_SIZE            64
-#define EC_SM2_SIGNATURE_SIZE             64
+#define EC_P256_SIGNATURE_MAX_SIZE        72
+#define EC_SM2_SIGNATURE_MAX_SIZE         72
 
 #define RSA_OAEP_4096_DIGEST_SIZE         264
 #define EC_MAX_DIGEST_SIZE                264
@@ -175,20 +175,17 @@ typedef enum {
     EH_EC_P512,
     EH_HMAC,
     EH_SM2,
-    EH_SM3,
     EH_SM4,
     INVALID_VALUE
 } ehsm_keyspec_t;
 
 typedef enum {
     EH_NONE = 0,
-    EH_MD5,
-    EH_SHA1,
     EH_SHA_2_224,
     EH_SHA_2_256,
     EH_SHA_2_384,
     EH_SHA_2_512,
-    EH_SM3_DIGEST
+    EH_SM3
 } ehsm_digest_mode_t;
 
 typedef enum {
@@ -196,7 +193,8 @@ typedef enum {
     EH_PAD_RSA_SSLV23,      
     EH_PAD_RSA_NO,          
     EH_PAD_RSA_PKCS1_OAEP,  
-    EH_PAD_RSA_X931,        
+    EH_PAD_RSA_X931,
+    EH_PAD_RSA_PKCS1_PSS       
 } ehsm_padding_mode_t;
 
 typedef enum {
