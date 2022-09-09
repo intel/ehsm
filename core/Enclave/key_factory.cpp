@@ -48,6 +48,7 @@
 #include "openssl/ec.h"
 #include "openssl/pem.h"
 #include "openssl/bio.h"
+#include "openssl/err.h"
 
 #include "key_factory.h"
 #include "key_operation.h"
@@ -61,6 +62,8 @@
 #define ECC_MAX_PLAINTEXT_SIZE      256
 
 sgx_aes_gcm_128bit_key_t g_domain_key = {0};
+
+using namespace std;
 
 uint32_t ehsm_calc_keyblob_len(const uint32_t aad_size, const uint32_t plaintext_size)
 {
@@ -224,7 +227,7 @@ sgx_status_t ehsm_create_aes_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
 
 sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
 {
-    sgx_status_t ret = SGX_SUCCESS;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     EVP_PKEY_CTX        *pkey_ctx        = NULL;
     EVP_PKEY            *pkey           = NULL;
@@ -243,10 +246,8 @@ sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
         case EH_EC_P256:
         case EH_EC_P384:
         case EH_EC_P512:
-            pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
-            break;
         case EH_SM2:
-            pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_SM2, NULL);
+            pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
             break;
         default:
             break;
@@ -277,11 +278,12 @@ sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
             break;
         case EH_SM2:
             EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_sm2);
+                        
             break;
         default:
             break;
     }
-
+   
     if (!EVP_PKEY_keygen(pkey_ctx, &pkey)) {
         goto out;
     }

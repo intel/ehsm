@@ -31,6 +31,7 @@
 
 #ifndef _EHSM_FFI_H
 #define _EHSM_FFI_H
+#include "json_utils.h"
 
 extern "C"
 {
@@ -74,7 +75,7 @@ extern "C"
             }
         }
      */
-    char *ffi_createKey(const char *payload);
+    char *ffi_createKey(JsonObj payloadJson);
 
     /**
      * @brief encrypt plaintext with specicied key
@@ -97,7 +98,7 @@ extern "C"
             }
         }
      */
-    char *ffi_encrypt(const char *payload);
+    char *ffi_encrypt(JsonObj payloadJson);
 
     /**
      * @brief decrypt ciphertext with specicied key
@@ -120,7 +121,7 @@ extern "C"
             }
         }
      */
-    char *ffi_decrypt(const char *payload);
+    char *ffi_decrypt(JsonObj payloadJson);
 
     /**
      * @brief encrypt plaintext with specicied key
@@ -142,7 +143,7 @@ extern "C"
             }
         }
      */
-    char *ffi_asymmetricEncrypt(const char *payload);
+    char *ffi_asymmetricEncrypt(JsonObj payloadJson);
 
     /**
      * @brief decrypt ciphertext with specicied key
@@ -164,7 +165,7 @@ extern "C"
             }
         }
      */
-    char *ffi_asymmetricDecrypt(const char *payload);
+    char *ffi_asymmetricDecrypt(JsonObj payloadJson);
 
     /**
      * @brief generate key and encrypt with specicied function
@@ -188,7 +189,7 @@ extern "C"
             }
         }
      */
-    char *ffi_generateDataKey(const char *payload);
+    char *ffi_generateDataKey(JsonObj payloadJson);
 
     /**
      * @brief generate key and encrypt with specicied function
@@ -211,7 +212,7 @@ extern "C"
             }
         }
      */
-    char *ffi_generateDataKeyWithoutPlaintext(const char *payload);
+    char *ffi_generateDataKeyWithoutPlaintext(JsonObj payloadJson);
 
     /**
      * @brief pass in a key to decrypt the data key
@@ -235,7 +236,7 @@ extern "C"
             }
         }
      */
-    char *ffi_exportDataKey(const char *payload);
+    char *ffi_exportDataKey(JsonObj payloadJson);
 
     /**
      * @brief create key sign with rsa/ec/sm2
@@ -256,7 +257,7 @@ extern "C"
             }
         }
      */
-    char *ffi_sign(const char *payload);
+    char *ffi_sign(JsonObj payloadJson);
 
     /**
      * @brief verify key sign
@@ -278,7 +279,7 @@ extern "C"
             }
         }
      */
-    char *ffi_verify(const char *payload);
+    char *ffi_verify(JsonObj payloadJson);
 
     /*
      *  @param p_msg0 : msg0 json string
@@ -361,7 +362,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_generateQuote(const char *payload);
+    char *ffi_generateQuote(JsonObj payloadJson);
 
     /**
      * @brief Users are expected already got a valid DCAP format QUOTE.
@@ -385,7 +386,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_verifyQuote(const char *payload);
+    char *ffi_verifyQuote(JsonObj payloadJson);
 
     /*
      *  @return
