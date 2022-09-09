@@ -136,7 +136,8 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
  */
 char *EHSM_NAPI_CALL(const char *paramJson)
 {
-    char *resp = NULL;
+    log_d("paramJson = %s", paramJson);
+    char *resp = nullptr;
     ehsm_status_t ret = EH_OK;
     RetJsonObj retJsonObj;
     uint32_t action = -1;
@@ -211,6 +212,7 @@ char *EHSM_NAPI_CALL(const char *paramJson)
     default:
         break;
     }
+    log_d("resp = %s", resp);
     return resp;
 }
 
@@ -347,15 +349,15 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
             return EH_ARGUMENTS_BAD;
         }
         ret = enclave_encrypt(g_enclave_id,
-                        &sgxStatus,
-                        cmk,
-                        SIZE_OF_KEYBLOB_T(cmk->keybloblen),
-                        aad,
-                        SIZE_OF_DATA_T(aad->datalen),
-                        plaintext,
-                        SIZE_OF_DATA_T(plaintext->datalen),
-                        ciphertext,
-                        SIZE_OF_DATA_T(ciphertext->datalen));
+                              &sgxStatus,
+                              cmk,
+                              SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                              aad,
+                              SIZE_OF_DATA_T(aad->datalen),
+                              plaintext,
+                              SIZE_OF_DATA_T(plaintext->datalen),
+                              ciphertext,
+                              SIZE_OF_DATA_T(ciphertext->datalen));
         break;
     default:
         return EH_KEYSPEC_INVALID;
@@ -502,13 +504,13 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
     if (ciphertext->datalen == 0)
     {
         ret = enclave_asymmetric_encrypt(g_enclave_id,
-                                        &sgxStatus,
-                                        cmk,
-                                        SIZE_OF_KEYBLOB_T(cmk->keybloblen),
-                                        plaintext,
-                                        SIZE_OF_DATA_T(plaintext->datalen),
-                                        ciphertext,
-                                        SIZE_OF_DATA_T(ciphertext->datalen));
+                                         &sgxStatus,
+                                         cmk,
+                                         SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                                         plaintext,
+                                         SIZE_OF_DATA_T(plaintext->datalen),
+                                         ciphertext,
+                                         SIZE_OF_DATA_T(ciphertext->datalen));
         if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
             return EH_FUNCTION_FAILED;
         else
@@ -516,13 +518,13 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
     }
     // TODO : call enclave
     ret = enclave_asymmetric_encrypt(g_enclave_id,
-                                        &sgxStatus,
-                                        cmk,
-                                        SIZE_OF_KEYBLOB_T(cmk->keybloblen),
-                                        plaintext,
-                                        SIZE_OF_DATA_T(plaintext->datalen),
-                                        ciphertext,
-                                        SIZE_OF_DATA_T(ciphertext->datalen));
+                                     &sgxStatus,
+                                     cmk,
+                                     SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                                     plaintext,
+                                     SIZE_OF_DATA_T(plaintext->datalen),
+                                     ciphertext,
+                                     SIZE_OF_DATA_T(ciphertext->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;
@@ -568,7 +570,7 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
                                          SIZE_OF_DATA_T(ciphertext->datalen),
                                          plaintext,
                                          SIZE_OF_DATA_T(plaintext->datalen));
-    return EH_OK;
+        return EH_OK;
     }
     /* check if the datalen is valid */
     if (plaintext->data == NULL || plaintext->datalen == 0)

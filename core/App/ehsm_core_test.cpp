@@ -1357,32 +1357,38 @@ cleanup:
 //     printf("============test_GenerateQuote_and_VerifyQuote end==========\n");
 // }
 
-// void test_Enroll()
-// {
-//     printf("============test_Enroll start==========\n");
-//     RetJsonObj retJsonObj;
-//     char* returnJsonChar = nullptr;
-//     char* appid = nullptr;
-//     char* apikey = nullptr;
+void test_Enroll()
+{
+    printf("============test_Enroll start==========\n");
+    RetJsonObj retJsonObj;
+    char* returnJsonChar = nullptr;
+    char* appid = nullptr;
+    char* apikey = nullptr;
 
-//     returnJsonChar = NAPI_Enroll();
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_Enroll failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_Enroll Json : %s\n", returnJsonChar);
-//     printf("NAPI_Enroll SUCCESSFULLY!\n");
 
-//     appid = retJsonObj.readData_cstr("appid");
-//     apikey = retJsonObj.readData_cstr("apikey");
-//     printf("appid : %s\n", appid);
-//     printf("apikey : %s\n", apikey);
+    JsonObj param_json;
+    JsonObj payload_json;
+    param_json.addData_uint16("action", EH_ENROLL);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
 
-// cleanup:
-//     SAFE_FREE(returnJsonChar);
-//     printf("============test_Enroll end==========\n");
-// }
+    returnJsonChar = EHSM_NAPI_CALL(param_json.toString().c_str());
+    retJsonObj.parse(returnJsonChar);
+    if(retJsonObj.getCode() != 200){
+        printf("NAPI_Enroll failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Enroll Json : %s\n", returnJsonChar);
+    printf("NAPI_Enroll SUCCESSFULLY!\n");
+
+    appid = retJsonObj.readData_cstr("appid");
+    apikey = retJsonObj.readData_cstr("apikey");
+    printf("appid : %s\n", appid);
+    printf("apikey : %s\n", apikey);
+
+cleanup:
+    SAFE_FREE(returnJsonChar);
+    printf("============test_Enroll end==========\n");
+}
 
 // void test_performance()
 // {
@@ -1432,7 +1438,7 @@ int main(int argc, char* argv[])
 
     // test_GenerateQuote_and_VerifyQuote();
 
-    // test_Enroll();
+    test_Enroll();
 
     // Finalize();
 

@@ -1699,45 +1699,45 @@ extern "C"
     char *ffi_enroll()
     {
         RetJsonObj retJsonObj;
-        //     log_i("%s start.", __func__);
+        log_d("%s start.", __func__);
 
-        //     ehsm_status_t ret = EH_OK;
+        ehsm_status_t ret = EH_OK;
 
-        //     ehsm_data_t apikey;
-        //     ehsm_data_t appid;
+        ehsm_data_t *apikey;
+        ehsm_data_t *appid;
 
-        //     appid.datalen = UUID_STR_LEN;
-        //     appid.data = (uint8_t *)calloc(appid.datalen, sizeof(uint8_t));
-        //     if (appid.data == NULL)
-        //     {
-        //         ret = EH_DEVICE_MEMORY;
-        //         goto OUT;
-        //     }
+        appid = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(UUID_STR_LEN));
+        if (appid == NULL)
+        {
+            ret = EH_DEVICE_MEMORY;
+            goto OUT;
+        }
+        appid->datalen = UUID_STR_LEN;
 
-        //     apikey.datalen = EH_API_KEY_SIZE;
-        //     apikey.data = (uint8_t *)calloc(apikey.datalen + 1, sizeof(uint8_t));
-        //     if (apikey.data == NULL)
-        //     {
-        //         ret = EH_DEVICE_MEMORY;
-        //         goto OUT;
-        //     }
+        apikey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(EH_API_KEY_SIZE + 1));
+        if (apikey == NULL)
+        {
+            ret = EH_DEVICE_MEMORY;
+            goto OUT;
+        }
+        apikey->datalen = EH_API_KEY_SIZE;
 
-        //     ret = Enroll(&appid, &apikey);
-        //     if (ret != EH_OK)
-        //     {
-        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        //         retJsonObj.setMessage("Server exception.");
-        //         goto OUT;
-        //     }
+        ret = Enroll(appid, apikey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto OUT;
+        }
 
-        //     retJsonObj.addData_string("appid", (char *)appid.data);
-        //     retJsonObj.addData_string("apikey", (char *)apikey.data);
+        retJsonObj.addData_string("appid", (char *)appid->data);
+        retJsonObj.addData_string("apikey", (char *)apikey->data);
 
-        //     log_i("%s end.", __func__);
+        log_d("%s end.", __func__);
 
-        // OUT:
-        //     SAFE_FREE(apikey.data);
-        //     SAFE_FREE(appid.data);
+    OUT:
+        SAFE_FREE(apikey);
+        SAFE_FREE(appid);
         return retJsonObj.toChar();
     }
 
