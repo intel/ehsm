@@ -916,7 +916,7 @@ void test_RSA3072_encrypt_decrypt()
     paramJsonCreatekey2.addData_uint16("keyspec", EH_RSA_3072);
     paramJsonCreatekey2.addData_uint16("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
     paramJsonCreatekey2.addData_uint16("origin", EH_INTERNAL_KEY);
-    paramJsonCreatekey.addData_string("payload", paramJsonCreatekey2.toString());
+    paramJsonCreatekey.addData_JsonValue("payload", paramJsonCreatekey2.getJson());
     
 
     printf("============test_RSA3072_encrypt_decrypt start==========\n");
@@ -936,7 +936,7 @@ void test_RSA3072_encrypt_decrypt()
     paramJsonEncrypt2.addData_string("plaintext_base64", input_plaintext_base64);
 
     paramJsonEncrypt.addData_uint16("action", EH_ASYMMETRIC_ENCRYPT);
-    paramJsonEncrypt.addData_string("payload", paramJsonEncrypt2.toString());
+    paramJsonEncrypt.addData_JsonValue("payload", paramJsonEncrypt2.getJson());
 
     returnJsonChar = EHSM_NAPI_CALL(paramJsonEncrypt.StringToChar(paramJsonEncrypt.toString()));
     retJsonObj.parse(returnJsonChar);
@@ -953,7 +953,7 @@ void test_RSA3072_encrypt_decrypt()
     paramJsonDecrypt2.addData_string("ciphertext_base64", ciphertext_base64);
 
     paramJsonDecrypt.addData_uint16("action", EH_ASYMMETRIC_DECRYPT);
-    paramJsonDecrypt.addData_string("payload", paramJsonDecrypt2.toString());
+    paramJsonDecrypt.addData_JsonValue("payload", paramJsonDecrypt2.getJson());
 
     returnJsonChar = EHSM_NAPI_CALL(paramJsonDecrypt.StringToChar(paramJsonDecrypt.toString()));
     
@@ -1800,15 +1800,15 @@ int main(int argc, char* argv[])
 //     test_performance();
 // #endif
 
-    // test_AES128();
+    test_AES128();
 
-    // test_AES192();
+    test_AES192();
 
-    // test_AES256();
+    test_AES256();
 
     // test_SM4();
 
-    // test_RSA3072_encrypt_decrypt();
+    test_RSA3072_encrypt_decrypt();
 
     test_RSA2048_sign_verify();
 
@@ -1818,7 +1818,7 @@ int main(int argc, char* argv[])
 
     test_ec_sm2_sign_verify();
 
-    //test_SM2_encrypt_decrypt();
+    test_SM2_encrypt_decrypt();
 
     test_ec_p256_sign_verify();
 
@@ -1828,11 +1828,11 @@ int main(int argc, char* argv[])
 
     // test_GenerateQuote_and_VerifyQuote();
 
-    //test_Enroll();
+    test_Enroll();
 
-    // Finalize();
+    Finalize();
 
-    // printf("All of tests done\n");
+    printf("All of tests done\n");
 
     return ret;
 }
