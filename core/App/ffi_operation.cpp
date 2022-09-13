@@ -289,10 +289,6 @@ extern "C"
         {
             memcpy_s(aad_data->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
         }
-        else
-        {
-            aad_data = NULL;
-        }
         memcpy_s(cmk, cmk_len, (ehsm_keyblob_t *)cmk_str.data(), cmk_len);
 
         cipher_data->datalen = 0;
@@ -442,10 +438,6 @@ extern "C"
         {
             // aad_data->data = (uint8_t *)aad_str.data();
             memcpy_s(aad_data->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
-        }
-        else
-        {
-            aad_data = NULL;
         }
         memcpy_s(cmk, cmk_len, (ehsm_keyblob_t *)cmk_str.data(), cmk_len);
 
@@ -1007,10 +999,6 @@ extern "C"
         if (aad_len > 0)
         {
             memcpy(aad_data->data, (uint8_t *)aad_str.data(), aad_len);
-        }
-        else
-        {
-            aad_data = NULL;
         }
 
         plaint_datakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(keylen));
