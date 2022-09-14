@@ -85,7 +85,7 @@ extern "C"
                 {
                     cmk : a base64 string,
                     plaintext : a base64 string,
-                    add : a base64 string
+                    aad : a base64 string
                 }
      *
      * @return char*
@@ -108,7 +108,7 @@ extern "C"
                 {
                     cmk : a base64 string,
                     ciphertext : a base64 string,
-                    add : a base64 string
+                    aad : a base64 string
                 }
      *
      * @return char*
