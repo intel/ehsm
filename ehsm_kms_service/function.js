@@ -3,7 +3,10 @@ const { v4: uuidv4 } = require('uuid')
 
 const logger = require('./logger')
 const {
-  Definition
+  Definition,
+  ehsm_keySpec_t,
+  ehsm_keyorigin_t,
+  ehsm_action_t
 } = require('./constant')
 const { KMS_ACTION } = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
@@ -167,22 +170,29 @@ function store_cmk(napi_res, res, appid, payload, DB) {
  * If the value of the result is not equal to 200, the result is directly returned to the user
  * @param {function name} action
  * @param {object} res
- * @param {NAPI_* function params} params
+ * @param {EHSM_NAPI_CALL function params} params
  * @returns napi result | false
  */
-function napi_result(action, res, params) {
+function napi_result(action, res, payload) {
   try {
-    const napi_res = ehsm_napi[`NAPI_${action}`](...params)
+    let jsonParam = {
+      action: ehsm_action_t[action],
+      payload
+    }
+    const napi_res = ehsm_napi[`EHSM_NAPI_CALL`](JSON.stringify(jsonParam))
     if (JSON.parse(napi_res).code != 200) {
-      res.send(napi_res)
+      if (res != undefined) {
+        res.send(napi_res)
+      }
       return false
     } else {
       return JSON.parse(napi_res)
     }
-    // })
   } catch (e) {
     logger.error(e)
-    res.send(_result(500, 'Server internal error, please contact the administrator.'))
+    if (res != undefined) {
+      res.send(_result(500, 'Server internal error, please contact the administrator.'))
+    }
     return false
   }
 }
@@ -196,18 +206,21 @@ function napi_result(action, res, params) {
  */
 const create_user_info = (action, DB, res, req) => {
   const json_str_params = JSON.stringify({ ...req.body })
-  let napi_res = napi_result(action, res, [json_str_params])
+  let napi_res = napi_result(action, res, { json_str_params })
 
   if (napi_res) {
     const { appid, apikey } = napi_res.result
-    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
+    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
+      keyspec: ehsm_keySpec_t.EH_AES_GCM_128,
+      origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
+    })
     if (cmk_res) {
       const { cmk } = cmk_res.result
-      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [
+      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, {
         cmk,
-        apikey,
-        '',
-      ])
+        plaintext: apikey,
+        aad: '',
+      })
       if (apikey_encrypt_res) {
         const { ciphertext } = apikey_encrypt_res.result
         DB.insert({
@@ -238,21 +251,27 @@ const create_user_info = (action, DB, res, req) => {
  * _id | appid | apikey | cmk
  */
 const enroll_user_info = (action, DB, res, req) => {
-  let napi_res = napi_result(action, res, [])
+  let napi_res = napi_result(action, res, {})
 
   if (napi_res) {
     const { appid, apikey } = napi_res.result
-    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
-    let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
+    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
+      keyspec: ehsm_keySpec_t.EH_AES_GCM_128,
+      origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
+    })
+    let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
+      keyspec: ehsm_keySpec_t.EH_AES_GCM_128,
+      origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
+    })
     if (cmk_res && sm_default_cmk_res) {
       const { cmk } = cmk_res.result
       // create a default secret manager CMK for current appids
       const sm_default_cmk = sm_default_cmk_res.result.cmk
-      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [
+      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, {
         cmk,
-        apikey,
-        '',
-      ])
+        plaintext: base64_encode(apikey),
+        aad: ''
+      })
       if (apikey_encrypt_res) {
         const { ciphertext } = apikey_encrypt_res.result
         DB.insert({
@@ -447,26 +466,6 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
 }
 
 /**
- * ehsm napi result
- * If the value of the result is not equal to 200, the result is directly returned to the user
- * @param {function name} action
- * @param {NAPI_* function params} params
- * @returns napi result | false
- */
-function napi_result_local(action, params) {
-  try {
-    const napi_res = ehsm_napi[`NAPI_${action}`](...params)
-    let res = JSON.parse(napi_res)
-    if (res && res.code == 200) {
-      return res
-    }
-    return false
-  } catch (e) {
-    return false
-  }
-}
-
-/**
  * Query ApiKey
  */
 const _query_api_key = async (DB, appid) => {
@@ -485,15 +484,22 @@ const _query_api_key = async (DB, appid) => {
         api_key: ''
       }
     }
+
     let { cmk, apikey } = query_result.docs[0]
-    let decypt_result = napi_result_local(
+    let decypt_result = napi_result(
       KMS_ACTION.cryptographic.Decrypt,
-      [cmk, apikey, '']
+      undefined,
+      {
+        cmk,
+        ciphertext: apikey,
+        aad: ''
+      }
     )
+
     if (decypt_result) {
       return {
         msg: '',
-        api_key: decypt_result.result.plaintext
+        api_key: base64_decode(decypt_result.result.plaintext)
       }
     } else {
       return {
