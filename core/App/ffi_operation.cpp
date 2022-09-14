@@ -1403,7 +1403,6 @@ extern "C"
         if (appid_len > 0)
         {
             memcpy(appid_data->data, (uint8_t *)appid_str.data(), appid_len);
-
         }
         signature = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0));
 
@@ -1938,59 +1937,68 @@ extern "C"
     {
         RetJsonObj retJsonObj;
 
-        //     const char *challenge_base64 = payloadJson.readData_cstr("challenge");
+        const char *challenge_base64 = payloadJson.readData_cstr("challenge");
 
-        //     if (challenge_base64 == NULL)
-        //     {
-        //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-        //         retJsonObj.setMessage("paramter invalid.");
-        //         return retJsonObj.toChar();
-        //     }
-        //     log_d("challenge: \n %s", challenge_base64);
+        if (challenge_base64 == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("paramter invalid.");
+            return retJsonObj.toChar();
+        }
+        log_d("challenge: \n %s", challenge_base64);
 
-        //     ehsm_status_t ret = EH_OK;
-        //     ehsm_data_t quote;
-        //     string quote_base64;
+        ehsm_status_t ret = EH_OK;
+        ehsm_data_t *quote;
+        string quote_base64;
 
-        //     quote.datalen = 0;
-        //     ret = GenerateQuote(&quote);
-        //     if (ret != EH_OK)
-        //     {
-        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        //         retJsonObj.setMessage("Server exception.");
-        //         goto out;
-        //     }
-        //     log_d("get the quote size successfuly\n");
+        quote = (ehsm_data_t *)malloc(sizeof(ehsm_data_t));
+        if (quote == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's length is invalid.");
+            goto out;
+        }
 
-        //     quote.data = (uint8_t *)malloc(quote.datalen);
-        //     if (quote.data == NULL)
-        //     {
-        //         ret = EH_DEVICE_MEMORY;
-        //         goto out;
-        //     }
+        quote->datalen = 0;
+        ret = GenerateQuote(quote);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        log_d("get the quote size successfuly\n");
 
-        //     ret = GenerateQuote(&quote);
-        //     if (ret != EH_OK)
-        //     {
-        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        //         retJsonObj.setMessage("Server exception.");
-        //         goto out;
-        //     }
-        //     log_d("GenerateQuote successfuly\n");
+        quote = (ehsm_data_t *)realloc(quote, SIZE_OF_DATA_T(quote->datalen));
+        if (quote == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
 
-        //     quote_base64 = base64_encode(quote.data, quote.datalen);
-        //     if (quote_base64.size() <= 0)
-        //     {
-        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        //         retJsonObj.setMessage("Server exception.");
-        //         goto out;
-        //     }
+        ret = GenerateQuote(quote);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        log_d("GenerateQuote successfuly\n");
 
-        //     retJsonObj.addData_string("challenge", challenge_base64);
-        //     retJsonObj.addData_string("quote", quote_base64);
+        quote_base64 = base64_encode(quote->data, quote->datalen);
+        if (quote_base64.size() <= 0)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
 
-        // out:
-        //     SAFE_FREE(quote.data);
+        retJsonObj.addData_string("challenge", challenge_base64);
+        retJsonObj.addData_string("quote", quote_base64);
+
+    out:
+        SAFE_FREE(quote);
         return retJsonObj.toChar();
     }
 
@@ -2020,48 +2028,57 @@ extern "C"
     {
         RetJsonObj retJsonObj;
 
-        //     const char *quote_base64 = payloadJson.readData_cstr("quote");
-        //     const char *mr_signer = payloadJson.readData_cstr("mr_signer");
-        //     const char *mr_enclave = payloadJson.readData_cstr("mr_enclave");
-        //     const char *nonce_base64 = payloadJson.readData_cstr("nonce");
+        const char *quote_base64 = payloadJson.readData_cstr("quote");
+        const char *mr_signer = payloadJson.readData_cstr("mr_signer");
+        const char *mr_enclave = payloadJson.readData_cstr("mr_enclave");
+        const char *nonce_base64 = payloadJson.readData_cstr("nonce");
 
-        //     if (quote_base64 == NULL || nonce_base64 == NULL)
-        //     {
-        //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-        //         retJsonObj.setMessage("paramter invalid.");
-        //         return retJsonObj.toChar();
-        //     }
+        if (quote_base64 == NULL || nonce_base64 == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("paramter invalid.");
+            return retJsonObj.toChar();
+        }
 
-        //     ehsm_status_t ret = EH_OK;
-        //     sgx_ql_qv_result_t verifyresult;
-        //     bool result = false;
-        //     ehsm_data_t quote;
-        //     memset(&quote, 0, sizeof(quote));
-        //     string quote_str = base64_decode(quote_base64);
-        //     quote.datalen = quote_str.size();
-        //     quote.data = (uint8_t *)quote_str.data();
-        //     if (quote.datalen == 0 || quote.datalen > EH_QUOTE_MAX_SIZE)
-        //     {
-        //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-        //         retJsonObj.setMessage("The quote's length is invalid.");
-        //         goto out;
-        //     }
-        //     ret = VerifyQuote(&quote, mr_signer, mr_enclave, &verifyresult);
-        //     if (ret != EH_OK)
-        //     {
-        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
-        //         retJsonObj.setMessage("Server exception.");
-        //         goto out;
-        //     }
-        //     log_d("VerifyQuote successfuly\n");
+        ehsm_status_t ret = EH_OK;
+        sgx_ql_qv_result_t verifyresult;
+        bool result = false;
+        ehsm_data_t *quote;
+ 
+        string quote_str = base64_decode(quote_base64);
+        int quote_len = quote_str.size();
+        if (quote_len == 0 || quote_len > EH_QUOTE_MAX_SIZE)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The quote's length is invalid.");
+            goto out;
+        }
+        quote = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(quote_len));
+        if (quote == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's length is invalid.");
+            goto out;
+        }
+        quote->datalen = quote_len;
+        memcpy_s(quote->data, quote_len, (uint8_t *)quote_str.data(), quote_len);
 
-        //     if (verifyresult == SGX_QL_QV_RESULT_OK)
-        //         result = true;
+        ret = VerifyQuote(quote, mr_signer, mr_enclave, &verifyresult);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        log_d("VerifyQuote successfuly\n");
 
-        //     retJsonObj.addData_bool("result", result);
-        //     retJsonObj.addData_string("nonce", nonce_base64);
+        if (verifyresult == SGX_QL_QV_RESULT_OK)
+            result = true;
 
-        // out:
+        retJsonObj.addData_bool("result", result);
+        retJsonObj.addData_string("nonce", nonce_base64);
+
+    out:
         return retJsonObj.toChar();
     }
 

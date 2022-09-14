@@ -135,7 +135,7 @@ def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     # notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
     # you can get mr_signer and mr_enclave through cmd: 
     # "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
-    mr_enclave = '3110bb76d4f73657fce77b148c04b2b59973fa7e8e77f4fbb6e433b58c88deb7';
+    mr_enclave = 'c3113b289e296cc25b6756eac281f89d75270c8c3e38c7dc085c6f51c9823e85';
     mr_signer = 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835';   
 
     policyId = uploadQuotePolicy.uploadQuotePolicy(base_url, mr_enclave, mr_signer)

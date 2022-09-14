@@ -1521,8 +1521,8 @@ void test_ec_sm2_sign_verify()
     JsonObj param_json;
     JsonObj payload_json;
 
-    std::string input_digest_base64 = base64_encode((const uint8_t*)digest, sizeof(digest)/sizeof(digest[0]));
-    std::string input_appid_base64 = base64_encode((const uint8_t*)appid, sizeof(appid)/sizeof(appid[0]));
+    std::string input_digest_base64 = base64_encode((const uint8_t *)digest, sizeof(digest) / sizeof(digest[0]));
+    std::string input_appid_base64 = base64_encode((const uint8_t *)appid, sizeof(appid) / sizeof(appid[0]));
 
     payload_json.addData_uint16("keyspec", EH_SM2);
     payload_json.addData_uint16("padding_mode", EH_PAD_RSA_PKCS1_PSS);
@@ -1729,9 +1729,9 @@ cleanup:
 void test_export_datakey()
 {
     /*
-    * current testcase support aes-gcm-128 cmk encrypted olddatakey 
-    * export newdatakey using rsa2048, rsa3072, sm2 ukey
-    */
+     * current testcase support aes-gcm-128 cmk encrypted olddatakey
+     * export newdatakey using rsa2048, rsa3072, sm2 ukey
+     */
     ehsm_keyspec_t testkeyspec[] = {EH_RSA_2048, EH_RSA_3072, EH_SM2};
     char *returnJsonChar = nullptr;
     char *cmk_base64 = nullptr;
@@ -1895,46 +1895,66 @@ cleanup:
     printf("============test_export_datakey end==========\n");
 }
 
-// void test_GenerateQuote_and_VerifyQuote()
-// {
-//     printf("============test_GenerateQuote_and_VerifyQuote start==========\n");
-//     char challenge[32] = "challenge123456";
-//     char nonce[16] = "nonce123456";
-//     // the string generated after converting the value of mr_signer and mr_enclave to hexadecimal
-//     // notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
-//     // you can get mr_signer and mr_enclave through cmd:
-//     // "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
-//     char mr_signer[65] = "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835";
-//     char mr_enclave[65] = "3110bb76d4f73657fce77b148c04b2b59973fa7e8e77f4fbb6e433b58c88deb7";
-//     RetJsonObj retJsonObj;
-//     char* returnJsonChar = nullptr;
-//     char* quote_base64 = nullptr;
-//     std::string input_nonce_base64 = base64_encode((const uint8_t*)nonce, sizeof(nonce)/sizeof(nonce[0]));
-//     returnJsonChar = NAPI_GenerateQuote(challenge);
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_GenerateQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_GenerateQuote Json : %s\n", returnJsonChar);
-//     printf("NAPI_GenerateQuote SUCCESSFULLY!\n");
+void test_GenerateQuote_and_VerifyQuote()
+{
+    printf("============test_GenerateQuote_and_VerifyQuote start==========\n");
+    JsonObj param_json;
+    JsonObj payload_json;
 
-//     quote_base64 = retJsonObj.readData_cstr("quote");
-//     printf("quote_base64 : %s\n", quote_base64);
+    char challenge[32] = "challenge123456";
+    char nonce[16] = "nonce123456";
+    // the string generated after converting the value of mr_signer and mr_enclave to hexadecimal
+    // notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
+    // you can get mr_signer and mr_enclave through cmd:
+    // "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
+    char mr_signer[65] = "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835";
+    char mr_enclave[65] = "c3113b289e296cc25b6756eac281f89d75270c8c3e38c7dc085c6f51c9823e85";
+    RetJsonObj retJsonObj;
+    char *returnJsonChar = nullptr;
+    char *quote_base64 = nullptr;
+    std::string input_challenge_base64 = base64_encode((const uint8_t *)challenge, sizeof(challenge) / sizeof(challenge[0]));
+    std::string input_nonce_base64 = base64_encode((const uint8_t *)nonce, sizeof(nonce) / sizeof(nonce[0]));
 
-//     returnJsonChar = NAPI_VerifyQuote(quote_base64, mr_signer, mr_enclave, input_nonce_base64.c_str());
-//     retJsonObj.parse(returnJsonChar);
-//     if(retJsonObj.getCode() != 200){
-//         printf("NAPI_VerifyQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
-//         goto cleanup;
-//     }
-//     printf("NAPI_VerifyQuote Json : %s\n", returnJsonChar);
-//     printf("NAPI_VerifyQuote SUCCESSFULLY!\n");
+    payload_json.addData_string("challenge", input_challenge_base64);
+    param_json.addData_uint16("action", EH_GENERATE_QUOTE);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
 
-// cleanup:
-//     SAFE_FREE(returnJsonChar);
-//     printf("============test_GenerateQuote_and_VerifyQuote end==========\n");
-// }
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+    if (retJsonObj.getCode() != 200)
+    {
+        printf("NAPI_GenerateQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_GenerateQuote Json : %s\n", returnJsonChar);
+    printf("NAPI_GenerateQuote SUCCESSFULLY!\n");
+
+    quote_base64 = retJsonObj.readData_cstr("quote");
+    printf("quote_base64 : %s\n", quote_base64);
+
+
+    payload_json.clear();
+    param_json.clear();
+    payload_json.addData_string("quote", quote_base64);
+    payload_json.addData_string("mr_signer", mr_signer);
+    payload_json.addData_string("mr_enclave", mr_enclave);
+    payload_json.addData_string("nonce", input_nonce_base64);
+    param_json.addData_uint16("action", EH_VERIFY_QUOTE);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+    if (retJsonObj.getCode() != 200)
+    {
+        printf("NAPI_VerifyQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_VerifyQuote Json : %s\n", returnJsonChar);
+    printf("NAPI_VerifyQuote SUCCESSFULLY!\n");
+
+cleanup:
+    SAFE_FREE(returnJsonChar);
+    printf("============test_GenerateQuote_and_VerifyQuote end==========\n");
+}
 
 void test_Enroll()
 {
@@ -2026,7 +2046,7 @@ int main(int argc, char *argv[])
 
     // test_export_datakey();
 
-    // test_GenerateQuote_and_VerifyQuote();
+    test_GenerateQuote_and_VerifyQuote();
 
     // test_Enroll();
 
