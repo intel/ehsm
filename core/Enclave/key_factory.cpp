@@ -226,72 +226,54 @@ sgx_status_t ehsm_create_aes_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
     return ret;
 }
 
-sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk->keybloblen == 0) {
+        cmk->keybloblen = PEM_BUFSIZE * 5;
+        return SGX_SUCCESS;
+    }
+
     EVP_PKEY_CTX        *pkey_ctx        = NULL;
     EVP_PKEY            *pkey           = NULL;
-    EC_GROUP            *ec_group       = NULL;
     BIO                 *bio            = NULL;
     uint8_t             *pem_keypair    = NULL;
     uint32_t            key_len         = 0;
 
-    switch (cmk->metadata.keyspec) {
-        case EH_RSA_2048:
-        case EH_RSA_3072:
-        case EH_RSA_4096:
-            pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
-            break;
-        case EH_EC_P224:
-        case EH_EC_P256:
-        case EH_EC_P384:
-        case EH_EC_P512:
-        case EH_SM2:
-            pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
-            break;
-        default:
-            break;
-    }
-    if (!pkey_ctx) {
+    pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    if (pkey_ctx == NULL) {
         goto out;
     }
 
-    if (!EVP_PKEY_keygen_init(pkey_ctx)) {
+    if (EVP_PKEY_keygen_init(pkey_ctx) <= 0) {
         goto out;
     }
 
     switch (cmk->metadata.keyspec) {
         case EH_RSA_2048:
-            EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_2048_KEY_BITS);
+            key_len = RSA_2048_KEY_BITS;
             break;
         case EH_RSA_3072:
-            EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_3072_KEY_BITS);
+            key_len = RSA_3072_KEY_BITS;
             break;
         case EH_RSA_4096:
-            EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_4096_KEY_BITS);
-            break;
-        case EH_EC_P224:
-        case EH_EC_P256:
-        case EH_EC_P384:
-        case EH_EC_P512:
-            EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_X9_62_prime256v1);
-            break;
-        case EH_SM2:
-            EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_sm2);
-                        
+            key_len = RSA_4096_KEY_BITS;
             break;
         default:
             break;
+    }
+
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, key_len) <= 0) {
+        goto out;
     }
    
-    if (!EVP_PKEY_keygen(pkey_ctx, &pkey)) {
+    if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0) {
         goto out;
     }
 
-    EVP_PKEY_CTX_free(pkey_ctx);
-
-    if (!(bio = BIO_new(BIO_s_mem()))) {
+    bio = BIO_new(BIO_s_mem());
+    if (bio == NULL) {
         goto out;
     }
 
@@ -304,32 +286,16 @@ sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
     }
 
     key_len = BIO_pending(bio);
-    if (key_len == 0) {
-        goto out;
-    }
-    if (cmk->keybloblen == 0) {
-        cmk->keybloblen = ehsm_calc_keyblob_len(0, key_len);
-        if (cmk->keybloblen != UINT32_MAX) {
-            ret = SGX_SUCCESS;
-            goto out;
-        } else {
-            goto out;
-        }
-    } else if (key_len > (cmk->keybloblen - sizeof(sgx_aes_gcm_data_ex_t))) {
-        cmk->keybloblen = ehsm_calc_keyblob_len(0, key_len);
-        if (cmk->keybloblen != UINT32_MAX) {
-            ret = SGX_SUCCESS;
-            goto out;
-        } else {
-            goto out;
-        }
-    }
-
-    if (!(pem_keypair = (uint8_t*)malloc(key_len + 1))) {
+    if (key_len <= 0) {
         goto out;
     }
 
-    if (!BIO_read(bio, pem_keypair, key_len)) {
+    pem_keypair = (uint8_t*)malloc(key_len + 1);
+    if (pem_keypair == NULL) {
+        goto out;
+    }
+
+    if (BIO_read(bio, pem_keypair, key_len) < 0) {
         goto out;
     }
     pem_keypair[key_len] = '\0';
@@ -340,6 +306,97 @@ sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 out:
+    EVP_PKEY_CTX_free(pkey_ctx);
+    EVP_PKEY_free(pkey);
+    BIO_free(bio);
+    SAFE_FREE(pem_keypair);
+    return ret;
+}
+
+sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk->keybloblen == 0) {
+        cmk->keybloblen = PEM_BUFSIZE * 5;
+        return SGX_SUCCESS;
+    }
+
+    EVP_PKEY_CTX        *pkey_ctx       = NULL;
+    EVP_PKEY            *pkey           = NULL;
+    BIO                 *bio            = NULL;
+    uint8_t             *pem_keypair    = NULL;
+    uint32_t            key_len         = 0;
+    
+    pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
+    if (pkey_ctx == NULL) {
+        goto out;
+    }
+
+    if (EVP_PKEY_keygen_init(pkey_ctx) <= 0) {
+        goto out;
+    }
+
+    switch (cmk->metadata.keyspec) {
+        case EH_EC_P224:
+        case EH_EC_P256:
+        case EH_EC_P384:
+        case EH_EC_P512:
+            if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_X9_62_prime256v1) <= 0) {
+                goto out;
+            }
+            break;
+        case EH_SM2:
+            if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_sm2) <= 0) {
+                goto out;
+            }
+            break;
+        default:
+            break;
+    }
+   
+    if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0) {
+        goto out;
+    }
+
+    bio = BIO_new(BIO_s_mem());
+    if (bio == NULL) {
+        goto out;
+    }
+
+    if (!PEM_write_bio_PUBKEY(bio, pkey)) {
+        goto out;
+    }
+
+    if (!PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL)) {
+        goto out;
+    }
+
+    key_len = BIO_pending(bio);
+    if (key_len <= 0) {
+        goto out;
+    }
+
+    pem_keypair = (uint8_t*)malloc(key_len + 1);
+    if (pem_keypair == NULL) {
+        goto out;
+    }
+
+    if (BIO_read(bio, pem_keypair, key_len) < 0) {
+        goto out;
+    }
+    pem_keypair[key_len] = '\0';
+
+    ret = ehsm_create_keyblob(pem_keypair, key_len, NULL, 0, (sgx_aes_gcm_data_ex_t*)cmk->keyblob);
+
+    if (ret != SGX_SUCCESS) {
+        goto out;
+    }
+out:
+    EVP_PKEY_CTX_free(pkey_ctx);
+    EVP_PKEY_free(pkey);
+    BIO_free(bio);
+    SAFE_FREE(pem_keypair);
     return ret;
 }
 

@@ -1928,35 +1928,35 @@ int main(int argc, char *argv[])
     //     test_performance();
     // #endif
 
-    test_AES128();
+    // test_AES128();
 
-    test_AES192();
+    // test_AES192();
 
-    test_AES256();
+    // test_AES256();
 
     // test_SM4();
 
     test_RSA3072_encrypt_decrypt();
 
-    test_RSA2048_sign_verify();
+    // test_RSA2048_sign_verify();
 
-    test_RSA3072_sign_verify();
+    // test_RSA3072_sign_verify();
 
-    test_RSA4096_sign_verify();
+    // test_RSA4096_sign_verify();
 
-    test_ec_sm2_sign_verify();
+    // test_ec_sm2_sign_verify();
 
-    test_SM2_encrypt_decrypt();
+    // test_SM2_encrypt_decrypt();
 
-    test_ec_p256_sign_verify();
+    // test_ec_p256_sign_verify();
 
-    test_generate_datakey();
+    // test_generate_datakey();
 
-    test_export_datakey();
+    // test_export_datakey();
 
     // test_GenerateQuote_and_VerifyQuote();
 
-    test_Enroll();
+    // test_Enroll();
 
     Finalize();
 

@@ -123,12 +123,14 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
     case EH_RSA_2048:
     case EH_RSA_3072:
     case EH_RSA_4096:
+        ret = ehsm_create_rsa_key(cmk);
+        break;
     case EH_EC_P224:
     case EH_EC_P256:
     case EH_EC_P384:
     case EH_EC_P512:
     case EH_SM2:
-        ret = ehsm_create_asymmetric_key(cmk);
+        ret = ehsm_create_ec_key(cmk);
         break;
     case EH_SM4:
         if (cmk->keybloblen == 0)
@@ -281,7 +283,20 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    return ehsm_asymmetric_encrypt(cmk, plaintext, ciphertext);
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        ret = ehsm_rsa_encrypt(cmk, plaintext, ciphertext);
+        /* code */
+        break;
+    case EH_SM2:
+        ret = ehsm_sm2_encrypt(cmk, plaintext, ciphertext);
+    default:
+        break;
+    }
+    return ret;
 }
 
 sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
@@ -295,7 +310,19 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    return ehsm_asymmetric_decrypt(cmk, ciphertext, plaintext);
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        ret = ehsm_rsa_decrypt(cmk, ciphertext, plaintext);
+        break;
+    case EH_SM2:
+        ret = ehsm_sm2_decrypt(cmk, ciphertext, plaintext);
+    default:
+        break;
+    }
+    return ret;
 }
 
 sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
