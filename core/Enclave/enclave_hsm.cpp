@@ -132,7 +132,8 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
     case EH_SM2:
         ret = ehsm_create_ec_key(cmk);
         break;
-    case EH_SM4:
+        case EH_SM4_CTR:
+        case EH_SM4_CBC:
         if (cmk->keybloblen == 0)
         {
             ret = ehsm_create_sm4_key(NULL,
@@ -170,7 +171,8 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
         cmk->metadata.keyspec != EH_AES_GCM_192 &&
         cmk->metadata.keyspec != EH_AES_GCM_256 &&
-        cmk->metadata.keyspec != EH_SM4)
+        cmk->metadata.keyspec != EH_SM4_CTR &&
+        cmk->metadata.keyspec != EH_SM4_CBC)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -187,26 +189,13 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
-        ret = ehsm_aes_gcm_encrypt(aad->data,
-                                   aad->datalen,
-                                   cmk->keyblob,
-                                   cmk->keybloblen,
-                                   plaintext->data,
-                                   plaintext->datalen,
-                                   ciphertext->data,
-                                   ciphertext->datalen,
-                                   (ehsm_keyspec_t)cmk->metadata.keyspec);
+        ret = ehsm_aes_gcm_encrypt(aad, cmk, plaintext, ciphertext);
         break;
-    case EH_SM4:
-        ret = ehsm_sm4_encrypt(aad->data,
-                               aad->datalen,
-                               cmk->keyblob,
-                               cmk->keybloblen,
-                               plaintext->data,
-                               plaintext->datalen,
-                               ciphertext->data,
-                               ciphertext->datalen,
-                               (ehsm_keyspec_t)cmk->metadata.keyspec);
+    case EH_SM4_CTR:
+        ret = ehsm_sm4_ctr_encrypt(cmk, plaintext, ciphertext);
+        break;
+    case EH_SM4_CBC:
+        ret = ehsm_sm4_cbc_encrypt(cmk, plaintext, ciphertext);
         break;
     default:
         break;
@@ -231,7 +220,8 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
         cmk->metadata.keyspec != EH_AES_GCM_192 &&
         cmk->metadata.keyspec != EH_AES_GCM_256 &&
-        cmk->metadata.keyspec != EH_SM4)
+        cmk->metadata.keyspec != EH_SM4_CTR &&
+        cmk->metadata.keyspec != EH_SM4_CBC)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -245,26 +235,13 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
-        ret = ehsm_aes_gcm_decrypt(aad->data,
-                                   aad->datalen,
-                                   cmk->keyblob,
-                                   cmk->keybloblen,
-                                   ciphertext->data,
-                                   ciphertext->datalen,
-                                   plaintext->data,
-                                   plaintext->datalen,
-                                   (ehsm_keyspec_t)cmk->metadata.keyspec);
+        ret = ehsm_aes_gcm_decrypt(aad, cmk, ciphertext, plaintext);
         break;
-    case EH_SM4:
-        ret = ehsm_sm4_decrypt(aad->data,
-                               aad->datalen,
-                               cmk->keyblob,
-                               cmk->keybloblen,
-                               ciphertext->data,
-                               ciphertext->datalen,
-                               plaintext->data,
-                               plaintext->datalen,
-                               (ehsm_keyspec_t)cmk->metadata.keyspec);
+    case EH_SM4_CTR:
+        ret = ehsm_sm4_ctr_decrypt(cmk, ciphertext, plaintext);
+        break;
+    case EH_SM4_CBC:
+        ret = ehsm_sm4_cbc_decrypt(cmk, ciphertext, plaintext);
         break;
     default:
         break;
@@ -435,12 +412,12 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
         default:
             printf("ecall sign unsupport keyspec.\n");
             return SGX_ERROR_INVALID_PARAMETER;
-            
+
     }
 
     return ret;
 }
-                                    
+
 sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
                             const ehsm_data_t *data, size_t data_len,
                             const ehsm_data_t *appid, size_t appid_len,
@@ -552,7 +529,7 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
         default:
             printf("ecall verify unsupport keyspec.\n");
             return SGX_ERROR_INVALID_PARAMETER;
-            
+
     }
 
     return ret;
@@ -587,7 +564,7 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
                                             plaintext,
                                             ciphertext);
         break;
-    case EH_SM4:
+    case EH_SM4_CBC:
         ret = ehsm_generate_datakey_sm4(cmk,
                                         aad,
                                         plaintext,
@@ -629,7 +606,7 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
         tmp_datakey->datalen = olddatakey->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
         tmp_datakey_len = SIZE_OF_DATA_T(tmp_datakey->datalen);
         break;
-    case EH_SM4:
+    case EH_SM4_CBC:
         // TODO :
         // tmp_datakey->datalen = olddatakey->datalen - SGX_SM4_IV_SIZE;
         // tmp_datakey_len = SIZE_OF_DATA_T(tmp_datakey->datalen);
@@ -651,7 +628,7 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
     case EH_AES_GCM_128:
         ret = enclave_decrypt(cmk, cmk_len, aad, aad_len, olddatakey, olddatakey_len, tmp_datakey, tmp_datakey_len);
         break;
-    case EH_SM4:
+    case EH_SM4_CBC:
         // TODO :
         // ret = enclave_decrypt(cmk, cmk_len, aad, aad_len, olddatakey, olddatakey_len, tmp_datakey, tmp_datakey_len);
         // break;
@@ -931,7 +908,7 @@ sgx_status_t enclave_verify_quote_policy(uint8_t *quote, uint32_t quote_len,
     if ((mr_signer_str.size() != mr_signer_good_len) ||
         (mr_enclave_str.size() != mr_enclave_good_len))
     {
-        printf("mr_signer_str length is not same with mr_signer_good_len or\ 
+        printf("mr_signer_str length is not same with mr_signer_good_len or\
                 mr_enclave_str length is not same with mr_enclave_good_len!\n");
         return SGX_ERROR_UNEXPECTED;
     }

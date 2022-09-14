@@ -177,7 +177,8 @@ typedef enum {
     EH_EC_P512,
     EH_HMAC,
     EH_SM2,
-    EH_SM4,
+    EH_SM4_CTR,
+    EH_SM4_CBC,
     INVALID_VALUE
 } ehsm_keyspec_t;
 

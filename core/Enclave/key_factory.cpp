@@ -150,7 +150,8 @@ uint32_t ehsm_get_symmetric_key_size(ehsm_keyspec_t key_spec)
     switch (key_spec)
     {
     case EH_AES_GCM_128:
-    case EH_SM4:
+    case EH_SM4_CTR:
+    case EH_SM4_CBC:
         return 16;
     case EH_AES_GCM_192:
         return 24;
@@ -267,7 +268,7 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, key_len) <= 0) {
         goto out;
     }
-   
+
     if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0) {
         goto out;
     }
@@ -327,7 +328,7 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
     BIO                 *bio            = NULL;
     uint8_t             *pem_keypair    = NULL;
     uint32_t            key_len         = 0;
-    
+
     pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
     if (pkey_ctx == NULL) {
         goto out;
@@ -354,7 +355,7 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
         default:
             break;
     }
-   
+
     if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0) {
         goto out;
     }
@@ -406,7 +407,8 @@ sgx_status_t ehsm_create_sm4_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (keyspec != EH_SM4)
+    if (keyspec != EH_SM4_CTR &&
+        keyspec != EH_SM4_CBC)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -465,20 +467,15 @@ sgx_status_t ehsm_aes_gcm_generate_datakey(const ehsm_keyblob_t *cmk,
     if (datakey == NULL) {
         return SGX_ERROR_OUT_OF_MEMORY;
     }
-    if(RAND_bytes(datakey, plaintext->datalen) != 1) 
+    if(RAND_bytes(datakey, plaintext->datalen) != 1)
     {
         free(datakey);
         return SGX_ERROR_OUT_OF_MEMORY;
     }
-    ret = ehsm_aes_gcm_encrypt(aad->data, 
-                              aad->datalen, 
-                              cmk->keyblob, 
-                              cmk->keybloblen, 
-                              datakey, 
-                              plaintext->datalen, 
-                              ciphertext->data, 
-                              ciphertext->datalen, 
-                              cmk->metadata.keyspec);
+    ret = ehsm_aes_gcm_encrypt(aad,
+                              cmk,
+                              NULL,
+                              ciphertext);
     if (plaintext->data != NULL)
         memcpy_s(plaintext->data, plaintext->datalen, datakey, plaintext->datalen);
 
@@ -500,20 +497,14 @@ sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
     if (datakey == NULL) {
         return SGX_ERROR_OUT_OF_MEMORY;
     }
-    if(RAND_bytes(datakey, plaintext->datalen) != 1) 
+    if(RAND_bytes(datakey, plaintext->datalen) != 1)
     {
         free(datakey);
         return SGX_ERROR_OUT_OF_MEMORY;
     }
-    ret = ehsm_sm4_encrypt(aad->data, 
-                           aad->datalen, 
-                           cmk->keyblob, 
-                           cmk->keybloblen, 
-                           datakey, 
-                           plaintext->datalen, 
-                           ciphertext->data, 
-                           ciphertext->datalen, 
-                           cmk->metadata.keyspec);
+    ret = ehsm_sm4_ctr_encrypt(cmk,
+                           NULL,
+                           ciphertext);
     if (plaintext->data != NULL)
         memcpy_s(plaintext->data, plaintext->datalen, datakey, plaintext->datalen);
 
