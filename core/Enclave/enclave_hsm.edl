@@ -105,7 +105,7 @@ enclave {
                             [in, size=aad_len] const ehsm_data_t *aad, size_t aad_len,
                             [in, size=oldkey_len] ehsm_data_t *oldkey, size_t oldkey_len,
                             [in, size=d_cmk_len] const ehsm_keyblob_t* d_cmk, size_t d_cmk_len,
-                            [out, size=newkey_len] ehsm_data_t *newkey, size_t newkey_len);
+                            [in, out, size=newkey_len] ehsm_data_t *newkey, size_t newkey_len);
 
         public sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
                             [out, size=apikey_len] uint8_t *p_apikey,
