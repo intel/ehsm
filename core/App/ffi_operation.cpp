@@ -112,7 +112,7 @@ extern "C"
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *master_key;
+        ehsm_keyblob_t *master_key = NULL;
         string cmk_base64;
         uint32_t req_len = 0;
 
@@ -218,10 +218,10 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *cmk;
-        ehsm_data_t *plaint_data;
-        ehsm_data_t *aad_data;
-        ehsm_data_t *cipher_data;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *plaint_data = NULL;
+        ehsm_data_t *aad_data = NULL;
+        ehsm_data_t *cipher_data = NULL;
 
         string cmk_str = base64_decode(cmk_base64);
         string plaintext_str = base64_decode(plaintext_base64);
@@ -369,10 +369,10 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *cmk;
-        ehsm_data_t *plaint_data;
-        ehsm_data_t *aad_data;
-        ehsm_data_t *cipher_data;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *plaint_data = NULL;
+        ehsm_data_t *aad_data = NULL;
+        ehsm_data_t *cipher_data = NULL;
         string plaintext_base64;
 
         string cmk_str = base64_decode(cmk_base64);
@@ -522,9 +522,9 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *cmk;
-        ehsm_data_t *plaint_data;
-        ehsm_data_t *cipher_data;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *plaint_data = NULL;
+        ehsm_data_t *cipher_data = NULL;
 
         string cmk_str = base64_decode(cmk_base64);
         string plaintext_str = base64_decode(plaintext_base64);
@@ -654,9 +654,9 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *cmk;
-        ehsm_data_t *cipher_data;
-        ehsm_data_t *plaint_data;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *cipher_data = NULL;
+        ehsm_data_t *plaint_data = NULL;
 
         uint32_t ciphertext_maxLen;
 
@@ -776,10 +776,10 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *cmk;
-        ehsm_data_t *aad_data;
-        ehsm_data_t *plaint_datakey;
-        ehsm_data_t *cipher_datakey;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *aad_data = NULL;
+        ehsm_data_t *plaint_datakey = NULL;
+        ehsm_data_t *cipher_datakey = NULL;
 
         string cmk_str = base64_decode(cmk_base64);
         string aad_str = base64_decode(aad_base64);
@@ -943,10 +943,10 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *cmk;
-        ehsm_data_t *aad_data;
-        ehsm_data_t *plaint_datakey;
-        ehsm_data_t *cipher_datakey;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *aad_data = NULL;
+        ehsm_data_t *plaint_datakey = NULL;
+        ehsm_data_t *cipher_datakey = NULL;
 
         string cmk_str = base64_decode(cmk_base64);
         string aad_str = base64_decode(aad_base64);
@@ -1343,10 +1343,10 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *cmk;
-        ehsm_data_t *digest_data;
-        ehsm_data_t *appid_data;
-        ehsm_data_t *signature;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *digest_data = NULL;
+        ehsm_data_t *appid_data = NULL;
+        ehsm_data_t *signature = NULL;
 
         string cmk_str = base64_decode(cmk_base64);
         string digest_str = base64_decode(digest_base64);
@@ -1493,10 +1493,10 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        ehsm_keyblob_t *cmk;
-        ehsm_data_t *digest_data;
-        ehsm_data_t *appid_data;
-        ehsm_data_t *signature_data;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *digest_data = NULL;
+        ehsm_data_t *appid_data = NULL;
+        ehsm_data_t *signature_data = NULL;
 
         bool result = false;
         string cmk_str = base64_decode(cmk_base64);
@@ -1877,8 +1877,8 @@ extern "C"
 
         ehsm_status_t ret = EH_OK;
 
-        ehsm_data_t *apikey;
-        ehsm_data_t *appid;
+        ehsm_data_t *apikey = NULL;
+        ehsm_data_t *appid = NULL;
 
         appid = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(UUID_STR_LEN));
         if (appid == NULL)
