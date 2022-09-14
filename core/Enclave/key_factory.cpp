@@ -150,7 +150,8 @@ uint32_t ehsm_get_symmetric_key_size(ehsm_keyspec_t key_spec)
     switch (key_spec)
     {
     case EH_AES_GCM_128:
-    case EH_SM4:
+    case EH_SM4_CTR:
+    case EH_SM4_CBC:
         return 16;
     case EH_AES_GCM_192:
         return 24;
@@ -349,7 +350,8 @@ sgx_status_t ehsm_create_sm4_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (keyspec != EH_SM4)
+    if (keyspec != EH_SM4_CTR &&
+        keyspec != EH_SM4_CBC)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
