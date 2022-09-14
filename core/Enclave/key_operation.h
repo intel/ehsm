@@ -110,6 +110,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            ehsm_digest_mode_t digest_mode,
                            ehsm_keyspec_t keyspec,
                            const ehsm_data_t *data,
+                           const ehsm_data_t *appid,
                            ehsm_data_t *signature,
                            uint32_t *req_signature_len);
 
@@ -117,6 +118,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                             ehsm_digest_mode_t digest_mode,
                             ehsm_keyspec_t keyspec,
                             const ehsm_data_t *data,
+                            const ehsm_data_t *appid,
                             const ehsm_data_t *signature,
                             bool *result);
 

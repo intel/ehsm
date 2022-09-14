@@ -1441,6 +1441,7 @@ void test_ec_sm2_sign_verify()
     ehsm_status_t ret = EH_OK;
     char *returnJsonChar = nullptr;
     char digest[] = "SIGN";
+    char appid[] = "5de71de4-596e-4892-8c3d-0314feafee23";
 
     char *cmk_base64 = nullptr;
     char *signature_base64 = nullptr;
@@ -1450,7 +1451,8 @@ void test_ec_sm2_sign_verify()
     JsonObj param_json;
     JsonObj payload_json;
 
-    std::string input_digest_base64 = base64_encode((const uint8_t *)digest, sizeof(digest) / sizeof(digest[0]));
+    std::string input_digest_base64 = base64_encode((const uint8_t*)digest, sizeof(digest)/sizeof(digest[0]));
+    std::string input_appid_base64 = base64_encode((const uint8_t*)appid, sizeof(appid)/sizeof(appid[0]));
 
     payload_json.addData_uint16("keyspec", EH_SM2);
     payload_json.addData_uint16("padding_mode", EH_PAD_RSA_PKCS1_PSS);
@@ -1473,6 +1475,7 @@ void test_ec_sm2_sign_verify()
     payload_json.clear();
     payload_json.addData_string("cmk_base64", cmk_base64);
     payload_json.addData_string("digest_base64", input_digest_base64);
+    payload_json.addData_string("appid_base64", input_appid_base64);
 
     param_json.addData_uint16("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1543,7 +1546,6 @@ void test_generate_datakey()
     JsonObj param_json;
     payload_json.addData_uint16("keyspec", EH_AES_GCM_128);
     payload_json.addData_uint16("origin", 0);
-    payload_json.addData_uint16("purpose", 1);
     param_json.addData_uint16("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 

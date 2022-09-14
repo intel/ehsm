@@ -1513,6 +1513,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                           ehsm_digest_mode_t digest_mode,
                           ehsm_keyspec_t keyspec,
                           const ehsm_data_t *data,
+                          const ehsm_data_t *appid,
                           ehsm_data_t *signature,
                           uint32_t *req_signature_len)
 {
@@ -1524,9 +1525,6 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     EVP_MD_CTX *mdctx      = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;
     EC_KEY *ec_key         = NULL;
-    // set sm2 id and id len
-    unsigned char sm2_id[] = "12345_asdfa";
-    unsigned int sm2_id_len = sizeof(sm2_id) - 1;
 
     do
     {
@@ -1583,6 +1581,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
             break;
         }
 
+        // set sm2 evp pkey
         if (EVP_PKEY_set_alias_type(evpkey, EVP_PKEY_SM2) != 1)
         {
             printf("ecall sm2_sign fail to modify the evpkey to use SM2\n");
@@ -1596,7 +1595,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
             ret = SGX_ERROR_UNEXPECTED;
             break;
         }
-        if (EVP_PKEY_CTX_set1_id(pkey_ctx, sm2_id, sm2_id_len) != 1)
+        if (EVP_PKEY_CTX_set1_id(pkey_ctx, appid->data, appid->datalen) != 1)
         {
             printf("ecall sm2_sign fail to set sm2_user_id to the EVP_PKEY_CTX\n");
             ret = SGX_ERROR_UNEXPECTED;
@@ -1662,6 +1661,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                             ehsm_digest_mode_t digest_mode,
                             ehsm_keyspec_t keyspec,
                             const ehsm_data_t *data,
+                            const ehsm_data_t *appid,
                             const ehsm_data_t *signature,
                             bool *result)
 {
@@ -1673,9 +1673,6 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     EVP_PKEY *evpkey       = NULL;
     EVP_MD_CTX *mdctx      = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;
-    // set sm2 id and id len
-    unsigned char sm2_id[] = "12345_asdfa";
-    unsigned int sm2_id_len = sizeof(sm2_id) - 1;
 
     do
     {
@@ -1732,7 +1729,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
             break;
         }
         
-        // sm2 add
+        // set sm2 evp pkey
         if (EVP_PKEY_set_alias_type(evpkey, EVP_PKEY_SM2) != 1)
         {
             printf("ecall sm2_verify fail to modify the evpkey to use SM2\n");
@@ -1747,7 +1744,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
             break;
         }
         // set sm2 id and len to pkeyctx
-        if (EVP_PKEY_CTX_set1_id(pkey_ctx, sm2_id, sm2_id_len) != 1)
+        if (EVP_PKEY_CTX_set1_id(pkey_ctx, appid->data, appid->datalen) != 1)
         {
             printf("ecall sm2_verify fail to set sm2_user_id to the EVP_PKEY_CTX\n");
             ret = SGX_ERROR_UNEXPECTED;

@@ -764,13 +764,13 @@ extern "C"
         uint32_t keylen = payloadJson.readData_uint32("keylen");
         string aad_base64 = payloadJson.readData_string("aad");
 
-        if (cmk_base64.size() == NULL)
+        if (cmk_base64.size() == 0)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("paramter invalid.");
             return retJsonObj.toChar();
         }
-        if (aad_base64.size() == NULL)
+        if (aad_base64.size() == 0)
         {
             aad_base64 = "";
         }
@@ -828,11 +828,6 @@ extern "C"
         {
             memcpy(aad_data->data, (uint8_t *)aad_str.data(), aad_len);
         }
-        else
-        {
-            aad_data = NULL;
-        }
-
         plaint_datakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(keylen));
         if (plaint_datakey == NULL)
         {
@@ -936,13 +931,13 @@ extern "C"
         uint32_t keylen = payloadJson.readData_uint32("keylen");
         string aad_base64 = payloadJson.readData_string("aad");
 
-        if (cmk_base64.size() == NULL)
+        if (cmk_base64.size() == 0)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("paramter invalid.");
             return retJsonObj.toChar();
         }
-        if (aad_base64.size() == NULL)
+        if (aad_base64.size() == 0)
         {
             aad_base64 = "";
         }
@@ -1000,7 +995,6 @@ extern "C"
         {
             memcpy(aad_data->data, (uint8_t *)aad_str.data(), aad_len);
         }
-
         plaint_datakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(keylen));
         if (plaint_datakey == NULL)
         {
@@ -1316,6 +1310,7 @@ extern "C"
             result: {
                 cmk_base64 : string,
                 digest_base64 : string,
+                appid_base64 : string
             }
         }
     *
@@ -1338,6 +1333,7 @@ extern "C"
 
         string cmk_base64 = payloadJson.readData_string("cmk_base64");
         string digest_base64 = payloadJson.readData_string("digest_base64");
+        string appid_base64 = payloadJson.readData_string("appid_base64");
 
         if (cmk_base64.size() == 0 || digest_base64.size() == 0)
         {
@@ -1349,13 +1345,16 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *cmk;
         ehsm_data_t *digest_data;
+        ehsm_data_t *appid_data;
         ehsm_data_t *signature;
 
         string cmk_str = base64_decode(cmk_base64);
         string digest_str = base64_decode(digest_base64);
+        string appid_str = base64_decode(appid_base64);
         string signature_base64;
         int cmk_len = cmk_str.size();
         int digest_len = digest_str.size();
+        int appid_len = appid_str.size();
 
         if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
         {
@@ -1367,6 +1366,12 @@ extern "C"
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The digest's length is invalid.");
+            goto out;
+        }
+        if (appid_len != 0 && appid_len != EC_APPID_SIZE)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The appid length is invalid.");
             goto out;
         }
 
@@ -1387,11 +1392,24 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        appid_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(appid_len));
+        if (appid_data == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's length is invalid.");
+            goto out;
+        }
+        appid_data->datalen = appid_len;
+        if (appid_len > 0)
+        {
+            memcpy(appid_data->data, (uint8_t *)appid_str.data(), appid_len);
+
+        }
         signature = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0));
 
         // get signature datalen
         signature->datalen = 0;
-        ret = Sign(cmk, digest_data, signature);
+        ret = Sign(cmk, digest_data, appid_data, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1408,7 +1426,7 @@ extern "C"
         }
 
         // sign
-        ret = Sign(cmk, digest_data, signature);
+        ret = Sign(cmk, digest_data, appid_data, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1426,6 +1444,7 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
         SAFE_FREE(digest_data);
+        SAFE_FREE(appid_data);
         return retJsonObj.toChar();
     }
 
@@ -1441,6 +1460,7 @@ extern "C"
                 cmk_base64 : string,
                 digest_base64 : string,
                 signature_base64 ： string
+                appid_base64 : string
             }
         }
     *
@@ -1463,6 +1483,7 @@ extern "C"
         string cmk_base64 = payloadJson.readData_string("cmk_base64");
         string digest_base64 = payloadJson.readData_string("digest_base64");
         string signature_base64 = payloadJson.readData_string("signature_base64");
+        string appid_base64 = payloadJson.readData_string("appid_base64");
 
         if (cmk_base64.size() == 0 || digest_base64.size() == 0 || signature_base64.size() == 0)
         {
@@ -1474,15 +1495,18 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *cmk;
         ehsm_data_t *digest_data;
+        ehsm_data_t *appid_data;
         ehsm_data_t *signature_data;
 
         bool result = false;
         string cmk_str = base64_decode(cmk_base64);
         string signature_str = base64_decode(signature_base64);
         string digest_str = base64_decode(digest_base64);
+        string appid_str = base64_decode(appid_base64);
         int cmk_len = cmk_str.size();
         int digest_len = digest_str.size();
         int signature_len = signature_str.size();
+        int appid_len = appid_str.size();
 
         if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
         {
@@ -1494,6 +1518,12 @@ extern "C"
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The digest's length is invalid.");
+            goto out;
+        }
+        if (appid_len != 0 && appid_len != EC_APPID_SIZE)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The aad's length is invalid.");
             goto out;
         }
         if (signature_len == 0 || signature_len > RSA_OAEP_4096_SIGNATURE_SIZE)
@@ -1520,6 +1550,18 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        appid_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(appid_len));
+        if (appid_data == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's length is invalid.");
+            goto out;
+        }
+        appid_data->datalen = appid_len;
+        if (appid_len > 0)
+        {
+            memcpy(appid_data->data, (uint8_t *)appid_str.data(), appid_len);
+        }
         signature_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(signature_len));
         signature_data->datalen = signature_len;
         memcpy(signature_data->data, (uint8_t *)signature_str.data(), signature_len);
@@ -1531,7 +1573,7 @@ extern "C"
         }
 
         // verify sign
-        ret = Verify(cmk, digest_data, signature_data, &result);
+        ret = Verify(cmk, digest_data, appid_data, signature_data, &result);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1544,6 +1586,7 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(signature_data);
         SAFE_FREE(digest_data);
+        SAFE_FREE(appid_data);
         return retJsonObj.toChar();
     }
 

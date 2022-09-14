@@ -92,6 +92,8 @@ typedef int errno_t;
 #define EC_P256_SIGNATURE_MAX_SIZE        72
 #define EC_SM2_SIGNATURE_MAX_SIZE         72
 
+#define EC_APPID_SIZE                     37
+
 #define RSA_OAEP_4096_DIGEST_SIZE         264
 #define EC_MAX_DIGEST_SIZE                264
 

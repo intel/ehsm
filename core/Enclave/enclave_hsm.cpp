@@ -298,8 +298,9 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
     return ehsm_asymmetric_decrypt(cmk, ciphertext, plaintext);
 }
 
-sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_len,
+sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
                           const ehsm_data_t *data, size_t data_len,
+                          const ehsm_data_t *appid, size_t appid_len,
                           ehsm_data_t *signature, size_t signature_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -388,33 +389,36 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_len,
     case EH_EC_P256:
         // case EH_EC_P384:
         // case EH_EC_P512:
-        ret = ehsm_ecc_sign(cmk,
-                            cmk->metadata.digest_mode,
-                            cmk->metadata.keyspec,
-                            data,
-                            signature,
-                            &signature->datalen);
-        break;
-    case EH_SM2:
-        ret = ehsm_sm2_sign(cmk,
-                            cmk->metadata.digest_mode,
-                            cmk->metadata.keyspec,
-                            data,
-                            signature,
-                            &signature->datalen);
-        break;
-    default:
-        printf("ecall sign unsupport keyspec.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
+            ret = ehsm_ecc_sign(cmk,
+                                cmk->metadata.digest_mode,
+                                cmk->metadata.keyspec,
+                                data,
+                                signature,
+                                &signature->datalen);
+            break;
+        case EH_SM2:
+            ret = ehsm_sm2_sign(cmk,
+                                cmk->metadata.digest_mode,
+                                cmk->metadata.keyspec,
+                                data,
+                                appid,
+                                signature,
+                                &signature->datalen);
+            break;
+        default:
+            printf("ecall sign unsupport keyspec.\n");
+            return SGX_ERROR_INVALID_PARAMETER;
+            
     }
 
     return ret;
 }
-
-sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_len,
+                                    
+sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
                             const ehsm_data_t *data, size_t data_len,
+                            const ehsm_data_t *appid, size_t appid_len,
                             const ehsm_data_t *signature, size_t signature_len,
-                            bool *result)
+                            bool* result)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -502,24 +506,26 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_len,
     case EH_EC_P256:
         // case EH_EC_P384:
         // case EH_EC_P512:
-        ret = ehsm_ecc_verify(cmk,
-                              cmk->metadata.digest_mode,
-                              cmk->metadata.keyspec,
-                              data,
-                              signature,
-                              result);
-        break;
-    case EH_SM2:
-        ret = ehsm_sm2_verify(cmk,
-                              cmk->metadata.digest_mode,
-                              cmk->metadata.keyspec,
-                              data,
-                              signature,
-                              result);
-        break;
-    default:
-        printf("ecall verify unsupport keyspec.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
+            ret = ehsm_ecc_verify(cmk,
+                                  cmk->metadata.digest_mode,
+                                  cmk->metadata.keyspec,
+                                  data,
+                                  signature,
+                                  result);
+            break;
+        case EH_SM2:
+            ret = ehsm_sm2_verify(cmk,
+                                  cmk->metadata.digest_mode,
+                                  cmk->metadata.keyspec,
+                                  data,
+                                  appid,
+                                  signature,
+                                  result);
+            break;
+        default:
+            printf("ecall verify unsupport keyspec.\n");
+            return SGX_ERROR_INVALID_PARAMETER;
+            
     }
 
     return ret;

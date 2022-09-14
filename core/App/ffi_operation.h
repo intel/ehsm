@@ -266,6 +266,7 @@ extern "C"
                 {
                     cmk_base64 : a base64 string,
                     digest_base64 : a base64 string,
+                    appid_base64 : a base64 string,
                     signature_base64 ： a base64 string
                 }
      *

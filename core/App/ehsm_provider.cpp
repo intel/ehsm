@@ -603,6 +603,7 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
  */
 ehsm_status_t Sign(ehsm_keyblob_t *cmk,
                    ehsm_data_t *digest,
+                   ehsm_data_t *appid,
                    ehsm_data_t *signature)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
@@ -665,16 +666,21 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
             printf("rsa sign requires a <=264B message.\n");
             return EH_ARGUMENTS_BAD;
         }
-        if (signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE && signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE && signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE)
+        if (signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE 
+            && signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE 
+            && signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE)
         {
             return EH_ARGUMENTS_BAD;
         }
+
         ret = enclave_sign(g_enclave_id,
                            &sgxStatus,
                            cmk,
                            SIZE_OF_KEYBLOB_T(cmk->keybloblen),
                            digest,
                            SIZE_OF_DATA_T(digest->datalen),
+                           appid,
+                           SIZE_OF_DATA_T(appid->datalen),
                            signature,
                            SIZE_OF_DATA_T(signature->datalen));
         break;
@@ -689,21 +695,25 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
             printf("EC digest exceeds the maximum size.\n");
             return EH_ARGUMENTS_BAD;
         }
-        if (signature->datalen != EC_P256_SIGNATURE_MAX_SIZE && signature->datalen != EC_SM2_SIGNATURE_MAX_SIZE)
+        if (signature->datalen != EC_P256_SIGNATURE_MAX_SIZE 
+            && signature->datalen != EC_SM2_SIGNATURE_MAX_SIZE)
         {
             return EH_ARGUMENTS_BAD;
         }
+
         ret = enclave_sign(g_enclave_id,
-                           &sgxStatus,
-                           cmk,
-                           SIZE_OF_KEYBLOB_T(cmk->keybloblen),
-                           digest,
-                           SIZE_OF_DATA_T(digest->datalen),
-                           signature,
-                           SIZE_OF_DATA_T(signature->datalen));
-        break;
-    default:
-        return EH_KEYSPEC_INVALID;
+                            &sgxStatus,
+                            cmk,
+                            SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                            digest,
+                            SIZE_OF_DATA_T(digest->datalen),
+                            appid,
+                            SIZE_OF_DATA_T(appid->datalen),
+                            signature,
+                            SIZE_OF_DATA_T(signature->datalen));
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
     }
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
@@ -723,13 +733,15 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
  */
 ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                      ehsm_data_t *digest,
+                     ehsm_data_t *appid,
                      ehsm_data_t *signature,
                      bool *result)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || digest == NULL || signature == NULL || result == NULL)
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
+        || digest == NULL || signature == NULL || result == NULL)
     {
         return EH_ARGUMENTS_BAD;
     }
@@ -764,12 +776,15 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
         {
             return EH_ARGUMENTS_BAD;
         }
+
         ret = enclave_verify(g_enclave_id,
                              &sgxStatus,
                              cmk,
                              SIZE_OF_KEYBLOB_T(cmk->keybloblen),
                              digest,
                              SIZE_OF_DATA_T(digest->datalen),
+                             appid,
+                             SIZE_OF_DATA_T(appid->datalen),
                              signature,
                              SIZE_OF_DATA_T(signature->datalen),
                              result);
@@ -789,12 +804,15 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
         {
             return EH_ARGUMENTS_BAD;
         }
+
         ret = enclave_verify(g_enclave_id,
                              &sgxStatus,
                              cmk,
                              SIZE_OF_KEYBLOB_T(cmk->keybloblen),
                              digest,
                              SIZE_OF_DATA_T(digest->datalen),
+                             appid,
+                             SIZE_OF_DATA_T(appid->datalen),
                              signature,
                              SIZE_OF_DATA_T(signature->datalen),
                              result);
@@ -856,16 +874,6 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
             return EH_ARGUMENTS_BAD;
         }
 
-        if ((0 != aad->datalen) && (NULL == aad->data))
-        {
-            return EH_ARGUMENTS_BAD;
-        }
-
-        if ((0 == aad->datalen) && (NULL != aad->data))
-        {
-            return EH_ARGUMENTS_BAD;
-        }
-
         ret = enclave_generate_datakey(g_enclave_id,
                                        &sgxStatus,
                                        cmk,
@@ -890,15 +898,7 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
         {
             return EH_ARGUMENTS_BAD;
         }
-        if ((0 != aad->datalen) && (NULL == aad->data))
-        {
-            return EH_ARGUMENTS_BAD;
-        }
 
-        if ((0 == aad->datalen) && (NULL != aad->data))
-        {
-            return EH_ARGUMENTS_BAD;
-        }
         ret = enclave_generate_datakey(g_enclave_id,
                                        &sgxStatus,
                                        cmk,
@@ -967,16 +967,6 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
             return EH_ARGUMENTS_BAD;
         }
 
-        if ((0 != aad->datalen) && (NULL == aad->data))
-        {
-            return EH_ARGUMENTS_BAD;
-        }
-
-        if ((0 == aad->datalen) && (NULL != aad->data))
-        {
-            return EH_ARGUMENTS_BAD;
-        }
-
         ret = enclave_generate_datakey(g_enclave_id,
                                        &sgxStatus,
                                        cmk,
@@ -1001,15 +991,7 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
         {
             return EH_ARGUMENTS_BAD;
         }
-        if ((0 != aad->datalen) && (NULL == aad->data))
-        {
-            return EH_ARGUMENTS_BAD;
-        }
-
-        if ((0 == aad->datalen) && (NULL != aad->data))
-        {
-            return EH_ARGUMENTS_BAD;
-        }
+        
         ret = enclave_generate_datakey(g_enclave_id,
                                        &sgxStatus,
                                        cmk,
@@ -1029,7 +1011,6 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
     else
         return EH_OK;
 }
-
 ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
                             ehsm_keyblob_t *ukey,
                             ehsm_data_t *aad,
