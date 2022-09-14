@@ -75,8 +75,9 @@ sgx_status_t ehsm_create_aes_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
                                  uint32_t *req_blob_size, ehsm_keyspec_t keyspec);
 sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk);
 
-sgx_status_t ehsm_create_asymmetric_key(ehsm_keyblob_t *cmk);
+sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk);
 
+sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_create_sm4_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
                                  uint32_t *req_blob_size, ehsm_keyspec_t keyspec);

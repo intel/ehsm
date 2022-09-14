@@ -80,8 +80,10 @@ static const EVP_CIPHER *ehsm_get_symmetric_block_mode(ehsm_keyspec_t keyspec)
         return EVP_aes_192_gcm();
     case EH_AES_GCM_256:
         return EVP_aes_256_gcm();
-    case EH_SM4:
-        return EVP_sm4_ecb();
+    case EH_SM4_CTR:
+        return EVP_sm4_ctr();
+    case EH_SM4_CBC:
+        return EVP_sm4_cbc();
     default:
         return NULL;
     }
@@ -149,26 +151,20 @@ bool verifyPaddingMode(uint8_t paddingMode, const EVP_MD *digestMode, EVP_PKEY *
 /**
  * @brief Check parameters and encrypted data
  * @param aad Additional data
- * @param aad_len Lenghth of aad
- * @param cmk_blob Key information
- * @param SIZE_OF_KEYBLOB_T Lenghth of cmk_blob
+ * @param cmk Key information
  * @param plaintext Data to be encrypted
- * @param plaintext_len Lenghth of plaintext
  * @param cipherblob The information of ciphertext
- * @param cipherblob_len Lenghth of cipherblob
- * @param keyspec The type of key
  */
-sgx_status_t ehsm_aes_gcm_encrypt(const uint8_t *aad, size_t aad_len,
-                                  const uint8_t *cmk_blob, size_t SIZE_OF_KEYBLOB_T,
-                                  const uint8_t *plaintext, size_t plaintext_len,
-                                  uint8_t *cipherblob, size_t cipherblob_len,
-                                  ehsm_keyspec_t keyspec)
+sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
+                                  const ehsm_keyblob_t *cmk,
+                                  const ehsm_data_t *plaintext,
+                                  ehsm_data_t *cipherblob)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int len = 0;
     EVP_CIPHER_CTX *pState = NULL;
 
-    if (cmk_blob == NULL)
+    if (cmk == NULL || plaintext == NULL || cipherblob == NULL)
         return SGX_ERROR_INVALID_PARAMETER;
 
     /* this api only support for symmetric keys */
@@ -178,39 +174,35 @@ sgx_status_t ehsm_aes_gcm_encrypt(const uint8_t *aad, size_t aad_len,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
+    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
     if (keysize == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
     uint32_t real_SIZE_OF_KEYBLOB_T = ehsm_calc_keyblob_len(0, keysize);
-    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || SIZE_OF_KEYBLOB_T < real_SIZE_OF_KEYBLOB_T)
+    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || cmk->keybloblen < real_SIZE_OF_KEYBLOB_T)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk_blob);
+    uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (enc_key_size == UINT32_MAX || enc_key_size != keysize)
     {
         printf("enc_key_size:%d is not expected: %lu.\n", enc_key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || plaintext_len > EH_ENCRYPT_MAX_SIZE)
+    if (plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (cipherblob == NULL ||
-        cipherblob_len < plaintext_len + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE)
+    if (cipherblob->datalen < plaintext->datalen + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if ((aad_len > 0) && (aad == NULL))
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    uint8_t *iv = (uint8_t *)(cipherblob + plaintext_len);
-    uint8_t *mac = (uint8_t *)(cipherblob + plaintext_len + SGX_AESGCM_IV_SIZE);
+
+    uint8_t *iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
+    uint8_t *mac = (uint8_t *)(cipherblob->data + plaintext->datalen + SGX_AESGCM_IV_SIZE);
     uint8_t *enc_key = (uint8_t *)malloc(keysize);
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(keyspec);
+    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -237,7 +229,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const uint8_t *aad, size_t aad_len,
     }
 
     ret = ehsm_parse_keyblob(enc_key, enc_key_size,
-                             (sgx_aes_gcm_data_ex_t *)cmk_blob);
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
     {
         printf("failed to decrypt key\n");
@@ -262,16 +254,16 @@ sgx_status_t ehsm_aes_gcm_encrypt(const uint8_t *aad, size_t aad_len,
 
     // Provide AAD data if exist
     //
-    if (NULL != aad)
+    if (NULL != aad->data)
     {
-        if (1 != EVP_EncryptUpdate(pState, NULL, &len, aad, aad_len))
+        if (1 != EVP_EncryptUpdate(pState, NULL, &len, aad->data, aad->datalen))
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
         }
     }
 
-    if (plaintext_len > 0)
+    if (plaintext->datalen > 0)
     {
         // Provide the message to be encrypted, and obtain the encrypted output.
         //
@@ -284,7 +276,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const uint8_t *aad, size_t aad_len,
 
     // Finalise the encryption/decryption
     //
-    if (1 != EVP_EncryptFinal_ex(pState, cipherblob + len, &len))
+    if (1 != EVP_EncryptFinal_ex(pState, cipherblob->data + len, &len))
     {
         ret = SGX_ERROR_MAC_MISMATCH;
         goto out;
@@ -310,75 +302,67 @@ out:
 /**
  * @brief Check parameters and decrypted data
  * @param aad Additional data
- * @param aad_len Lenghth of aad
  * @param cmk_blob Key information
- * @param SIZE_OF_KEYBLOB_T Lenghth of cmk_blob
  * @param cipherblob The ciphertext to be decrypted
- * @param cipherblob_len Lenghth of cipherblob
  * @param plaintext Decrypted plaintext
- * @param plaintext_len Lenghth of plaintext
- * @param keyspec The type of key
  */
-sgx_status_t ehsm_aes_gcm_decrypt(const uint8_t *aad, size_t aad_len,
-                                  const uint8_t *cmk_blob, size_t SIZE_OF_KEYBLOB_T,
-                                  const uint8_t *cipherblob, size_t cipherblob_len,
-                                  uint8_t *plaintext, size_t plaintext_len,
-                                  ehsm_keyspec_t keyspec)
+sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
+                                  const ehsm_keyblob_t *cmk,
+                                  const ehsm_data_t *cipherblob,
+                                  ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     uint8_t l_tag[SGX_AESGCM_MAC_SIZE];
     int len = 0;
     EVP_CIPHER_CTX *pState = NULL;
-    if (cmk_blob == NULL)
+
+    if (cmk == NULL || cipherblob == NULL || plaintext == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
     /* this api only support for symmetric keys */
-    if (keyspec != EH_AES_GCM_128 &&
-        keyspec != EH_AES_GCM_192 &&
-        keyspec != EH_AES_GCM_256)
+    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_AES_GCM_192 &&
+        cmk->metadata.keyspec != EH_AES_GCM_256)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
+    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
     if (keysize == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
     uint32_t real_SIZE_OF_KEYBLOB_T = ehsm_calc_keyblob_len(0, keysize);
-    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || SIZE_OF_KEYBLOB_T < real_SIZE_OF_KEYBLOB_T)
+    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || cmk->keybloblen < real_SIZE_OF_KEYBLOB_T)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t dec_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk_blob);
+    uint32_t dec_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (dec_key_size == UINT32_MAX || dec_key_size != keysize)
     {
         printf("dec_key_size size:%d is not expected: %lu.\n", dec_key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || plaintext_len > EH_ENCRYPT_MAX_SIZE)
+    if (plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (cipherblob == NULL || cipherblob_len < plaintext_len + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE)
+    if (cipherblob->datalen < plaintext->datalen + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if ((aad_len > 0) && (aad == NULL))
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    uint8_t *iv = (uint8_t *)(cipherblob + plaintext_len);
-    uint8_t *mac = (uint8_t *)(cipherblob + plaintext_len + SGX_AESGCM_IV_SIZE);
+
+    uint8_t *iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
+    uint8_t *mac = (uint8_t *)(cipherblob->data + plaintext->datalen + SGX_AESGCM_IV_SIZE);
     uint8_t *dec_key = (uint8_t *)malloc(keysize);
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(keyspec);
+    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -398,7 +382,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const uint8_t *aad, size_t aad_len,
     }
 
     ret = ehsm_parse_keyblob(dec_key, dec_key_size,
-                             (sgx_aes_gcm_data_ex_t *)cmk_blob);
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
     {
         printf("error(%d) unsealing key.\n", ret);
@@ -425,9 +409,9 @@ sgx_status_t ehsm_aes_gcm_decrypt(const uint8_t *aad, size_t aad_len,
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
-    if (NULL != aad)
+    if (NULL != aad->data)
     {
-        if (!EVP_DecryptUpdate(pState, NULL, &len, aad, aad_len))
+        if (!EVP_DecryptUpdate(pState, NULL, &len, aad->data, aad->datalen))
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
@@ -436,7 +420,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const uint8_t *aad, size_t aad_len,
 
     // Decrypt message, obtain the plaintext output
     //
-    if (!EVP_DecryptUpdate(pState, plaintext, &len, cipherblob, plaintext_len))
+    if (!EVP_DecryptUpdate(pState, plaintext->data, &len, cipherblob->data, plaintext->datalen))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
@@ -452,7 +436,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const uint8_t *aad, size_t aad_len,
     // Finalise the decryption. A positive return value indicates success,
     // anything else is a failure - the plaintext is not trustworthy.
     //
-    if (EVP_DecryptFinal_ex(pState, plaintext + len, &len) <= 0)
+    if (EVP_DecryptFinal_ex(pState, plaintext->data + len, &len) <= 0)
     {
         ret = SGX_ERROR_MAC_MISMATCH;
         goto out;
@@ -468,56 +452,56 @@ out:
     return ret;
 }
 
-sgx_status_t ehsm_sm4_encrypt(const uint8_t *aad, size_t aad_len,
-                              const uint8_t *cmk_blob, size_t SIZE_OF_KEYBLOB_T,
-                              const uint8_t *plaintext, size_t plaintext_len,
-                              uint8_t *cipherblob, size_t cipherblob_len,
-                              ehsm_keyspec_t keyspec)
+
+/**
+ * @brief Check parameters and encrypted data
+ * @param cmk Key information
+ * @param plaintext Data to be encrypted
+ * @param cipherblob The information of ciphertext
+ */
+sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
+                                  const ehsm_data_t *plaintext,
+                                  ehsm_data_t *cipherblob)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int len = 0;
     EVP_CIPHER_CTX *pState = NULL;
 
-    if (cmk_blob == NULL)
+    if (cmk == NULL || plaintext == NULL || cipherblob == NULL)
         return SGX_ERROR_INVALID_PARAMETER;
 
     /* this api only support for symmetric keys */
-    if (keyspec != EH_SM4)
+    if (cmk->metadata.keyspec != EH_SM4_CTR)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
+    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
     if (keysize == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
     uint32_t real_SIZE_OF_KEYBLOB_T = ehsm_calc_keyblob_len(0, keysize);
-    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || SIZE_OF_KEYBLOB_T < real_SIZE_OF_KEYBLOB_T)
+    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || cmk->keybloblen < real_SIZE_OF_KEYBLOB_T)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk_blob);
+    uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (enc_key_size == UINT32_MAX || enc_key_size != keysize)
     {
         printf("enc_key_size:%d is not expected: %lu.\n", enc_key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || plaintext_len > EH_ENCRYPT_MAX_SIZE)
+    if (plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (cipherblob == NULL ||
-        cipherblob_len < plaintext_len + SGX_SM4_IV_SIZE)
+    if (cipherblob->datalen < plaintext->datalen + SGX_SM4_IV_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if ((aad_len > 0) && (aad == NULL))
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    uint8_t *iv = (uint8_t *)(cipherblob + plaintext_len);
+    uint8_t *iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
     uint8_t *enc_key = (uint8_t *)malloc(keysize);
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(keyspec);
+    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -538,56 +522,36 @@ sgx_status_t ehsm_sm4_encrypt(const uint8_t *aad, size_t aad_len,
     }
 
     ret = ehsm_parse_keyblob(enc_key, enc_key_size,
-                             (sgx_aes_gcm_data_ex_t *)cmk_blob);
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
     {
         printf("failed to decrypt key\n");
         goto out;
     }
-
-    // Create and init ctx
-    //
-    if (!(pState = EVP_CIPHER_CTX_new()))
-    {
+    // Create and initialize pState
+    if (!(pState = EVP_CIPHER_CTX_new())) {
+        printf("Error: fail to initialize EVP_CIPHER_CTX\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    // Initialize encrypt, key and ctr
+    if (EVP_EncryptInit_ex(pState, block_mode, NULL, (unsigned char*)enc_key, iv) != 1) {
+        printf("Error: fail to initialize encrypt, key and ctr\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
-    // Initialise encrypt/decrpty, key and IV
-    //
-    if (1 != EVP_EncryptInit_ex(pState, block_mode, NULL, (unsigned char *)enc_key, iv))
-    {
+    // 3. Encrypt the plaintext and obtain the encrypted output
+    if (EVP_EncryptUpdate(pState, cipherblob->data, &len, plaintext->data, plaintext->datalen) != 1) {
+        printf("Error: fail to encrypt the plaintext\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
-    // Provide AAD data if exist
-    //
-    if (NULL != aad)
-    {
-        if (1 != EVP_EncryptUpdate(pState, NULL, &len, aad, aad_len))
-        {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-    }
-
-    if (plaintext_len > 0)
-    {
-        // Provide the message to be encrypted, and obtain the encrypted output.
-        //
-        if (1 != EVP_EncryptUpdate(pState, cipherblob, &len, plaintext, plaintext_len))
-        {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-    }
-
-    // Finalise the encryption/decryption
-    //
-    if (1 != EVP_EncryptFinal_ex(pState, cipherblob + len, &len))
-    {
-        ret = SGX_ERROR_MAC_MISMATCH;
+    // 4. Finalize the encryption
+    if (EVP_EncryptFinal_ex(pState, cipherblob->data + len, &len) != 1) {
+        printf("Error: fail to finalize the encryption\n");
+        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
@@ -601,62 +565,56 @@ out:
     return ret;
 }
 
-sgx_status_t ehsm_sm4_decrypt(const uint8_t *aad, size_t aad_len,
-                              const uint8_t *cmk_blob, size_t SIZE_OF_KEYBLOB_T,
-                              const uint8_t *cipherblob, size_t cipherblob_len,
-                              uint8_t *plaintext, size_t plaintext_len,
-                              ehsm_keyspec_t keyspec)
+sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
+                                  const ehsm_data_t *cipherblob,
+                                  ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int len = 0;
     EVP_CIPHER_CTX *pState = NULL;
-    if (cmk_blob == NULL)
+    if (cmk == NULL || cipherblob == NULL || plaintext == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
     /* this api only support for symmetric keys */
-    if (keyspec != EH_SM4)
+    if (cmk->metadata.keyspec != EH_SM4_CTR)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t keysize = ehsm_get_symmetric_key_size(keyspec);
+    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
     if (keysize == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
     uint32_t real_SIZE_OF_KEYBLOB_T = ehsm_calc_keyblob_len(0, keysize);
-    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || SIZE_OF_KEYBLOB_T < real_SIZE_OF_KEYBLOB_T)
+    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || cmk->keybloblen < real_SIZE_OF_KEYBLOB_T)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t dec_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk_blob);
+    uint32_t dec_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (dec_key_size == UINT32_MAX || dec_key_size != keysize)
     {
         printf("dec_key_size size:%d is not expected: %lu.\n", dec_key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || plaintext_len > EH_ENCRYPT_MAX_SIZE)
+    if (plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (cipherblob == NULL || cipherblob_len < plaintext_len + SGX_SM4_IV_SIZE)
+    if (cipherblob->datalen < plaintext->datalen + SGX_SM4_IV_SIZE)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if ((aad_len > 0) && (aad == NULL))
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    uint8_t *iv = (uint8_t *)(cipherblob + plaintext_len);
+    uint8_t *iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
     uint8_t *dec_key = (uint8_t *)malloc(keysize);
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(keyspec);
+    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -670,53 +628,292 @@ sgx_status_t ehsm_sm4_decrypt(const uint8_t *aad, size_t aad_len,
     }
 
     ret = ehsm_parse_keyblob(dec_key, dec_key_size,
-                             (sgx_aes_gcm_data_ex_t *)cmk_blob);
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
     {
         printf("error(%d) unsealing key.\n", ret);
         goto out;
     }
 
+    // Create and initialize ctx
+    if (!(pState = EVP_CIPHER_CTX_new())) {
+        printf("Error: fail to initialize EVP_CIPHER_CTX\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    // Initialize decrypt, key and ctr
+    if (!EVP_DecryptInit_ex(pState, block_mode, NULL, (unsigned char*)dec_key, iv)) {
+    	printf("Error: fail to initialize decrypt, key and ctr\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
 
-    // Create and initialise the context
-    //
-    if (!(pState = EVP_CIPHER_CTX_new()))
+    // Decrypt the ciphertext and obtain the decrypted output
+    if (!EVP_DecryptUpdate(pState, plaintext->data, &len, cipherblob->data, plaintext->datalen)) {
+        printf("Error: fail to decrypt the ciphertext\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    // Finalize the decryption:
+    // - A positive return value indicates success;
+    // - Anything else is a failure - the msg is not trustworthy.
+    if (EVP_DecryptFinal_ex(pState, plaintext->data + len, &len) <= 0) {
+    	printf("Error: fail to finalize the decryption\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+out:
+    if (pState != NULL)
+    {
+        EVP_CIPHER_CTX_free(pState);
+    }
+    memset_s(dec_key, sizeof(dec_key), 0, sizeof(dec_key));
+    SAFE_FREE(dec_key);
+    return ret;
+}
+
+sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
+                                  const ehsm_data_t *plaintext,
+                                  ehsm_data_t *cipherblob)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int len = 0;
+    int pad = -1;
+    uint8_t *iv = NULL;
+    EVP_CIPHER_CTX *pState = NULL;
+
+    if (cmk == NULL || plaintext == NULL || cipherblob == NULL)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_SM4_CBC)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
+    if (keysize == 0)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t real_SIZE_OF_KEYBLOB_T = ehsm_calc_keyblob_len(0, keysize);
+    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || cmk->keybloblen < real_SIZE_OF_KEYBLOB_T)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (enc_key_size == UINT32_MAX || enc_key_size != keysize)
+    {
+        printf("enc_key_size:%d is not expected: %lu.\n", enc_key_size, keysize);
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (cipherblob->datalen < plaintext->datalen + SGX_SM4_IV_SIZE)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+
+    if (plaintext->datalen % 16 != 0 &&
+    (cipherblob->datalen < (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE))
+        return SGX_ERROR_UNEXPECTED;
+
+    if (plaintext->datalen % 16 == 0 &&
+    (cipherblob->datalen < plaintext->datalen + SGX_SM4_IV_SIZE))
+        return SGX_ERROR_UNEXPECTED;
+
+    if(plaintext->datalen % 16 != 0) {
+        iv = (uint8_t *)(cipherblob->data + ((plaintext->datalen/16) + 1) * 16);
+    } else {
+        iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
+    }
+    if(iv == NULL) {
+        return SGX_ERROR_UNEXPECTED;
+    }
+    uint8_t *enc_key = (uint8_t *)malloc(keysize);
+
+    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
+    if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
-    // Initialise decrypt, key and IV
-    //
-    if (!EVP_DecryptInit_ex(pState, block_mode, NULL, (unsigned char *)dec_key, iv))
+    ret = sgx_read_rand(iv, SGX_SM4_IV_SIZE);
+    if (ret != SGX_SUCCESS)
+    {
+        printf("error generating IV\n");
+        goto out;
+    }
+
+    if ((iv == NULL))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
-    if (NULL != aad)
+
+    ret = ehsm_parse_keyblob(enc_key, enc_key_size,
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (ret != SGX_SUCCESS)
     {
-        if (!EVP_DecryptUpdate(pState, NULL, &len, aad, aad_len))
-        {
+        printf("failed to decrypt key\n");
+        goto out;
+    }
+
+    // set padding mode
+    pad = (plaintext->datalen % 16 == 0) ? 0 : 1;
+
+    // Create and initialize ctx
+    if (!(pState = EVP_CIPHER_CTX_new())) {
+        printf("Error: fail to initialize EVP_CIPHER_CTX\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    // Initialize encrypt, key and ctr
+    if (EVP_EncryptInit_ex(pState, block_mode, NULL, (unsigned char*)enc_key, iv) != 1) {
+        printf("Error: fail to initialize encrypt, key and ctr\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    if (EVP_CIPHER_CTX_set_padding(pState, pad) != 1) {
+        printf("Error: fail to set padding\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    // Encrypt the plaintext and obtain the encrypted output
+    if (EVP_EncryptUpdate(pState, cipherblob->data, &len, plaintext->data, plaintext->datalen) != 1) {
+        printf("Error: fail to encrypt the plaintext\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    // Finalize the encryption
+    if (EVP_EncryptFinal_ex(pState, cipherblob->data + len, &len) != 1) {
+        printf("Error: fail to finalize the encryption\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+out:
+    if (pState)
+    {
+        EVP_CIPHER_CTX_free(pState);
+    }
+    memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
+    SAFE_FREE(enc_key);
+    return ret;
+}
+
+sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
+                              const ehsm_data_t *cipherblob,
+                              ehsm_data_t *plaintext)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int len = 0;
+    int pad = -1;
+    EVP_CIPHER_CTX *pState = NULL;
+    if (cmk == NULL || cipherblob == NULL || plaintext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    /* this api only support for symmetric keys */
+    if (cmk->metadata.keyspec != EH_SM4_CBC)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
+    if (keysize == 0)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    uint32_t real_SIZE_OF_KEYBLOB_T = ehsm_calc_keyblob_len(0, keysize);
+    if (UINT32_MAX == real_SIZE_OF_KEYBLOB_T || cmk->keybloblen < real_SIZE_OF_KEYBLOB_T)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t dec_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (dec_key_size == UINT32_MAX || dec_key_size != keysize)
+    {
+        printf("dec_key_size size:%d is not expected: %lu.\n", dec_key_size, keysize);
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (cipherblob->datalen < plaintext->datalen + SGX_SM4_IV_SIZE)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    uint8_t *iv = (uint8_t *)(cipherblob->data + cipherblob->datalen - SGX_SM4_IV_SIZE);
+    uint8_t *dec_key = (uint8_t *)malloc(keysize);
+
+    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
+    if (block_mode == NULL)
+    {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    if ((iv == NULL))
+    {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    ret = ehsm_parse_keyblob(dec_key, dec_key_size,
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (ret != SGX_SUCCESS)
+    {
+        printf("error(%d) unsealing key.\n", ret);
+        goto out;
+    }
+    pad = (plaintext->datalen % 16 == 0) ? 0 : 1;
+    // Create and initialize ctx
+    if (!(pState = EVP_CIPHER_CTX_new())) {
+        printf("Error: fail to initialize EVP_CIPHER_CTX\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    // Initialize decrypt, key and IV
+    if (!EVP_DecryptInit_ex(pState, block_mode, NULL, (unsigned char*)dec_key, iv)) {
+        printf("Error: fail to initialize decrypt, key and IV\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    if (EVP_CIPHER_CTX_set_padding(pState, pad) != 1) {
+        printf("Error: fail to set padding\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    // Decrypt the ciphertext and obtain the decrypted output
+    if (!EVP_DecryptUpdate(pState, plaintext->data, &len, cipherblob->data, cipherblob->datalen - 16)) {
+        printf("Error: fail to decrypt the ciphertext\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    // Finalize the decryption:
+    // If length of decrypted data is integral multiple of 16, do not execute EVP_DecryptFinal_ex(), or it will fail to decrypt
+    // - A positive return value indicates success;
+    // - Anything else is a failure - the plaintext is not trustworthy.
+    if (plaintext->datalen % 16 != 0) {
+        if (EVP_DecryptFinal_ex(pState, plaintext->data + len, &len) <= 0) {
+            printf("Error: fail to finalize the decryption\n");
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
         }
-    }
-
-    // Decrypt message, obtain the plaintext output
-    //
-    if (!EVP_DecryptUpdate(pState, plaintext, &len, cipherblob, plaintext_len))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Finalise the decryption. A positive return value indicates success,
-    // anything else is a failure - the plaintext is not trustworthy.
-    //
-    if (EVP_DecryptFinal_ex(pState, plaintext + len, &len) <= 0)
-    {
-        ret = SGX_ERROR_MAC_MISMATCH;
-        goto out;
     }
 out:
     if (pState != NULL)
@@ -729,18 +926,19 @@ out:
 }
 
 
-sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *ciphertext)
+sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *ciphertext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
             
     uint8_t         *rsa_keypair    = NULL;
     BIO             *bio            = NULL;
     RSA             *rsa_pubkey     = NULL;
-    EVP_PKEY        *pkey           = NULL;
-    EVP_PKEY_CTX    *ectx           = NULL;
 
     // load rsa public key
     rsa_keypair = (uint8_t*)malloc(cmk->keybloblen);
+    if (rsa_keypair == NULL) {
+        goto out;
+    }
 
     ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
@@ -755,99 +953,130 @@ sgx_status_t ehsm_asymmetric_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *pla
     }
 
     // make encryption
-    switch (cmk->metadata.keyspec)
-    {
-    case EH_RSA_2048:
-    case EH_RSA_3072:
-    case EH_RSA_4096:
-        PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
-        if (rsa_pubkey == NULL) {
-            printf("failed to load rsa key\n");
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-
-        if (ciphertext->datalen == 0) {
-            ciphertext->datalen = RSA_size(rsa_pubkey); // TODO : compute padding size
-            ret = SGX_SUCCESS;
-            goto out;
-        }
-        if (RSA_public_encrypt(plaintext->datalen, plaintext->data, ciphertext->data, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey)) {
-            printf("failed to make rsa encryption\n");
-            goto out;
-        }
-        break;
-    case EH_SM2:
-        pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-        if (pkey == NULL) {
-            printf("failed to load sm2 key\n");
-            goto out;
-        }
-        if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1) {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-        
-        if (!(ectx = EVP_PKEY_CTX_new(pkey, NULL))) {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-        
-        if (EVP_PKEY_encrypt_init(ectx) != 1) {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-
-        size_t strLen;
-        if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) != 1) {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-
-        if (ciphertext->datalen == 0) {
-            ciphertext->datalen = strLen;
-            ret = SGX_SUCCESS;
-            goto out;
-        }
-
-        if (plaintext->data != NULL) {
-            if (EVP_PKEY_encrypt(ectx, ciphertext->data, &strLen, plaintext->data, (size_t)plaintext->datalen) != 1) {
-                printf("failed to make sm2 encryption\n");
-                ret = SGX_ERROR_UNEXPECTED;
-                goto out;
-            }
-        } else {
-            ret = SGX_ERROR_INVALID_PARAMETER;
-            goto out;
-        }
-    default:
+    PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
+    if (rsa_pubkey == NULL) {
+        printf("failed to load rsa key\n");
         ret = SGX_ERROR_UNEXPECTED;
-        break;
+        goto out;
+    }
+
+    if (ciphertext->datalen == 0) {
+        ciphertext->datalen = RSA_size(rsa_pubkey); // TODO : compute padding size
+        ret = SGX_SUCCESS;
+        goto out;
+    }
+    if (RSA_public_encrypt(plaintext->datalen, plaintext->data, ciphertext->data, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey)) {
+        printf("failed to make rsa encryption\n");
+        goto out;
     }
 
     ret = SGX_SUCCESS;
 out:
     BIO_free(bio);
     RSA_free(rsa_pubkey);
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(ectx);
     SAFE_FREE(rsa_keypair);
 
     return ret;
 }
 
-sgx_status_t ehsm_asymmetric_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext)
+sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *ciphertext)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+            
+    uint8_t         *sm2_keypair    = NULL;
+    BIO             *bio            = NULL;
+    RSA             *sm2_pubkey     = NULL;
+    EVP_PKEY        *pkey           = NULL;
+    EVP_PKEY_CTX    *ectx           = NULL;
+
+    // load sm2 public key
+    sm2_keypair = (uint8_t*)malloc(cmk->keybloblen);
+    if (sm2_keypair == NULL) {
+        goto out;
+    }
+
+    ret = ehsm_parse_keyblob(sm2_keypair, cmk->keybloblen,
+                            (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+    bio = BIO_new_mem_buf(sm2_keypair, -1); // use -1 to auto compute length
+    if (bio == NULL) {
+        printf("failed to load public key pem\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    // make encryption
+    pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+    if (pkey == NULL) {
+        printf("failed to load sm2 key\n");
+        goto out;
+    }
+    if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    
+    ectx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (ectx == NULL) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    
+    if (EVP_PKEY_encrypt_init(ectx) != 1) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    size_t strLen;
+    if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    if (ciphertext->datalen == 0) {
+        ciphertext->datalen = strLen;
+        ret = SGX_SUCCESS;
+        goto out;
+    }
+
+    if (plaintext->data != NULL) {
+        if (EVP_PKEY_encrypt(ectx, ciphertext->data, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0) {
+            printf("failed to make sm2 encryption\n");
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+    } else {
+        ret = SGX_ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    ret = SGX_SUCCESS;
+out:
+    BIO_free(bio);
+    RSA_free(sm2_pubkey);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ectx);
+    SAFE_FREE(sm2_keypair);
+
+    return ret;
+}
+
+sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t         *rsa_keypair    = NULL;
     BIO             *bio            = NULL;
     RSA             *rsa_prikey     = NULL;
-    EVP_PKEY        *pkey           = NULL;
-    EVP_PKEY_CTX    *dctx           = NULL;
 
     // load private key
     rsa_keypair = (uint8_t*)malloc(cmk->keybloblen);
+    if (rsa_keypair == NULL) {
+        goto out;
+    }
+
     ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
@@ -860,88 +1089,107 @@ sgx_status_t ehsm_asymmetric_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *cip
         goto out;
     }
 
-    switch (cmk->metadata.keyspec)
-    {
-    case EH_RSA_2048:
-    case EH_RSA_3072:
-    case EH_RSA_4096:
-        PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
-        if (rsa_prikey == NULL) {
-            printf("failed to load private key\n");
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
+    PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
+    if (rsa_prikey == NULL) {
+        printf("failed to load private key\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
 
-        if (plaintext->datalen == 0) {
-            uint8_t* temp_plaintext = (uint8_t*)malloc(RSA_size(rsa_prikey));
-            plaintext->datalen = RSA_private_decrypt(ciphertext->datalen, ciphertext->data, temp_plaintext, rsa_prikey, cmk->metadata.padding_mode);
-            ret = SGX_SUCCESS;
-            goto out;
-        }
+    if (plaintext->datalen == 0) {
+        uint8_t* temp_plaintext = (uint8_t*)malloc(RSA_size(rsa_prikey));
+        plaintext->datalen = RSA_private_decrypt(ciphertext->datalen, ciphertext->data, temp_plaintext, rsa_prikey, cmk->metadata.padding_mode);
+        ret = SGX_SUCCESS;
+        goto out;
+    }
 
-        if (!RSA_private_decrypt(ciphertext->datalen, ciphertext->data, plaintext->data, rsa_prikey, cmk->metadata.padding_mode)) {
-            printf("failed to make rsa decrypt\n");
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-        break;
-    case EH_SM2:
-        pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
-        if (pkey == NULL) {
-            printf("failed to load sm2 key\n");
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-
-        // make decryption and compute plaintext length
-        if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1) {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-
-        if (!(dctx = EVP_PKEY_CTX_new(pkey, NULL))) {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-
-        if (EVP_PKEY_decrypt_init(dctx) != 1) {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-
-        if (plaintext->datalen == 0) {
-            size_t strLen;
-            if (EVP_PKEY_decrypt(dctx, NULL, &strLen, ciphertext->data, (size_t)ciphertext->datalen) != 1) {
-                ret = SGX_ERROR_UNEXPECTED;
-                goto out;
-            }
-            plaintext->datalen = strLen;
-            ret = SGX_SUCCESS;
-            goto out;
-        }
-
-        if (ciphertext->data != NULL) {
-            size_t strLen = plaintext->datalen;
-            if (EVP_PKEY_decrypt(dctx, plaintext->data, &strLen, ciphertext->data, (size_t)ciphertext->datalen) != 1) { 
-                ret = SGX_ERROR_UNEXPECTED;
-                goto out;
-            }
-        } else {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-        break;
-    default:
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        break;
+    if (!RSA_private_decrypt(ciphertext->datalen, ciphertext->data, plaintext->data, rsa_prikey, cmk->metadata.padding_mode)) {
+        printf("failed to make rsa decrypt\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
     }
     
 out:
     BIO_free(bio);
     RSA_free(rsa_prikey);
+    SAFE_FREE(rsa_keypair);
+
+    return ret;
+}
+
+sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    uint8_t         *sm2_keypair    = NULL;
+    BIO             *bio            = NULL;
+    EVP_PKEY        *pkey           = NULL;
+    EVP_PKEY_CTX    *dctx           = NULL;
+
+    // load private key
+    sm2_keypair = (uint8_t*)malloc(cmk->keybloblen);
+    ret = ehsm_parse_keyblob(sm2_keypair, cmk->keybloblen,
+                            (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+    bio = BIO_new_mem_buf(sm2_keypair, -1); // use -1 to auto compute length
+    if (bio == NULL) {
+        printf("failed to load key pem\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+    if (pkey == NULL) {
+        printf("failed to load sm2 key\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    // make decryption and compute plaintext length
+    if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    if (!(dctx = EVP_PKEY_CTX_new(pkey, NULL))) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    if (EVP_PKEY_decrypt_init(dctx) != 1) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    if (plaintext->datalen == 0) {
+        size_t strLen;
+        if (EVP_PKEY_decrypt(dctx, NULL, &strLen, ciphertext->data, (size_t)ciphertext->datalen) != 1) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+        plaintext->datalen = strLen;
+        ret = SGX_SUCCESS;
+        goto out;
+    }
+
+    if (ciphertext->data != NULL) {
+        size_t strLen = plaintext->datalen;
+        if (EVP_PKEY_decrypt(dctx, plaintext->data, &strLen, ciphertext->data, (size_t)ciphertext->datalen) != 1) { 
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
+    } else {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    
+out:
+    BIO_free(bio);
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(dctx);
-    SAFE_FREE(rsa_keypair);
+    SAFE_FREE(sm2_keypair);
 
     return ret;
 }

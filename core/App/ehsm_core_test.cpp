@@ -701,7 +701,7 @@ void test_AES192()
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     printf("Create CMK with AES-192 SUCCESSFULLY!\n");
     cmk_base64 = retJsonObj.readData_cstr("cmk");
-
+    payload_json.clear();
     payload_json.addData_string("cmk", cmk_base64);
     payload_json.addData_string("plaintext", input_plaintext_base64);
     payload_json.addData_string("aad", input_aad_base64);
@@ -780,7 +780,7 @@ void test_AES256()
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     printf("Create CMK with AES-256 SUCCESSFULLY!\n");
     cmk_base64 = retJsonObj.readData_cstr("cmk");
-
+    payload_json.clear();
     payload_json.addData_string("cmk", cmk_base64);
     payload_json.addData_string("plaintext", input_plaintext_base64);
     payload_json.addData_string("aad", input_aad_base64);
@@ -827,23 +827,21 @@ cleanup:
     printf("============test_AES256 end==========\n");
 }
 
-void test_SM4()
+void test_SM4_CTR()
 {
-    char *returnJsonChar = nullptr;
-    char plaintext[] = "Test1234-SM4";
-    char aad[] = "challenge";
-    printf("============test_SM4 start==========\n");
+    char* returnJsonChar = nullptr;
+    char plaintext[] = "Test1234-SM4-CTR";
+    printf("============test_SM4_CTR start==========\n");
 
-    char *cmk_base64 = nullptr;
-    char *ciphertext_base64 = nullptr;
-    char *plaintext_base64 = nullptr;
-    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
-    std::string input_aad_base64 = base64_encode((const uint8_t *)aad, sizeof(aad) / sizeof(aad[0]));
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
 
     RetJsonObj retJsonObj;
     JsonObj param_json;
     JsonObj payload_json;
-    payload_json.addData_uint16("keyspec", EH_SM4);
+    payload_json.addData_uint16("keyspec", EH_SM4_CTR);
     payload_json.addData_uint16("origin", 0);
     param_json.addData_uint16("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -857,12 +855,11 @@ void test_SM4()
         goto cleanup;
     }
     printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
-    printf("Create CMK with SM4 SUCCESSFULLY!\n");
+    printf("Create CMK with SM4_CTR SUCCESSFULLY!\n");
     cmk_base64 = retJsonObj.readData_cstr("cmk");
-
+    payload_json.clear();
     payload_json.addData_string("cmk", cmk_base64);
     payload_json.addData_string("plaintext", input_plaintext_base64);
-    payload_json.addData_string("aad", input_aad_base64);
 
     param_json.addData_uint16("action", EH_ENCRYPT);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -903,7 +900,80 @@ cleanup:
     SAFE_FREE(ciphertext_base64);
     SAFE_FREE(cmk_base64);
     SAFE_FREE(returnJsonChar);
-    printf("============test_SM4 end==========\n");
+    printf("============test_SM4_CTR end==========\n");
+}
+
+void test_SM4_CBC()
+{
+    char* returnJsonChar = nullptr;
+    char plaintext[] = "Test-SM4-CBC";
+    printf("============test_SM4_CBC start==========\n");
+
+    char* cmk_base64 = nullptr;
+    char* ciphertext_base64 = nullptr;
+    char* plaintext_base64 = nullptr;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    RetJsonObj retJsonObj;
+    JsonObj param_json;
+    JsonObj payload_json;
+    payload_json.addData_uint16("keyspec", EH_SM4_CBC);
+    payload_json.addData_uint16("origin", 0);
+    param_json.addData_uint16("action", EH_CREATE_KEY);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+
+    if(retJsonObj.getCode() != 200){
+        printf("Createkey with sm4 failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
+    printf("Create CMK with SM4_CBC SUCCESSFULLY!\n");
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+    payload_json.clear();
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_string("plaintext", input_plaintext_base64);
+
+    param_json.addData_uint16("action", EH_ENCRYPT);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+
+    if(retJsonObj.getCode() != 200){
+        printf("Failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+    printf("Encrypt data SUCCESSFULLY!\n");
+
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+    payload_json.addData_string("ciphertext", ciphertext_base64);
+
+    param_json.addData_uint16("action", EH_DECRYPT);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+
+    if(retJsonObj.getCode() != 200){
+        printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("NAPI_Decrypt json = %s\n", returnJsonChar);
+    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+
+    printf("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
+    printf("Check decrypt plaintext result with %s: %s\n", input_plaintext_base64.c_str(), (strcmp(base64_decode(plaintext_base64).c_str(), plaintext) == 0) ? "true" : "false");
+    printf("Decrypt data SUCCESSFULLY!\n");
+
+cleanup:
+    SAFE_FREE(plaintext_base64);
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_SM4_CBC end==========\n");
 }
 
 void test_RSA3072_encrypt_decrypt()
@@ -1948,35 +2018,37 @@ int main(int argc, char *argv[])
     //     test_performance();
     // #endif
 
-    test_AES128();
+    // test_AES128();
 
-    test_AES192();
+    // test_AES192();
 
-    test_AES256();
+    // test_AES256();
 
-    // test_SM4();
+    test_SM4_CTR();
+	
+	test_SM4_CBC();
 
     test_RSA3072_encrypt_decrypt();
 
-    test_RSA2048_sign_verify();
+    // test_RSA2048_sign_verify();
 
-    test_RSA3072_sign_verify();
+    // test_RSA3072_sign_verify();
 
-    test_RSA4096_sign_verify();
+    // test_RSA4096_sign_verify();
 
-    test_ec_sm2_sign_verify();
+    // test_ec_sm2_sign_verify();
 
-    test_SM2_encrypt_decrypt();
+    // test_SM2_encrypt_decrypt();
 
-    test_ec_p256_sign_verify();
+    // test_ec_p256_sign_verify();
 
-    test_generate_datakey();
+    // test_generate_datakey();
 
-    test_export_datakey();
+    // test_export_datakey();
 
     test_GenerateQuote_and_VerifyQuote();
 
-    test_Enroll();
+    // test_Enroll();
 
     Finalize();
 

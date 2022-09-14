@@ -388,7 +388,7 @@ extern "C"
             retJsonObj.setMessage("The cmk's length is invalid.");
             goto out;
         }
-        if (ciphertext_len == 0 || ciphertext_len > EH_ENCRYPT_MAX_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
+        if (ciphertext_len == 0 || ciphertext_len > EH_ENCRYPT_MAX_SIZE + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The ciphertext's length is invalid.");
