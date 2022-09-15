@@ -56,28 +56,36 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
                                   ehsm_data_t *plaintext);
 
 sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk_blob,
-                              const ehsm_data_t *plaintext,
-                              ehsm_data_t *cipherblob);
+                                  const ehsm_data_t *plaintext,
+                                  ehsm_data_t *cipherblob);
 
 sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk_blob,
-                              const ehsm_data_t *cipherblob,
-                              ehsm_data_t *plaintext);
+                                  const ehsm_data_t *cipherblob,
+                                  ehsm_data_t *plaintext);
 
 sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
-                              const ehsm_data_t *plaintext,
-                              ehsm_data_t *cipherblob);
+                                  const ehsm_data_t *plaintext,
+                                  ehsm_data_t *cipherblob);
 
 sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
-                              const ehsm_data_t *cipherblob,
+                                  const ehsm_data_t *cipherblob,
+                                  ehsm_data_t *plaintext);
+
+sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
+                              ehsm_data_t *plaintext,
+                              ehsm_data_t *ciphertext);
+
+sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
+                              ehsm_data_t *plaintext,
+                              ehsm_data_t *ciphertext);
+
+sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
+                              ehsm_data_t *ciphertext,
                               ehsm_data_t *plaintext);
 
-sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *ciphertext);
-
-sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *ciphertext);
-
-sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext);
-
-sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *plaintext);
+sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
+                              ehsm_data_t *ciphertext,
+                              ehsm_data_t *plaintext);
 
 sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk_blob,
                            const ehsm_data_t *data,
@@ -109,9 +117,9 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            uint32_t *req_signature_len);
 
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
-                            const ehsm_data_t *data,
-                            const ehsm_data_t *appid,
-                            const ehsm_data_t *signature,
-                            bool *result);
+                             const ehsm_data_t *data,
+                             const ehsm_data_t *appid,
+                             const ehsm_data_t *signature,
+                             bool *result);
 
 #endif

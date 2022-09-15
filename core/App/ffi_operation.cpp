@@ -114,7 +114,6 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *master_key = NULL;
         string cmk_base64;
-        uint32_t req_len = 0;
 
         master_key = (ehsm_keyblob_t *)malloc(sizeof(ehsm_keyblob_t));
         if (master_key == NULL)
@@ -139,38 +138,35 @@ extern "C"
             goto out;
         }
 
-        do
+        ret = CreateKey(master_key);
+        if (ret != EH_OK)
         {
-            req_len = master_key->keybloblen;
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        
+        master_key = (ehsm_keyblob_t *)realloc(master_key, APPEND_SIZE_TO_KEYBOB_T(master_key->keybloblen));
+        if (master_key == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
 
-            ret = CreateKey(master_key);
-            if (ret != EH_OK)
-            {
-                retJsonObj.setCode(retJsonObj.CODE_FAILED);
-                retJsonObj.setMessage("Server exception1.");
-                goto out;
-            }
-            if (master_key->keybloblen > req_len)
-            {
-                master_key = (ehsm_keyblob_t *)realloc(master_key, SIZE_OF_KEYBLOB_T(master_key->keybloblen));
-                if (master_key == NULL)
-                {
-                    retJsonObj.setCode(retJsonObj.CODE_FAILED);
-                    retJsonObj.setMessage("Server exception2.");
-                    goto out;
-                }
-                continue;
-            }
-            else
-            {
-                cmk_base64 = base64_encode((uint8_t *)master_key, SIZE_OF_KEYBLOB_T(master_key->keybloblen));
-                if (cmk_base64.size() > 0)
-                {
-                    retJsonObj.addData_string("cmk", cmk_base64);
-                }
-            }
-        } while ((master_key->keybloblen > req_len));
+        ret = CreateKey(master_key);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
 
+        cmk_base64 = base64_encode((uint8_t *)master_key, APPEND_SIZE_TO_KEYBOB_T(master_key->keybloblen));
+        if (cmk_base64.size() > 0)
+        {
+            retJsonObj.addData_string("cmk", cmk_base64);
+        }
     out:
         SAFE_FREE(master_key);
         return retJsonObj.toChar();
@@ -250,7 +246,7 @@ extern "C"
             goto out;
         }
 
-        plaint_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(plaintext_len));
+        plaint_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(plaintext_len));
         if (plaint_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -258,7 +254,7 @@ extern "C"
             goto out;
         }
 
-        aad_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(aad_len));
+        aad_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
         if (aad_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -299,7 +295,7 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        cipher_data = (ehsm_data_t *)realloc(cipher_data, SIZE_OF_DATA_T(cipher_data->datalen));
+        cipher_data = (ehsm_data_t *)realloc(cipher_data, APPEND_SIZE_TO_DATA_T(cipher_data->datalen));
         if (cipher_data->data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -408,7 +404,7 @@ extern "C"
             goto out;
         }
 
-        aad_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(aad_len));
+        aad_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
         if (aad_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -423,7 +419,7 @@ extern "C"
             retJsonObj.setMessage("The cmk's length is invalid.");
             goto out;
         }
-        cipher_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(ciphertext_len));
+        cipher_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(ciphertext_len));
         if (cipher_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -567,7 +563,7 @@ extern "C"
             goto out;
         }
 
-        if (!(plaint_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(plaintext_len))))
+        if (!(plaint_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(plaintext_len))))
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -576,7 +572,7 @@ extern "C"
         plaint_data->datalen = plaintext_len;
         memcpy(plaint_data->data, (uint8_t *)plaintext_str.data(), plaintext_len);
 
-        if (!(cipher_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0))))
+        if (!(cipher_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0))))
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -591,7 +587,7 @@ extern "C"
             goto out;
         }
 
-        cipher_data = (ehsm_data_t *)realloc(cipher_data, SIZE_OF_DATA_T(cipher_data->datalen));
+        cipher_data = (ehsm_data_t *)realloc(cipher_data, APPEND_SIZE_TO_DATA_T(cipher_data->datalen));
         if (cipher_data->data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -680,7 +676,7 @@ extern "C"
         }
         memcpy(cmk, (const uint8_t *)cmk_str.data(), cmk_len);
 
-        if (!(cipher_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(ciphertext_len))))
+        if (!(cipher_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(ciphertext_len))))
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -689,7 +685,7 @@ extern "C"
         cipher_data->datalen = ciphertext_len;
         memcpy(cipher_data->data, (uint8_t *)ciphertext_str.data(), ciphertext_len);
 
-        if (!(plaint_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0))))
+        if (!(plaint_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0))))
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -705,7 +701,7 @@ extern "C"
             goto out;
         }
 
-        plaint_data = (ehsm_data_t *)realloc(plaint_data, SIZE_OF_DATA_T(plaint_data->datalen));
+        plaint_data = (ehsm_data_t *)realloc(plaint_data, APPEND_SIZE_TO_DATA_T(plaint_data->datalen));
         if (plaint_data->data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -816,7 +812,7 @@ extern "C"
         }
         memcpy(cmk, (uint8_t *)cmk_str.data(), cmk_len);
 
-        aad_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(aad_len));
+        aad_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
         if (aad_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -828,7 +824,7 @@ extern "C"
         {
             memcpy(aad_data->data, (uint8_t *)aad_str.data(), aad_len);
         }
-        plaint_datakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(keylen));
+        plaint_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(keylen));
         if (plaint_datakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -838,7 +834,7 @@ extern "C"
         plaint_datakey->datalen = keylen;
         memcpy(plaint_datakey->data, (uint8_t *)plaintext_base64.data(), keylen);
 
-        if (!(cipher_datakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0))))
+        if (!(cipher_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0))))
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -854,7 +850,7 @@ extern "C"
             goto out;
         }
 
-        cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, SIZE_OF_DATA_T(cipher_datakey->datalen));
+        cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, APPEND_SIZE_TO_DATA_T(cipher_datakey->datalen));
         if (cipher_datakey->data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -975,7 +971,7 @@ extern "C"
         }
         memcpy(cmk, (uint8_t *)cmk_str.data(), cmk_len);
 
-        aad_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(aad_len));
+        aad_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
         if (aad_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -987,7 +983,7 @@ extern "C"
         {
             memcpy(aad_data->data, (uint8_t *)aad_str.data(), aad_len);
         }
-        plaint_datakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(keylen));
+        plaint_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(keylen));
         if (plaint_datakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -997,7 +993,7 @@ extern "C"
         plaint_datakey->datalen = keylen;
         memcpy(plaint_datakey->data, (uint8_t *)plaintext_base64.data(), keylen);
 
-        if (!(cipher_datakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0))))
+        if (!(cipher_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0))))
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -1013,7 +1009,7 @@ extern "C"
             goto out;
         }
 
-        cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, SIZE_OF_DATA_T(cipher_datakey->datalen));
+        cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, APPEND_SIZE_TO_DATA_T(cipher_datakey->datalen));
         if (cipher_datakey->data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1173,7 +1169,7 @@ extern "C"
 
         if (aad_len != 0)
         {
-            aad = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(aad_len));
+            aad = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
             if (aad == NULL)
             {
                 retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1191,7 +1187,7 @@ extern "C"
         {
             aad->datalen = aad_len;
         }
-        olddatakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(olddatakey_len));
+        olddatakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(olddatakey_len));
         if (olddatakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1203,7 +1199,7 @@ extern "C"
             olddatakey->datalen = olddatakey_len;
             memcpy_s(olddatakey->data, olddatakey_len, (uint8_t *)olddatakey_str.data(), olddatakey_len);
         }
-        newdatakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0));
+        newdatakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (newdatakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1233,7 +1229,7 @@ extern "C"
             goto out;
         }
 
-        newdatakey = (ehsm_data_t *)realloc(newdatakey, SIZE_OF_DATA_T(newdatakey->datalen));
+        newdatakey = (ehsm_data_t *)realloc(newdatakey, APPEND_SIZE_TO_DATA_T(newdatakey->datalen));
         if (newdatakey->data == NULL)
         {
             ret = EH_DEVICE_MEMORY;
@@ -1367,7 +1363,7 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        digest_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(digest_len));
+        digest_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(digest_len));
         digest_data->datalen = digest_len;
         memcpy(digest_data->data, (uint8_t *)digest_str.data(), digest_len);
         if (digest_data == NULL)
@@ -1376,7 +1372,7 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        appid_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(appid_len));
+        appid_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(appid_len));
         if (appid_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -1388,7 +1384,7 @@ extern "C"
         {
             memcpy(appid_data->data, (uint8_t *)appid_str.data(), appid_len);
         }
-        signature = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0));
+        signature = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
 
         // get signature datalen
         signature->datalen = 0;
@@ -1400,7 +1396,7 @@ extern "C"
             goto out;
         }
 
-        signature = (ehsm_data_t *)realloc(signature, SIZE_OF_DATA_T(signature->datalen));
+        signature = (ehsm_data_t *)realloc(signature, APPEND_SIZE_TO_DATA_T(signature->datalen));
         if (signature->data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1524,7 +1520,7 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        digest_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(digest_len));
+        digest_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(digest_len));
         digest_data->datalen = digest_len;
         memcpy(digest_data->data, (uint8_t *)digest_str.data(), digest_len);
         if (digest_data == NULL)
@@ -1533,7 +1529,7 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        appid_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(appid_len));
+        appid_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(appid_len));
         if (appid_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -1545,7 +1541,7 @@ extern "C"
         {
             memcpy(appid_data->data, (uint8_t *)appid_str.data(), appid_len);
         }
-        signature_data = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(signature_len));
+        signature_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(signature_len));
         signature_data->datalen = signature_len;
         memcpy(signature_data->data, (uint8_t *)signature_str.data(), signature_len);
         if (signature_data == NULL)
@@ -1863,7 +1859,7 @@ extern "C"
         ehsm_data_t *apikey = NULL;
         ehsm_data_t *appid = NULL;
 
-        appid = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(UUID_STR_LEN));
+        appid = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(UUID_STR_LEN));
         if (appid == NULL)
         {
             ret = EH_DEVICE_MEMORY;
@@ -1871,7 +1867,7 @@ extern "C"
         }
         appid->datalen = UUID_STR_LEN;
 
-        apikey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(EH_API_KEY_SIZE + 1));
+        apikey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_API_KEY_SIZE + 1));
         if (apikey == NULL)
         {
             ret = EH_DEVICE_MEMORY;
@@ -1953,7 +1949,7 @@ extern "C"
         }
         log_d("get the quote size successfuly\n");
 
-        quote = (ehsm_data_t *)realloc(quote, SIZE_OF_DATA_T(quote->datalen));
+        quote = (ehsm_data_t *)realloc(quote, APPEND_SIZE_TO_DATA_T(quote->datalen));
         if (quote == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -2037,7 +2033,7 @@ extern "C"
             retJsonObj.setMessage("The quote's length is invalid.");
             goto out;
         }
-        quote = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(quote_len));
+        quote = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(quote_len));
         if (quote == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);

@@ -66,23 +66,20 @@ sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaint
                                  sgx_aes_gcm_data_ex_t *keyblob_data);
 
 // calculate the keyblob size based on the key metadata infomations.
-uint32_t ehsm_calc_keyblob_len(const uint32_t aad_size, const uint32_t plaintext_size);
+uint32_t ehsm_calc_keyblob_len(const uint32_t plaintext_size);
 uint32_t ehsm_get_symmetric_key_size(ehsm_keyspec_t key_spec);
 
 uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data);
 
-sgx_status_t ehsm_create_aes_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
-                                 uint32_t *req_blob_size, ehsm_keyspec_t keyspec);
 sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk);
 
-sgx_status_t ehsm_create_sm4_key(uint8_t *cmk_blob, uint32_t SIZE_OF_KEYBLOB_T,
-                                 uint32_t *req_blob_size, ehsm_keyspec_t keyspec);
+sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk);
 
-sgx_status_t ehsm_aes_gcm_generate_datakey(const ehsm_keyblob_t *cmk,
+sgx_status_t ehsm_generate_datakey_aes(const ehsm_keyblob_t *cmk,
                                            const ehsm_data_t *aad,
                                            ehsm_data_t *plaintext,
                                            ehsm_data_t *ciphertext);
