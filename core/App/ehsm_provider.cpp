@@ -335,7 +335,6 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
         {
             ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
             return EH_OK;
-
         }
         /* check if the datalen is valid */
         if (ciphertext->data == NULL ||
@@ -357,7 +356,8 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
         /* calculate the ciphertext length */
         if (ciphertext->datalen == 0)
         {
-            if(plaintext->datalen % 16 != 0) {
+            if (plaintext->datalen % 16 != 0)
+            {
                 ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
                 return EH_OK;
             }
@@ -370,11 +370,11 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
             return EH_ARGUMENTS_BAD;
 
         if (plaintext->datalen % 16 != 0 &&
-        (ciphertext->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE))
+            (ciphertext->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE))
             return EH_ARGUMENTS_BAD;
 
         if (plaintext->datalen % 16 == 0 &&
-        (ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE))
+            (ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE))
             return EH_ARGUMENTS_BAD;
 
         ret = enclave_encrypt(g_enclave_id,
@@ -392,10 +392,10 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
         return EH_KEYSPEC_INVALID;
     }
 
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS) {
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    {
         return EH_FUNCTION_FAILED;
     }
-
 
     else
         return EH_OK;
@@ -690,9 +690,7 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
             printf("rsa sign requires a <=264B message.\n");
             return EH_ARGUMENTS_BAD;
         }
-        if (signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE
-            && signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE
-            && signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE)
+        if (signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE && signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE && signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE)
         {
             return EH_ARGUMENTS_BAD;
         }
@@ -719,25 +717,24 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
             printf("EC digest exceeds the maximum size.\n");
             return EH_ARGUMENTS_BAD;
         }
-        if (signature->datalen != EC_P256_SIGNATURE_MAX_SIZE
-            && signature->datalen != EC_SM2_SIGNATURE_MAX_SIZE)
+        if (signature->datalen != EC_P256_SIGNATURE_MAX_SIZE && signature->datalen != EC_SM2_SIGNATURE_MAX_SIZE)
         {
             return EH_ARGUMENTS_BAD;
         }
 
         ret = enclave_sign(g_enclave_id,
-                            &sgxStatus,
-                            cmk,
-                            SIZE_OF_KEYBLOB_T(cmk->keybloblen),
-                            digest,
-                            SIZE_OF_DATA_T(digest->datalen),
-                            appid,
-                            SIZE_OF_DATA_T(appid->datalen),
-                            signature,
-                            SIZE_OF_DATA_T(signature->datalen));
-            break;
-        default:
-            return EH_KEYSPEC_INVALID;
+                           &sgxStatus,
+                           cmk,
+                           SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                           digest,
+                           SIZE_OF_DATA_T(digest->datalen),
+                           appid,
+                           SIZE_OF_DATA_T(appid->datalen),
+                           signature,
+                           SIZE_OF_DATA_T(signature->datalen));
+        break;
+    default:
+        return EH_KEYSPEC_INVALID;
     }
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
@@ -764,8 +761,7 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY
-        || digest == NULL || signature == NULL || result == NULL)
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || digest == NULL || signature == NULL || result == NULL)
     {
         return EH_ARGUMENTS_BAD;
     }
@@ -1052,11 +1048,13 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
 
     /* cmk should be symmetric key and the ukey should be an asymmetric key */
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
+        cmk->metadata.keyspec != EH_AES_GCM_192 &&
+        cmk->metadata.keyspec != EH_AES_GCM_256 &&
         cmk->metadata.keyspec != EH_SM4_CBC &&
+        cmk->metadata.keyspec != EH_SM4_CTR &&
         ukey->metadata.keyspec != EH_RSA_2048 &&
         ukey->metadata.keyspec != EH_RSA_3072 &&
-        ukey->metadata.keyspec != EH_EC_P256 &&
-        ukey->metadata.keyspec != EH_EC_P512 &&
+        cmk->metadata.keyspec != EH_RSA_4096 &&
         ukey->metadata.keyspec != EH_SM2)
     {
         return EH_KEYSPEC_INVALID;
