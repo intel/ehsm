@@ -507,8 +507,8 @@ extern "C"
     {
         RetJsonObj retJsonObj;
 
-        string cmk_base64 = payloadJson.readData_string("cmk_base64");
-        string plaintext_base64 = payloadJson.readData_string("plaintext_base64");
+        string cmk_base64 = payloadJson.readData_string("cmk");
+        string plaintext_base64 = payloadJson.readData_string("plaintext");
 
         if (cmk_base64.empty() || plaintext_base64.empty())
         {
@@ -639,8 +639,8 @@ extern "C"
     {
         RetJsonObj retJsonObj;
 
-        string cmk_base64 = payloadJson.readData_string("cmk_base64");
-        string ciphertext_base64 = payloadJson.readData_string("ciphertext_base64");
+        string cmk_base64 = payloadJson.readData_string("cmk");
+        string ciphertext_base64 = payloadJson.readData_string("ciphertext");
 
         if (cmk_base64.empty() || ciphertext_base64.empty())
         {
@@ -1311,9 +1311,9 @@ extern "C"
         RetJsonObj retJsonObj;
         JsonObj paramJsonObj;
 
-        string cmk_base64 = payloadJson.readData_string("cmk_base64");
-        string digest_base64 = payloadJson.readData_string("digest_base64");
-        string appid_base64 = payloadJson.readData_string("appid_base64");
+        string cmk_base64 = payloadJson.readData_string("cmk");
+        string digest_base64 = payloadJson.readData_string("digest");
+        string appid_base64 = payloadJson.readData_string("appid");
 
         if (cmk_base64.size() == 0 || digest_base64.size() == 0)
         {
@@ -1459,10 +1459,10 @@ extern "C"
     {
         RetJsonObj retJsonObj;
 
-        string cmk_base64 = payloadJson.readData_string("cmk_base64");
-        string digest_base64 = payloadJson.readData_string("digest_base64");
-        string signature_base64 = payloadJson.readData_string("signature_base64");
-        string appid_base64 = payloadJson.readData_string("appid_base64");
+        string cmk_base64 = payloadJson.readData_string("cmk");
+        string digest_base64 = payloadJson.readData_string("digest");
+        string signature_base64 = payloadJson.readData_string("signature");
+        string appid_base64 = payloadJson.readData_string("appid");
 
         if (cmk_base64.size() == 0 || digest_base64.size() == 0 || signature_base64.size() == 0)
         {
