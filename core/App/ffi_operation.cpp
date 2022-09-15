@@ -854,14 +854,6 @@ extern "C"
             goto out;
         }
 
-        plaint_datakey = (ehsm_data_t *)realloc(plaint_datakey, SIZE_OF_DATA_T(plaint_datakey->datalen));
-        if (plaint_datakey->data == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-
         cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, SIZE_OF_DATA_T(cipher_datakey->datalen));
         if (cipher_datakey->data == NULL)
         {
@@ -1013,16 +1005,8 @@ extern "C"
         }
 
         cipher_datakey->datalen = 0;
-        ret = GenerateDataKey(cmk, aad_data, plaint_datakey, cipher_datakey);
+        ret = GenerateDataKeyWithoutPlaintext(cmk, aad_data, plaint_datakey, cipher_datakey);
         if (ret != EH_OK)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-
-        plaint_datakey = (ehsm_data_t *)realloc(plaint_datakey, SIZE_OF_DATA_T(plaint_datakey->datalen));
-        if (plaint_datakey->data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -1037,7 +1021,7 @@ extern "C"
             goto out;
         }
 
-        ret = GenerateDataKey(cmk, aad_data, plaint_datakey, cipher_datakey);
+        ret = GenerateDataKeyWithoutPlaintext(cmk, aad_data, plaint_datakey, cipher_datakey);
         if (ret != EH_OK)
         {
             if (ret == EH_ARGUMENTS_BAD)
