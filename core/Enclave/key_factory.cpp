@@ -462,55 +462,68 @@ sgx_status_t ehsm_aes_gcm_generate_datakey(const ehsm_keyblob_t *cmk,
                                            ehsm_data_t *ciphertext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint8_t *datakey = NULL;
-    datakey = (uint8_t *)malloc(plaintext->datalen);
-    if (datakey == NULL) {
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-    if(RAND_bytes(datakey, plaintext->datalen) != 1)
+
+    uint8_t *temp_datakey =NULL;
+    temp_datakey = (uint8_t *)malloc(plaintext->datalen);
+    if (temp_datakey == NULL)
     {
-        free(datakey);
+        free(temp_datakey);
         return SGX_ERROR_OUT_OF_MEMORY;
     }
+    if(RAND_bytes(temp_datakey, plaintext->datalen) != 1)
+    {
+        free(temp_datakey);
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+
+    memcpy_s(plaintext->data, plaintext->datalen, temp_datakey, plaintext->datalen);
+
     ret = ehsm_aes_gcm_encrypt(aad,
-                              cmk,
-                              NULL,
-                              ciphertext);
-    if (plaintext->data != NULL)
-        memcpy_s(plaintext->data, plaintext->datalen, datakey, plaintext->datalen);
+                               cmk,
+                               plaintext,
+                               ciphertext);
 
-    memset_s(datakey, plaintext->datalen, 0, plaintext->datalen);
-
-    free(datakey);
+   free(temp_datakey);
 
     return ret;
 }
 
 sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
-                                       const ehsm_data_t *aad,
                                        ehsm_data_t *plaintext,
                                        ehsm_data_t *ciphertext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint8_t *datakey = NULL;
-    datakey = (uint8_t *)malloc(plaintext->datalen);
-    if (datakey == NULL) {
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-    if(RAND_bytes(datakey, plaintext->datalen) != 1)
+
+    uint8_t *temp_datakey =NULL;
+    temp_datakey = (uint8_t *)malloc(plaintext->datalen);
+    if (temp_datakey == NULL)
     {
-        free(datakey);
+        free(temp_datakey);
         return SGX_ERROR_OUT_OF_MEMORY;
     }
-    ret = ehsm_sm4_ctr_encrypt(cmk,
-                           NULL,
-                           ciphertext);
-    if (plaintext->data != NULL)
-        memcpy_s(plaintext->data, plaintext->datalen, datakey, plaintext->datalen);
+    if(RAND_bytes(temp_datakey, plaintext->datalen) != 1)
+    {
+        free(temp_datakey);
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
 
-    memset_s(datakey, plaintext->datalen, 0, plaintext->datalen);
+    memcpy_s(plaintext->data, plaintext->datalen, temp_datakey, plaintext->datalen);
 
-    free(datakey);
+
+    if (cmk->metadata.keyspec == EH_SM4_CTR)
+    {
+        ret = ehsm_sm4_ctr_encrypt(cmk,
+                                   plaintext,
+                                   ciphertext);
+    }
+    else
+    {
+        ret = ehsm_sm4_cbc_encrypt(cmk,
+                                   plaintext,
+                                   ciphertext);
+    }
+
+    free(temp_datakey);
 
     return ret;
 }

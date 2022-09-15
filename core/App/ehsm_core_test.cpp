@@ -1599,9 +1599,9 @@ step4. generate a 48 bytes random data key and without plaint text returned
 step5. decrypt the cipher text by CMK
 
 */
-void test_generate_datakey()
+void test_generate_AES_datakey()
 {
-    printf("============test_generate_datakey start==========\n");
+    printf("============test_generate_AES_datakey start==========\n");
     char *returnJsonChar = nullptr;
     char aad[] = "challenge";
     char *cmk_base64 = nullptr;
@@ -1709,7 +1709,129 @@ cleanup:
     SAFE_FREE(ciphertext_base64);
     SAFE_FREE(cmk_base64);
     SAFE_FREE(returnJsonChar);
-    printf("============test_generate_datakey end==========\n");
+    printf("============test_generate_AES_datakey end==========\n");
+}
+
+/*
+
+step1. generate an aes-gcm-128 key as the CM(customer master key)
+
+step2. generate a 16 bytes random data key and with plaint text returned
+
+step3. decrypt the cipher text by CMK
+
+step4. generate a 48 bytes random data key and without plaint text returned
+
+step5. decrypt the cipher text by CMK
+
+*/
+void test_generate_SM4_datakey()
+{
+    printf("============test_generate_SM4_datakey start==========\n");
+    char *returnJsonChar = nullptr;
+    char *cmk_base64 = nullptr;
+    char *ciphertext_base64 = nullptr;
+    char *ciphertext_without_base64 = nullptr;
+    int len_gdk = 16;
+    int len_gdk_without = 111;
+    RetJsonObj retJsonObj;
+
+    JsonObj payload_json;
+    JsonObj param_json;
+    payload_json.addData_uint16("keyspec", EH_SM4_CBC);
+    payload_json.addData_uint16("origin", 0);
+    param_json.addData_uint16("action", EH_CREATE_KEY);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+
+    if (retJsonObj.getCode() != 200)
+    {
+        printf("Createkey with aes-gcm-128 failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("ckReturn_Json = %s\n", returnJsonChar);
+    printf("Create CMK with AES-128 SUCCESSFULLY!\n");
+
+    /* generate a 16 bytes random data key and with plaint text returned */
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    payload_json.clear();
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_uint16("keylen", len_gdk);
+
+    param_json.addData_uint16("action", EH_GENERATE_DATAKEY);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+
+    if (retJsonObj.getCode() != 200)
+    {
+        printf("GenerateDataKey Failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("GenerateDataKey_Json = %s\n", returnJsonChar);
+    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+    printf("GenerateDataKey SUCCESSFULLY!\n");
+
+    payload_json.addData_string("ciphertext", ciphertext_base64);
+
+    param_json.addData_uint16("action", EH_DECRYPT);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+    if (retJsonObj.getCode() != 200)
+    {
+        printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("step1 Decrypt_Json = %s\n", returnJsonChar);
+    printf("Decrypt step1 data SUCCESSFULLY!\n");
+
+    /* generate a 48 bytes random data key and without plaint text returned */
+    payload_json.clear();
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_uint16("keylen", len_gdk_without);
+
+    param_json.addData_uint16("action", EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+    if (retJsonObj.getCode() != 200)
+    {
+        printf("NAPI_GenerateDataKeyWithoutPlaintext Failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("GenerateDataKeyWithoutPlaintext_Json = %s\n", returnJsonChar);
+
+    ciphertext_without_base64 = retJsonObj.readData_cstr("ciphertext");
+    printf("GenerateDataKeyWithoutPlaintext SUCCESSFULLY!\n");
+
+    payload_json.addData_string("ciphertext", ciphertext_without_base64);
+
+    param_json.addData_uint16("action", EH_DECRYPT);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
+    retJsonObj.parse(returnJsonChar);
+    if (retJsonObj.getCode() != 200)
+    {
+        printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    printf("step2 Decrypt_Json = %s\n", returnJsonChar);
+    printf("Decrypt step2 data SUCCESSFULLY!\n");
+
+cleanup:
+    SAFE_FREE(ciphertext_without_base64);
+    SAFE_FREE(ciphertext_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(returnJsonChar);
+    printf("============test_generate_SM4_datakey end==========\n");
 }
 
 // /*
@@ -2018,11 +2140,11 @@ int main(int argc, char *argv[])
     //     test_performance();
     // #endif
 
-    // test_AES128();
+    test_AES128();
 
-    // test_AES192();
+    test_AES192();
 
-    // test_AES256();
+    test_AES256();
 
     test_SM4_CTR();
 	
@@ -2030,23 +2152,25 @@ int main(int argc, char *argv[])
 
     test_RSA3072_encrypt_decrypt();
 
-    // test_RSA2048_sign_verify();
+    test_RSA2048_sign_verify();
 
-    // test_RSA3072_sign_verify();
+    test_RSA3072_sign_verify();
 
-    // test_RSA4096_sign_verify();
+    test_RSA4096_sign_verify();
 
-    // test_ec_sm2_sign_verify();
+    test_ec_sm2_sign_verify();
+
+    test_ec_p256_sign_verify();
 
     // test_SM2_encrypt_decrypt();
 
-    // test_ec_p256_sign_verify();
+    test_generate_AES_datakey();
 
-    // test_generate_datakey();
+    test_generate_SM4_datakey();
 
     // test_export_datakey();
 
-    test_GenerateQuote_and_VerifyQuote();
+    // test_GenerateQuote_and_VerifyQuote();
 
     // test_Enroll();
 

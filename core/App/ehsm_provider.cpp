@@ -365,10 +365,6 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
             return EH_OK;
         }
         /* check if the datalen is valid */
-        if (ciphertext->data == NULL ||
-            ciphertext->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE)
-            return EH_ARGUMENTS_BAD;
-
         if (plaintext->datalen % 16 != 0 &&
         (ciphertext->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE))
             return EH_ARGUMENTS_BAD;
@@ -868,7 +864,8 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
         cmk->metadata.keyspec != EH_AES_GCM_192 &&
         cmk->metadata.keyspec != EH_AES_GCM_256 &&
-        cmk->metadata.keyspec != EH_SM4_CBC)
+        cmk->metadata.keyspec != EH_SM4_CBC &&
+        cmk->metadata.keyspec != EH_SM4_CTR)
     {
         return EH_KEYSPEC_INVALID;
     }
@@ -913,6 +910,37 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
         /* calculate the ciphertext length */
         if (ciphertext->datalen == 0)
         {
+            if(plaintext->datalen % 16 != 0) {
+                ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
+                return EH_OK;
+            }
+            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
+            return EH_OK;
+        }
+
+        if (plaintext->datalen % 16 != 0 &&
+        (ciphertext->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE))
+            return EH_ARGUMENTS_BAD;
+        
+        if (plaintext->datalen % 16 == 0 &&
+        (ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE))
+            return EH_ARGUMENTS_BAD;
+        
+        ret = enclave_generate_datakey(g_enclave_id,
+                                       &sgxStatus,
+                                       cmk,
+                                       SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                                       aad,
+                                       SIZE_OF_DATA_T(aad->datalen),
+                                       plaintext,
+                                       SIZE_OF_DATA_T(plaintext->datalen),
+                                       ciphertext,
+                                       SIZE_OF_DATA_T(ciphertext->datalen));
+        break;
+    case EH_SM4_CTR:
+        /* calculate the ciphertext length */
+        if (ciphertext->datalen == 0)
+        {
             ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
             return EH_OK;
         }
@@ -933,6 +961,7 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
                                        SIZE_OF_DATA_T(plaintext->datalen),
                                        ciphertext,
                                        SIZE_OF_DATA_T(ciphertext->datalen));
+        break;
     default:
         return EH_KEYSPEC_INVALID;
     }
@@ -960,7 +989,8 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
         cmk->metadata.keyspec != EH_AES_GCM_192 &&
         cmk->metadata.keyspec != EH_AES_GCM_256 &&
-        cmk->metadata.keyspec != EH_SM4_CBC)
+        cmk->metadata.keyspec != EH_SM4_CBC &&
+        cmk->metadata.keyspec != EH_SM4_CTR)
     {
         return EH_KEYSPEC_INVALID;
     }
@@ -1006,6 +1036,37 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
         /* calculate the ciphertext length */
         if (ciphertext->datalen == 0)
         {
+            if(plaintext->datalen % 16 != 0) {
+                ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
+                return EH_OK;
+            }
+            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
+            return EH_OK;
+        }
+        /* check if the datalen is valid */
+        if (plaintext->datalen % 16 != 0 &&
+        (ciphertext->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE))
+            return EH_ARGUMENTS_BAD;
+
+        if (plaintext->datalen % 16 == 0 &&
+        (ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE))
+            return EH_ARGUMENTS_BAD;
+        
+        ret = enclave_generate_datakey(g_enclave_id,
+                                       &sgxStatus,
+                                       cmk,
+                                       SIZE_OF_KEYBLOB_T(cmk->keybloblen),
+                                       aad,
+                                       SIZE_OF_DATA_T(aad->datalen),
+                                       plaintext,
+                                       SIZE_OF_DATA_T(plaintext->datalen),
+                                       ciphertext,
+                                       SIZE_OF_DATA_T(ciphertext->datalen));
+        break;
+    case EH_SM4_CTR:
+        /* calculate the ciphertext length */
+        if (ciphertext->datalen == 0)
+        {
             ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
             return EH_OK;
         }
@@ -1026,6 +1087,7 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
                                        SIZE_OF_DATA_T(plaintext->datalen),
                                        ciphertext,
                                        SIZE_OF_DATA_T(ciphertext->datalen));
+        break;
     default:
         return EH_KEYSPEC_INVALID;
     }

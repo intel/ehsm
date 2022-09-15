@@ -1199,17 +1199,11 @@ out:
  * digest mode and padding mode is optional
  * running in enclave
  * @param cmk_blob cipher block for storing keys
- * @param digest_mode digest mode set when creating the key
- * @param keyspec keyspec set when creating the key
- * @param padding_mode padding_mode set when creating the key
  * @param data data to be signed
  * @param signature used to receive signature
  * @return sgx_status_t
  */
 sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
-                           ehsm_padding_mode_t padding_mode,
-                           ehsm_digest_mode_t digest_mode,
-                           ehsm_keyspec_t keyspec,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature)
 {
@@ -1258,7 +1252,7 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
             break;
         }
         // Get Digest Mode
-        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
         if (digestMode == NULL)
         {
             printf("ecall rsa_sign digest Mode error.\n");
@@ -1266,7 +1260,7 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
             break;
         }
         // verify Padding Mode
-        if (!verifyPaddingMode(padding_mode, digestMode, evpkey))
+        if (!verifyPaddingMode(cmk->metadata.padding_mode, digestMode, evpkey))
         {
             printf("ecall rsa_sign unsupported padding mode.\n");
             ret = SGX_ERROR_INVALID_PARAMETER;
@@ -1293,13 +1287,13 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
             break;
         }
         // set padding mode
-        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding_mode) != 1)
+        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, cmk->metadata.padding_mode) != 1)
         {
             printf("ecall rsa_sign EVP_PKEY_CTX_set_rsa_padding failed.\n");
             ret = SGX_ERROR_UNEXPECTED;
             break;
         }
-        if (padding_mode == RSA_PKCS1_PSS_PADDING)
+        if (cmk->metadata.padding_mode == RSA_PKCS1_PSS_PADDING)
         {
             if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
             {
@@ -1344,18 +1338,12 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
  * digest mode and padding mode is optional
  * running in enclave
  * @param cmk_blob cipher block for storing keys
- * @param digest_mode digest mode set when creating the key
- * @param keyspec keyspec set when creating the key
- * @param padding_mode padding_mode set when creating the key
  * @param data data to be signed
  * @param signature generated signature
  * @param result match result
  * @return sgx_status_t
  */
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
-                             ehsm_padding_mode_t padding_mode,
-                             ehsm_digest_mode_t digest_mode,
-                             ehsm_keyspec_t keyspec,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result)
@@ -1406,7 +1394,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
         }
 
         // get digest mode
-        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
         if (digestMode == NULL)
         {
             printf("ecall rsa_verify digestMode error.\n");
@@ -1414,7 +1402,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
             break;
         }
         // verify Padding Mode
-        if (!verifyPaddingMode(padding_mode, digestMode, evpkey))
+        if (!verifyPaddingMode(cmk->metadata.padding_mode, digestMode, evpkey))
         {
             printf("ecall rsa_verify unsupported padding mode.\n");
             ret = SGX_ERROR_INVALID_PARAMETER;
@@ -1441,13 +1429,13 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
             break;
         }
         // set padding mode
-        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding_mode) != 1)
+        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, cmk->metadata.padding_mode) != 1)
         {
             printf("ecall rsa_verify EVP_PKEY_CTX_set_rsa_padding failed.\n");
             ret = SGX_ERROR_UNEXPECTED;
             break;
         }
-        if (padding_mode == RSA_PKCS1_PSS_PADDING)
+        if (cmk->metadata.padding_mode == RSA_PKCS1_PSS_PADDING)
         {
             if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
             {
@@ -1503,19 +1491,15 @@ sgx_status_t ehsm_ecc_decrypt(const ehsm_keyblob_t *cmk)
  * digest mode is optional
  * running in enclave
  * @param cmk_blob cipher block for storing keys
- * @param digest_mode digest mode set when creating the key
- * @param keyspec keyspec set when creating the key
  * @param data data to be signed
  * @param signature used to receive signature
  * @param req_signature_len Exact length after sign
  * @return sgx_status_t
  */
 sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
-                          ehsm_digest_mode_t digest_mode,
-                          ehsm_keyspec_t keyspec,
-                          const ehsm_data_t *data,
-                          ehsm_data_t *signature,
-                          uint32_t *req_signature_len)
+                           const ehsm_data_t *data,
+                           ehsm_data_t *signature,
+                           uint32_t *req_signature_len)
 {
     sgx_status_t ret = SGX_SUCCESS;
 
@@ -1559,7 +1543,7 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
             break;
         }
 
-        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
         if (digestMode == NULL)
         {
             printf("ecall ec_sign digestMode error.\n");
@@ -1627,19 +1611,15 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
  * digest mode is optional
  * running in enclave
  * @param cmk_blob cipher block for storing keys
- * @param digest_mode digest mode set when creating the key
- * @param keyspec keyspec set when creating the key
  * @param data data to be signed
  * @param signature generated signature
  * @param result match result
  * @return sgx_status_t
  */
 sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
-                            ehsm_digest_mode_t digest_mode,
-                            ehsm_keyspec_t keyspec,
-                            const ehsm_data_t *data,
-                            const ehsm_data_t *signature,
-                            bool *result)
+                             const ehsm_data_t *data,
+                             const ehsm_data_t *signature,
+                             bool *result)
 {
     sgx_status_t ret = SGX_SUCCESS;
 
@@ -1683,7 +1663,7 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
             break;
         }
 
-        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
         if (digestMode == NULL)
         {
             printf("ecall ec_verify digestMode error.\n");
@@ -1750,20 +1730,16 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
  * digest mode is optional
  * running in enclave
  * @param cmk_blob cipher block for storing keys
- * @param digest_mode digest mode set when creating the key
- * @param keyspec keyspec set when creating the key
  * @param data data to be signed
  * @param signature used to receive signature
  * @param req_signature_len Exact length after sign
  * @return sgx_status_t
  */
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
-                          ehsm_digest_mode_t digest_mode,
-                          ehsm_keyspec_t keyspec,
-                          const ehsm_data_t *data,
-                          const ehsm_data_t *appid,
-                          ehsm_data_t *signature,
-                          uint32_t *req_signature_len)
+                           const ehsm_data_t *data,
+                           const ehsm_data_t *appid,
+                           ehsm_data_t *signature,
+                           uint32_t *req_signature_len)
 {
     sgx_status_t ret = SGX_SUCCESS;
 
@@ -1807,7 +1783,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
             break;
         }
 
-        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
         if (digestMode == NULL)
         {
             printf("ecall sm2_sign digestMode error.\n");
@@ -1898,20 +1874,16 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
  * digest mode is optional
  * running in enclave
  * @param cmk_blob cipher block for storing keys
- * @param digest_mode digest mode set when creating the key
- * @param keyspec keyspec set when creating the key
  * @param data data to be signed
  * @param signature generated signature
  * @param result match result
  * @return sgx_status_t
  */
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
-                            ehsm_digest_mode_t digest_mode,
-                            ehsm_keyspec_t keyspec,
-                            const ehsm_data_t *data,
-                            const ehsm_data_t *appid,
-                            const ehsm_data_t *signature,
-                            bool *result)
+                             const ehsm_data_t *data,
+                             const ehsm_data_t *appid,
+                             const ehsm_data_t *signature,
+                             bool *result)
 {
     sgx_status_t ret = SGX_SUCCESS;
 
@@ -1955,7 +1927,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
             break;
         }
 
-        const EVP_MD *digestMode = GetDigestMode(digest_mode);
+        const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
         if (digestMode == NULL)
         {
             printf("ecall sm2_verify digestMode error.\n");

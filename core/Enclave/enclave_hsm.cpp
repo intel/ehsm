@@ -383,9 +383,6 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
     case EH_RSA_3072:
     case EH_RSA_4096:
         ret = ehsm_rsa_sign(cmk,
-                            cmk->metadata.padding_mode,
-                            cmk->metadata.digest_mode,
-                            cmk->metadata.keyspec,
                             data,
                             signature);
         break;
@@ -394,16 +391,12 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
         // case EH_EC_P384:
         // case EH_EC_P512:
             ret = ehsm_ecc_sign(cmk,
-                                cmk->metadata.digest_mode,
-                                cmk->metadata.keyspec,
                                 data,
                                 signature,
                                 &signature->datalen);
             break;
         case EH_SM2:
             ret = ehsm_sm2_sign(cmk,
-                                cmk->metadata.digest_mode,
-                                cmk->metadata.keyspec,
                                 data,
                                 appid,
                                 signature,
@@ -499,9 +492,6 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
     case EH_RSA_3072:
     case EH_RSA_4096:
         ret = ehsm_rsa_verify(cmk,
-                              cmk->metadata.padding_mode,
-                              cmk->metadata.digest_mode,
-                              cmk->metadata.keyspec,
                               data,
                               signature,
                               result);
@@ -511,16 +501,12 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
         // case EH_EC_P384:
         // case EH_EC_P512:
             ret = ehsm_ecc_verify(cmk,
-                                  cmk->metadata.digest_mode,
-                                  cmk->metadata.keyspec,
                                   data,
                                   signature,
                                   result);
             break;
         case EH_SM2:
             ret = ehsm_sm2_verify(cmk,
-                                  cmk->metadata.digest_mode,
-                                  cmk->metadata.keyspec,
                                   data,
                                   appid,
                                   signature,
@@ -565,8 +551,8 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
                                             ciphertext);
         break;
     case EH_SM4_CBC:
+    case EH_SM4_CTR:
         ret = ehsm_generate_datakey_sm4(cmk,
-                                        aad,
                                         plaintext,
                                         ciphertext);
         break;
