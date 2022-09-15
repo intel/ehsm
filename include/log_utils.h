@@ -35,7 +35,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#define IS_DEBUG true
+#define IS_DEBUG false
 
 /*
     print info

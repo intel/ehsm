@@ -96,7 +96,7 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (cmk->metadata.keyspec >= INVALID_VALUE)
+    if (cmk->metadata.keyspec < 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -105,20 +105,7 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
-        if (cmk->keybloblen == 0)
-        {
-            ret = ehsm_create_aes_key(NULL,
-                                      0,
-                                      &(cmk->keybloblen),
-                                      (ehsm_keyspec_t)(cmk->metadata.keyspec));
-        }
-        else
-        {
-            ret = ehsm_create_aes_key(cmk->keyblob,
-                                      cmk->keybloblen,
-                                      NULL,
-                                      (ehsm_keyspec_t)(cmk->metadata.keyspec));
-        }
+        ret = ehsm_create_aes_key(cmk);
         break;
     case EH_RSA_2048:
     case EH_RSA_3072:
@@ -132,22 +119,9 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
     case EH_SM2:
         ret = ehsm_create_ec_key(cmk);
         break;
-        case EH_SM4_CTR:
-        case EH_SM4_CBC:
-        if (cmk->keybloblen == 0)
-        {
-            ret = ehsm_create_sm4_key(NULL,
-                                      0,
-                                      &(cmk->keybloblen),
-                                      (ehsm_keyspec_t)(cmk->metadata.keyspec));
-        }
-        else
-        {
-            ret = ehsm_create_sm4_key(cmk->keyblob,
-                                      cmk->keybloblen,
-                                      NULL,
-                                      (ehsm_keyspec_t)(cmk->metadata.keyspec));
-        }
+    case EH_SM4_CTR:
+    case EH_SM4_CBC:
+        ret = ehsm_create_sm4_key(cmk);
         break;
     default:
         break;
@@ -309,7 +283,7 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t* cmk, size_t cmk_len,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     // Verify parameters
-    if (cmk->metadata.digest_mode == NULL || cmk->metadata.padding_mode == NULL || cmk->metadata.keyspec >= INVALID_VALUE)
+    if (cmk->metadata.digest_mode == NULL || cmk->metadata.padding_mode == NULL || cmk->metadata.keyspec < 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -420,7 +394,7 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t* cmk, size_t cmk_len,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // Verify parameters
-    if (cmk->metadata.digest_mode == NULL || cmk->metadata.padding_mode == NULL || cmk->metadata.keyspec >= INVALID_VALUE)
+    if (cmk->metadata.digest_mode == NULL || cmk->metadata.padding_mode == NULL || cmk->metadata.keyspec < 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -528,7 +502,7 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk->metadata.keyspec >= INVALID_VALUE)
+    if (cmk->metadata.keyspec < 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -545,7 +519,7 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
-        ret = ehsm_aes_gcm_generate_datakey(cmk,
+        ret = ehsm_generate_datakey_aes(cmk,
                                             aad,
                                             plaintext,
                                             ciphertext);
@@ -572,7 +546,7 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     ehsm_data_t *tmp_datakey = NULL;
     size_t tmp_datakey_len = 0;
-    tmp_datakey = (ehsm_data_t *)malloc(SIZE_OF_DATA_T(0));
+    tmp_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
     if (tmp_datakey == NULL)
     {
         ret = SGX_ERROR_INVALID_PARAMETER;
@@ -590,18 +564,18 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
     {
     case EH_AES_GCM_128:
         tmp_datakey->datalen = olddatakey->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
-        tmp_datakey_len = SIZE_OF_DATA_T(tmp_datakey->datalen);
+        tmp_datakey_len = APPEND_SIZE_TO_DATA_T(tmp_datakey->datalen);
         break;
     case EH_SM4_CBC:
         // TODO :
         // tmp_datakey->datalen = olddatakey->datalen - SGX_SM4_IV_SIZE;
-        // tmp_datakey_len = SIZE_OF_DATA_T(tmp_datakey->datalen);
+        // tmp_datakey_len = APPEND_SIZE_TO_DATA_T(tmp_datakey->datalen);
         // break;
     default:
         ret = SGX_ERROR_INVALID_PARAMETER;
         goto out;
     }
-    tmp_datakey = (ehsm_data_t *)realloc(tmp_datakey, SIZE_OF_DATA_T(tmp_datakey->datalen));
+    tmp_datakey = (ehsm_data_t *)realloc(tmp_datakey, APPEND_SIZE_TO_DATA_T(tmp_datakey->datalen));
     if (tmp_datakey == NULL)
     {
         tmp_datakey_len = 0;
