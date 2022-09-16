@@ -8,7 +8,7 @@ import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import delete_all_key, deletekey, disablekey, enablekey, enroll, listkey
+from cli import delete_all_key, deletekey, disablekey, enablekey, enroll, listkey, createkey
 import urllib.parse
 import _utils_
 appid= ''
@@ -34,6 +34,7 @@ def test_deleteAllKey(base_url, headers):
     delete_all_key.delete_all_key(base_url)
     
 def test_listKey(base_url, headers):
+    createkey.createkey(base_url, "RSA_3072", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1_OAEP", None)
     keylist = listkey.listkey(base_url)
 
     global keyid 
