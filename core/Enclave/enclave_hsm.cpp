@@ -512,6 +512,10 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
+    if (cmk == NULL || cmk_len == NULL || cmk->keybloblen == NULL || cmk->keyblob == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
     switch (cmk->metadata.keyspec)
     {
     case EH_AES_GCM_128:

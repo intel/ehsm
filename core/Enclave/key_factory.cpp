@@ -450,7 +450,6 @@ sgx_status_t ehsm_generate_datakey_aes(const ehsm_keyblob_t *cmk,
     temp_datakey = (uint8_t *)malloc(plaintext->datalen);
     if (temp_datakey == NULL)
     {
-        free(temp_datakey);
         return SGX_ERROR_OUT_OF_MEMORY;
     }
     if(RAND_bytes(temp_datakey, plaintext->datalen) != 1)
@@ -466,7 +465,8 @@ sgx_status_t ehsm_generate_datakey_aes(const ehsm_keyblob_t *cmk,
                                plaintext,
                                ciphertext);
 
-   free(temp_datakey);
+    memset_s(temp_datakey, plaintext->datalen, 0, plaintext->datalen);
+    free(temp_datakey);
 
     return ret;
 }
@@ -481,7 +481,6 @@ sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
     temp_datakey = (uint8_t *)malloc(plaintext->datalen);
     if (temp_datakey == NULL)
     {
-        free(temp_datakey);
         return SGX_ERROR_OUT_OF_MEMORY;
     }
     if(RAND_bytes(temp_datakey, plaintext->datalen) != 1)
@@ -505,7 +504,8 @@ sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
                                    plaintext,
                                    ciphertext);
     }
-
+    
+    memset_s(temp_datakey, plaintext->datalen, 0, plaintext->datalen);
     free(temp_datakey);
 
     return ret;

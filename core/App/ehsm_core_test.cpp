@@ -1017,8 +1017,8 @@ void test_RSA3072_encrypt_decrypt()
 
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
-    paramJsonEncrypt2.addData_string("cmk_base64", cmk_base64);
-    paramJsonEncrypt2.addData_string("plaintext_base64", input_plaintext_base64);
+    paramJsonEncrypt2.addData_string("cmk", cmk_base64);
+    paramJsonEncrypt2.addData_string("plaintext", input_plaintext_base64);
 
     paramJsonEncrypt.addData_uint16("action", EH_ASYMMETRIC_ENCRYPT);
     paramJsonEncrypt.addData_JsonValue("payload", paramJsonEncrypt2.getJson());
@@ -1035,8 +1035,8 @@ void test_RSA3072_encrypt_decrypt()
 
     ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
 
-    paramJsonDecrypt2.addData_string("cmk_base64", cmk_base64);
-    paramJsonDecrypt2.addData_string("ciphertext_base64", ciphertext_base64);
+    paramJsonDecrypt2.addData_string("cmk", cmk_base64);
+    paramJsonDecrypt2.addData_string("ciphertext", ciphertext_base64);
 
     paramJsonDecrypt.addData_uint16("action", EH_ASYMMETRIC_DECRYPT);
     paramJsonDecrypt.addData_JsonValue("payload", paramJsonDecrypt2.getJson());
@@ -1105,8 +1105,8 @@ void test_SM2_encrypt_decrypt()
 
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
-    paramJsonEncrypt2.addData_string("cmk_base64", cmk_base64);
-    paramJsonEncrypt2.addData_string("plaintext_base64", input_plaintext_base64);
+    paramJsonEncrypt2.addData_string("cmk", cmk_base64);
+    paramJsonEncrypt2.addData_string("plaintext", input_plaintext_base64);
 
     paramJsonEncrypt.addData_uint16("action", EH_ASYMMETRIC_ENCRYPT);
     paramJsonEncrypt.addData_JsonValue("payload", paramJsonEncrypt2.getJson());
@@ -1123,8 +1123,8 @@ void test_SM2_encrypt_decrypt()
 
     ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
 
-    paramJsonDecrypt2.addData_string("cmk_base64", cmk_base64);
-    paramJsonDecrypt2.addData_string("ciphertext_base64", ciphertext_base64);
+    paramJsonDecrypt2.addData_string("cmk", cmk_base64);
+    paramJsonDecrypt2.addData_string("ciphertext", ciphertext_base64);
 
     paramJsonDecrypt.addData_uint16("action", EH_ASYMMETRIC_DECRYPT);
     paramJsonDecrypt.addData_JsonValue("payload", paramJsonDecrypt2.getJson());
@@ -1200,8 +1200,8 @@ void test_RSA3072_sign_verify()
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
-    payload_json.addData_string("cmk_base64", cmk_base64);
-    payload_json.addData_string("digest_base64", input_digest_base64);
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_string("digest", input_digest_base64);
 
     param_json.addData_uint16("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1217,7 +1217,7 @@ void test_RSA3072_sign_verify()
     signature_base64 = retJsonObj.readData_cstr("signature");
     printf("Sign data SUCCESSFULLY!\n");
 
-    payload_json.addData_string("signature_base64", signature_base64);
+    payload_json.addData_string("signature", signature_base64);
 
     param_json.addData_uint16("action", EH_VERIFY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1286,8 +1286,8 @@ void test_RSA2048_sign_verify()
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
-    payload_json.addData_string("cmk_base64", cmk_base64);
-    payload_json.addData_string("digest_base64", input_digest_base64);
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_string("digest", input_digest_base64);
 
     param_json.addData_uint16("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1303,7 +1303,7 @@ void test_RSA2048_sign_verify()
     signature_base64 = retJsonObj.readData_cstr("signature");
     printf("Sign data SUCCESSFULLY!\n");
 
-    payload_json.addData_string("signature_base64", signature_base64);
+    payload_json.addData_string("signature", signature_base64);
 
     param_json.addData_uint16("action", EH_VERIFY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1372,8 +1372,8 @@ void test_RSA4096_sign_verify()
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
-    payload_json.addData_string("cmk_base64", cmk_base64);
-    payload_json.addData_string("digest_base64", input_digest_base64);
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_string("digest", input_digest_base64);
 
     param_json.addData_uint16("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1389,7 +1389,7 @@ void test_RSA4096_sign_verify()
     signature_base64 = retJsonObj.readData_cstr("signature");
     printf("Sign data SUCCESSFULLY!\n");
 
-    payload_json.addData_string("signature_base64", signature_base64);
+    payload_json.addData_string("signature", signature_base64);
 
     param_json.addData_uint16("action", EH_VERIFY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1458,8 +1458,8 @@ void test_ec_p256_sign_verify()
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
-    payload_json.addData_string("cmk_base64", cmk_base64);
-    payload_json.addData_string("digest_base64", input_digest_base64);
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_string("digest", input_digest_base64);
 
     param_json.addData_uint16("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1475,7 +1475,7 @@ void test_ec_p256_sign_verify()
     signature_base64 = retJsonObj.readData_cstr("signature");
     printf("Sign data SUCCESSFULLY!\n");
 
-    payload_json.addData_string("signature_base64", signature_base64);
+    payload_json.addData_string("signature", signature_base64);
 
     param_json.addData_uint16("action", EH_VERIFY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1546,9 +1546,9 @@ void test_ec_sm2_sign_verify()
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
-    payload_json.addData_string("cmk_base64", cmk_base64);
-    payload_json.addData_string("digest_base64", input_digest_base64);
-    payload_json.addData_string("appid_base64", input_appid_base64);
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_string("digest", input_digest_base64);
+    payload_json.addData_string("appid", input_appid_base64);
 
     param_json.addData_uint16("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1564,7 +1564,7 @@ void test_ec_sm2_sign_verify()
     signature_base64 = retJsonObj.readData_cstr("signature");
     printf("Sign data SUCCESSFULLY!\n");
 
-    payload_json.addData_string("signature_base64", signature_base64);
+    payload_json.addData_string("signature", signature_base64);
 
     param_json.addData_uint16("action", EH_VERIFY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -2033,8 +2033,8 @@ void test_export_datakey()
             // step6. verify that the newdatakey ciphertext could be decrypt succeed by the user rsa key pair
             payload_json.clear();
             param_json.clear();
-            payload_json.addData_string("cmk_base64", ukey_base64);
-            payload_json.addData_string("ciphertext_base64", newdatakey_base64);
+            payload_json.addData_string("cmk", ukey_base64);
+            payload_json.addData_string("ciphertext", newdatakey_base64);
             param_json.addData_uint16("action", EH_ASYMMETRIC_DECRYPT);
             param_json.addData_JsonValue("payload", payload_json.getJson());
             returnJsonChar = EHSM_NAPI_CALL((param_json.toString()).c_str());
@@ -2205,33 +2205,33 @@ int main(int argc, char *argv[])
     //     test_performance();
     // #endif
 
-    // test_AES128();
+    test_AES128();
 
-    // test_AES192();
+    test_AES192();
 
-    // test_AES256();
+    test_AES256();
 
-    // test_SM4_CTR();
+    test_SM4_CTR();
 
-    // test_SM4_CBC();
+    test_SM4_CBC();
 
-    // test_RSA3072_encrypt_decrypt();
+    test_RSA3072_encrypt_decrypt();
 
-    // test_RSA2048_sign_verify();
+    test_RSA2048_sign_verify();
 
-    // test_RSA3072_sign_verify();
+    test_RSA3072_sign_verify();
 
-    // test_RSA4096_sign_verify();
+    test_RSA4096_sign_verify();
 
-    // test_ec_sm2_sign_verify();
+    test_ec_sm2_sign_verify();
 
-    // test_ec_p256_sign_verify();
+    test_ec_p256_sign_verify();
 
     test_SM2_encrypt_decrypt();
 
-    // test_generate_AES_datakey();
+    test_generate_AES_datakey();
 
-    // test_generate_SM4_datakey();
+    test_generate_SM4_datakey();
 
     test_export_datakey();
 
