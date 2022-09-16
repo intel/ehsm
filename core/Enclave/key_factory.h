@@ -29,7 +29,6 @@
  *
  */
 
-
 #include "log_utils.h"
 #include "sgx_tseal.h"
 
@@ -47,22 +46,22 @@
 
 typedef struct _aes_gcm_data_ex_t
 {
-    uint32_t  ciphertext_size;
-    uint32_t  aad_size;
-    uint8_t   reserve1[8];
-    uint8_t   iv[SGX_AESGCM_IV_SIZE];
-    uint8_t   reserve2[4];
-    uint8_t   mac[SGX_AESGCM_MAC_SIZE];
-    uint8_t   payload[];   /* ciphertext + aad */
+    uint32_t ciphertext_size;
+    uint32_t aad_size;
+    uint8_t reserve1[8];
+    uint8_t iv[SGX_AESGCM_IV_SIZE];
+    uint8_t reserve2[4];
+    uint8_t mac[SGX_AESGCM_MAC_SIZE];
+    uint8_t payload[]; /* ciphertext + aad */
 } sgx_aes_gcm_data_ex_t;
 
 // use the g_domain_key to encrypt the cmk and get it ciphertext
-sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext, uint32_t plaintext_size, 
-                                 const sgx_aes_gcm_data_ex_t *keyblob_data);
+sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
+                                const sgx_aes_gcm_data_ex_t *keyblob_data);
 
 // use the g_domain_key to decrypt the cmk and get it plaintext
 sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaintext_size,
-                                 const uint8_t *aad, const uint32_t aad_size, 
+                                 const uint8_t *aad, const uint32_t aad_size,
                                  sgx_aes_gcm_data_ex_t *keyblob_data);
 
 // calculate the keyblob size based on the key metadata infomations.
@@ -80,9 +79,9 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk);
 sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_generate_datakey_aes(const ehsm_keyblob_t *cmk,
-                                           const ehsm_data_t *aad,
-                                           ehsm_data_t *plaintext,
-                                           ehsm_data_t *ciphertext);
+                                       const ehsm_data_t *aad,
+                                       ehsm_data_t *plaintext,
+                                       ehsm_data_t *ciphertext);
 
 sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
                                        ehsm_data_t *plaintext,

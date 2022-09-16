@@ -141,16 +141,6 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    /* this api only support for symmetric keys */
-    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
-        cmk->metadata.keyspec != EH_AES_GCM_192 &&
-        cmk->metadata.keyspec != EH_AES_GCM_256 &&
-        cmk->metadata.keyspec != EH_SM4_CTR &&
-        cmk->metadata.keyspec != EH_SM4_CBC)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
     /* only support to directly encrypt data of less than 6 KB */
     if (plaintext->data == NULL || plaintext->datalen == 0 ||
         plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
@@ -172,6 +162,7 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
         ret = ehsm_sm4_cbc_encrypt(cmk, plaintext, ciphertext);
         break;
     default:
+        return SGX_ERROR_INVALID_PARAMETER;
         break;
     }
 
@@ -186,16 +177,6 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    /* this api only support for symmetric keys */
-    if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
-        cmk->metadata.keyspec != EH_AES_GCM_192 &&
-        cmk->metadata.keyspec != EH_AES_GCM_256 &&
-        cmk->metadata.keyspec != EH_SM4_CTR &&
-        cmk->metadata.keyspec != EH_SM4_CBC)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -218,6 +199,7 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
         ret = ehsm_sm4_cbc_decrypt(cmk, ciphertext, plaintext);
         break;
     default:
+        return SGX_ERROR_INVALID_PARAMETER;
         break;
     }
 
@@ -245,6 +227,7 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
     case EH_SM2:
         ret = ehsm_sm2_encrypt(cmk, plaintext, ciphertext);
     default:
+        return SGX_ERROR_INVALID_PARAMETER;
         break;
     }
     return ret;
@@ -271,6 +254,7 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
     case EH_SM2:
         ret = ehsm_sm2_decrypt(cmk, ciphertext, plaintext);
     default:
+        return SGX_ERROR_INVALID_PARAMETER;
         break;
     }
     return ret;

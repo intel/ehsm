@@ -53,6 +53,9 @@
 #include "key_operation.h"
 #include "key_factory.h"
 
+#define SM4_NO_PAD 0
+#define SM4_PAD 1
+
 using namespace std;
 
 void printf(const char *fmt, ...)
@@ -144,7 +147,7 @@ bool verifyPaddingMode(uint8_t paddingMode, const EVP_MD *digestMode, EVP_PKEY *
         }
         return true;
     default:
-        return -1;
+        return false;
     }
 }
 
@@ -763,7 +766,7 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     }
 
     // set padding mode
-    pad = (plaintext->datalen % 16 == 0) ? 0 : 1;
+    pad = (plaintext->datalen % 16 == 0) ? SM4_NO_PAD : SM4_PAD;
 
     // Create and initialize ctx
     if (!(pState = EVP_CIPHER_CTX_new())) {
