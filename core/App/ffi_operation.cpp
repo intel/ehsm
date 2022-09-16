@@ -1314,8 +1314,7 @@ extern "C"
         string cmk_base64 = payloadJson.readData_string("cmk");
         string digest_base64 = payloadJson.readData_string("digest");
         string userid_base64 = payloadJson.readData_string("userid");
-        log_d("user id %s", userid_base64.c_str());
-        log_d("user id %s", digest_base64.c_str());
+
         if (cmk_base64.size() == 0 || digest_base64.size() == 0)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -1349,7 +1348,6 @@ extern "C"
             retJsonObj.setMessage("The digest's length is invalid.");
             goto out;
         }
-        printf("userid %d\n", userid_len);
         if (userid_len != 0 && userid_len != EC_APPID_SIZE)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);

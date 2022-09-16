@@ -189,7 +189,7 @@ const remote_attestation_params = {
       type: PARAM_DATA_TYPE.STRING,
       minLength: 36,
       maxLength: 36,
-      required: true,
+      required: false,
       regex: /^([a-z\d]{8}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{12})$/,
       regex_err_msg: 'format wrong'
     }

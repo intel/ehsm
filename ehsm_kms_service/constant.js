@@ -13,24 +13,43 @@ const Definition = {
 }
 
 const ehsm_keySpec_t = {
-  EH_AES_GCM_128: 0,
-  EH_AES_GCM_192: 1,
-  EH_AES_GCM_256: 2,
-  EH_RSA_2048: 3,
-  EH_RSA_3072: 4,
-  EH_RSA_4096: 5,
-  EH_EC_P224: 6,
-  EH_EC_P256: 7,
-  EH_EC_P384: 8,
-  EH_EC_P512: 9,
-  EH_HMAC: 10,
-  EH_SM2: 11,
-  EH_SM3: 12,
-  EH_SM: 13
+  AES_GCM_128: 0,
+  AES_GCM_192: 1,
+  AES_GCM_256: 2,
+  RSA_2048: 3,
+  RSA_3072: 4,
+  RSA_4096: 5,
+  EC_P224: 6,
+  EC_P256: 7,
+  EC_P384: 8,
+  EC_P512: 9,
+  HMAC: 10,
+  SM2: 11,
+  SM4_CTR: 12,
+  SM4_CBC: 13
 }
 const ehsm_keyorigin_t = {
   EH_INTERNAL_KEY: 0,
   EXTERNAL_KEY: 1
+}
+
+const ehsm_paddingMode_t = {
+  NO_PADDING: 0,
+  PAD_RSA_PKCS1: 1,      
+  PAD_RSA_SSLV23: 2,      
+  PAD_RSA_NO: 3,          
+  PAD_RSA_PKCS1_OAEP: 4,  
+  PAD_RSA_X931: 5,
+  PAD_RSA_PKCS1_PSS: 6
+}
+
+const ehsm_digestMode_t = {
+  NONE: 0,
+  SHA_2_224: 1,
+  SHA_2_256: 2,
+  SHA_2_384: 3,
+  SHA_2_512: 4,
+  SM3: 5
 }
 
 const ehsm_action_t = {
@@ -56,5 +75,7 @@ module.exports = {
   Definition,
   ehsm_keySpec_t,
   ehsm_keyorigin_t,
-  ehsm_action_t
+  ehsm_action_t,
+  ehsm_digestMode_t,
+  ehsm_paddingMode_t
 }
