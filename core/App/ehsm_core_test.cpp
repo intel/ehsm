@@ -1874,10 +1874,10 @@ void test_export_datakey()
             "EH_SM4_CTR",
             "EH_SM4_CBC",
             "INVALID_VALUE"};
-    ehsm_keyspec_t testcmkkeyspec[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256, EH_SM4_CBC, EH_SM4_CTR};
-    int testcmkkeyspecnum = 5;
-    ehsm_keyspec_t testukeykeyspec[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096, EH_SM2};
-    int testukeykeyspecnum = 4;
+    ehsm_keyspec_t cmk_keyspec_test[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256, EH_SM4_CBC, EH_SM4_CTR};
+    int cmk_keyspec_test_num = 5;
+    ehsm_keyspec_t ukey_keyspec_test[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096, EH_SM2};
+    int ukey_keyspec_test_num = 4;
     char *returnJsonChar = nullptr;
     char *cmk_base64 = nullptr;
     char *ukey_base64 = nullptr;
@@ -1897,11 +1897,11 @@ void test_export_datakey()
     /*step1. create an aes-128 key as the cmk to encrypt datakey*/
     JsonObj param_json;
     JsonObj payload_json;
-    for (int i = 0; i < testcmkkeyspecnum; i++)
+    for (int i = 0; i < cmk_keyspec_test_num; i++)
     {
         payload_json.clear();
         param_json.clear();
-        switch (testcmkkeyspec[i])
+        switch (cmk_keyspec_test[i])
         {
         case EH_AES_GCM_128:
             payload_json.addData_uint16("keyspec", EH_AES_GCM_128);
@@ -1934,7 +1934,7 @@ void test_export_datakey()
         }
         cmk_base64 = retJsonObj.readData_cstr("cmk");
         printf("cmk_base64 : %s\n", cmk_base64);
-        printf("Create CMK with %s SUCCESSFULLY!\n", keyspec_str[testcmkkeyspec[i]]);
+        printf("Create CMK with %s SUCCESSFULLY!\n", keyspec_str[cmk_keyspec_test[i]]);
 
         /* step2. generate a 48 bytes random data key and without plaintext returned */
         payload_json.clear();
@@ -1948,12 +1948,12 @@ void test_export_datakey()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("GenerateDataKeyWithoutPlaintext using %s cmk Failed, error message: %s \n", keyspec_str[testcmkkeyspec[i]], retJsonObj.getMessage().c_str());
+            printf("GenerateDataKeyWithoutPlaintext using %s cmk Failed, error message: %s \n", keyspec_str[cmk_keyspec_test[i]], retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         olddatakey_base64 = retJsonObj.readData_cstr("ciphertext");
         printf("olddatakey_base64 : %s\n", olddatakey_base64);
-        printf("GenerateDataKeyWithoutPlaintext using %s cmk SUCCESSFULLY!\n", keyspec_str[testcmkkeyspec[i]]);
+        printf("GenerateDataKeyWithoutPlaintext using %s cmk SUCCESSFULLY!\n", keyspec_str[cmk_keyspec_test[i]]);
 
         /* step3. try to use the cmk to decrypt the datakey */
         payload_json.clear();
@@ -1967,17 +1967,17 @@ void test_export_datakey()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("DECEYPT using %s cmk, failed, error message: %s \n", keyspec_str[testcmkkeyspec[i]], retJsonObj.getMessage().c_str());
+            printf("DECEYPT using %s cmk, failed, error message: %s \n", keyspec_str[cmk_keyspec_test[i]], retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         olddatakeyplaintext_base64 = retJsonObj.readData_cstr("plaintext");
-        printf("Decrypted using %s cmk, datakeyplaintext_base64 : %s\n", keyspec_str[testcmkkeyspec[i]], olddatakeyplaintext_base64);
-        printf("Decrypt datakey using %s cmk SUCCESSFULLY!\n", keyspec_str[testcmkkeyspec[i]]);
-        for (int j = 0; j < testukeykeyspecnum; j++)
+        printf("Decrypted using %s cmk, datakeyplaintext_base64 : %s\n", keyspec_str[cmk_keyspec_test[i]], olddatakeyplaintext_base64);
+        printf("Decrypt datakey using %s cmk SUCCESSFULLY!\n", keyspec_str[cmk_keyspec_test[i]]);
+        for (int j = 0; j < ukey_keyspec_test_num; j++)
         {
             payload_json.clear();
             param_json.clear();
-            switch (testukeykeyspec[j])
+            switch (ukey_keyspec_test[j])
             {
             case EH_RSA_2048:
                 payload_json.addData_uint16("keyspec", EH_RSA_2048);
@@ -2005,12 +2005,12 @@ void test_export_datakey()
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
-                printf("CreateKey using %s ukey failed, error message: %s \n", keyspec_str[testukeykeyspec[j]], retJsonObj.getMessage().c_str());
+                printf("CreateKey using %s ukey failed, error message: %s \n", keyspec_str[ukey_keyspec_test[j]], retJsonObj.getMessage().c_str());
                 goto cleanup;
             }
             ukey_base64 = retJsonObj.readData_cstr("cmk");
-            printf("%s ukey_base64 : %s\n", keyspec_str[testukeykeyspec[j]], ukey_base64);
-            printf("CreateKey UKEY using %s SUCCESSFULLY!\n", keyspec_str[testukeykeyspec[j]]);
+            printf("%s ukey_base64 : %s\n", keyspec_str[ukey_keyspec_test[j]], ukey_base64);
+            printf("CreateKey UKEY using %s SUCCESSFULLY!\n", keyspec_str[ukey_keyspec_test[j]]);
 
             /*step5. export the datakey with the new user public key */
             payload_json.clear();
@@ -2025,7 +2025,7 @@ void test_export_datakey()
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
-                printf("ExportDataKey using %s cmk, %s ukey failed, error message: %s \n", keyspec_str[testcmkkeyspec[i]], keyspec_str[testukeykeyspec[j]], retJsonObj.getMessage().c_str());
+                printf("ExportDataKey using %s cmk, %s ukey failed, error message: %s \n", keyspec_str[cmk_keyspec_test[i]], keyspec_str[ukey_keyspec_test[j]], retJsonObj.getMessage().c_str());
                 goto cleanup;
             }
             newdatakey_base64 = retJsonObj.readData_cstr("newdatakey");
@@ -2041,20 +2041,20 @@ void test_export_datakey()
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
-                printf("AsymmetricDecrypt newdatakey using %s cmk, %s ukey failed, error message: %s \n", keyspec_str[testcmkkeyspec[i]], keyspec_str[testukeykeyspec[j]], retJsonObj.getMessage().c_str());
+                printf("AsymmetricDecrypt newdatakey using %s cmk, %s ukey failed, error message: %s \n", keyspec_str[cmk_keyspec_test[i]], keyspec_str[ukey_keyspec_test[j]], retJsonObj.getMessage().c_str());
                 goto cleanup;
             }
             newdatakeyplaintext_base64 = retJsonObj.readData_cstr("plaintext");
-            printf("AsymmetricDecrypt newdatakey using %s ukey Json : %s\n", keyspec_str[testukeykeyspec[j]], returnJsonChar);
+            printf("AsymmetricDecrypt newdatakey using %s ukey Json : %s\n", keyspec_str[ukey_keyspec_test[j]], returnJsonChar);
             printf("newdatakey_plaintext_base64 : %s\n", newdatakeyplaintext_base64);
-            printf("Asymmetric Decrypt newdatakey using %s ukey SUCCESSFULLY!\n", keyspec_str[testukeykeyspec[j]]);
+            printf("Asymmetric Decrypt newdatakey using %s ukey SUCCESSFULLY!\n", keyspec_str[ukey_keyspec_test[j]]);
             if (strcmp(olddatakeyplaintext_base64, newdatakeyplaintext_base64) == 0)
             {
-                printf("ExportDataKey with %s cmk, %s ukey SUCCESSFULLY.\n", keyspec_str[testcmkkeyspec[i]], keyspec_str[testukeykeyspec[j]]);
+                printf("ExportDataKey with %s cmk, %s ukey SUCCESSFULLY.\n", keyspec_str[cmk_keyspec_test[i]], keyspec_str[ukey_keyspec_test[j]]);
             }
             else
             {
-                printf("ExportDataKey  with %s cmk, %s ukey failed. olddatakeyplaintext!=newdatakeyplaintext\n", keyspec_str[testcmkkeyspec[i]], keyspec_str[testukeykeyspec[j]]);
+                printf("ExportDataKey  with %s cmk, %s ukey failed. olddatakeyplaintext!=newdatakeyplaintext\n", keyspec_str[cmk_keyspec_test[i]], keyspec_str[ukey_keyspec_test[j]]);
             }
             SAFE_FREE(ukey_base64);
             SAFE_FREE(newdatakey_base64);
