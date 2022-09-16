@@ -145,7 +145,7 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        
+
         master_key = (ehsm_keyblob_t *)realloc(master_key, APPEND_SIZE_TO_KEYBOB_T(master_key->keybloblen));
         if (master_key == NULL)
         {
@@ -544,7 +544,7 @@ extern "C"
         case EH_RSA_3072:
         case EH_RSA_4096:
             // TODO : make sure this value
-            plaintext_maxLen = 1024;
+            plaintext_maxLen = 384;
             break;
         case EH_SM2:
             // TODO : make sure this value
@@ -599,7 +599,7 @@ extern "C"
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception1.");
+            retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
@@ -2024,7 +2024,7 @@ extern "C"
         sgx_ql_qv_result_t verifyresult;
         bool result = false;
         ehsm_data_t *quote;
- 
+
         string quote_str = base64_decode(quote_base64);
         int quote_len = quote_str.size();
         if (quote_len == 0 || quote_len > EH_QUOTE_MAX_SIZE)

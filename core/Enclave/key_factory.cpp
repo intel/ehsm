@@ -334,7 +334,7 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
 
     if (cmk->keybloblen == 0)
     {
-        cmk->keybloblen = PEM_BUFSIZE * 5;
+        cmk->keybloblen = PEM_BUFSIZE;
         return SGX_SUCCESS;
     }
 
