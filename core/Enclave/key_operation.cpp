@@ -1740,7 +1740,7 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
  */
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
-                           const ehsm_data_t *appid,
+                           const ehsm_data_t *userid,
                            ehsm_data_t *signature,
                            uint32_t *req_signature_len)
 {
@@ -1822,7 +1822,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
             ret = SGX_ERROR_UNEXPECTED;
             break;
         }
-        if (EVP_PKEY_CTX_set1_id(pkey_ctx, appid->data, appid->datalen) != 1)
+        if (EVP_PKEY_CTX_set1_id(pkey_ctx, userid->data, userid->datalen) != 1)
         {
             printf("ecall sm2_sign fail to set sm2_user_id to the EVP_PKEY_CTX\n");
             ret = SGX_ERROR_UNEXPECTED;
@@ -1884,7 +1884,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
  */
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
-                             const ehsm_data_t *appid,
+                             const ehsm_data_t *userid,
                              const ehsm_data_t *signature,
                              bool *result)
 {
@@ -1967,7 +1967,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
             break;
         }
         // set sm2 id and len to pkeyctx
-        if (EVP_PKEY_CTX_set1_id(pkey_ctx, appid->data, appid->datalen) != 1)
+        if (EVP_PKEY_CTX_set1_id(pkey_ctx, userid->data, userid->datalen) != 1)
         {
             printf("ecall sm2_verify fail to set sm2_user_id to the EVP_PKEY_CTX\n");
             ret = SGX_ERROR_UNEXPECTED;

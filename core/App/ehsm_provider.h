@@ -256,7 +256,7 @@ signature -- the signature of the digest signed by the cmk
 */
 ehsm_status_t Sign(ehsm_keyblob_t *cmk,
                    ehsm_data_t *digest,
-                   ehsm_data_t *appid,
+                   ehsm_data_t *userid,
                    ehsm_data_t *signature);
 
 /*
@@ -271,7 +271,7 @@ result -- true/false
 */
 ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                      ehsm_data_t *digest,
-                     ehsm_data_t *appid,
+                     ehsm_data_t *userid,
                      ehsm_data_t *signature,
                      bool *result);
 
