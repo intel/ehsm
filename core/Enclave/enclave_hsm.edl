@@ -89,12 +89,12 @@ enclave {
 
         public sgx_status_t enclave_sign([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
                             [in, size=data_len] const ehsm_data_t *data, size_t data_len,
-                            [in, size=appid_len] const ehsm_data_t *appid, size_t appid_len,
+                            [in, size=userid_len] const ehsm_data_t *userid, size_t userid_len,
                             [in, out, size=signature_len] ehsm_data_t *signature, size_t signature_len);
                                          
         public sgx_status_t enclave_verify([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
                             [in, size=data_len] const ehsm_data_t *data, size_t data_len,
-                            [in, size=appid_len] const ehsm_data_t *appid, size_t appid_len,
+                            [in, size=userid_len] const ehsm_data_t *userid, size_t userid_len,
                             [in, size=signature_len] const ehsm_data_t *signature, size_t signature_len,
                             [out] bool* result);
 

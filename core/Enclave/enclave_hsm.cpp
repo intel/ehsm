@@ -222,10 +222,10 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
     case EH_RSA_3072:
     case EH_RSA_4096:
         ret = ehsm_rsa_encrypt(cmk, plaintext, ciphertext);
-        /* code */
         break;
     case EH_SM2:
         ret = ehsm_sm2_encrypt(cmk, plaintext, ciphertext);
+        break;
     default:
         return SGX_ERROR_INVALID_PARAMETER;
         break;
@@ -253,6 +253,7 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
         break;
     case EH_SM2:
         ret = ehsm_sm2_decrypt(cmk, ciphertext, plaintext);
+        break;
     default:
         return SGX_ERROR_INVALID_PARAMETER;
         break;
@@ -262,12 +263,12 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
 
 sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_len,
                           const ehsm_data_t *data, size_t data_len,
-                          const ehsm_data_t *appid, size_t appid_len,
+                          const ehsm_data_t *userid, size_t userid_len,
                           ehsm_data_t *signature, size_t signature_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     // Verify parameters
-    if (cmk->metadata.digest_mode == NULL || cmk->metadata.padding_mode == NULL || cmk->metadata.keyspec < 0)
+    if (cmk->metadata.digest_mode < 0 || cmk->metadata.padding_mode < 0 || cmk->metadata.keyspec < 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -356,7 +357,7 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_len,
     case EH_SM2:
         ret = ehsm_sm2_sign(cmk,
                             data,
-                            appid,
+                            userid,
                             signature,
                             &signature->datalen);
         break;
@@ -370,14 +371,14 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_len,
 
 sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_len,
                             const ehsm_data_t *data, size_t data_len,
-                            const ehsm_data_t *appid, size_t appid_len,
+                            const ehsm_data_t *userid, size_t userid_len,
                             const ehsm_data_t *signature, size_t signature_len,
                             bool *result)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // Verify parameters
-    if (cmk->metadata.digest_mode == NULL || cmk->metadata.padding_mode == NULL || cmk->metadata.keyspec < 0)
+    if (cmk->metadata.digest_mode < 0 || cmk->metadata.padding_mode < 0 || cmk->metadata.keyspec < 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -465,7 +466,7 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_len,
     case EH_SM2:
         ret = ehsm_sm2_verify(cmk,
                               data,
-                              appid,
+                              userid,
                               signature,
                               result);
         break;

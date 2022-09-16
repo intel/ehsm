@@ -544,7 +544,7 @@ extern "C"
         case EH_RSA_3072:
         case EH_RSA_4096:
             // TODO : make sure this value
-            plaintext_maxLen = 1024;
+            plaintext_maxLen = 384;
             break;
         case EH_SM2:
             // TODO : make sure this value
@@ -599,7 +599,7 @@ extern "C"
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception1.");
+            retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
@@ -1290,7 +1290,7 @@ extern "C"
             result: {
                 cmk_base64 : string,
                 digest_base64 : string,
-                appid_base64 : string
+                userid_base64 : string
             }
         }
     *
@@ -1313,7 +1313,7 @@ extern "C"
 
         string cmk_base64 = payloadJson.readData_string("cmk");
         string digest_base64 = payloadJson.readData_string("digest");
-        string appid_base64 = payloadJson.readData_string("appid");
+        string userid_base64 = payloadJson.readData_string("userid");
 
         if (cmk_base64.size() == 0 || digest_base64.size() == 0)
         {
@@ -1325,16 +1325,16 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *digest_data = NULL;
-        ehsm_data_t *appid_data = NULL;
+        ehsm_data_t *userid_data = NULL;
         ehsm_data_t *signature = NULL;
 
         string cmk_str = base64_decode(cmk_base64);
         string digest_str = base64_decode(digest_base64);
-        string appid_str = base64_decode(appid_base64);
+        string userid_str = base64_decode(userid_base64);
         string signature_base64;
         int cmk_len = cmk_str.size();
         int digest_len = digest_str.size();
-        int appid_len = appid_str.size();
+        int userid_len = userid_str.size();
 
         if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
         {
@@ -1348,10 +1348,10 @@ extern "C"
             retJsonObj.setMessage("The digest's length is invalid.");
             goto out;
         }
-        if (appid_len != 0 && appid_len != EC_APPID_SIZE)
+        if (userid_len != 0 && userid_len != EC_APPID_SIZE)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-            retJsonObj.setMessage("The appid length is invalid.");
+            retJsonObj.setMessage("The userid length is invalid.");
             goto out;
         }
 
@@ -1372,23 +1372,23 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        appid_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(appid_len));
-        if (appid_data == NULL)
+        userid_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(userid_len));
+        if (userid_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The cmk's length is invalid.");
             goto out;
         }
-        appid_data->datalen = appid_len;
-        if (appid_len > 0)
+        userid_data->datalen = userid_len;
+        if (userid_len > 0)
         {
-            memcpy(appid_data->data, (uint8_t *)appid_str.data(), appid_len);
+            memcpy(userid_data->data, (uint8_t *)userid_str.data(), userid_len);
         }
         signature = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
 
         // get signature datalen
         signature->datalen = 0;
-        ret = Sign(cmk, digest_data, appid_data, signature);
+        ret = Sign(cmk, digest_data, userid_data, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1405,7 +1405,7 @@ extern "C"
         }
 
         // sign
-        ret = Sign(cmk, digest_data, appid_data, signature);
+        ret = Sign(cmk, digest_data, userid_data, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1423,7 +1423,7 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
         SAFE_FREE(digest_data);
-        SAFE_FREE(appid_data);
+        SAFE_FREE(userid_data);
         return retJsonObj.toChar();
     }
 
@@ -1439,7 +1439,7 @@ extern "C"
                 cmk_base64 : string,
                 digest_base64 : string,
                 signature_base64 ： string
-                appid_base64 : string
+                userid_base64 : string
             }
         }
     *
@@ -1462,7 +1462,7 @@ extern "C"
         string cmk_base64 = payloadJson.readData_string("cmk");
         string digest_base64 = payloadJson.readData_string("digest");
         string signature_base64 = payloadJson.readData_string("signature");
-        string appid_base64 = payloadJson.readData_string("appid");
+        string userid_base64 = payloadJson.readData_string("userid");
 
         if (cmk_base64.size() == 0 || digest_base64.size() == 0 || signature_base64.size() == 0)
         {
@@ -1474,18 +1474,18 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *digest_data = NULL;
-        ehsm_data_t *appid_data = NULL;
+        ehsm_data_t *userid_data = NULL;
         ehsm_data_t *signature_data = NULL;
 
         bool result = false;
         string cmk_str = base64_decode(cmk_base64);
         string signature_str = base64_decode(signature_base64);
         string digest_str = base64_decode(digest_base64);
-        string appid_str = base64_decode(appid_base64);
+        string userid_str = base64_decode(userid_base64);
         int cmk_len = cmk_str.size();
         int digest_len = digest_str.size();
         int signature_len = signature_str.size();
-        int appid_len = appid_str.size();
+        int userid_len = userid_str.size();
 
         if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
         {
@@ -1499,7 +1499,7 @@ extern "C"
             retJsonObj.setMessage("The digest's length is invalid.");
             goto out;
         }
-        if (appid_len != 0 && appid_len != EC_APPID_SIZE)
+        if (userid_len != 0 && userid_len != EC_APPID_SIZE)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The aad's length is invalid.");
@@ -1529,17 +1529,17 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        appid_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(appid_len));
-        if (appid_data == NULL)
+        userid_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(userid_len));
+        if (userid_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The cmk's length is invalid.");
             goto out;
         }
-        appid_data->datalen = appid_len;
-        if (appid_len > 0)
+        userid_data->datalen = userid_len;
+        if (userid_len > 0)
         {
-            memcpy(appid_data->data, (uint8_t *)appid_str.data(), appid_len);
+            memcpy(userid_data->data, (uint8_t *)userid_str.data(), userid_len);
         }
         signature_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(signature_len));
         signature_data->datalen = signature_len;
@@ -1552,7 +1552,7 @@ extern "C"
         }
 
         // verify sign
-        ret = Verify(cmk, digest_data, appid_data, signature_data, &result);
+        ret = Verify(cmk, digest_data, userid_data, signature_data, &result);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1565,7 +1565,7 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(signature_data);
         SAFE_FREE(digest_data);
-        SAFE_FREE(appid_data);
+        SAFE_FREE(userid_data);
         return retJsonObj.toChar();
     }
 

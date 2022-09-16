@@ -623,7 +623,7 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
  */
 ehsm_status_t Sign(ehsm_keyblob_t *cmk,
                    ehsm_data_t *digest,
-                   ehsm_data_t *appid,
+                   ehsm_data_t *userid,
                    ehsm_data_t *signature)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
@@ -697,8 +697,8 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
                            APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen),
                            digest,
                            APPEND_SIZE_TO_DATA_T(digest->datalen),
-                           appid,
-                           APPEND_SIZE_TO_DATA_T(appid->datalen),
+                           userid,
+                           APPEND_SIZE_TO_DATA_T(userid->datalen),
                            signature,
                            APPEND_SIZE_TO_DATA_T(signature->datalen));
         break;
@@ -724,8 +724,8 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
                            APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen),
                            digest,
                            APPEND_SIZE_TO_DATA_T(digest->datalen),
-                           appid,
-                           APPEND_SIZE_TO_DATA_T(appid->datalen),
+                           userid,
+                           APPEND_SIZE_TO_DATA_T(userid->datalen),
                            signature,
                            APPEND_SIZE_TO_DATA_T(signature->datalen));
         break;
@@ -750,7 +750,7 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
  */
 ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                      ehsm_data_t *digest,
-                     ehsm_data_t *appid,
+                     ehsm_data_t *userid,
                      ehsm_data_t *signature,
                      bool *result)
 {
@@ -799,8 +799,8 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                              APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen),
                              digest,
                              APPEND_SIZE_TO_DATA_T(digest->datalen),
-                             appid,
-                             APPEND_SIZE_TO_DATA_T(appid->datalen),
+                             userid,
+                             APPEND_SIZE_TO_DATA_T(userid->datalen),
                              signature,
                              APPEND_SIZE_TO_DATA_T(signature->datalen),
                              result);
@@ -827,8 +827,8 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                              APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen),
                              digest,
                              APPEND_SIZE_TO_DATA_T(digest->datalen),
-                             appid,
-                             APPEND_SIZE_TO_DATA_T(appid->datalen),
+                             userid,
+                             APPEND_SIZE_TO_DATA_T(userid->datalen),
                              signature,
                              APPEND_SIZE_TO_DATA_T(signature->datalen),
                              result);
