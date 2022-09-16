@@ -1,13 +1,8 @@
 const express = require('express')
 const { ehsm_action_t } = require('./constant')
 const https = require('https')
-const fs = require('fs');
-
-const cert = {
-  key: fs.readFileSync('./ssl_key/privatekey.pem', 'utf8'),
-  cert: fs.readFileSync('./ssl_key/certificate.crt', 'utf8')
-};
-
+const fs = require('fs')
+const openssl = require('openssl-nodejs')
 const ehsm_napi = require('./ehsm_napi')
 const {
   getIPAdress,
@@ -79,8 +74,32 @@ const server = (DB) => {
   })
 
   console.log(`ehsm_ksm_service application listening at ${getIPAdress()} with https port: ${HTTPS_PORT}`)
-  https.createServer(cert, app).listen(HTTPS_PORT);
 
+  // process open ssl
+  try {
+    // load key by default
+    const ehsm_openssl_key = fs.readFileSync('./ssl_key/privatekey.pem', 'utf8')
+    const ehsm_openssl_cert = fs.readFileSync('./ssl_key/certificate.crt', 'utf8')
+    https.createServer({ key: ehsm_openssl_key, cert: ehsm_openssl_cert }, app).listen(HTTPS_PORT)
+  } catch (error) {
+    try {
+      // load key by server create
+      const ehsm_openssl_key = fs.readFileSync('./openssl/privatekey.pem', 'utf8')
+      const ehsm_openssl_cert = fs.readFileSync('./openssl/certificate.crt', 'utf8')
+      https.createServer({ key: ehsm_openssl_key, cert: ehsm_openssl_cert }, app).listen(HTTPS_PORT)
+    } catch (e) {
+      if (e.code == 'ENOENT') {
+        // create certrequest.csr, privatekey.pem, certificate.crt of server
+        openssl(['req', '-config', './ssl_key/csr.conf', '-out', 'certrequest.csr', '-new', '-newkey', 'rsa:3072', '-nodes', '-keyout', 'privatekey.pem'], function (err, buffer) {
+          openssl(['x509', '-days', '365', '-req', '-in', 'certrequest.csr', '-signkey', 'privatekey.pem', '-out', 'certificate.crt'], function (err, buffer) {
+            const ehsm_openssl_key = fs.readFileSync('./openssl/privatekey.pem', 'utf8')
+            const ehsm_openssl_cert = fs.readFileSync('./openssl/certificate.crt', 'utf8')
+            https.createServer({ key: ehsm_openssl_key, cert: ehsm_openssl_cert }, app).listen(HTTPS_PORT)
+          })
+        })
+      }
+    }
+  }
 }
 
 connectDB(server)
