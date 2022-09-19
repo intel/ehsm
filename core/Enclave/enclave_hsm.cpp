@@ -91,6 +91,11 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -136,6 +141,12 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
                              ehsm_data_t *ciphertext, size_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -176,6 +187,11 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_len,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -211,6 +227,12 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
                                         ehsm_data_t *ciphertext, size_t ciphertext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk == NULL || plaintext == NULL || ciphertext == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -238,6 +260,11 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
                                         ehsm_data_t *plaintext, uint32_t plaintext_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
     // TODO : check parameter like enclave_create_key
     if (cmk == NULL || plaintext == NULL || ciphertext == NULL)
     {
@@ -267,6 +294,11 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_len,
                           ehsm_data_t *signature, size_t signature_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
     // Verify parameters
     if (cmk->metadata.digest_mode < 0 || cmk->metadata.padding_mode < 0 || cmk->metadata.keyspec < 0)
     {
@@ -377,6 +409,11 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_len,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     // Verify parameters
     if (cmk->metadata.digest_mode < 0 || cmk->metadata.padding_mode < 0 || cmk->metadata.keyspec < 0)
     {
@@ -485,6 +522,11 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk->metadata.keyspec < 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -531,6 +573,12 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
                                     ehsm_data_t *newdatakey, size_t newdatakey_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    
     ehsm_data_t *tmp_datakey = NULL;
     size_t tmp_datakey_len = 0;
     tmp_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
