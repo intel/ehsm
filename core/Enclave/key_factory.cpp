@@ -66,15 +66,35 @@ sgx_aes_gcm_128bit_key_t g_domain_key = {0};
 
 using namespace std;
 
-uint32_t ehsm_calc_keyblob_len(const uint32_t payload_size)
+uint32_t ehsm_calc_keyblob_len(const uint32_t keyspec)
 {
-    if (payload_size > UINT32_MAX - sizeof(sgx_aes_gcm_data_ex_t))
+    switch (keyspec)
+    {
+    case EH_RSA_2048:
+        return PEM_BUFSIZE * 3 + sizeof(sgx_aes_gcm_data_ex_t);
+        break;
+    case EH_RSA_3072:
+        return PEM_BUFSIZE * 4 + sizeof(sgx_aes_gcm_data_ex_t);
+        break;
+    case EH_RSA_4096:
+        return PEM_BUFSIZE * 5 + sizeof(sgx_aes_gcm_data_ex_t);
+        break;        
+    case EH_EC_P224:
+    case EH_SM2:
+        return PEM_BUFSIZE + sizeof(sgx_aes_gcm_data_ex_t);
+        break;
+    case EH_AES_GCM_128:
+    case EH_SM4_CTR:
+    case EH_SM4_CBC:
+        return 16 + sizeof(sgx_aes_gcm_data_ex_t);
+    case EH_AES_GCM_192:
+        return 24 + sizeof(sgx_aes_gcm_data_ex_t);
+    case EH_AES_GCM_256:
+        return 32 + sizeof(sgx_aes_gcm_data_ex_t);
+    default:
         return UINT32_MAX;
-
-    if (sizeof(sgx_aes_gcm_data_ex_t) > UINT32_MAX - payload_size)
-        return UINT32_MAX;
-
-    return (payload_size + sizeof(sgx_aes_gcm_data_ex_t));
+        break;
+    }
 }
 
 uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
@@ -183,7 +203,7 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
     {
         return SGX_ERROR_UNEXPECTED;
     }
-    uint32_t real_blob_len = ehsm_calc_keyblob_len(keysize);
+    uint32_t real_blob_len = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
 
     if (real_blob_len == UINT32_MAX)
     {
@@ -444,7 +464,7 @@ sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk)
     {
         return SGX_ERROR_UNEXPECTED;
     }
-    uint32_t real_blob_len = ehsm_calc_keyblob_len(keysize);
+    uint32_t real_blob_len = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
 
     if (real_blob_len == UINT32_MAX)
     {

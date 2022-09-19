@@ -170,7 +170,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
  * If the value of the result is not equal to 200, the result is directly returned to the user
  * @param {function name} action
  * @param {object} res
- * @param {EHSM_NAPI_CALL function params} params
+ * @param {EHSM_FFI_CALL function params} params
  * @returns napi result | false
  */
 function napi_result(action, res, payload) {
@@ -179,7 +179,7 @@ function napi_result(action, res, payload) {
       action: ehsm_action_t[action],
       payload
     }
-    const napi_res = ehsm_napi[`EHSM_NAPI_CALL`](JSON.stringify(jsonParam))
+    const napi_res = ehsm_napi[`EHSM_FFI_CALL`](JSON.stringify(jsonParam))
     if (JSON.parse(napi_res).code != 200) {
       if (res != undefined) {
         res.send(napi_res)
