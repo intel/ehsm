@@ -123,12 +123,12 @@ extern "C"
             goto out;
         }
         // storage common key properties into metadata of master_key
-        master_key->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint16("keyspec");
-        master_key->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint16("keyspec");
-        master_key->metadata.origin = (ehsm_keyorigin_t)payloadJson.readData_uint16("origin");
-        master_key->metadata.purpose = (ehsm_keypurpose_t)payloadJson.readData_uint16("purpose");
-        master_key->metadata.padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint16("padding_mode");
-        master_key->metadata.digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint16("digest_mode");
+        master_key->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+        master_key->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+        master_key->metadata.origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
+        master_key->metadata.purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
+        master_key->metadata.padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+        master_key->metadata.digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
         master_key->keybloblen = 0;
 
         if (master_key->metadata.padding_mode == RSA_NO_PADDING)

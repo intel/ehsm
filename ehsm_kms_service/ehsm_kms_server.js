@@ -28,11 +28,7 @@ const server = (DB) => {
     /**
      * NAPI init
      */
-<<<<<<< HEAD
-    const NAPI_Initialize = ehsm_napi.EHSM_NAPI_CALL(JSON.stringify({ action: ehsm_action_t.EH_INITIALIZE, payload: {} }))
-=======
     const NAPI_Initialize = ehsm_napi.EHSM_FFI_CALL(JSON.stringify({ action: ehsm_action_t.EH_INITIALIZE, payload: {} }))
->>>>>>> 67bd3d52b59102204ec4c17ad40ed370e1394d35
     if (JSON.parse(NAPI_Initialize)['code'] != 200) {
         console.log('service Initialize exception!')
         process.exit(0)
@@ -68,13 +64,9 @@ const server = (DB) => {
     /**
      * NAPI finalize when service exit
      */
-    process.on('SIGINT', function () {
+     process.on('SIGINT', function () {
         console.log('ehsm kms service exit')
-<<<<<<< HEAD
-        ehsm_napi.EHSM_NAPI_CALL(JSON.stringify({ action: ehsm_action_t.EH_FINALIZE, payload: {} }))
-=======
         ehsm_napi.EHSM_FFI_CALL(JSON.stringify({ action: ehsm_action_t.EH_FINALIZE, payload: {} }))
->>>>>>> 67bd3d52b59102204ec4c17ad40ed370e1394d35
         clearInterval(nonce_cache_timer)
         clearInterval(cmk_cache_timer)
         clearInterval(secret_delete_timer)
