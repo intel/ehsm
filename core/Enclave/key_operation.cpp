@@ -183,7 +183,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(keysize);
+    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
     if (UINT32_MAX == real_APPEND_SIZE_TO_KEYBOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBOB_T)
         return SGX_ERROR_INVALID_PARAMETER;
 
@@ -337,7 +337,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(keysize);
+    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
     if (UINT32_MAX == real_APPEND_SIZE_TO_KEYBOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBOB_T)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -484,7 +484,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(keysize);
+    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
     if (UINT32_MAX == real_APPEND_SIZE_TO_KEYBOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBOB_T)
         return SGX_ERROR_INVALID_PARAMETER;
 
@@ -591,7 +591,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(keysize);
+    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
     if (UINT32_MAX == real_APPEND_SIZE_TO_KEYBOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBOB_T)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -701,7 +701,7 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(keysize);
+    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
     if (UINT32_MAX == real_APPEND_SIZE_TO_KEYBOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBOB_T)
         return SGX_ERROR_INVALID_PARAMETER;
 
@@ -834,7 +834,7 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(keysize);
+    uint32_t real_APPEND_SIZE_TO_KEYBOB_T = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
     if (UINT32_MAX == real_APPEND_SIZE_TO_KEYBOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBOB_T)
     {
         return SGX_ERROR_INVALID_PARAMETER;
