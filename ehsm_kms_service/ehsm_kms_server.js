@@ -64,7 +64,7 @@ const server = (DB) => {
     /**
      * NAPI finalize when service exit
      */
-    process.on('SIGINT', function () {
+     process.on('SIGINT', function () {
         console.log('ehsm kms service exit')
         ehsm_napi.EHSM_FFI_CALL(JSON.stringify({ action: ehsm_action_t.EH_FINALIZE, payload: {} }))
         clearInterval(nonce_cache_timer)

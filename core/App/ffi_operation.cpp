@@ -124,12 +124,12 @@ extern "C"
             goto out;
         }
         // storage common key properties into metadata of master_key
-        master_key->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint16("keyspec");
-        master_key->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint16("keyspec");
-        master_key->metadata.origin = (ehsm_keyorigin_t)payloadJson.readData_uint16("origin");
-        master_key->metadata.purpose = (ehsm_keypurpose_t)payloadJson.readData_uint16("purpose");
-        master_key->metadata.padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint16("padding_mode");
-        master_key->metadata.digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint16("digest_mode");
+        master_key->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+        master_key->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+        master_key->metadata.origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
+        master_key->metadata.purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
+        master_key->metadata.padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+        master_key->metadata.digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
         master_key->keybloblen = 0;
 
         if (master_key->metadata.padding_mode == RSA_NO_PADDING)
@@ -1106,8 +1106,8 @@ extern "C"
         // string2ehsm_keyblob_t and string2ehsm_data_t
         int cmk_len = cmk_str.size();
         int ukey_len = ukey_str.size();
-        int aad_len = aad_str.size();
-        int olddatakey_len = olddatakey_str.size();
+        int aad_datalen = aad_str.size();
+        int olddatakey_datalen = olddatakey_str.size();
 
         ehsm_keyblob_t *cmk = NULL;
         ehsm_keyblob_t *ukey = NULL;
@@ -1127,14 +1127,14 @@ extern "C"
             retJsonObj.setMessage("The ukey's length is invalid.");
             goto out;
         }
-        if (aad_len > EH_AAD_MAX_SIZE)
+        if (aad_datalen > EH_AAD_MAX_SIZE)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The aad's length is invalid.");
             goto out;
         }
 
-        if (olddatakey_len == 0 || olddatakey_len > EH_DATA_KEY_MAX_SIZE)
+        if (olddatakey_datalen == 0 || olddatakey_datalen > EH_DATA_KEY_MAX_SIZE)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The olddatakey's length is invalid.");
@@ -1151,6 +1151,12 @@ extern "C"
         else
         {
             memcpy_s(cmk, cmk_len, (uint8_t *)cmk_str.data(), cmk_len);
+            if (APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen) != cmk_len)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_FAILED);
+                retJsonObj.setMessage("cmk parse exception.");
+                goto out;
+            }
         }
         ukey = (ehsm_keyblob_t *)malloc(ukey_len);
         if (ukey == NULL)
@@ -1162,11 +1168,17 @@ extern "C"
         else
         {
             memcpy_s(ukey, ukey_len, (uint8_t *)ukey_str.data(), ukey_len);
+            if (APPEND_SIZE_TO_KEYBOB_T(ukey->keybloblen) != ukey_len)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_FAILED);
+                retJsonObj.setMessage("ukey parse exception.");
+                goto out;
+            }
         }
 
-        if (aad_len != 0)
+        if (aad_datalen != 0)
         {
-            aad = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+            aad = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_datalen));
             if (aad == NULL)
             {
                 retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1175,15 +1187,16 @@ extern "C"
             }
             else
             {
-                aad->datalen = aad_len;
-                memcpy_s(aad->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
+                aad->datalen = aad_datalen;
+                memcpy_s(aad->data, aad_datalen, (uint8_t *)aad_str.data(), aad_datalen);
             }
         }
-        else if (aad_len == 0)
+
+        else if (aad_datalen == 0)
         {
-            aad->datalen = aad_len;
+            aad->datalen = aad_datalen;
         }
-        olddatakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(olddatakey_len));
+        olddatakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(olddatakey_datalen));
         if (olddatakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1192,8 +1205,8 @@ extern "C"
         }
         else
         {
-            olddatakey->datalen = olddatakey_len;
-            memcpy_s(olddatakey->data, olddatakey_len, (uint8_t *)olddatakey_str.data(), olddatakey_len);
+            olddatakey->datalen = olddatakey_datalen;
+            memcpy_s(olddatakey->data, olddatakey_datalen, (uint8_t *)olddatakey_str.data(), olddatakey_datalen);
         }
         newdatakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (newdatakey == NULL)
@@ -1202,7 +1215,10 @@ extern "C"
             retJsonObj.setMessage("newdatakey malloc exception.");
             goto out;
         }
-        newdatakey->datalen = 0;
+        else
+        {
+            newdatakey->datalen = 0;
+        }
         ret = ExportDataKey(cmk, ukey, aad, olddatakey, newdatakey);
         if (ret != EH_OK)
         {

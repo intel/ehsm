@@ -1151,7 +1151,7 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
         cmk->metadata.keyspec != EH_SM4_CTR &&
         ukey->metadata.keyspec != EH_RSA_2048 &&
         ukey->metadata.keyspec != EH_RSA_3072 &&
-        cmk->metadata.keyspec != EH_RSA_4096 &&
+        ukey->metadata.keyspec != EH_RSA_4096 &&
         ukey->metadata.keyspec != EH_SM2)
     {
         return EH_KEYSPEC_INVALID;

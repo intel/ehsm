@@ -573,12 +573,34 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_len,
                                     ehsm_data_t *newdatakey, size_t newdatakey_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (aad == NULL || olddatakey == NULL || ukey == NULL || newdatakey == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
     if (cmk_len != APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    
+    if (aad_len != APPEND_SIZE_TO_DATA_T(aad->datalen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (olddatakey_len != APPEND_SIZE_TO_DATA_T(olddatakey->datalen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (ukey_len != APPEND_SIZE_TO_KEYBOB_T(ukey->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (newdatakey_len != APPEND_SIZE_TO_DATA_T(newdatakey->datalen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
     ehsm_data_t *tmp_datakey = NULL;
     size_t tmp_datakey_len = 0;
     tmp_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
