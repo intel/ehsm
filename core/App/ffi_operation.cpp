@@ -44,6 +44,7 @@
 #include "auto_version.h"
 
 #include "openssl/rsa.h"
+#include "ehsm_provider.h"
 
 using namespace std;
 // using namespace EHsmProvider;
@@ -543,12 +544,8 @@ extern "C"
         case EH_RSA_2048:
         case EH_RSA_3072:
         case EH_RSA_4096:
-            // TODO : make sure this value
-            plaintext_maxLen = 384;
-            break;
         case EH_SM2:
-            // TODO : make sure this value
-            plaintext_maxLen = 1024;
+            plaintext_maxLen = get_asymmetric_encrypt_max_plaintext_len(cmk->metadata.keyspec, cmk->metadata.padding_mode);
             break;
         default:
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -1182,7 +1179,6 @@ extern "C"
                 memcpy_s(aad->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
             }
         }
-        // TODO : no aad refine
         else if (aad_len == 0)
         {
             aad->datalen = aad_len;

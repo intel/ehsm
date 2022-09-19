@@ -66,6 +66,7 @@ typedef enum
 
 extern "C"
 {
+    uint32_t get_asymmetric_encrypt_max_plaintext_len(const uint32_t keyspec, const uint32_t padding);
 
     /**
      * @brief The unique ffi entry for the ehsm provider libaray.

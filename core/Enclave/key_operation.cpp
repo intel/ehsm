@@ -964,7 +964,7 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk, ehsm_data_t *plaintext,
     }
 
     if (ciphertext->datalen == 0) {
-        ciphertext->datalen = RSA_size(rsa_pubkey); // TODO : compute padding size
+        ciphertext->datalen = RSA_size(rsa_pubkey);
         ret = SGX_SUCCESS;
         goto out;
     }

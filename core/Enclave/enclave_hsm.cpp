@@ -265,7 +265,7 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_le
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    // TODO : check parameter like enclave_create_key
+
     if (cmk == NULL || plaintext == NULL || ciphertext == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
