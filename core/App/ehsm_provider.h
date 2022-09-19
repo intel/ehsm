@@ -88,7 +88,7 @@ extern "C"
             }
         }
      */
-    char *EHSM_NAPI_CALL(const char *paramJson);
+    char *EHSM_FFI_CALL(const char *paramJson);
 } // extern "C"
 
 ehsm_status_t Initialize();

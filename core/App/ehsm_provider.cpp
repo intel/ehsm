@@ -134,7 +134,7 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
         }
     }
  */
-char *EHSM_NAPI_CALL(const char *paramJson)
+char *EHSM_FFI_CALL(const char *paramJson)
 {
     log_d("paramJson = %s", paramJson);
     char *resp = nullptr;
