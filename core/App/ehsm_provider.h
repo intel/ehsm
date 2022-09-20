@@ -44,6 +44,12 @@
 
 #define ENCLAVE_PATH "libenclave-ehsm-core.signed.so"
 
+errno_t memcpy_s(
+    void *dest,
+    size_t numberOfElements,
+    const void *src,
+    size_t count);
+
 typedef enum
 {
     EH_INITIALIZE = 0,

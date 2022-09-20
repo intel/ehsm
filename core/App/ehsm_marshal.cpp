@@ -30,6 +30,10 @@
  */
 
 #include "ehsm_marshal.h"
+#include "datatypes.h"
+#include "base64.h"
+#include "string.h"
+#include "ehsm_provider.h"
 
 /*
  * process receive msg2 json string to sgx_ra_msg2_t
@@ -357,6 +361,788 @@ ehsm_status_t unmarshal_att_result_msg_from_json(std::string ra_att_result_msg, 
     else
     {
         return EH_ARGUMENTS_BAD;
+    }
+    return EH_OK;
+}
+
+/**
+ * @brief set sigle data to json
+ * @param data data
+ * @param retJsonObj json
+ * @param key the key of json data
+ */
+ehsm_status_t marshal_single_data_to_json(void *data, RetJsonObj &retJsonObj, std::string key)
+{
+    if (data == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    std::string data_base64;
+    uint32_t data_len = 0;
+    if (key == "cmk")
+    {
+        data_len = APPEND_SIZE_TO_KEYBOB_T(((ehsm_keyblob_t *)data)->keybloblen);
+        data_base64 = base64_encode((uint8_t *)data, data_len);
+    }
+    else
+    {
+        data_len = ((ehsm_data_t *)data)->datalen;
+        data_base64 = base64_encode((uint8_t *)((ehsm_data_t *)data)->data, data_len);
+    }
+    if (data_base64.size() > 0)
+    {
+        retJsonObj.addData_string(key, data_base64);
+    }
+    return EH_OK;
+}
+
+ehsm_status_t marshal_multi_data_to_json(void *data1, void *data2, std::string key1,
+                                         std::string key2, RetJsonObj &retJsonObj)
+{
+    ehsm_status_t ret = EH_OK;
+    if (data1 == NULL || data2 == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    ret = marshal_single_data_to_json(data1, retJsonObj, key1);
+    if (ret != EH_OK)
+    {
+        return ret;
+    }
+    ret = marshal_single_data_to_json(data2, retJsonObj, key2);
+
+    return ret;
+}
+
+/**
+ *  @brief get creatkey data from json
+ *  @param payloadJson json data
+ *  @param cmk creatkey data
+ */
+ehsm_status_t unmarshal_creatkey_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk)
+{
+    (*cmk) = (ehsm_keyblob_t *)malloc(sizeof(ehsm_keyblob_t));
+    if ((*cmk) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    // storage common key properties into metadata of cmk
+    if (payloadJson.getJson().isMember("keyspec"))
+        (*cmk)->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+    if (payloadJson.getJson().isMember("origin"))
+        (*cmk)->metadata.origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
+    if (payloadJson.getJson().isMember("purpose"))
+        (*cmk)->metadata.purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
+    if (payloadJson.getJson().isMember("padding_mode"))
+        (*cmk)->metadata.padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+    if (payloadJson.getJson().isMember("digest_mode"))
+        (*cmk)->metadata.digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
+    (*cmk)->keybloblen = 0;
+
+    if ((*cmk)->metadata.padding_mode == EH_PAD_RSA_NO)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    return EH_OK;
+}
+
+/**
+ * @brief get encrypt data from json
+ * @param payloadJson json data
+ * @param cmk encrypt data
+ * @param plaint_data the plaintext
+ * @param aad_data the additional data
+ * @param cipher_data encrypted data
+ */
+ehsm_status_t unmarshal_encrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
+                                               ehsm_data_t **plaint_data, ehsm_data_t **aad_data,
+                                               ehsm_data_t **cipher_data)
+{
+    std::string cmk_base64;
+    std::string plaintext_base64;
+    std::string aad_base64;
+    if (payloadJson.getJson().isMember("cmk"))
+        cmk_base64 = payloadJson.readData_string("cmk");
+    if (payloadJson.getJson().isMember("plaintext"))
+        plaintext_base64 = payloadJson.readData_string("plaintext");
+    if (payloadJson.getJson().isMember("aad"))
+        aad_base64 = payloadJson.readData_string("aad");
+
+    if (cmk_base64.size() == 0 || plaintext_base64.size() == 0)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    if (aad_base64.size() == 0)
+    {
+        aad_base64 = "";
+    }
+
+    std::string cmk_str = base64_decode(cmk_base64);
+    std::string plaintext_str = base64_decode(plaintext_base64);
+    std::string aad_str = base64_decode(aad_base64);
+    int cmk_len = cmk_str.size();
+    int plaintext_len = plaintext_str.size();
+    int aad_len = aad_str.size();
+
+    if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    if (plaintext_len == 0 || plaintext_len > EH_ENCRYPT_MAX_SIZE)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    if (aad_len > EH_AAD_MAX_SIZE)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*plaint_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(plaintext_len));
+    if ((*plaint_data) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+    if ((*aad_data) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*cmk) = (ehsm_keyblob_t *)malloc(cmk_len);
+    if ((*cmk) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*cipher_data) = (ehsm_data_t *)malloc(sizeof(ehsm_data_t));
+    if ((*cipher_data) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*plaint_data)->datalen = plaintext_len;
+    memcpy_s((*plaint_data)->data, plaintext_len, (uint8_t *)plaintext_str.data(), plaintext_len);
+
+    (*aad_data)->datalen = aad_len;
+    if (aad_len > 0)
+    {
+        memcpy_s((*aad_data)->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
+    }
+    memcpy_s((*cmk), cmk_len, (ehsm_keyblob_t *)cmk_str.data(), cmk_len);
+    (*cipher_data)->datalen = 0;
+
+    return EH_OK;
+}
+
+/**
+ * @brief get decrypt data from json
+ * @param payloadJson json data
+ * @param cmk key infomation
+ * @param plaint_data decrypted data
+ * @param aad_data the additional data
+ * @param cipher_data ciphertext data
+ */
+ehsm_status_t unmarshal_decrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
+                                               ehsm_data_t **plaint_data, ehsm_data_t **aad_data,
+                                               ehsm_data_t **cipher_data)
+{
+
+    std::string cmk_base64;
+    std::string ciphertext_base64;
+    std::string aad_base64;
+    if (payloadJson.getJson().isMember("cmk"))
+        cmk_base64 = payloadJson.readData_string("cmk");
+    if (payloadJson.getJson().isMember("ciphertext"))
+        ciphertext_base64 = payloadJson.readData_string("ciphertext");
+    if (payloadJson.getJson().isMember("aad"))
+        aad_base64 = payloadJson.readData_string("aad");
+
+    if (cmk_base64.size() == 0 || ciphertext_base64.size() == 0)
+    {
+        printf("paramter invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (aad_base64.size() == 0)
+    {
+        aad_base64 = "";
+    }
+
+    std::string cmk_str = base64_decode(cmk_base64);
+    std::string ciphertext_str = base64_decode(ciphertext_base64);
+    std::string aad_str = base64_decode(aad_base64);
+    int cmk_len = cmk_str.size();
+    int ciphertext_len = ciphertext_str.size();
+    int aad_len = aad_str.size();
+
+    if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (ciphertext_len == 0 || ciphertext_len > EH_ENCRYPT_MAX_SIZE + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE)
+    {
+        printf("The ciphertext's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (aad_len > EH_AAD_MAX_SIZE)
+    {
+        printf("The aad's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    (*plaint_data) = (ehsm_data_t *)malloc(sizeof(ehsm_data_t));
+    if ((*plaint_data) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+    if ((*aad_data) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*cmk) = (ehsm_keyblob_t *)malloc(cmk_len);
+    if ((*cmk) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*cipher_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(ciphertext_len));
+    if ((*cipher_data) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*cipher_data)->datalen = ciphertext_len;
+    memcpy_s((*cipher_data)->data, ciphertext_len, (uint8_t *)ciphertext_str.data(), ciphertext_len);
+
+    (*aad_data)->datalen = aad_len;
+    if (aad_len > 0)
+    {
+        memcpy_s((*aad_data)->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
+    }
+    memcpy_s((*cmk), cmk_len, (ehsm_keyblob_t *)cmk_str.data(), cmk_len);
+
+    (*plaint_data)->datalen = 0;
+
+    return EH_OK;
+}
+
+/**
+ * @brief get asymmetric encrypt data from json
+ * @param payloadJson json data
+ * @param cmk key infomation
+ * @param plaint_data plaintext data
+ * @param cipher_data encrypted data
+ */
+ehsm_status_t unmarshal_asymmetric_encrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
+                                                          ehsm_data_t **plaint_data, ehsm_data_t **cipher_data)
+{
+    std::string cmk_base64;
+    std::string plaintext_base64;
+
+    if (payloadJson.getJson().isMember("cmk"))
+        cmk_base64 = payloadJson.readData_string("cmk");
+    if (payloadJson.getJson().isMember("plaintext"))
+        plaintext_base64 = payloadJson.readData_string("plaintext");
+
+    if (cmk_base64.empty() || plaintext_base64.empty())
+    {
+        printf("paramter invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    std::string cmk_str = base64_decode(cmk_base64);
+    std::string plaintext_str = base64_decode(plaintext_base64);
+
+    int cmk_len = cmk_str.size();
+    int plaintext_len = plaintext_str.size();
+    int plaintext_maxLen = 0;
+
+    if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    (*cmk) = (ehsm_keyblob_t *)malloc(cmk_len);
+    memcpy((*cmk), (uint8_t *)cmk_str.data(), cmk_len);
+
+    switch ((*cmk)->metadata.keyspec)
+    {
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        // TODO : make sure this value
+        plaintext_maxLen = 384;
+        break;
+    case EH_SM2:
+        // TODO : make sure this value
+        plaintext_maxLen = 1024;
+        break;
+    default:
+        printf("The cmk's keyspec is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    if (plaintext_len == 0 || plaintext_len > plaintext_maxLen)
+    {
+        printf("The plaintext's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    if (!((*plaint_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(plaintext_len))))
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*plaint_data)->datalen = plaintext_len;
+    memcpy((*plaint_data)->data, (uint8_t *)plaintext_str.data(), plaintext_len);
+
+    if (!((*cipher_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0))))
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*cipher_data)->datalen = 0;
+
+    return EH_OK;
+}
+
+/**
+ * @brief get decrypt data from json
+ * @param payloadJson json data
+ * @param cmk key infomation
+ * @param plaint_data decrypted data
+ * @param cipher_data ciphertext data
+ */
+ehsm_status_t unmarshal_asymmetric_decrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
+                                                          ehsm_data_t **plaint_data, ehsm_data_t **cipher_data)
+{
+    std::string cmk_base64;
+    std::string ciphertext_base64;
+
+    if (payloadJson.getJson().isMember("cmk"))
+        cmk_base64 = payloadJson.readData_string("cmk");
+    if (payloadJson.getJson().isMember("ciphertext"))
+        ciphertext_base64 = payloadJson.readData_string("ciphertext");
+
+    if (cmk_base64.empty() || ciphertext_base64.empty())
+    {
+        printf("paramter invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    uint32_t ciphertext_maxLen;
+
+    std::string cmk_str = base64_decode(cmk_base64);
+    std::string ciphertext_str = base64_decode(ciphertext_base64);
+    int cmk_len = cmk_str.size();
+    int ciphertext_len = ciphertext_str.size();
+
+    if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (!((*cmk) = (ehsm_keyblob_t *)malloc(cmk_len)))
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    memcpy((*cmk), (const uint8_t *)cmk_str.data(), cmk_len);
+
+    if (!((*cipher_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(ciphertext_len))))
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*cipher_data)->datalen = ciphertext_len;
+    memcpy((*cipher_data)->data, (uint8_t *)ciphertext_str.data(), ciphertext_len);
+
+    if (!((*plaint_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0))))
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*plaint_data)->datalen = 0;
+
+    return EH_OK;
+}
+
+ehsm_status_t unmarshal_generatedata_key_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
+                                                        ehsm_data_t **aad_data, ehsm_data_t **plaint_datakey,
+                                                        ehsm_data_t **cipher_datakey)
+{
+    std::string cmk_base64;
+    std::string aad_base64;
+    uint32_t keylen = 0;
+
+    if (payloadJson.getJson().isMember("cmk"))
+        cmk_base64 = payloadJson.readData_string("cmk");
+    if (payloadJson.getJson().isMember("aad"))
+        aad_base64 = payloadJson.readData_string("aad");
+    if (payloadJson.getJson().isMember("keylen"))
+        keylen = payloadJson.readData_uint32("keylen");
+
+    if (cmk_base64.size() == 0)
+    {
+        printf("paramter invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (aad_base64.size() == 0)
+    {
+        aad_base64 = "";
+    }
+
+    std::string cmk_str = base64_decode(cmk_base64);
+    std::string aad_str = base64_decode(aad_base64);
+    int cmk_len = cmk_str.size();
+    int aad_len = aad_str.size();
+
+    if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (keylen == 0 || keylen > EH_DATA_KEY_MAX_SIZE)
+    {
+        printf("The keylen's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (aad_len > EH_AAD_MAX_SIZE)
+    {
+        printf("The aad's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*cmk) = (ehsm_keyblob_t *)malloc(cmk_len);
+    if ((*cmk) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    memcpy((*cmk), (uint8_t *)cmk_str.data(), cmk_len);
+
+    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+    if ((*aad_data) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*aad_data)->datalen = aad_len;
+    if (aad_len > 0)
+    {
+        memcpy((*aad_data)->data, (uint8_t *)aad_str.data(), aad_len);
+    }
+    (*plaint_datakey) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(keylen));
+    if ((*plaint_datakey) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*plaint_datakey)->datalen = keylen;
+    // memcpy((*plaint_datakey)->data, (uint8_t *)plaintext_base64.data(), keylen);
+
+    if (!((*cipher_datakey) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0))))
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*cipher_datakey)->datalen = 0;
+
+    return EH_OK;
+}
+
+ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
+                                                      ehsm_data_t **aad, ehsm_data_t **olddatakey,
+                                                      ehsm_keyblob_t **ukey, ehsm_data_t **newdatakey)
+{
+    std::string cmk_base64;
+    std::string aad_base64;
+    std::string ukey_base64;
+    std::string olddatakey_base64;
+
+    if (payloadJson.getJson().isMember("cmk"))
+        cmk_base64 = payloadJson.readData_string("cmk");
+    if (payloadJson.getJson().isMember("aad"))
+        aad_base64 = payloadJson.readData_string("aad");
+    if (payloadJson.getJson().isMember("olddatakey"))
+        olddatakey_base64 = payloadJson.readData_string("olddatakey");
+    if (payloadJson.getJson().isMember("ukey"))
+        ukey_base64 = payloadJson.readData_string("ukey");
+
+    if (cmk_base64.size() == 0 || ukey_base64.size() == 0 || olddatakey_base64.size() == 0)
+    {
+        if (cmk_base64.size() == 0)
+        {
+            printf("Paramter cmk invalid.\n");
+        }
+        else if (ukey_base64.size() == 0)
+        {
+            printf("Paramter ukey invalid.\n");
+        }
+        else
+        {
+            printf("Paramter olddatakey invalid.\n");
+        }
+        return EH_KEYSPEC_INVALID;
+    }
+    if (aad_base64.size() == 0)
+    {
+        aad_base64 = "";
+    }
+
+    std::string cmk_str = base64_decode(cmk_base64);
+    std::string ukey_str = base64_decode(ukey_base64);
+    std::string aad_str = base64_decode(aad_base64);
+    std::string olddatakey_str = base64_decode(olddatakey_base64);
+
+    // string2ehsm_keyblob_t and string2ehsm_data_t
+    int cmk_len = cmk_str.size();
+    int ukey_len = ukey_str.size();
+    int aad_len = aad_str.size();
+    int olddatakey_len = olddatakey_str.size();
+
+    if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    if (ukey_len == 0 || ukey_len > EH_CMK_MAX_SIZE)
+    {
+        printf("The ukey's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (aad_len > EH_AAD_MAX_SIZE)
+    {
+        printf("The aad's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    if (olddatakey_len == 0 || olddatakey_len > EH_DATA_KEY_MAX_SIZE)
+    {
+        printf("The olddatakey's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*cmk) = (ehsm_keyblob_t *)malloc(cmk_len);
+    if ((*cmk) == NULL)
+    {
+        printf("cmk malloc exception.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    else
+    {
+        memcpy_s((*cmk), cmk_len, (uint8_t *)cmk_str.data(), cmk_len);
+    }
+    (*ukey) = (ehsm_keyblob_t *)malloc(ukey_len);
+    if ((*ukey) == NULL)
+    {
+        printf("ukey malloc exception.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    else
+    {
+        memcpy_s((*ukey), ukey_len, (uint8_t *)ukey_str.data(), ukey_len);
+    }
+
+    if (aad_len != 0)
+    {
+        (*aad) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+        if ((*aad) == NULL)
+        {
+            return EH_KEYSPEC_INVALID;
+        }
+        else
+        {
+            (*aad)->datalen = aad_len;
+            memcpy_s((*aad)->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
+        }
+    }
+    // TODO : no aad refine
+    else if (aad_len == 0)
+    {
+        (*aad)->datalen = aad_len;
+    }
+    (*olddatakey) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(olddatakey_len));
+    if ((*olddatakey) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*olddatakey)->datalen = olddatakey_len;
+    memcpy_s((*olddatakey)->data, olddatakey_len, (uint8_t *)olddatakey_str.data(), olddatakey_len);
+
+    (*newdatakey) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
+    if ((*newdatakey) == NULL)
+    {
+        return EH_KEYSPEC_INVALID;
+    }
+    (*newdatakey)->datalen = 0;
+
+    return EH_OK;
+}
+
+ehsm_status_t unmarshal_sign_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
+                                            ehsm_data_t **digest_data, ehsm_data_t **userid_data,
+                                            ehsm_data_t **signature)
+{
+    std::string cmk_base64;
+    std::string digest_base64;
+    std::string userid_base64;
+
+    if (payloadJson.getJson().isMember("cmk"))
+        cmk_base64 = payloadJson.readData_string("cmk");
+    if (payloadJson.getJson().isMember("digest"))
+        digest_base64 = payloadJson.readData_string("digest");
+    if (payloadJson.getJson().isMember("userid"))
+        userid_base64 = payloadJson.readData_string("userid");
+
+    if (cmk_base64.size() == 0 || digest_base64.size() == 0)
+    {
+        printf("paramter invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    std::string cmk_str = base64_decode(cmk_base64);
+    std::string digest_str = base64_decode(digest_base64);
+    std::string userid_str = base64_decode(userid_base64);
+    std::string signature_base64;
+    int cmk_len = cmk_str.size();
+    int digest_len = digest_str.size();
+    int userid_len = userid_str.size();
+
+    if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (digest_len == 0 || digest_len > RSA_OAEP_4096_DIGEST_SIZE)
+    {
+        printf("The digest's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (userid_len != 0 && userid_len != EC_APPID_SIZE)
+    {
+        printf("The userid length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*cmk) = (ehsm_keyblob_t *)malloc(cmk_len);
+    memcpy((*cmk), (const uint8_t *)cmk_str.data(), cmk_len);
+    if ((*cmk) == NULL)
+    {
+        printf("Server exception.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    (*digest_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(digest_len));
+    (*digest_data)->datalen = digest_len;
+    memcpy((*digest_data)->data, (uint8_t *)digest_str.data(), digest_len);
+    if ((*digest_data) == NULL)
+    {
+        printf("Server exception.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    (*userid_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(userid_len));
+    if ((*userid_data) == NULL)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    (*userid_data)->datalen = userid_len;
+    if (userid_len > 0)
+    {
+        memcpy((*userid_data)->data, (uint8_t *)userid_str.data(), userid_len);
+    }
+    (*signature) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
+
+    // get signature datalen
+    (*signature)->datalen = 0;
+
+    return EH_OK;
+}
+
+ehsm_status_t unmarshal_verify_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
+                                              ehsm_data_t **digest_data, ehsm_data_t **userid_data,
+                                              ehsm_data_t **signature_data)
+{
+    std::string cmk_base64;
+    std::string digest_base64;
+    std::string userid_base64;
+    std::string signature_base64;
+
+    if (payloadJson.getJson().isMember("cmk"))
+        cmk_base64 = payloadJson.readData_string("cmk");
+    if (payloadJson.getJson().isMember("digest"))
+        digest_base64 = payloadJson.readData_string("digest");
+    if (payloadJson.getJson().isMember("userid"))
+        userid_base64 = payloadJson.readData_string("userid");
+    if (payloadJson.getJson().isMember("signature"))
+        signature_base64 = payloadJson.readData_string("signature");
+
+    if (cmk_base64.size() == 0 || digest_base64.size() == 0 || signature_base64.size() == 0)
+    {
+        printf("paramter invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    std::string cmk_str = base64_decode(cmk_base64);
+    std::string signature_str = base64_decode(signature_base64);
+    std::string digest_str = base64_decode(digest_base64);
+    std::string userid_str = base64_decode(userid_base64);
+    int cmk_len = cmk_str.size();
+    int digest_len = digest_str.size();
+    int signature_len = signature_str.size();
+    int userid_len = userid_str.size();
+
+    if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (digest_len == 0 || digest_len > RSA_OAEP_4096_DIGEST_SIZE)
+    {
+        printf("The digest's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (userid_len != 0 && userid_len != EC_APPID_SIZE)
+    {
+        printf("The aad's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    if (signature_len == 0 || signature_len > RSA_OAEP_4096_SIGNATURE_SIZE)
+    {
+        printf("The signature's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+
+    (*cmk) = (ehsm_keyblob_t *)malloc(cmk_len);
+    memcpy((*cmk), (const uint8_t *)cmk_str.data(), cmk_len);
+    if ((*cmk) == NULL)
+    {
+        printf("Server exception.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    (*digest_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(digest_len));
+    (*digest_data)->datalen = digest_len;
+    memcpy((*digest_data)->data, (uint8_t *)digest_str.data(), digest_len);
+    if ((*digest_data) == NULL)
+    {
+        printf("Server exception.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    (*userid_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(userid_len));
+    if ((*userid_data) == NULL)
+    {
+        printf("The cmk's length is invalid.\n");
+        return EH_KEYSPEC_INVALID;
+    }
+    (*userid_data)->datalen = userid_len;
+    if (userid_len > 0)
+    {
+        memcpy((*userid_data)->data, (uint8_t *)userid_str.data(), userid_len);
+    }
+    (*signature_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(signature_len));
+    (*signature_data)->datalen = signature_len;
+    memcpy((*signature_data)->data, (uint8_t *)signature_str.data(), signature_len);
+    if ((*signature_data) == NULL)
+    {
+        printf("Server exception.\n");
+        return EH_KEYSPEC_INVALID;
     }
     return EH_OK;
 }
