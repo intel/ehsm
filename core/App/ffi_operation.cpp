@@ -45,6 +45,7 @@
 #include "auto_version.h"
 
 #include "openssl/rsa.h"
+#include "ehsm_provider.h"
 
 using namespace std;
 // using namespace EHsmProvider;
@@ -685,7 +686,6 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-
         ret = ExportDataKey(cmk, ukey, aad, olddatakey, newdatakey);
         if (ret != EH_OK)
         {

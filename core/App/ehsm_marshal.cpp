@@ -485,7 +485,7 @@ ehsm_status_t unmarshal_encrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob
     std::string aad_str = base64_decode(aad_base64);
     int cmk_len = cmk_str.size();
     int plaintext_len = plaintext_str.size();
-    int aad_len = aad_str.size();
+    int aad_datalen = aad_str.size();
 
     if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
     {
@@ -495,7 +495,7 @@ ehsm_status_t unmarshal_encrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob
     {
         return EH_KEYSPEC_INVALID;
     }
-    if (aad_len > EH_AAD_MAX_SIZE)
+    if (aad_datalen > EH_AAD_MAX_SIZE)
     {
         return EH_KEYSPEC_INVALID;
     }
@@ -506,7 +506,7 @@ ehsm_status_t unmarshal_encrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob
         return EH_KEYSPEC_INVALID;
     }
 
-    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_datalen));
     if ((*aad_data) == NULL)
     {
         return EH_KEYSPEC_INVALID;
@@ -526,10 +526,10 @@ ehsm_status_t unmarshal_encrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob
     (*plaint_data)->datalen = plaintext_len;
     memcpy_s((*plaint_data)->data, plaintext_len, (uint8_t *)plaintext_str.data(), plaintext_len);
 
-    (*aad_data)->datalen = aad_len;
-    if (aad_len > 0)
+    (*aad_data)->datalen = aad_datalen;
+    if (aad_datalen > 0)
     {
-        memcpy_s((*aad_data)->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
+        memcpy_s((*aad_data)->data, aad_datalen, (uint8_t *)aad_str.data(), aad_datalen);
     }
     memcpy_s((*cmk), cmk_len, (ehsm_keyblob_t *)cmk_str.data(), cmk_len);
     (*cipher_data)->datalen = 0;
@@ -575,7 +575,7 @@ ehsm_status_t unmarshal_decrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob
     std::string aad_str = base64_decode(aad_base64);
     int cmk_len = cmk_str.size();
     int ciphertext_len = ciphertext_str.size();
-    int aad_len = aad_str.size();
+    int aad_datalen = aad_str.size();
 
     if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
     {
@@ -587,7 +587,7 @@ ehsm_status_t unmarshal_decrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob
         printf("The ciphertext's length is invalid.\n");
         return EH_KEYSPEC_INVALID;
     }
-    if (aad_len > EH_AAD_MAX_SIZE)
+    if (aad_datalen > EH_AAD_MAX_SIZE)
     {
         printf("The aad's length is invalid.\n");
         return EH_KEYSPEC_INVALID;
@@ -598,7 +598,7 @@ ehsm_status_t unmarshal_decrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob
         return EH_KEYSPEC_INVALID;
     }
 
-    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_datalen));
     if ((*aad_data) == NULL)
     {
         return EH_KEYSPEC_INVALID;
@@ -617,10 +617,10 @@ ehsm_status_t unmarshal_decrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob
     (*cipher_data)->datalen = ciphertext_len;
     memcpy_s((*cipher_data)->data, ciphertext_len, (uint8_t *)ciphertext_str.data(), ciphertext_len);
 
-    (*aad_data)->datalen = aad_len;
-    if (aad_len > 0)
+    (*aad_data)->datalen = aad_datalen;
+    if (aad_datalen > 0)
     {
-        memcpy_s((*aad_data)->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
+        memcpy_s((*aad_data)->data, aad_datalen, (uint8_t *)aad_str.data(), aad_datalen);
     }
     memcpy_s((*cmk), cmk_len, (ehsm_keyblob_t *)cmk_str.data(), cmk_len);
 
@@ -673,12 +673,8 @@ ehsm_status_t unmarshal_asymmetric_encrypt_data_from_json(JsonObj payloadJson, e
     case EH_RSA_2048:
     case EH_RSA_3072:
     case EH_RSA_4096:
-        // TODO : make sure this value
-        plaintext_maxLen = 384;
-        break;
     case EH_SM2:
-        // TODO : make sure this value
-        plaintext_maxLen = 1024;
+        plaintext_maxLen = get_asymmetric_encrypt_max_plaintext_len((*cmk)->metadata.keyspec, (*cmk)->metadata.padding_mode);
         break;
     default:
         printf("The cmk's keyspec is invalid.\n");
@@ -793,7 +789,7 @@ ehsm_status_t unmarshal_generatedata_key_data_from_json(JsonObj payloadJson, ehs
     std::string cmk_str = base64_decode(cmk_base64);
     std::string aad_str = base64_decode(aad_base64);
     int cmk_len = cmk_str.size();
-    int aad_len = aad_str.size();
+    int aad_datalen = aad_str.size();
 
     if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
     {
@@ -805,7 +801,7 @@ ehsm_status_t unmarshal_generatedata_key_data_from_json(JsonObj payloadJson, ehs
         printf("The keylen's length is invalid.\n");
         return EH_KEYSPEC_INVALID;
     }
-    if (aad_len > EH_AAD_MAX_SIZE)
+    if (aad_datalen > EH_AAD_MAX_SIZE)
     {
         printf("The aad's length is invalid.\n");
         return EH_KEYSPEC_INVALID;
@@ -818,15 +814,15 @@ ehsm_status_t unmarshal_generatedata_key_data_from_json(JsonObj payloadJson, ehs
     }
     memcpy((*cmk), (uint8_t *)cmk_str.data(), cmk_len);
 
-    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+    (*aad_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_datalen));
     if ((*aad_data) == NULL)
     {
         return EH_KEYSPEC_INVALID;
     }
-    (*aad_data)->datalen = aad_len;
-    if (aad_len > 0)
+    (*aad_data)->datalen = aad_datalen;
+    if (aad_datalen > 0)
     {
-        memcpy((*aad_data)->data, (uint8_t *)aad_str.data(), aad_len);
+        memcpy((*aad_data)->data, (uint8_t *)aad_str.data(), aad_datalen);
     }
     (*plaint_datakey) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(keylen));
     if ((*plaint_datakey) == NULL)
@@ -893,8 +889,8 @@ ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_
     // string2ehsm_keyblob_t and string2ehsm_data_t
     int cmk_len = cmk_str.size();
     int ukey_len = ukey_str.size();
-    int aad_len = aad_str.size();
-    int olddatakey_len = olddatakey_str.size();
+    int aad_datalen = aad_str.size();
+    int olddatakey_datalen = olddatakey_str.size();
 
     if (cmk_len == 0 || cmk_len > EH_CMK_MAX_SIZE)
     {
@@ -907,13 +903,13 @@ ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_
         printf("The ukey's length is invalid.\n");
         return EH_KEYSPEC_INVALID;
     }
-    if (aad_len > EH_AAD_MAX_SIZE)
+    if (aad_datalen > EH_AAD_MAX_SIZE)
     {
         printf("The aad's length is invalid.\n");
         return EH_KEYSPEC_INVALID;
     }
 
-    if (olddatakey_len == 0 || olddatakey_len > EH_DATA_KEY_MAX_SIZE)
+    if (olddatakey_datalen == 0 || olddatakey_datalen > EH_DATA_KEY_MAX_SIZE)
     {
         printf("The olddatakey's length is invalid.\n");
         return EH_KEYSPEC_INVALID;
@@ -928,6 +924,11 @@ ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_
     else
     {
         memcpy_s((*cmk), cmk_len, (uint8_t *)cmk_str.data(), cmk_len);
+        if (APPEND_SIZE_TO_KEYBOB_T((*cmk)->keybloblen) != cmk_len)
+        {
+            printf("cmk parse exception.\n");
+            return EH_KEYSPEC_INVALID;
+        }
     }
     (*ukey) = (ehsm_keyblob_t *)malloc(ukey_len);
     if ((*ukey) == NULL)
@@ -938,41 +939,48 @@ ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_
     else
     {
         memcpy_s((*ukey), ukey_len, (uint8_t *)ukey_str.data(), ukey_len);
+        if (APPEND_SIZE_TO_KEYBOB_T((*ukey)->keybloblen) != ukey_len)
+        {
+            printf("ukey parse exception.\n");
+            return EH_KEYSPEC_INVALID;
+        }
     }
 
-    if (aad_len != 0)
+    if (aad_datalen != 0)
     {
-        (*aad) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_len));
+        (*aad) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(aad_datalen));
         if ((*aad) == NULL)
         {
             return EH_KEYSPEC_INVALID;
         }
         else
         {
-            (*aad)->datalen = aad_len;
-            memcpy_s((*aad)->data, aad_len, (uint8_t *)aad_str.data(), aad_len);
+            (*aad)->datalen = aad_datalen;
+            memcpy_s((*aad)->data, aad_datalen, (uint8_t *)aad_str.data(), aad_datalen);
         }
     }
-    // TODO : no aad refine
-    else if (aad_len == 0)
+    else if (aad_datalen == 0)
     {
-        (*aad)->datalen = aad_len;
+        (*aad)->datalen = aad_datalen;
     }
-    (*olddatakey) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(olddatakey_len));
+    (*olddatakey) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(olddatakey_datalen));
     if ((*olddatakey) == NULL)
     {
         return EH_KEYSPEC_INVALID;
     }
 
-    (*olddatakey)->datalen = olddatakey_len;
-    memcpy_s((*olddatakey)->data, olddatakey_len, (uint8_t *)olddatakey_str.data(), olddatakey_len);
+    (*olddatakey)->datalen = olddatakey_datalen;
+    memcpy_s((*olddatakey)->data, olddatakey_datalen, (uint8_t *)olddatakey_str.data(), olddatakey_datalen);
 
     (*newdatakey) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
     if ((*newdatakey) == NULL)
     {
         return EH_KEYSPEC_INVALID;
     }
-    (*newdatakey)->datalen = 0;
+    else
+    {
+        (*newdatakey)->datalen = 0;
+    }
 
     return EH_OK;
 }

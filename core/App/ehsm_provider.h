@@ -72,6 +72,7 @@ typedef enum
 
 extern "C"
 {
+    uint32_t get_asymmetric_encrypt_max_plaintext_len(const uint32_t keyspec, const uint32_t padding);
 
     /**
      * @brief The unique ffi entry for the ehsm provider libaray.
@@ -94,7 +95,7 @@ extern "C"
             }
         }
      */
-    char *EHSM_NAPI_CALL(const char *paramJson);
+    char *EHSM_FFI_CALL(const char *paramJson);
 } // extern "C"
 
 ehsm_status_t Initialize();

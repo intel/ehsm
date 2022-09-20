@@ -55,6 +55,9 @@
 #include "json_utils.h"
 #include "ffi_operation.h"
 
+#include "openssl/rsa.h"
+#include "openssl/evp.h"
+
 using namespace std;
 
 void ocall_print_string(const char *str)
@@ -113,6 +116,41 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
     return EH_OK;
 }
 
+uint32_t get_asymmetric_encrypt_max_plaintext_len(const uint32_t keyspec, const uint32_t padding)
+{
+    uint32_t padding_size;
+    switch (padding)
+    {
+    case RSA_PKCS1_PADDING:
+        padding_size = RSA_PKCS1_PADDING_SIZE;
+        break;
+    case RSA_PKCS1_OAEP_PADDING:
+        padding_size = 42; // where is 42 from: crypto/rsa_oaep.c/ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex
+        break;
+    case RSA_NO_PADDING:
+    default:
+        padding_size = 0;
+        break;
+    }
+    switch (keyspec)
+    {
+    case EH_RSA_2048:
+        return 256 - padding_size;
+        break;
+    case EH_RSA_3072:
+        return 384 - padding_size;
+        break;
+    case EH_RSA_4096:
+        return 512 - padding_size;
+        break;
+    case EH_SM2:
+        return 64; // why 64: sm2 key length is 256 bits
+        break;
+    default:
+        return 0;
+        break;
+    }
+}
 /**
  * @brief The unique ffi entry for the ehsm provider libaray.
  *
@@ -134,7 +172,7 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
         }
     }
  */
-char *EHSM_NAPI_CALL(const char *paramJson)
+char *EHSM_FFI_CALL(const char *paramJson)
 {
     log_d("paramJson = %s", paramJson);
     char *resp = nullptr;
@@ -475,7 +513,6 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
                               APPEND_SIZE_TO_DATA_T(ciphertext->datalen),
                               plaintext,
                               APPEND_SIZE_TO_DATA_T(plaintext->datalen));
-        // TODO
         break;
     default:
         return EH_KEYSPEC_INVALID;
@@ -514,12 +551,11 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
     if (plaintext->data == NULL || plaintext->datalen == 0)
         return EH_ARGUMENTS_BAD;
 
-    // TODO : make sure this
-    // if (plaintext->datalen > RSA_OAEP_3072_SHA_256_MAX_ENCRYPTION_SIZE)
-    // {
-    //     printf("Error data len(%d) for rsa encryption, max is 318.\n", plaintext->datalen);
-    //     return EH_ARGUMENTS_BAD;
-    // }
+    if (plaintext->datalen > get_asymmetric_encrypt_max_plaintext_len(cmk->metadata.keyspec, cmk->metadata.padding_mode))
+    {
+        printf("Error data len for rsa encryption.\n");
+        return EH_ARGUMENTS_BAD;
+    }
     /* calculate the ciphertext length  */
     if (ciphertext->datalen == 0)
     {
@@ -536,7 +572,6 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
         else
             return EH_OK;
     }
-    // TODO : call enclave
     ret = enclave_asymmetric_encrypt(g_enclave_id,
                                      &sgxStatus,
                                      cmk,
@@ -581,7 +616,6 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
     /* calculate the ciphertext length */
     if (plaintext->datalen == 0)
     {
-        // todo : call enclave
         ret = enclave_asymmetric_decrypt(g_enclave_id,
                                          &sgxStatus,
                                          cmk,
@@ -597,7 +631,6 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
     {
         return EH_ARGUMENTS_BAD;
     }
-    // todo : call enclave
     ret = enclave_asymmetric_decrypt(g_enclave_id,
                                      &sgxStatus,
                                      cmk,
@@ -1118,7 +1151,7 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
         cmk->metadata.keyspec != EH_SM4_CTR &&
         ukey->metadata.keyspec != EH_RSA_2048 &&
         ukey->metadata.keyspec != EH_RSA_3072 &&
-        cmk->metadata.keyspec != EH_RSA_4096 &&
+        ukey->metadata.keyspec != EH_RSA_4096 &&
         ukey->metadata.keyspec != EH_SM2)
     {
         return EH_KEYSPEC_INVALID;
@@ -1147,7 +1180,6 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
 
     if (newdatakey->datalen == 0)
     {
-        // TODO : other excption handling param
         return EH_ARGUMENTS_BAD;
     }
     ret = enclave_export_datakey(g_enclave_id,
@@ -1591,3 +1623,4 @@ ehsm_status_t verify_att_result_msg(sample_ra_att_result_msg_t *p_att_result_msg
     }
     return EH_OK;
 }
+

@@ -2,7 +2,7 @@ const ffi = require('ffi-napi')
 
 const ehsm_napi = ffi.Library('./libehsmnapi', {
   /**
-    EHSM_NAPI_CALL 
+    EHSM_FFI_CALL 
     Description:
       call napi function
 
@@ -23,7 +23,7 @@ const ehsm_napi = ffi.Library('./libehsmnapi', {
         }
       }
   */
-  EHSM_NAPI_CALL: ['string', ['string']]
+  EHSM_FFI_CALL: ['string', ['string']]
 })
 
 module.exports = ehsm_napi
