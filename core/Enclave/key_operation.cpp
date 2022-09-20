@@ -1496,13 +1496,11 @@ sgx_status_t ehsm_ecc_decrypt(const ehsm_keyblob_t *cmk)
  * @param cmk_blob cipher block for storing keys
  * @param data data to be signed
  * @param signature used to receive signature
- * @param req_signature_len Exact length after sign
  * @return sgx_status_t
  */
 sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
-                           ehsm_data_t *signature,
-                           uint32_t *req_signature_len)
+                           ehsm_data_t *signature)
 {
     sgx_status_t ret = SGX_SUCCESS;
 
@@ -1595,7 +1593,7 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
             break;
         }
         // return the exact length
-        *req_signature_len = temp_signature_len;
+        signature->datalen = (uint32_t)temp_signature_len;
 
     } while (0);
 
@@ -1735,14 +1733,12 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
  * @param cmk_blob cipher block for storing keys
  * @param data data to be signed
  * @param signature used to receive signature
- * @param req_signature_len Exact length after sign
  * @return sgx_status_t
  */
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
                            const ehsm_data_t *userid,
-                           ehsm_data_t *signature,
-                           uint32_t *req_signature_len)
+                           ehsm_data_t *signature)
 {
     sgx_status_t ret = SGX_SUCCESS;
 
@@ -1857,7 +1853,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
             break;
         }
         // return the exact length
-        *req_signature_len = temp_signature_len;
+        signature->datalen = (uint32_t)temp_signature_len;
 
     } while (0);
 

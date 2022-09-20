@@ -383,15 +383,13 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_len,
         // case EH_EC_P512:
         ret = ehsm_ecc_sign(cmk,
                             data,
-                            signature,
-                            &signature->datalen);
+                            signature);
         break;
     case EH_SM2:
         ret = ehsm_sm2_sign(cmk,
                             data,
                             userid,
-                            signature,
-                            &signature->datalen);
+                            signature);
         break;
     default:
         printf("ecall sign unsupport keyspec.\n");

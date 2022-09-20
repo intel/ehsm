@@ -102,8 +102,7 @@ sgx_status_t ehsm_ec_decrypt(const ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
-                           ehsm_data_t *signature,
-                           uint32_t *req_signature_len);
+                           ehsm_data_t *signature);
 
 sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
@@ -113,8 +112,7 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
                            const ehsm_data_t *userid,
-                           ehsm_data_t *signature,
-                           uint32_t *req_signature_len);
+                           ehsm_data_t *signature);
 
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
