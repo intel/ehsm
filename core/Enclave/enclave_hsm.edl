@@ -67,53 +67,53 @@ enclave {
 
     trusted {
         /* Interfaces for eHSM core crypto functions */
-        public sgx_status_t enclave_create_key([in, out, size=cmk_len] ehsm_keyblob_t *cmk, size_t cmk_len);
+        public sgx_status_t enclave_create_key([in, out, size=cmk_size] ehsm_keyblob_t *cmk, size_t cmk_size);
 
-        public sgx_status_t enclave_encrypt([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=aad_len] const ehsm_data_t *aad, size_t aad_len,
-                            [in, size=plaintext_len] const ehsm_data_t *plaintext, size_t plaintext_len,
-                            [in, out, size=ciphertext_len] ehsm_data_t *ciphertext, size_t ciphertext_len);
+        public sgx_status_t enclave_encrypt([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            [in, size=aad_size] const ehsm_data_t *aad, size_t aad_size,
+                            [in, size=plaintext_size] const ehsm_data_t *plaintext, size_t plaintext_size,
+                            [in, out, size=ciphertext_size] ehsm_data_t *ciphertext, size_t ciphertext_size);
 
-        public sgx_status_t enclave_decrypt([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=aad_len] const ehsm_data_t *aad, size_t aad_len,
-                            [in, size=ciphertext_len] const ehsm_data_t *ciphertext, size_t ciphertext_len,
-                            [in, out, size=plaintext_len] ehsm_data_t *plaintext, size_t plaintext_len);
+        public sgx_status_t enclave_decrypt([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            [in, size=aad_size] const ehsm_data_t *aad, size_t aad_size,
+                            [in, size=ciphertext_size] const ehsm_data_t *ciphertext, size_t ciphertext_size,
+                            [in, out, size=plaintext_size] ehsm_data_t *plaintext, size_t plaintext_size);
 
-        public sgx_status_t enclave_asymmetric_encrypt([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=plaintext_len] ehsm_data_t *plaintext, size_t plaintext_len,
-                            [in, out, size=ciphertext_len] ehsm_data_t *ciphertext, size_t ciphertext_len);
+        public sgx_status_t enclave_asymmetric_encrypt([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            [in, size=plaintext_size] ehsm_data_t *plaintext, size_t plaintext_size,
+                            [in, out, size=ciphertext_size] ehsm_data_t *ciphertext, size_t ciphertext_size);
 
-        public sgx_status_t enclave_asymmetric_decrypt([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=ciphertext_len] ehsm_data_t *ciphertext, uint32_t ciphertext_len,
-                            [in, out, size=plaintext_len] ehsm_data_t *plaintext, uint32_t plaintext_len);
+        public sgx_status_t enclave_asymmetric_decrypt([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            [in, size=ciphertext_size] ehsm_data_t *ciphertext, uint32_t ciphertext_size,
+                            [in, out, size=plaintext_size] ehsm_data_t *plaintext, uint32_t plaintext_size);
 
-        public sgx_status_t enclave_sign([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=data_len] const ehsm_data_t *data, size_t data_len,
-                            [in, size=userid_len] const ehsm_data_t *userid, size_t userid_len,
-                            [in, out, size=signature_len] ehsm_data_t *signature, size_t signature_len);
+        public sgx_status_t enclave_sign([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            [in, size=data_size] const ehsm_data_t *data, size_t data_size,
+                            [in, size=userid_size] const ehsm_data_t *userid, size_t userid_size,
+                            [in, out, size=signature_size] ehsm_data_t *signature, size_t signature_size);
                                          
-        public sgx_status_t enclave_verify([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=data_len] const ehsm_data_t *data, size_t data_len,
-                            [in, size=userid_len] const ehsm_data_t *userid, size_t userid_len,
-                            [in, size=signature_len] const ehsm_data_t *signature, size_t signature_len,
+        public sgx_status_t enclave_verify([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            [in, size=data_size] const ehsm_data_t *data, size_t data_size,
+                            [in, size=userid_size] const ehsm_data_t *userid, size_t userid_size,
+                            [in, size=signature_size] const ehsm_data_t *signature, size_t signature_size,
                             [out] bool* result);
 
-        public sgx_status_t enclave_generate_datakey([in, size=cmk_len] const ehsm_keyblob_t* cmk, size_t cmk_len,
-                            [in, size=aad_len] const ehsm_data_t *aad, size_t aad_len,
-                            [in, out, size=plaintext_len] ehsm_data_t *plaintext, size_t plaintext_len,
-                            [in, out, size=ciphertext_len] ehsm_data_t *ciphertext, size_t ciphertext_len);
+        public sgx_status_t enclave_generate_datakey([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            [in, size=aad_size] const ehsm_data_t *aad, size_t aad_size,
+                            [in, out, size=plaintext_size] ehsm_data_t *plaintext, size_t plaintext_size,
+                            [in, out, size=ciphertext_size] ehsm_data_t *ciphertext, size_t ciphertext_size);
 
-        public sgx_status_t enclave_export_datakey([in, size=s_cmk_len] const ehsm_keyblob_t* s_cmk, size_t s_cmk_len,
-                            [in, size=aad_len] const ehsm_data_t *aad, size_t aad_len,
-                            [in, size=oldkey_len] ehsm_data_t *oldkey, size_t oldkey_len,
-                            [in, size=d_cmk_len] const ehsm_keyblob_t* d_cmk, size_t d_cmk_len,
-                            [in, out, size=newkey_len] ehsm_data_t *newkey, size_t newkey_len);
+        public sgx_status_t enclave_export_datakey([in, size=s_cmk_size] const ehsm_keyblob_t* s_cmk, size_t s_cmk_size,
+                            [in, size=aad_size] const ehsm_data_t *aad, size_t aad_size,
+                            [in, size=oldkey_size] ehsm_data_t *oldkey, size_t oldkey_size,
+                            [in, size=d_cmk_size] const ehsm_keyblob_t* d_cmk, size_t d_cmk_size,
+                            [in, out, size=newkey_size] ehsm_data_t *newkey, size_t newkey_size);
 
         public sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
-                            [out, size=apikey_len] uint8_t *p_apikey,
-                            uint32_t apikey_len,
-                            [out, size=cipherapikey_len] uint8_t *cipherapikey,
-                            uint32_t cipherapikey_len);
+                            [out, size=apikey_size] uint8_t *p_apikey,
+                            uint32_t apikey_size,
+                            [out, size=cipherapikey_size] uint8_t *cipherapikey,
+                            uint32_t cipherapikey_size);
 
         public sgx_status_t enclave_get_apikey([out, size=kenlen] uint8_t *apikey, uint32_t kenlen);
 
@@ -125,12 +125,12 @@ enclave {
 
         public sgx_status_t enclave_get_rand([out, size=datalen] uint8_t *data, uint32_t datalen);
 
-        public sgx_status_t enclave_verify_quote_policy([in, size=quote_len] uint8_t* quote,
-                            uint32_t quote_len,
-                            [in, size=mr_signer_good_len] const char* mr_signer_good,
-                            uint32_t mr_signer_good_len,
-                            [in, size=mr_enclave_good_len] const char* mr_enclave_good,
-                            uint32_t mr_enclave_good_len);
+        public sgx_status_t enclave_verify_quote_policy([in, size=quote_size] uint8_t* quote,
+                            uint32_t quote_size,
+                            [in, size=mr_signer_good_size] const char* mr_signer_good,
+                            uint32_t mr_signer_good_size,
+                            [in, size=mr_enclave_good_size] const char* mr_enclave_good,
+                            uint32_t mr_enclave_good_size);
 
         /* Interfaces for remote attestation */
         public sgx_status_t enclave_get_target_info([out] sgx_target_info_t* target_info);

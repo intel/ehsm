@@ -1361,22 +1361,22 @@ extern "C"
         ehsm_data_t *quote;
 
         string quote_str = base64_decode(quote_base64);
-        int quote_len = quote_str.size();
-        if (quote_len == 0 || quote_len > EH_QUOTE_MAX_SIZE)
+        int quote_size = quote_str.size();
+        if (quote_size == 0 || quote_size > EH_QUOTE_MAX_SIZE)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The quote's length is invalid.");
             goto out;
         }
-        quote = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(quote_len));
+        quote = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(quote_size));
         if (quote == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("The cmk's length is invalid.");
             goto out;
         }
-        quote->datalen = quote_len;
-        memcpy_s(quote->data, quote_len, (uint8_t *)quote_str.data(), quote_len);
+        quote->datalen = quote_size;
+        memcpy_s(quote->data, quote_size, (uint8_t *)quote_str.data(), quote_size);
 
         ret = VerifyQuote(quote, mr_signer, mr_enclave, &verifyresult);
         if (ret != EH_OK)

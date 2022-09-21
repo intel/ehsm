@@ -116,7 +116,7 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
     return EH_OK;
 }
 
-uint32_t get_asymmetric_encrypt_max_plaintext_len(const uint32_t keyspec, const uint32_t padding)
+uint32_t get_asymmetric_encrypt_max_plaintext_size(const uint32_t keyspec, const uint32_t padding)
 {
     uint32_t padding_size;
     switch (padding)
@@ -551,7 +551,7 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
     if (plaintext->data == NULL || plaintext->datalen == 0)
         return EH_ARGUMENTS_BAD;
 
-    if (plaintext->datalen > get_asymmetric_encrypt_max_plaintext_len(cmk->metadata.keyspec, cmk->metadata.padding_mode))
+    if (plaintext->datalen > get_asymmetric_encrypt_max_plaintext_size(cmk->metadata.keyspec, cmk->metadata.padding_mode))
     {
         printf("Error data len for rsa encryption.\n");
         return EH_ARGUMENTS_BAD;

@@ -66,7 +66,7 @@ sgx_aes_gcm_128bit_key_t g_domain_key = {0};
 
 using namespace std;
 
-uint32_t ehsm_calc_keyblob_len(const uint32_t keyspec)
+uint32_t ehsm_calc_keyblob_size(const uint32_t keyspec)
 {
     switch (keyspec)
     {
@@ -203,15 +203,15 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
     {
         return SGX_ERROR_UNEXPECTED;
     }
-    uint32_t real_blob_len = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
+    uint32_t real_blob_size = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
 
-    if (real_blob_len == UINT32_MAX)
+    if (real_blob_size == UINT32_MAX)
     {
         return SGX_ERROR_UNEXPECTED;
     }
     if (cmk->keybloblen == 0)
     {
-        cmk->keybloblen = real_blob_len;
+        cmk->keybloblen = real_blob_size;
         return SGX_SUCCESS;
     }
 
@@ -249,7 +249,7 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
 
     if (cmk->keybloblen == 0)
     {
-        cmk->keybloblen = PEM_BUFSIZE * 5;
+        cmk->keybloblen = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
         return SGX_SUCCESS;
     }
 
@@ -257,7 +257,7 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     EVP_PKEY *pkey = NULL;
     BIO *bio = NULL;
     uint8_t *pem_keypair = NULL;
-    uint32_t key_len = 0;
+    uint32_t key_size = 0;
 
     pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
     if (pkey_ctx == NULL)
@@ -273,19 +273,19 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     switch (cmk->metadata.keyspec)
     {
     case EH_RSA_2048:
-        key_len = RSA_2048_KEY_BITS;
+        key_size = RSA_2048_KEY_BITS;
         break;
     case EH_RSA_3072:
-        key_len = RSA_3072_KEY_BITS;
+        key_size = RSA_3072_KEY_BITS;
         break;
     case EH_RSA_4096:
-        key_len = RSA_4096_KEY_BITS;
+        key_size = RSA_4096_KEY_BITS;
         break;
     default:
         break;
     }
 
-    if (EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, key_len) <= 0)
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, key_size) <= 0)
     {
         goto out;
     }
@@ -311,25 +311,25 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 
-    key_len = BIO_pending(bio);
-    if (key_len <= 0)
+    key_size = BIO_pending(bio);
+    if (key_size <= 0)
     {
         goto out;
     }
 
-    pem_keypair = (uint8_t *)malloc(key_len + 1);
+    pem_keypair = (uint8_t *)malloc(key_size + 1);
     if (pem_keypair == NULL)
     {
         goto out;
     }
 
-    if (BIO_read(bio, pem_keypair, key_len) < 0)
+    if (BIO_read(bio, pem_keypair, key_size) < 0)
     {
         goto out;
     }
-    pem_keypair[key_len] = '\0';
+    pem_keypair[key_size] = '\0';
 
-    ret = ehsm_create_keyblob(pem_keypair, key_len, NULL, 0, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    ret = ehsm_create_keyblob(pem_keypair, key_size, NULL, 0, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
     if (ret != SGX_SUCCESS)
     {
@@ -354,7 +354,7 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
 
     if (cmk->keybloblen == 0)
     {
-        cmk->keybloblen = PEM_BUFSIZE;
+        cmk->keybloblen = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
         return SGX_SUCCESS;
     }
 
@@ -362,7 +362,7 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
     EVP_PKEY *pkey = NULL;
     BIO *bio = NULL;
     uint8_t *pem_keypair = NULL;
-    uint32_t key_len = 0;
+    uint32_t key_size = 0;
 
     pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
     if (pkey_ctx == NULL)
@@ -417,25 +417,25 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 
-    key_len = BIO_pending(bio);
-    if (key_len <= 0)
+    key_size = BIO_pending(bio);
+    if (key_size <= 0)
     {
         goto out;
     }
 
-    pem_keypair = (uint8_t *)malloc(key_len + 1);
+    pem_keypair = (uint8_t *)malloc(key_size + 1);
     if (pem_keypair == NULL)
     {
         goto out;
     }
 
-    if (BIO_read(bio, pem_keypair, key_len) < 0)
+    if (BIO_read(bio, pem_keypair, key_size) < 0)
     {
         goto out;
     }
-    pem_keypair[key_len] = '\0';
+    pem_keypair[key_size] = '\0';
 
-    ret = ehsm_create_keyblob(pem_keypair, key_len, NULL, 0, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    ret = ehsm_create_keyblob(pem_keypair, key_size, NULL, 0, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
     if (ret != SGX_SUCCESS)
     {
@@ -464,15 +464,15 @@ sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk)
     {
         return SGX_ERROR_UNEXPECTED;
     }
-    uint32_t real_blob_len = ehsm_calc_keyblob_len(cmk->metadata.keyspec);
+    uint32_t real_blob_size = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
 
-    if (real_blob_len == UINT32_MAX)
+    if (real_blob_size == UINT32_MAX)
     {
         return SGX_ERROR_UNEXPECTED;
     }
     if (cmk->keybloblen == 0)
     {
-        cmk->keybloblen = real_blob_len;
+        cmk->keybloblen = real_blob_size;
         return SGX_SUCCESS;
     }
 

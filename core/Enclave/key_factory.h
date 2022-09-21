@@ -65,7 +65,7 @@ sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaint
                                  sgx_aes_gcm_data_ex_t *keyblob_data);
 
 // calculate the keyblob size based on the key metadata infomations.
-uint32_t ehsm_calc_keyblob_len(const uint32_t keyspec);
+uint32_t ehsm_calc_keyblob_size(const uint32_t keyspec);
 uint32_t ehsm_get_symmetric_key_size(ehsm_keyspec_t key_spec);
 
 uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data);
