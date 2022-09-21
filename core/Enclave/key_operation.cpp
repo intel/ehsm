@@ -132,13 +132,9 @@ bool verifyPaddingMode(uint8_t paddingMode, const EVP_MD *digestMode, EVP_PKEY *
     {
     case EH_PAD_RSA_PKCS1:
         return true;
-    case EH_PAD_RSA_SSLV23:
-        return false;
     case EH_PAD_RSA_NO:
         return false;
     case EH_PAD_RSA_PKCS1_OAEP:
-        return false;
-    case EH_PAD_RSA_X931:
         return false;
     case EH_PAD_RSA_PKCS1_PSS:
         if (EVP_MD_size(digestMode) * 2 + 2 > (size_t)EVP_PKEY_size(evpkey))

@@ -35,11 +35,9 @@ const ehsm_keyorigin_t = {
 
 const ehsm_paddingMode_t = {
   NO_PADDING: 0,
-  PAD_RSA_PKCS1: 1,      
-  PAD_RSA_SSLV23: 2,      
-  PAD_RSA_NO: 3,          
+  PAD_RSA_PKCS1: 1,
+  PAD_RSA_NO: 3,
   PAD_RSA_PKCS1_OAEP: 4,  
-  PAD_RSA_X931: 5,
   PAD_RSA_PKCS1_PSS: 6
 }
 
