@@ -125,6 +125,7 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
         ret = ehsm_create_sm4_key(cmk);
         break;
     default:
+        ret = SGX_ERROR_INVALID_PARAMETER;
         break;
     }
 
@@ -139,6 +140,11 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -184,6 +190,11 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
