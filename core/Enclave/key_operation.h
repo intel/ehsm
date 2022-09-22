@@ -111,12 +111,10 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
 
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
-                           const ehsm_data_t *userid,
                            ehsm_data_t *signature);
 
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
-                             const ehsm_data_t *userid,
                              const ehsm_data_t *signature,
                              bool *result);
 

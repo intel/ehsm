@@ -256,11 +256,11 @@ const enroll_user_info = (action, DB, res, req) => {
   if (napi_res) {
     const { appid, apikey } = napi_res.result
     let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
-      keyspec: ehsm_keySpec_t.EH_AES_GCM_128,
+      keyspec: ehsm_keySpec_t.AES_GCM_128,
       origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
     })
     let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
-      keyspec: ehsm_keySpec_t.EH_AES_GCM_128,
+      keyspec: ehsm_keySpec_t.AES_GCM_128,
       origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
     })
     if (cmk_res && sm_default_cmk_res) {

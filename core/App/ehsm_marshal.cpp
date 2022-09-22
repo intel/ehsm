@@ -986,19 +986,16 @@ ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_
 }
 
 ehsm_status_t unmarshal_sign_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                            ehsm_data_t **digest_data, ehsm_data_t **userid_data,
+                                            ehsm_data_t **digest_data,
                                             ehsm_data_t **signature)
 {
     std::string cmk_base64;
     std::string digest_base64;
-    std::string userid_base64;
 
     if (payloadJson.getJson().isMember("cmk"))
         cmk_base64 = payloadJson.readData_string("cmk");
     if (payloadJson.getJson().isMember("digest"))
         digest_base64 = payloadJson.readData_string("digest");
-    if (payloadJson.getJson().isMember("userid"))
-        userid_base64 = payloadJson.readData_string("userid");
 
     if (cmk_base64.size() == 0 || digest_base64.size() == 0)
     {
@@ -1008,11 +1005,9 @@ ehsm_status_t unmarshal_sign_data_from_json(JsonObj payloadJson, ehsm_keyblob_t 
 
     std::string cmk_str = base64_decode(cmk_base64);
     std::string digest_str = base64_decode(digest_base64);
-    std::string userid_str = base64_decode(userid_base64);
     std::string signature_base64;
     int cmk_size = cmk_str.size();
     int digest_size = digest_str.size();
-    int userid_size = userid_str.size();
 
     if (cmk_size == 0 || cmk_size > EH_CMK_MAX_SIZE)
     {
@@ -1022,11 +1017,6 @@ ehsm_status_t unmarshal_sign_data_from_json(JsonObj payloadJson, ehsm_keyblob_t 
     if (digest_size == 0 || digest_size > RSA_OAEP_4096_DIGEST_SIZE)
     {
         printf("The digest's length is invalid.\n");
-        return EH_KEYSPEC_INVALID;
-    }
-    if (userid_size != 0 && userid_size != EC_APPID_SIZE)
-    {
-        printf("The userid length is invalid.\n");
         return EH_KEYSPEC_INVALID;
     }
 
@@ -1045,17 +1035,6 @@ ehsm_status_t unmarshal_sign_data_from_json(JsonObj payloadJson, ehsm_keyblob_t 
         printf("Server exception.\n");
         return EH_KEYSPEC_INVALID;
     }
-    (*userid_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(userid_size));
-    if ((*userid_data) == NULL)
-    {
-        printf("The cmk's length is invalid.\n");
-        return EH_KEYSPEC_INVALID;
-    }
-    (*userid_data)->datalen = userid_size;
-    if (userid_size > 0)
-    {
-        memcpy((*userid_data)->data, (uint8_t *)userid_str.data(), userid_size);
-    }
     (*signature) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
 
     // get signature datalen
@@ -1065,20 +1044,17 @@ ehsm_status_t unmarshal_sign_data_from_json(JsonObj payloadJson, ehsm_keyblob_t 
 }
 
 ehsm_status_t unmarshal_verify_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                              ehsm_data_t **digest_data, ehsm_data_t **userid_data,
+                                              ehsm_data_t **digest_data,
                                               ehsm_data_t **signature_data)
 {
     std::string cmk_base64;
     std::string digest_base64;
-    std::string userid_base64;
     std::string signature_base64;
 
     if (payloadJson.getJson().isMember("cmk"))
         cmk_base64 = payloadJson.readData_string("cmk");
     if (payloadJson.getJson().isMember("digest"))
         digest_base64 = payloadJson.readData_string("digest");
-    if (payloadJson.getJson().isMember("userid"))
-        userid_base64 = payloadJson.readData_string("userid");
     if (payloadJson.getJson().isMember("signature"))
         signature_base64 = payloadJson.readData_string("signature");
 
@@ -1091,11 +1067,9 @@ ehsm_status_t unmarshal_verify_data_from_json(JsonObj payloadJson, ehsm_keyblob_
     std::string cmk_str = base64_decode(cmk_base64);
     std::string signature_str = base64_decode(signature_base64);
     std::string digest_str = base64_decode(digest_base64);
-    std::string userid_str = base64_decode(userid_base64);
     int cmk_size = cmk_str.size();
     int digest_size = digest_str.size();
     int signature_size = signature_str.size();
-    int userid_size = userid_str.size();
 
     if (cmk_size == 0 || cmk_size > EH_CMK_MAX_SIZE)
     {
@@ -1105,11 +1079,6 @@ ehsm_status_t unmarshal_verify_data_from_json(JsonObj payloadJson, ehsm_keyblob_
     if (digest_size == 0 || digest_size > RSA_OAEP_4096_DIGEST_SIZE)
     {
         printf("The digest's length is invalid.\n");
-        return EH_KEYSPEC_INVALID;
-    }
-    if (userid_size != 0 && userid_size != EC_APPID_SIZE)
-    {
-        printf("The aad's length is invalid.\n");
         return EH_KEYSPEC_INVALID;
     }
     if (signature_size == 0 || signature_size > RSA_OAEP_4096_SIGNATURE_SIZE)
@@ -1132,17 +1101,6 @@ ehsm_status_t unmarshal_verify_data_from_json(JsonObj payloadJson, ehsm_keyblob_
     {
         printf("Server exception.\n");
         return EH_KEYSPEC_INVALID;
-    }
-    (*userid_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(userid_size));
-    if ((*userid_data) == NULL)
-    {
-        printf("The cmk's length is invalid.\n");
-        return EH_KEYSPEC_INVALID;
-    }
-    (*userid_data)->datalen = userid_size;
-    if (userid_size > 0)
-    {
-        memcpy((*userid_data)->data, (uint8_t *)userid_str.data(), userid_size);
     }
     (*signature_data) = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(signature_size));
     (*signature_data)->datalen = signature_size;

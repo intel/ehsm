@@ -505,6 +505,12 @@ sgx_status_t ehsm_generate_datakey_aes(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (ciphertext->datalen == 0)
+    {
+        ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
+        return SGX_SUCCESS;
+    }
+
     uint8_t *temp_datakey = NULL;
     temp_datakey = (uint8_t *)malloc(plaintext->datalen);
     if (temp_datakey == NULL)
@@ -535,7 +541,25 @@ sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
                                        ehsm_data_t *ciphertext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
+    if (ciphertext->datalen == 0)
+    {
+        if (cmk->metadata.keyspec == EH_SM4_CTR)
+        {
+            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
+            return SGX_SUCCESS;
+        }
+        else
+        {
+            if (plaintext->datalen % 16 != 0)
+            {
+                ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
+                return SGX_SUCCESS;
+            }
+            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
+            return SGX_SUCCESS;
+        }
+    }
+    
     uint8_t *temp_datakey = NULL;
     temp_datakey = (uint8_t *)malloc(plaintext->datalen);
     if (temp_datakey == NULL)

@@ -106,11 +106,11 @@ ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_
                                                       ehsm_keyblob_t **ukey, ehsm_data_t **newdatakey);
 
 ehsm_status_t unmarshal_sign_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                            ehsm_data_t **digest_data, ehsm_data_t **userid_data,
+                                            ehsm_data_t **digest_data,
                                             ehsm_data_t **signature);
 
 ehsm_status_t unmarshal_verify_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                              ehsm_data_t **digest_data, ehsm_data_t **userid_data,
+                                              ehsm_data_t **digest_data,
                                               ehsm_data_t **signature_data);
 
 #endif

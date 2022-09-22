@@ -16,20 +16,17 @@ def get_args():
     parser.add_argument('--url', type=str, help='the address of the ehsm_kms_server', required=True)
     parser.add_argument('--keyid', type=str, help='the keyid of asymmetric cmk', required=True)
     parser.add_argument('--digest', type=str, help='the digest data to be signed', required=True)
-    parser.add_argument('--userid', type=str, help='the userid to be signed')
     args = parser.parse_args()
 
     base_url = args.url + "/ehsm?Action="
-    return base_url, args.keyid, args.digest, args.userid
+    return base_url, args.keyid, args.digest
 
-def sign(base_url, keyid, digest, userid):
+def sign(base_url, keyid, digest):
     print('sign data with an asymmetric cmk')
 
     payload = OrderedDict()
     payload["digest"] = digest
     payload["keyid"] = keyid
-    if userid != None:
-        payload["userid"] = userid
     params = _utils_.init_params(payload)
     print('sign req:\n%s\n' %(params))
 
@@ -42,7 +39,7 @@ def sign(base_url, keyid, digest, userid):
 if __name__ == "__main__":
     headers = _utils_.headers
 
-    base_url, keyid, digest, userid = get_args()
+    base_url, keyid, digest = get_args()
 
-    sign(base_url, keyid, digest, userid)
+    sign(base_url, keyid, digest)
 
