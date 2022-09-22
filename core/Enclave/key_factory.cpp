@@ -92,7 +92,7 @@ uint32_t ehsm_calc_keyblob_size(const uint32_t keyspec)
     case EH_AES_GCM_256:
         return 32 + sizeof(sgx_aes_gcm_data_ex_t);
     default:
-        return UINT32_MAX;
+        return -1;
         break;
     }
 }
@@ -205,7 +205,7 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
     }
     uint32_t real_blob_size = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
 
-    if (real_blob_size == UINT32_MAX)
+    if (real_blob_size == -1)
     {
         return SGX_ERROR_UNEXPECTED;
     }
@@ -466,7 +466,7 @@ sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk)
     }
     uint32_t real_blob_size = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
 
-    if (real_blob_size == UINT32_MAX)
+    if (real_blob_size == -1)
     {
         return SGX_ERROR_UNEXPECTED;
     }
