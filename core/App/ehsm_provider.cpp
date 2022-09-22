@@ -345,15 +345,10 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
-        /* calculate the ciphertext length */
-        if (ciphertext->datalen == 0)
-        {
-            ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
-            return EH_OK;
-        }
         /* check if the datalen is valid */
-        if (ciphertext->data == NULL ||
-            ciphertext->datalen != plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
+        if (ciphertext->data == NULL)
+            return EH_ARGUMENTS_BAD;
+        if (ciphertext->datalen != 0 && ciphertext->datalen != plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
             return EH_ARGUMENTS_BAD;
 
         ret = enclave_encrypt(g_enclave_id,
@@ -368,55 +363,39 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
                               APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
         break;
     case EH_SM4_CTR:
-        /* calculate the ciphertext length */
-        if (ciphertext->datalen == 0)
-        {
-            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
-            return EH_OK;
-        }
         /* check if the datalen is valid */
-        if (ciphertext->data == NULL ||
-            ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE)
+        if (ciphertext->data == NULL)
+            return EH_ARGUMENTS_BAD;
+        if (ciphertext->datalen != 0 && ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE)
             return EH_ARGUMENTS_BAD;
 
         ret = enclave_encrypt(g_enclave_id,
                               &sgxStatus,
                               cmk,
                               APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen),
-                              aad,
-                              APPEND_SIZE_TO_DATA_T(aad->datalen),
+                              NULL,
+                              0,
                               plaintext,
                               APPEND_SIZE_TO_DATA_T(plaintext->datalen),
                               ciphertext,
                               APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
         break;
     case EH_SM4_CBC:
-        /* calculate the ciphertext length */
-        if (ciphertext->datalen == 0)
-        {
-            if (plaintext->datalen % 16 != 0)
-            {
-                ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
-                return EH_OK;
-            }
-            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
-            return EH_OK;
-        }
         /* check if the datalen is valid */
         if (plaintext->datalen % 16 != 0 &&
-            (ciphertext->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE))
+            ((ciphertext->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE) && ciphertext->datalen != 0))
             return EH_ARGUMENTS_BAD;
 
         if (plaintext->datalen % 16 == 0 &&
-            (ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE))
+            ((ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE) && ciphertext->datalen != 0))
             return EH_ARGUMENTS_BAD;
 
         ret = enclave_encrypt(g_enclave_id,
                               &sgxStatus,
                               cmk,
                               APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen),
-                              aad,
-                              APPEND_SIZE_TO_DATA_T(aad->datalen),
+                              NULL,
+                              0,
                               plaintext,
                               APPEND_SIZE_TO_DATA_T(plaintext->datalen),
                               ciphertext,
@@ -468,14 +447,10 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
-        /* calculate the ciphertext length */
-        if (plaintext->datalen == 0)
-        {
-            plaintext->datalen = ciphertext->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
-            return EH_OK;
-        }
         /* check if the datalen is valid */
-        if (plaintext->data == NULL ||
+        if (plaintext->data == NULL)
+            return EH_ARGUMENTS_BAD;
+        if (plaintext->datalen != 0 &&
             plaintext->datalen != ciphertext->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE)
             return EH_ARGUMENTS_BAD;
 
@@ -492,14 +467,10 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
         break;
     case EH_SM4_CTR:
     case EH_SM4_CBC:
-        /* calculate the ciphertext length */
-        if (plaintext->datalen == 0)
-        {
-            plaintext->datalen = ciphertext->datalen - SGX_SM4_IV_SIZE;
-            return EH_OK;
-        }
         /* check if the datalen is valid */
-        if (plaintext->data == NULL ||
+        if (plaintext->data == NULL)
+            return EH_ARGUMENTS_BAD;
+        if (plaintext->datalen != 0 &&
             plaintext->datalen != ciphertext->datalen - SGX_SM4_IV_SIZE)
             return EH_ARGUMENTS_BAD;
 
@@ -1623,4 +1594,3 @@ ehsm_status_t verify_att_result_msg(sample_ra_att_result_msg_t *p_att_result_msg
     }
     return EH_OK;
 }
-
