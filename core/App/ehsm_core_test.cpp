@@ -49,6 +49,9 @@
 
 #define NUM_THREADS 100
 
+int case_number = 0;
+int success_number = 0;
+
 // void test_perf_createkey()
 // {
 //     RetJsonObj retJsonObj;
@@ -588,11 +591,13 @@
 // step3. decrypt the cipher text by CMK correctly
 
 // */
-void test_AES()
+void test_AES_SM_encrypt_decrypt()
 {
-    printf("============test_AES start==========\n");
-    std::string plaintext[] = {"Test1234-AES128", "Test1234-AES192", "Test1234-AES256"};
-    uint32_t keyspec[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256};
+    printf("============test_AES_SM_encrypt_decrypt start==========\n");
+    std::string plaintext[] = {"Test1234-AES128", "Test1234-AES192", "Test1234-AES256", "Test1234-SM4-CTR", "Test1234-SM4-CBC"};
+    uint32_t keyspec[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256, EH_SM4_CTR, EH_SM4_CBC};
+
+    case_number += sizeof(plaintext) / sizeof(plaintext[0]);
 
     for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
     {
@@ -661,9 +666,13 @@ void test_AES()
         }
         printf("NAPI_Decrypt json = %s\n", returnJsonChar);
         plaintext_base64 = retJsonObj.readData_cstr("plaintext");
-        printf("Check decrypt plaintext result with %s: %s\n", input_plaintext_base64.c_str(), (plaintext_base64 == input_plaintext_base64) ? "true" : "false");
-        printf("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
-        printf("Decrypt data SUCCESSFULLY!\n");
+        if (plaintext_base64 == input_plaintext_base64) {
+            success_number++;
+            printf("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
+            printf("Decrypt data SUCCESSFULLY!\n");
+        } else {
+            printf("Failed to Decrypt the data, result = %s \n", base64_decode(plaintext_base64).c_str());
+        }
 
     cleanup:
         SAFE_FREE(plaintext_base64);
@@ -673,32 +682,33 @@ void test_AES()
         printf("============%s end==========\n", plaintext[i].c_str());
     }
 
-    printf("============test_AES end==========\n");
+    printf("============test_AES_SM_encrypt_decrypt end==========\n");
 }
 
-void test_AES()
+void test_RSA_encrypt_decrypt()
 {
-    printf("============test_AES start==========\n");
-    std::string plaintext[] = {"Test1234-AES128", "Test1234-AES192", "Test1234-AES256"};
-    uint32_t keyspec[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256};
+    printf("============test_RSA_encrypt_decrypt start==========\n");
+    std::string plaintext[] = {"Test1234-RSA2048", "Test1234-RSA3072", "Test1234-RSA4096"};
+    uint32_t keyspec[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096};
+
+    case_number += sizeof(plaintext) / sizeof(plaintext[0]);
 
     for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
     {
         char *returnJsonChar = nullptr;
-        char aad[] = "challenge";
         printf("============%s start==========\n", plaintext[i].c_str());
 
         char *cmk_base64 = nullptr;
         char *ciphertext_base64 = nullptr;
         char *plaintext_base64 = nullptr;
         std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext[i].c_str(), sizeof(plaintext[i]));
-        std::string input_aad_base64 = base64_encode((const uint8_t *)aad, sizeof(aad) / sizeof(aad[0]));
 
         RetJsonObj retJsonObj;
         JsonObj param_json;
         JsonObj payload_json;
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -707,19 +717,18 @@ void test_AES()
 
         if (retJsonObj.getCode() != 200)
         {
-            printf("Createkey with aes-gcm failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("Createkey with rsa failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         printf("FFI_CreateKey Json = %s\n", returnJsonChar);
-        printf("Create CMK with AES SUCCESSFULLY!\n");
+        printf("Create CMK with RSA SUCCESSFULLY!\n");
         cmk_base64 = retJsonObj.readData_cstr("cmk");
 
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
         payload_json.addData_string("plaintext", input_plaintext_base64);
-        payload_json.addData_string("aad", input_aad_base64);
 
-        param_json.addData_uint32("action", EH_ENCRYPT);
+        param_json.addData_uint32("action", EH_ASYMMETRIC_ENCRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
@@ -736,7 +745,7 @@ void test_AES()
         ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
         payload_json.addData_string("ciphertext", ciphertext_base64);
 
-        param_json.addData_uint32("action", EH_DECRYPT);
+        param_json.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
@@ -749,9 +758,13 @@ void test_AES()
         }
         printf("NAPI_Decrypt json = %s\n", returnJsonChar);
         plaintext_base64 = retJsonObj.readData_cstr("plaintext");
-        printf("Check decrypt plaintext result with %s: %s\n", input_plaintext_base64.c_str(), (plaintext_base64 == input_plaintext_base64) ? "true" : "false");
-        printf("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
-        printf("Decrypt data SUCCESSFULLY!\n");
+        if (plaintext_base64 == input_plaintext_base64) {
+            success_number++;
+            printf("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
+            printf("Decrypt data SUCCESSFULLY!\n");
+        } else {
+            printf("Failed to Decrypt the data, result = %s \n", base64_decode(plaintext_base64).c_str());
+        }
 
     cleanup:
         SAFE_FREE(plaintext_base64);
@@ -761,336 +774,98 @@ void test_AES()
         printf("============%s end==========\n", plaintext[i].c_str());
     }
 
-    printf("============test_AES end==========\n");
-}
-
-void test_SM4_CTR()
-{
-    char *returnJsonChar = nullptr;
-    char plaintext[] = "Test1234-SM4-CTR";
-    printf("============test_SM4_CTR start==========\n");
-
-    char *cmk_base64 = nullptr;
-    char *ciphertext_base64 = nullptr;
-    char *plaintext_base64 = nullptr;
-    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
-
-    RetJsonObj retJsonObj;
-    JsonObj param_json;
-    JsonObj payload_json;
-    payload_json.addData_uint32("keyspec", EH_SM4_CTR);
-    payload_json.addData_uint32("origin", 0);
-    param_json.addData_uint32("action", EH_CREATE_KEY);
-    param_json.addData_JsonValue("payload", payload_json.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
-    retJsonObj.parse(returnJsonChar);
-
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("Createkey with sm4 failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
-    printf("Create CMK with SM4_CTR SUCCESSFULLY!\n");
-    cmk_base64 = retJsonObj.readData_cstr("cmk");
-    payload_json.clear();
-    payload_json.addData_string("cmk", cmk_base64);
-    payload_json.addData_string("plaintext", input_plaintext_base64);
-
-    param_json.addData_uint32("action", EH_ENCRYPT);
-    param_json.addData_JsonValue("payload", payload_json.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
-    retJsonObj.parse(returnJsonChar);
-
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("Failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_Encrypt json = %s\n", returnJsonChar);
-    printf("Encrypt data SUCCESSFULLY!\n");
-
-    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
-    payload_json.addData_string("ciphertext", ciphertext_base64);
-
-    param_json.addData_uint32("action", EH_DECRYPT);
-    param_json.addData_JsonValue("payload", payload_json.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
-    retJsonObj.parse(returnJsonChar);
-
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_Decrypt json = %s\n", returnJsonChar);
-    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
-    printf("Check decrypt plaintext result with %s: %s\n", input_plaintext_base64.c_str(), (plaintext_base64 == input_plaintext_base64) ? "true" : "false");
-    printf("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
-    printf("Decrypt data SUCCESSFULLY!\n");
-
-cleanup:
-    SAFE_FREE(plaintext_base64);
-    SAFE_FREE(ciphertext_base64);
-    SAFE_FREE(cmk_base64);
-    SAFE_FREE(returnJsonChar);
-    printf("============test_SM4_CTR end==========\n");
-}
-
-void test_SM4_CBC()
-{
-    char *returnJsonChar = nullptr;
-    char plaintext[] = "Test-SM4-CBC";
-    printf("============test_SM4_CBC start==========\n");
-
-    char *cmk_base64 = nullptr;
-    char *ciphertext_base64 = nullptr;
-    char *plaintext_base64 = nullptr;
-    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
-    RetJsonObj retJsonObj;
-    JsonObj param_json;
-    JsonObj payload_json;
-    payload_json.addData_uint32("keyspec", EH_SM4_CBC);
-    payload_json.addData_uint32("origin", 0);
-    param_json.addData_uint32("action", EH_CREATE_KEY);
-    param_json.addData_JsonValue("payload", payload_json.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
-    retJsonObj.parse(returnJsonChar);
-
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("Createkey with sm4 failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
-    printf("Create CMK with SM4_CBC SUCCESSFULLY!\n");
-    cmk_base64 = retJsonObj.readData_cstr("cmk");
-    payload_json.clear();
-    payload_json.addData_string("cmk", cmk_base64);
-    payload_json.addData_string("plaintext", input_plaintext_base64);
-
-    param_json.addData_uint32("action", EH_ENCRYPT);
-    param_json.addData_JsonValue("payload", payload_json.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
-    retJsonObj.parse(returnJsonChar);
-
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("Failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_Encrypt json = %s\n", returnJsonChar);
-    printf("Encrypt data SUCCESSFULLY!\n");
-
-    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
-    payload_json.addData_string("ciphertext", ciphertext_base64);
-
-    param_json.addData_uint32("action", EH_DECRYPT);
-    param_json.addData_JsonValue("payload", payload_json.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
-    retJsonObj.parse(returnJsonChar);
-
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_Decrypt json = %s\n", returnJsonChar);
-    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
-
-    printf("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
-    printf("Check decrypt plaintext result with %s: %s\n", input_plaintext_base64.c_str(), (strcmp(base64_decode(plaintext_base64).c_str(), plaintext) == 0) ? "true" : "false");
-    printf("Decrypt data SUCCESSFULLY!\n");
-
-cleanup:
-    SAFE_FREE(plaintext_base64);
-    SAFE_FREE(ciphertext_base64);
-    SAFE_FREE(cmk_base64);
-    SAFE_FREE(returnJsonChar);
-    printf("============test_SM4_CBC end==========\n");
-}
-
-void test_RSA3072_encrypt_decrypt()
-{
-    char *returnJsonChar = nullptr;
-    char plaintext[] = "TestRSA-3072";
-    char *cmk_base64 = nullptr;
-    char *ciphertext_base64 = nullptr;
-    char *plaintext_base64 = nullptr;
-    RetJsonObj retJsonObj;
-
-    JsonObj paramJsonCreatekey;
-    JsonObj paramJsonCreatekey2;
-    JsonObj paramJsonEncrypt;
-    JsonObj paramJsonEncrypt2;
-    JsonObj paramJsonDecrypt;
-    JsonObj paramJsonDecrypt2;
-
-    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
-
-    paramJsonCreatekey.addData_uint32("action", EH_CREATE_KEY);
-    paramJsonCreatekey2.addData_uint32("keyspec", EH_RSA_3072);
-    paramJsonCreatekey2.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
-    paramJsonCreatekey2.addData_uint32("origin", EH_INTERNAL_KEY);
-    paramJsonCreatekey.addData_JsonValue("payload", paramJsonCreatekey2.getJson());
-
-    printf("============test_RSA3072_encrypt_decrypt start==========\n");
-
-    returnJsonChar = EHSM_FFI_CALL(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
-    retJsonObj.parse(returnJsonChar);
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
-    printf("Create CMK with RAS SUCCESSFULLY!\n");
-
-    cmk_base64 = retJsonObj.readData_cstr("cmk");
-
-    paramJsonEncrypt2.addData_string("cmk", cmk_base64);
-    paramJsonEncrypt2.addData_string("plaintext", input_plaintext_base64);
-
-    paramJsonEncrypt.addData_uint32("action", EH_ASYMMETRIC_ENCRYPT);
-    paramJsonEncrypt.addData_JsonValue("payload", paramJsonEncrypt2.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL(paramJsonEncrypt.StringToChar(paramJsonEncrypt.toString()));
-    retJsonObj.parse(returnJsonChar);
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
-    printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
-
-    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
-
-    paramJsonDecrypt2.addData_string("cmk", cmk_base64);
-    paramJsonDecrypt2.addData_string("ciphertext", ciphertext_base64);
-
-    paramJsonDecrypt.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
-    paramJsonDecrypt.addData_JsonValue("payload", paramJsonDecrypt2.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL(paramJsonDecrypt.StringToChar(paramJsonDecrypt.toString()));
-
-    retJsonObj.parse(returnJsonChar);
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
-    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
-    printf("Decrypted plaintext : %s\n", plaintext_base64);
-    if (!strcmp(plaintext_base64, input_plaintext_base64.data()))
-        printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
-    else
-    {
-        printf("NAPI_AsymmetricDecrypt data FAILED!\n");
-        goto cleanup;
-    }
-
-cleanup:
-    SAFE_FREE(cmk_base64);
-    SAFE_FREE(ciphertext_base64);
-    SAFE_FREE(plaintext_base64);
-    SAFE_FREE(returnJsonChar);
-    printf("============test_RSA3072_encrypt_decrypt End==========\n");
+    printf("============test_RSA_encrypt_decrypt end==========\n");
 }
 
 void test_SM2_encrypt_decrypt()
 {
-    char *returnJsonChar = nullptr;
-    char plaintext[] = "Test1234-SM2";
-    char *cmk_base64 = nullptr;
-    char *ciphertext_base64 = nullptr;
-    char *plaintext_base64 = nullptr;
-    RetJsonObj retJsonObj;
-
-    JsonObj paramJsonCreatekey;
-    JsonObj paramJsonCreatekey2;
-    JsonObj paramJsonEncrypt;
-    JsonObj paramJsonEncrypt2;
-    JsonObj paramJsonDecrypt;
-    JsonObj paramJsonDecrypt2;
-
-    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
-
-    paramJsonCreatekey.addData_uint32("action", EH_CREATE_KEY);
-    paramJsonCreatekey2.addData_uint32("keyspec", EH_SM2);
-    paramJsonCreatekey2.addData_uint32("origin", EH_INTERNAL_KEY);
-    paramJsonCreatekey.addData_JsonValue("payload", paramJsonCreatekey2.getJson());
-
     printf("============test_SM2_encrypt_decrypt start==========\n");
+    std::string plaintext[] = {"Test1234-SM2"};
+    uint32_t keyspec[] = {EH_SM2};
 
-    returnJsonChar = EHSM_FFI_CALL(paramJsonCreatekey.StringToChar(paramJsonCreatekey.toString()));
-    retJsonObj.parse(returnJsonChar);
-    if (retJsonObj.getCode() != 200)
+    case_number += sizeof(plaintext) / sizeof(plaintext[0]);
+
+    for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
     {
-        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
+        char *returnJsonChar = nullptr;
+        printf("============%s start==========\n", plaintext[i].c_str());
+
+        char *cmk_base64 = nullptr;
+        char *ciphertext_base64 = nullptr;
+        char *plaintext_base64 = nullptr;
+        std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext[i].c_str(), sizeof(plaintext[i]));
+
+        RetJsonObj retJsonObj;
+        JsonObj param_json;
+        JsonObj payload_json;
+        payload_json.addData_uint32("keyspec", keyspec[i]);
+        payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        param_json.addData_uint32("action", EH_CREATE_KEY);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        retJsonObj.parse(returnJsonChar);
+
+        if (retJsonObj.getCode() != 200)
+        {
+            printf("Createkey with rsa failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        printf("FFI_CreateKey Json = %s\n", returnJsonChar);
+        printf("Create CMK with SM2 SUCCESSFULLY!\n");
+        cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+        payload_json.clear();
+        payload_json.addData_string("cmk", cmk_base64);
+        payload_json.addData_string("plaintext", input_plaintext_base64);
+
+        param_json.addData_uint32("action", EH_ASYMMETRIC_ENCRYPT);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        retJsonObj.parse(returnJsonChar);
+
+        if (retJsonObj.getCode() != 200)
+        {
+            printf("Failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        printf("Encrypt data SUCCESSFULLY!\n");
+
+        ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+        payload_json.addData_string("ciphertext", ciphertext_base64);
+
+        param_json.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        retJsonObj.parse(returnJsonChar);
+
+        if (retJsonObj.getCode() != 200)
+        {
+            printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        printf("NAPI_Decrypt json = %s\n", returnJsonChar);
+        plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+        if (plaintext_base64 == input_plaintext_base64) {
+            success_number++;
+            printf("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
+            printf("Decrypt data SUCCESSFULLY!\n");
+        } else {
+            printf("Failed to Decrypt the data, result = %s \n", base64_decode(plaintext_base64).c_str());
+        }
+
+    cleanup:
+        SAFE_FREE(plaintext_base64);
+        SAFE_FREE(ciphertext_base64);
+        SAFE_FREE(cmk_base64);
+        SAFE_FREE(returnJsonChar);
+        printf("============%s end==========\n", plaintext[i].c_str());
     }
-    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
-    printf("Create CMK with SM2 SUCCESSFULLY!\n");
 
-    cmk_base64 = retJsonObj.readData_cstr("cmk");
-
-    paramJsonEncrypt2.addData_string("cmk", cmk_base64);
-    paramJsonEncrypt2.addData_string("plaintext", input_plaintext_base64);
-
-    paramJsonEncrypt.addData_uint32("action", EH_ASYMMETRIC_ENCRYPT);
-    paramJsonEncrypt.addData_JsonValue("payload", paramJsonEncrypt2.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL(paramJsonEncrypt.StringToChar(paramJsonEncrypt.toString()));
-    retJsonObj.parse(returnJsonChar);
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
-    printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
-
-    ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
-
-    paramJsonDecrypt2.addData_string("cmk", cmk_base64);
-    paramJsonDecrypt2.addData_string("ciphertext", ciphertext_base64);
-
-    paramJsonDecrypt.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
-    paramJsonDecrypt.addData_JsonValue("payload", paramJsonDecrypt2.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL(paramJsonDecrypt.StringToChar(paramJsonDecrypt.toString()));
-
-    retJsonObj.parse(returnJsonChar);
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
-    plaintext_base64 = retJsonObj.readData_cstr("plaintext");
-    printf("Decrypted plaintext : %s\n", plaintext_base64);
-    if (!strcmp(plaintext_base64, input_plaintext_base64.data()))
-        printf("NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n");
-    else
-    {
-        printf("NAPI_AsymmetricDecrypt data FAILED!\n");
-        goto cleanup;
-    }
-
-cleanup:
-    SAFE_FREE(cmk_base64);
-    SAFE_FREE(ciphertext_base64);
-    SAFE_FREE(plaintext_base64);
-    SAFE_FREE(returnJsonChar);
-    printf("============test_SM2_encrypt_decrypt End==========\n");
+    printf("============test_SM2_encrypt_decrypt end==========\n");
 }
 
 /*
@@ -1794,27 +1569,11 @@ void test_export_datakey()
      * current testcase support aes-gcm-128, aes-gcm-192, aes-gcm-256, sm4-cbc, sm4-ctr cmk encrypted olddatakey
      * export newdatakey using rsa2048, rsa3072, rsa4096, sm2 ukey
      */
-    const char *keyspec_str[] =
-        {
-            "EH_AES_GCM_128",
-            "EH_AES_GCM_192",
-            "EH_AES_GCM_256",
-            "EH_RSA_2048",
-            "EH_RSA_3072",
-            "EH_RSA_4096",
-            "EH_EC_P224",
-            "EH_EC_P256",
-            "EH_EC_P384",
-            "EH_EC_P512",
-            "EH_HMAC",
-            "EH_SM2",
-            "EH_SM4_CTR",
-            "EH_SM4_CBC",
-            "INVALID_VALUE"};
     ehsm_keyspec_t cmk_keyspec_test[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256, EH_SM4_CBC, EH_SM4_CTR};
-    int cmk_keyspec_test_num = 5;
+    int cmk_keyspec_test_num = sizeof(cmk_keyspec_test) / sizeof(cmk_keyspec_test[0]);
     ehsm_keyspec_t ukey_keyspec_test[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096, EH_SM2};
-    int ukey_keyspec_test_num = 4;
+    int ukey_keyspec_test_num = sizeof(ukey_keyspec_test) / sizeof(ukey_keyspec_test[0]);
+
     char *returnJsonChar = nullptr;
     char *cmk_base64 = nullptr;
     char *ukey_base64 = nullptr;
@@ -1838,27 +1597,7 @@ void test_export_datakey()
     {
         payload_json.clear();
         param_json.clear();
-        switch (cmk_keyspec_test[i])
-        {
-        case EH_AES_GCM_128:
-            payload_json.addData_uint32("keyspec", EH_AES_GCM_128);
-            break;
-        case EH_AES_GCM_192:
-            payload_json.addData_uint32("keyspec", EH_AES_GCM_192);
-            break;
-        case EH_AES_GCM_256:
-            payload_json.addData_uint32("keyspec", EH_AES_GCM_256);
-            break;
-        case EH_SM4_CBC:
-            payload_json.addData_uint32("keyspec", EH_SM4_CBC);
-            break;
-        case EH_SM4_CTR:
-            payload_json.addData_uint32("keyspec", EH_SM4_CTR);
-            break;
-        default:
-            break;
-        }
-
+        payload_json.addData_uint32("keyspec", cmk_keyspec_test[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1866,12 +1605,12 @@ void test_export_datakey()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("Createkey using %s cmk failed, error message: %s \n", keyspec_str[payload_json.readData_uint16("keyspec")], retJsonObj.getMessage().c_str());
+            printf("Createkey using keyspec code %d cmk failed, error message: %s \n", cmk_keyspec_test[i], retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         cmk_base64 = retJsonObj.readData_cstr("cmk");
         printf("cmk_base64 : %s\n", cmk_base64);
-        printf("Create CMK with %s SUCCESSFULLY!\n", keyspec_str[cmk_keyspec_test[i]]);
+        printf("Create CMK with keyspec code %d SUCCESSFULLY!\n", cmk_keyspec_test[i]);
 
         /* step2. generate a 48 bytes random data key and without plaintext returned */
         payload_json.clear();
@@ -1885,12 +1624,12 @@ void test_export_datakey()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("GenerateDataKeyWithoutPlaintext using %s cmk Failed, error message: %s \n", keyspec_str[cmk_keyspec_test[i]], retJsonObj.getMessage().c_str());
+            printf("GenerateDataKeyWithoutPlaintext using keyspec code %d cmk Failed, error message: %s \n", cmk_keyspec_test[i], retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         olddatakey_base64 = retJsonObj.readData_cstr("ciphertext");
         printf("olddatakey_base64 : %s\n", olddatakey_base64);
-        printf("GenerateDataKeyWithoutPlaintext using %s cmk SUCCESSFULLY!\n", keyspec_str[cmk_keyspec_test[i]]);
+        printf("GenerateDataKeyWithoutPlaintext using keyspec code %d cmk SUCCESSFULLY!\n", cmk_keyspec_test[i]);
 
         /* step3. try to use the cmk to decrypt the datakey */
         payload_json.clear();
@@ -1904,32 +1643,25 @@ void test_export_datakey()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("DECEYPT using %s cmk, failed, error message: %s \n", keyspec_str[cmk_keyspec_test[i]], retJsonObj.getMessage().c_str());
+            printf("DECEYPT using keyspec code %d cmk, failed, error message: %s \n", cmk_keyspec_test[i], retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         olddatakeyplaintext_base64 = retJsonObj.readData_cstr("plaintext");
-        printf("Decrypted using %s cmk, datakeyplaintext_base64 : %s\n", keyspec_str[cmk_keyspec_test[i]], olddatakeyplaintext_base64);
-        printf("Decrypt datakey using %s cmk SUCCESSFULLY!\n", keyspec_str[cmk_keyspec_test[i]]);
+        printf("Decrypted using keyspec code %d cmk, datakeyplaintext_base64 : %s\n", cmk_keyspec_test[i], olddatakeyplaintext_base64);
+        printf("Decrypt datakey using keyspec code %d cmk SUCCESSFULLY!\n", cmk_keyspec_test[i]);
         for (int j = 0; j < ukey_keyspec_test_num; j++)
         {
             payload_json.clear();
             param_json.clear();
+            payload_json.addData_uint32("keyspec", ukey_keyspec_test[j]);
             switch (ukey_keyspec_test[j])
             {
             case EH_RSA_2048:
-                payload_json.addData_uint32("keyspec", EH_RSA_2048);
-                payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
-                break;
             case EH_RSA_3072:
-                payload_json.addData_uint32("keyspec", EH_RSA_3072);
-                payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
-                break;
             case EH_RSA_4096:
-                payload_json.addData_uint32("keyspec", EH_RSA_4096);
                 payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
                 break;
             case EH_SM2:
-                payload_json.addData_uint32("keyspec", EH_SM2);
                 break;
             default:
                 break;
@@ -1942,12 +1674,12 @@ void test_export_datakey()
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
-                printf("CreateKey using %s ukey failed, error message: %s \n", keyspec_str[ukey_keyspec_test[j]], retJsonObj.getMessage().c_str());
+                printf("CreateKey using keyspec code %d ukey failed, error message: %s \n", ukey_keyspec_test[j], retJsonObj.getMessage().c_str());
                 goto cleanup;
             }
             ukey_base64 = retJsonObj.readData_cstr("cmk");
-            printf("%s ukey_base64 : %s\n", keyspec_str[ukey_keyspec_test[j]], ukey_base64);
-            printf("CreateKey UKEY using %s SUCCESSFULLY!\n", keyspec_str[ukey_keyspec_test[j]]);
+            printf("keyspec code %d ukey_base64 : %s\n", ukey_keyspec_test[j], ukey_base64);
+            printf("CreateKey UKEY using keyspec code %d SUCCESSFULLY!\n", ukey_keyspec_test[j]);
 
             /*step5. export the datakey with the new user public key */
             payload_json.clear();
@@ -1962,7 +1694,7 @@ void test_export_datakey()
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
-                printf("ExportDataKey using %s cmk, %s ukey failed, error message: %s \n", keyspec_str[cmk_keyspec_test[i]], keyspec_str[ukey_keyspec_test[j]], retJsonObj.getMessage().c_str());
+                printf("ExportDataKey using keyspec code %d cmk, keyspec code %d ukey failed, error message: %s \n", cmk_keyspec_test[i], ukey_keyspec_test[j], retJsonObj.getMessage().c_str());
                 goto cleanup;
             }
             newdatakey_base64 = retJsonObj.readData_cstr("newdatakey");
@@ -1978,20 +1710,20 @@ void test_export_datakey()
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
-                printf("AsymmetricDecrypt newdatakey using %s cmk, %s ukey failed, error message: %s \n", keyspec_str[cmk_keyspec_test[i]], keyspec_str[ukey_keyspec_test[j]], retJsonObj.getMessage().c_str());
+                printf("AsymmetricDecrypt newdatakey using keyspec code %d cmk, keyspec code %d ukey failed, error message: %s \n", cmk_keyspec_test[i], ukey_keyspec_test[j], retJsonObj.getMessage().c_str());
                 goto cleanup;
             }
             newdatakeyplaintext_base64 = retJsonObj.readData_cstr("plaintext");
-            printf("AsymmetricDecrypt newdatakey using %s ukey Json : %s\n", keyspec_str[ukey_keyspec_test[j]], returnJsonChar);
+            printf("AsymmetricDecrypt newdatakey using keyspec code %d ukey Json : %s\n", ukey_keyspec_test[j], returnJsonChar);
             printf("newdatakey_plaintext_base64 : %s\n", newdatakeyplaintext_base64);
-            printf("Asymmetric Decrypt newdatakey using %s ukey SUCCESSFULLY!\n", keyspec_str[ukey_keyspec_test[j]]);
+            printf("Asymmetric Decrypt newdatakey using keyspec code %d ukey SUCCESSFULLY!\n", ukey_keyspec_test[j]);
             if (strcmp(olddatakeyplaintext_base64, newdatakeyplaintext_base64) == 0)
             {
-                printf("ExportDataKey with %s cmk, %s ukey SUCCESSFULLY.\n", keyspec_str[cmk_keyspec_test[i]], keyspec_str[ukey_keyspec_test[j]]);
+                printf("ExportDataKey with keyspec code %d cmk, keyspec code %d ukey SUCCESSFULLY.\n", cmk_keyspec_test[i], ukey_keyspec_test[j]);
             }
             else
             {
-                printf("ExportDataKey  with %s cmk, %s ukey failed. olddatakeyplaintext!=newdatakeyplaintext\n", keyspec_str[cmk_keyspec_test[i]], keyspec_str[ukey_keyspec_test[j]]);
+                printf("ExportDataKey  with keyspec code %d cmk, keyspec code %d ukey failed. olddatakeyplaintext!=newdatakeyplaintext\n", cmk_keyspec_test[i], ukey_keyspec_test[j]);
             }
             SAFE_FREE(ukey_base64);
             SAFE_FREE(newdatakey_base64);
@@ -2136,23 +1868,9 @@ int main(int argc, char *argv[])
     }
     printf("Initialize done\n");
 
-    //     printf("%s", NAPI_GetVersion());
+    test_AES_SM_encrypt_decrypt();
 
-    // #if ENABLE_PERFORMANCE_TEST
-    //     test_performance();
-    // #endif
-
-    test_AES();
-
-    // test_AES192();
-
-    // test_AES256();
-
-    // test_SM4_CTR();
-
-    // test_SM4_CBC();
-
-    // test_RSA3072_encrypt_decrypt();
+    test_RSA_encrypt_decrypt();
 
     // test_RSA2048_sign_verify();
 
@@ -2164,7 +1882,7 @@ int main(int argc, char *argv[])
 
     // test_ec_p256_sign_verify();
 
-    // test_SM2_encrypt_decrypt();
+    test_SM2_encrypt_decrypt();
 
     // test_generate_AES_datakey();
 
@@ -2178,7 +1896,7 @@ int main(int argc, char *argv[])
 
     Finalize();
 
-    printf("All of tests done\n");
+    printf("All of tests done. %d/%d success\n", success_number, case_number);
 
     return ret;
 }

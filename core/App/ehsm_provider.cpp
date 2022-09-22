@@ -527,22 +527,6 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
         printf("Error data len for rsa encryption.\n");
         return EH_ARGUMENTS_BAD;
     }
-    /* calculate the ciphertext length  */
-    if (ciphertext->datalen == 0)
-    {
-        ret = enclave_asymmetric_encrypt(g_enclave_id,
-                                         &sgxStatus,
-                                         cmk,
-                                         APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen),
-                                         plaintext,
-                                         APPEND_SIZE_TO_DATA_T(plaintext->datalen),
-                                         ciphertext,
-                                         APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
-        if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-            return EH_FUNCTION_FAILED;
-        else
-            return EH_OK;
-    }
     ret = enclave_asymmetric_encrypt(g_enclave_id,
                                      &sgxStatus,
                                      cmk,
@@ -577,30 +561,6 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
         cmk->metadata.keyspec != EH_SM2)
     {
         return EH_KEYSPEC_INVALID;
-    }
-
-    // if (ciphertext->data == NULL || ciphertext->datalen == 0 ||
-    //     ciphertext->datalen > RSA_OAEP_3072_CIPHER_LENGTH)
-    // {
-    //     return EH_ARGUMENTS_BAD;
-    // }
-    /* calculate the ciphertext length */
-    if (plaintext->datalen == 0)
-    {
-        ret = enclave_asymmetric_decrypt(g_enclave_id,
-                                         &sgxStatus,
-                                         cmk,
-                                         APPEND_SIZE_TO_KEYBOB_T(cmk->keybloblen),
-                                         ciphertext,
-                                         APPEND_SIZE_TO_DATA_T(ciphertext->datalen),
-                                         plaintext,
-                                         APPEND_SIZE_TO_DATA_T(plaintext->datalen));
-        return EH_OK;
-    }
-    /* check if the datalen is valid */
-    if (plaintext->data == NULL || plaintext->datalen == 0)
-    {
-        return EH_ARGUMENTS_BAD;
     }
     ret = enclave_asymmetric_decrypt(g_enclave_id,
                                      &sgxStatus,
