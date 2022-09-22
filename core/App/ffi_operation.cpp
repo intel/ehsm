@@ -765,8 +765,7 @@ extern "C"
             message: string,
             result: {
                 cmk_base64 : string,
-                digest_base64 : string,
-                userid_base64 : string
+                digest_base64 : string
             }
         }
     *
@@ -789,9 +788,8 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *digest_data = NULL;
-        ehsm_data_t *userid_data = NULL;
         ehsm_data_t *signature = NULL;
-        ret = unmarshal_sign_data_from_json(payloadJson, &cmk, &digest_data, &userid_data, &signature);
+        ret = unmarshal_sign_data_from_json(payloadJson, &cmk, &digest_data, &signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -799,7 +797,7 @@ extern "C"
             goto out;
         }
 
-        ret = Sign(cmk, digest_data, userid_data, signature);
+        ret = Sign(cmk, digest_data, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -816,7 +814,7 @@ extern "C"
         }
 
         // sign
-        ret = Sign(cmk, digest_data, userid_data, signature);
+        ret = Sign(cmk, digest_data, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -836,7 +834,6 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
         SAFE_FREE(digest_data);
-        SAFE_FREE(userid_data);
         return retJsonObj.toChar();
     }
 
@@ -852,7 +849,6 @@ extern "C"
                 cmk_base64 : string,
                 digest_base64 : string,
                 signature_base64 ： string
-                userid_base64 : string
             }
         }
     *
@@ -875,10 +871,9 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *digest_data = NULL;
-        ehsm_data_t *userid_data = NULL;
         ehsm_data_t *signature_data = NULL;
         bool result = false;
-        ret = unmarshal_verify_data_from_json(payloadJson, &cmk, &digest_data, &userid_data, &signature_data);
+        ret = unmarshal_verify_data_from_json(payloadJson, &cmk, &digest_data, &signature_data);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -887,7 +882,7 @@ extern "C"
         }
 
         // verify sign
-        ret = Verify(cmk, digest_data, userid_data, signature_data, &result);
+        ret = Verify(cmk, digest_data, signature_data, &result);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -900,7 +895,6 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(signature_data);
         SAFE_FREE(digest_data);
-        SAFE_FREE(userid_data);
         return retJsonObj.toChar();
     }
 

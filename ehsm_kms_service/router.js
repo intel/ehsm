@@ -164,17 +164,17 @@ const router = async (p) => {
       break
     case KMS_ACTION.cryptographic.Sign:
       try {
-        const { keyid, digest, userid = '' } = payload
+        const { keyid, digest } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, { cmk: cmk_base64, digest, userid })
+        napi_res = napi_result(action, res, { cmk: cmk_base64, digest })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
     case KMS_ACTION.cryptographic.Verify:
       try {
-        const { keyid, digest, signature, userid = '' } = payload
+        const { keyid, digest, signature } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, { cmk: cmk_base64, digest, signature, userid })
+        napi_res = napi_result(action, res, { cmk: cmk_base64, digest, signature })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break

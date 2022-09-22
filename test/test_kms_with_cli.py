@@ -74,10 +74,10 @@ def test_Stest_sign_verify(base_url, headers):
     
     for i in asymmetricKey:
         # test Sign
-        signature = sign.sign(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), None)
+        signature = sign.sign(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'))
 
         # test Verify
-        verify.verify(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature, None)
+        verify.verify(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature)
 
     print('====================test_Stest_sign_verify end===========================')
 
@@ -87,10 +87,10 @@ def test_Stest_SM2_sign_verify(base_url, headers):
     userid = str(base64.b64encode(appid.encode("utf-8")),'utf-8')
 
     # test Sign
-    signature = sign.sign(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'), userid)
+    signature = sign.sign(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'))
 
     # test Verify
-    verify.verify(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature, userid)
+    verify.verify(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature)
 
     print('====================test_Stest_SM2_sign_verify end===========================')
 

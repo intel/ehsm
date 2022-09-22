@@ -1,3 +1,4 @@
+from signal import sigwaitinfo
 import requests
 import json
 import argparse
@@ -17,18 +18,15 @@ def get_args():
     parser.add_argument('--keyid', type=str, help='the keyid of asymmetric cmk', required=True)
     parser.add_argument('--digest', type=str, help='the digest data', required=True)
     parser.add_argument('--sig', type=str, help='the signature of the digest to be verified', required=True)
-    parser.add_argument('--userid', type=str, help='the userid to be signed')
     args = parser.parse_args()
 
     base_url = args.url + "/ehsm?Action="
-    return base_url, args.keyid, args.digest, args.sig, args.userid
+    return base_url, args.keyid, args.digest, args.sig
 
-def verify(base_url, keyid, digest, sig, userid):
+def verify(base_url, keyid, digest, sig):
     print('verify data with an signature')
 
     payload = OrderedDict()
-    if userid != None:
-        payload["userid"] = userid
     payload["digest"] = digest
     payload["keyid"] = keyid
     payload["signature"] = sig
@@ -43,7 +41,7 @@ def verify(base_url, keyid, digest, sig, userid):
 if __name__ == "__main__":
     headers = _utils_.headers
 
-    base_url, keyid, digest, sig, userid = get_args()
+    base_url, keyid, digest, sig = get_args()
 
-    verify(base_url, keyid, digest, sig, userid)
+    verify(base_url, keyid, digest, sigwaitinfo)
 

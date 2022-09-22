@@ -1345,6 +1345,12 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
             break;
         }
 
+        if (signature->datalen == 0) 
+        {
+            signature->datalen = RSA_size(rsa_prikey);
+            break;
+        }
+
         evpkey = EVP_PKEY_new();
         if (evpkey == NULL)
         {
@@ -1637,6 +1643,13 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
             printf("failed to load ecc key\n");
             break;
         }
+
+        if (signature->datalen == 0) 
+        {
+            signature->datalen = ECDSA_size(ec_key);
+            break;
+        }
+
         evpkey = EVP_PKEY_new();
         if (evpkey == NULL)
         {
@@ -1845,15 +1858,17 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
  */
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
-                           const ehsm_data_t *userid,
                            ehsm_data_t *signature)
 {
     sgx_status_t ret = SGX_SUCCESS;
 
-    uint8_t *ec_keypair = NULL;
-    BIO *bio = NULL;
-    EVP_PKEY *evpkey = NULL;
-    EVP_MD_CTX *mdctx = NULL;
+    //set sm2 id and id len
+    unsigned char sm2_user_id[] = "1234567812345678";
+    unsigned int sm2_user_id_len = sizeof(sm2_user_id)-1;
+    uint8_t *ec_keypair    = NULL;
+    BIO *bio               = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;
     EC_KEY *ec_key = NULL;
 
@@ -1878,6 +1893,13 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
             printf("failed to load ec key\n");
             break;
         }
+
+        if (signature->datalen == 0) 
+        {
+            signature->datalen = ECDSA_size(ec_key);
+            break;
+        }
+        
         evpkey = EVP_PKEY_new();
         if (evpkey == NULL)
         {
@@ -1928,7 +1950,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
             ret = SGX_ERROR_UNEXPECTED;
             break;
         }
-        if (EVP_PKEY_CTX_set1_id(pkey_ctx, userid->data, userid->datalen) != 1)
+        if (EVP_PKEY_CTX_set1_id(pkey_ctx, sm2_user_id, sm2_user_id_len) != 1)
         {
             printf("ecall sm2_sign fail to set sm2_user_id to the EVP_PKEY_CTX\n");
             ret = SGX_ERROR_UNEXPECTED;
@@ -1989,17 +2011,18 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
  */
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
-                             const ehsm_data_t *userid,
                              const ehsm_data_t *signature,
                              bool *result)
 {
     sgx_status_t ret = SGX_SUCCESS;
 
-    uint8_t *ec_keypair = NULL;
-    BIO *bio = NULL;
-    EC_KEY *ec_key = NULL;
-    EVP_PKEY *evpkey = NULL;
-    EVP_MD_CTX *mdctx = NULL;
+    unsigned char sm2_user_id[] = "1234567812345678";
+    unsigned int sm2_user_id_len = sizeof(sm2_user_id)-1;
+    uint8_t *ec_keypair    = NULL;
+    BIO *bio               = NULL;
+    EC_KEY *ec_key         = NULL;
+    EVP_PKEY *evpkey       = NULL;
+    EVP_MD_CTX *mdctx      = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;
 
     do
@@ -2074,7 +2097,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
             break;
         }
         // set sm2 id and len to pkeyctx
-        if (EVP_PKEY_CTX_set1_id(pkey_ctx, userid->data, userid->datalen) != 1)
+        if (EVP_PKEY_CTX_set1_id(pkey_ctx, sm2_user_id, sm2_user_id_len) != 1)
         {
             printf("ecall sm2_verify fail to set sm2_user_id to the EVP_PKEY_CTX\n");
             ret = SGX_ERROR_UNEXPECTED;
