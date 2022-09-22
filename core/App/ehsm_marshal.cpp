@@ -381,7 +381,7 @@ ehsm_status_t marshal_single_data_to_json(void *data, RetJsonObj &retJsonObj, st
     uint32_t data_size = 0;
     if (key == "cmk")
     {
-        data_size = APPEND_SIZE_TO_KEYBOB_T(((ehsm_keyblob_t *)data)->keybloblen);
+        data_size = APPEND_SIZE_TO_KEYBLOB_T(((ehsm_keyblob_t *)data)->keybloblen);
         data_base64 = base64_encode((uint8_t *)data, data_size);
     }
     else
@@ -924,7 +924,7 @@ ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_
     else
     {
         memcpy_s((*cmk), cmk_size, (uint8_t *)cmk_str.data(), cmk_size);
-        if (APPEND_SIZE_TO_KEYBOB_T((*cmk)->keybloblen) != cmk_size)
+        if (APPEND_SIZE_TO_KEYBLOB_T((*cmk)->keybloblen) != cmk_size)
         {
             printf("cmk parse exception.\n");
             return EH_KEYSPEC_INVALID;
@@ -939,7 +939,7 @@ ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_
     else
     {
         memcpy_s((*ukey), ukey_size, (uint8_t *)ukey_str.data(), ukey_size);
-        if (APPEND_SIZE_TO_KEYBOB_T((*ukey)->keybloblen) != ukey_size)
+        if (APPEND_SIZE_TO_KEYBLOB_T((*ukey)->keybloblen) != ukey_size)
         {
             printf("ukey parse exception.\n");
             return EH_KEYSPEC_INVALID;

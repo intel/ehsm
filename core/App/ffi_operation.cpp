@@ -132,7 +132,7 @@ extern "C"
             goto out;
         }
 
-        master_key = (ehsm_keyblob_t *)realloc(master_key, APPEND_SIZE_TO_KEYBOB_T(master_key->keybloblen));
+        master_key = (ehsm_keyblob_t *)realloc(master_key, APPEND_SIZE_TO_KEYBLOB_T(master_key->keybloblen));
         if (master_key == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);

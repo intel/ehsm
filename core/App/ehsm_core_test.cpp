@@ -808,7 +808,7 @@ void test_SM2_encrypt_decrypt()
 
         if (retJsonObj.getCode() != 200)
         {
-            printf("Createkey with rsa failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("Createkey with sm2 failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         printf("FFI_CreateKey Json = %s\n", returnJsonChar);

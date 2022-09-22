@@ -182,7 +182,7 @@ uint32_t ehsm_get_symmetric_key_size(ehsm_keyspec_t key_spec)
 /**
  * @brief generate aes_gcm key with openssl api
  * @param cmk_blob storage key information
- * @param APPEND_SIZE_TO_KEYBOB_T the size of cmk_blob
+ * @param APPEND_SIZE_TO_KEYBLOB_T the size of cmk_blob
  * @param req_blob_size the gcm data size
  * @param keyspec key type, refer to [ehsm_keyspec_t]
  * @return sgx_status_t

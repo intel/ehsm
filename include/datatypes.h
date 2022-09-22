@@ -49,7 +49,7 @@
 #define DATATYPES_H_
 
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
-#define APPEND_SIZE_TO_KEYBOB_T(x)    (sizeof(ehsm_keyblob_t) + x*sizeof(uint8_t))
+#define APPEND_SIZE_TO_KEYBLOB_T(x)    (sizeof(ehsm_keyblob_t) + x*sizeof(uint8_t))
 #define APPEND_SIZE_TO_DATA_T(x)    (sizeof(ehsm_data_t) + x*sizeof(uint8_t))
 
 #define _T(x) x
