@@ -99,7 +99,7 @@ static const EVP_CIPHER *ehsm_get_symmetric_block_mode(ehsm_keyspec_t keyspec)
  * @param digestMode use the digestMode passed in by cmk to get the struct for key
  * @return const EVP_MD* (openssl callback, tempoary)
  */
-const EVP_MD *GetDigestMode(ehsm_digest_mode_t digestMode)
+static const EVP_MD *GetDigestMode(ehsm_digest_mode_t digestMode)
 {
     switch (digestMode)
     {
@@ -126,7 +126,7 @@ const EVP_MD *GetDigestMode(ehsm_digest_mode_t digestMode)
  * @param evpkey EVP_PKEY created by the context
  * @return [false] unsupported padding mode/ [true] supported padding mode
  */
-bool verifyPaddingMode(uint8_t paddingMode, const EVP_MD *digestMode, EVP_PKEY *evpkey)
+static bool verifyPaddingMode(uint8_t paddingMode, const EVP_MD *digestMode, EVP_PKEY *evpkey)
 {
     switch (paddingMode)
     {
@@ -204,6 +204,10 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     uint8_t *iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
     uint8_t *mac = (uint8_t *)(cipherblob->data + plaintext->datalen + SGX_AESGCM_IV_SIZE);
     uint8_t *enc_key = (uint8_t *)malloc(keysize);
+    if (enc_key == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
 
     const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
@@ -365,6 +369,10 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
     uint8_t *iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
     uint8_t *mac = (uint8_t *)(cipherblob->data + plaintext->datalen + SGX_AESGCM_IV_SIZE);
     uint8_t *dec_key = (uint8_t *)malloc(keysize);
+    if (dec_key == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
 
     const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
@@ -505,6 +513,10 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
 
     uint8_t *iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
     uint8_t *enc_key = (uint8_t *)malloc(keysize);
+    if (enc_key == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
 
     const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
@@ -624,6 +636,10 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
 
     uint8_t *iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
     uint8_t *dec_key = (uint8_t *)malloc(keysize);
+    if (dec_key == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
 
     const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
@@ -760,6 +776,10 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_UNEXPECTED;
     }
     uint8_t *enc_key = (uint8_t *)malloc(keysize);
+    if (enc_key == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
 
     const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
@@ -890,6 +910,10 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
 
     uint8_t *iv = (uint8_t *)(cipherblob->data + cipherblob->datalen - SGX_SM4_IV_SIZE);
     uint8_t *dec_key = (uint8_t *)malloc(keysize);
+    if (dec_key == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
 
     const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
@@ -966,10 +990,19 @@ out:
 }
 
 sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
-                              ehsm_data_t *plaintext,
+                              const ehsm_data_t *plaintext,
                               ehsm_data_t *ciphertext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || ciphertext == NULL || plaintext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (plaintext->datalen == 0 || plaintext->data == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
@@ -1026,10 +1059,19 @@ out:
 }
 
 sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
-                              ehsm_data_t *plaintext,
+                              const ehsm_data_t *plaintext,
                               ehsm_data_t *ciphertext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || ciphertext == NULL || plaintext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (plaintext->datalen == 0 || plaintext->data == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     uint8_t *sm2_keypair = NULL;
     BIO *bio = NULL;
@@ -1124,10 +1166,19 @@ out:
 }
 
 sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
-                              ehsm_data_t *ciphertext,
+                              const ehsm_data_t *ciphertext,
                               ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || ciphertext == NULL || plaintext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (ciphertext->datalen == 0 || ciphertext->data == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
@@ -1185,10 +1236,19 @@ out:
 }
 
 sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
-                              ehsm_data_t *ciphertext,
+                              const ehsm_data_t *ciphertext,
                               ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL || ciphertext == NULL || plaintext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (ciphertext->datalen == 0 || ciphertext->data == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     uint8_t *sm2_keypair = NULL;
     BIO *bio = NULL;
