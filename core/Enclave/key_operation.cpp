@@ -174,10 +174,11 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
-    if (keysize == 0)
+
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
     {
-        return SGX_ERROR_INVALID_PARAMETER;
+        return SGX_ERROR_UNEXPECTED;
     }
 
     /* calculate the ciphertext length */
@@ -186,10 +187,6 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
         cipherblob->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
         return SGX_SUCCESS;
     }
-
-    uint32_t real_APPEND_SIZE_TO_KEYBLOB_T = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
-    if (-1 == real_APPEND_SIZE_TO_KEYBLOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBLOB_T)
-        return SGX_ERROR_INVALID_PARAMETER;
 
     uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (enc_key_size == UINT32_MAX || enc_key_size != keysize)
@@ -342,15 +339,10 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
         return SGX_SUCCESS;
     }
 
-    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
-    if (keysize == 0)
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
     {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    uint32_t real_APPEND_SIZE_TO_KEYBLOB_T = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
-    if (-1 == real_APPEND_SIZE_TO_KEYBLOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBLOB_T)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
+        return SGX_ERROR_UNEXPECTED;
     }
 
     uint32_t dec_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
@@ -486,10 +478,10 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
-    if (keysize == 0)
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
     {
-        return SGX_ERROR_INVALID_PARAMETER;
+        return SGX_ERROR_UNEXPECTED;
     }
     /* calculate the ciphertext length */
     if (cipherblob->datalen == 0)
@@ -497,10 +489,6 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
         cipherblob->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
         return SGX_SUCCESS;
     }
-
-    uint32_t real_APPEND_SIZE_TO_KEYBLOB_T = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
-    if (-1 == real_APPEND_SIZE_TO_KEYBLOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBLOB_T)
-        return SGX_ERROR_INVALID_PARAMETER;
 
     uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (enc_key_size == UINT32_MAX || enc_key_size != keysize)
@@ -611,15 +599,10 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
         return SGX_SUCCESS;
     }
 
-    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
-    if (keysize == 0)
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
     {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    uint32_t real_APPEND_SIZE_TO_KEYBLOB_T = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
-    if (-1 == real_APPEND_SIZE_TO_KEYBLOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBLOB_T)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
+        return SGX_ERROR_UNEXPECTED;
     }
 
     uint32_t dec_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
@@ -725,10 +708,10 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_INVALID_PARAMETER;
     }
     
-    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
-    if (keysize == 0)
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
     {
-        return SGX_ERROR_INVALID_PARAMETER;
+        return SGX_ERROR_UNEXPECTED;
     }
 
     /* calculate the ciphertext length */
@@ -742,10 +725,6 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         cipherblob->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
         return SGX_SUCCESS;
     }
-
-    uint32_t real_APPEND_SIZE_TO_KEYBLOB_T = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
-    if (-1 == real_APPEND_SIZE_TO_KEYBLOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBLOB_T)
-        return SGX_ERROR_INVALID_PARAMETER;
 
     uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (enc_key_size == UINT32_MAX || enc_key_size != keysize)
@@ -886,15 +865,10 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
         return SGX_SUCCESS;
     }
 
-    uint32_t keysize = ehsm_get_symmetric_key_size(cmk->metadata.keyspec);
-    if (keysize == 0)
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
     {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    uint32_t real_APPEND_SIZE_TO_KEYBLOB_T = ehsm_calc_keyblob_size(cmk->metadata.keyspec);
-    if (-1 == real_APPEND_SIZE_TO_KEYBLOB_T || cmk->keybloblen < real_APPEND_SIZE_TO_KEYBLOB_T)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
+        return SGX_ERROR_UNEXPECTED;
     }
 
     uint32_t dec_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);

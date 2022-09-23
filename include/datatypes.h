@@ -81,10 +81,6 @@ typedef int errno_t;
 
 #define SGX_DOMAIN_KEY_SIZE     16
 
-#define RSA_OAEP_2048_CIPHER_LENGTH       256
-#define RSA_OAEP_3072_CIPHER_LENGTH       384
-#define RSA_OAEP_4096_CIPHER_LENGTH       512
-
 #define RSA_OAEP_4096_SIGNATURE_SIZE      512
 #define RSA_OAEP_3072_SIGNATURE_SIZE      384
 #define RSA_OAEP_2048_SIGNATURE_SIZE      256
@@ -93,10 +89,6 @@ typedef int errno_t;
 #define EC_SM2_SIGNATURE_MAX_SIZE         72
 
 #define RSA_OAEP_4096_DIGEST_SIZE         264
-#define EC_MAX_DIGEST_SIZE                264
-
-#define RSA_PKCS1_OAEP_PADDING_SIZE       41
-#define RSA_PKCS1_PADDING_SIZE            11
 
 #define EH_AES_GCM_IV_SIZE  12
 #define EH_AES_GCM_MAC_SIZE 16
@@ -121,19 +113,6 @@ typedef int errno_t;
 #define RSA_2048_KEY_BITS   2048
 #define RSA_3072_KEY_BITS   3072
 #define RSA_4096_KEY_BITS   4096
-
-#define RSA_2048_PUBLIC_KEY_PEM_SIZE    426
-#define RSA_2048_PRIVATE_KEY_PEM_SIZE    1679
-
-#define RSA_3072_PUBLIC_KEY_PEM_SIZE    625
-#define RSA_3072_PRIVATE_KEY_PEM_SIZE    2484
-
-#define RSA_4096_PUBLIC_KEY_PEM_SIZE    775
-#define RSA_4096_PRIVATE_KEY_PEM_SIZE    3247
-
-#define ECC_PUBLIC_KEY_PEM_SIZE     178
-#define ECC_PRIVATE_KEY_PEM_SIZE    227
-#define ECC_MAX_PLAINTEXT_SIZE      256
 
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
