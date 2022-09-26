@@ -2,7 +2,11 @@ const express = require('express')
 const { ehsm_action_t } = require('./constant')
 const https = require('https')
 const fs = require('fs')
-const openssl = require('openssl-nodejs')
+
+const cert = {
+  key: fs.readFileSync('./ssl_key/privatekey.pem', 'utf8'),
+  cert: fs.readFileSync('./ssl_key/certificate.crt', 'utf8')
+}
 const ehsm_napi = require('./ehsm_napi')
 const {
     getIPAdress,
@@ -73,29 +77,9 @@ const server = (DB) => {
         process.exit(0)
     })
 
-    // process open ssl
-    try {
-        if (fs.existsSync('./openssl/privatekey.pem') && fs.existsSync('./openssl/certificate.crt')) {
-            createHttpsServer();
-        } else {
-            // create certrequest.csr, privatekey.pem, certificate.crt of server
-            openssl(['req', '-config', './openssl/csr.conf', '-out', 'certrequest.csr', '-new', '-newkey', 'rsa:3072', '-nodes', '-keyout', 'privatekey.pem'], function (err, buffer) {
-                openssl(['x509', '-days', '365', '-req', '-in', 'certrequest.csr', '-signkey', 'privatekey.pem', '-out', 'certificate.crt'], function (err, buffer) {
-                    createHttpsServer();
-                })
-            })
-        }
-    } catch (e) {
-        console.log('Exception :: service Initialize exception!')
-        process.exit(0)
-    }
-}
+  console.log(`ehsm_ksm_service application listening at ${getIPAdress()} with https port: ${HTTPS_PORT}`)
+  https.createServer(cert, app).listen(HTTPS_PORT);
 
-const createHttpsServer = () => {
-    const ehsm_openssl_key = fs.readFileSync('./openssl/privatekey.pem', 'utf8')
-    const ehsm_openssl_cert = fs.readFileSync('./openssl/certificate.crt', 'utf8')
-    https.createServer({ key: ehsm_openssl_key, cert: ehsm_openssl_cert }, app).listen(HTTPS_PORT)
-    console.log(`ehsm_ksm_service application listening at ${getIPAdress()} with https port: ${HTTPS_PORT}`)
 }
 
 connectDB(server)

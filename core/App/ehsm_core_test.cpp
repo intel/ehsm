@@ -1732,21 +1732,21 @@ int main(int argc, char *argv[])
 
     test_RSA_encrypt_decrypt();
 
-    // test_RSA_sign_verify();
+    test_RSA_sign_verify();
 
-    // test_sm2_sign_verify();
+    test_sm2_sign_verify();
 
-    // test_ec_p256_sign_verify();
+    test_ec_p256_sign_verify();
 
     test_SM2_encrypt_decrypt();
 
-    // test_generate_AES_datakey();
+    test_generate_AES_datakey();
 
-    // test_generate_SM4_datakey();
+    test_generate_SM4_datakey();
 
-    // test_export_datakey();
+    test_export_datakey();
 
-    // test_GenerateQuote_and_VerifyQuote();
+    test_GenerateQuote_and_VerifyQuote();
 
     test_Enroll();
 
