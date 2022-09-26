@@ -195,7 +195,7 @@ char *EHSM_FFI_CALL(const char *paramJson)
         return retJsonObj.toChar();
     }
 
-    action = paramJsonObj.readData_uint16("action");
+    action = paramJsonObj.readData_uint32("action");
     payloadJson.setJson(paramJsonObj.readData_JsonValue("payload"));
     switch (action)
     {
