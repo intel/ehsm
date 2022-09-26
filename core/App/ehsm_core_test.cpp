@@ -591,10 +591,11 @@ int success_number = 0;
 // step3. decrypt the cipher text by CMK correctly
 
 // */
-void test_AES_SM_encrypt_decrypt()
+void test_symmertric_encrypt_decrypt()
 {
     printf("============test_AES_SM_encrypt_decrypt start==========\n");
-    std::string plaintext[] = {"Test1234-AES128", "Test1234-AES192", "Test1234-AES256", "Test1234-SM4-CTR", "Test1234-SM4-CBC"};
+    std::string plaintext[] = {"Test1234-AES128", "Test1234-AES192",
+                               "Test1234-AES256", "Test1234-SM4-CTR", "Test1234-SM4-CBC"};
     uint32_t keyspec[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256, EH_SM4_CTR, EH_SM4_CBC};
 
     case_number += sizeof(plaintext) / sizeof(plaintext[0]);
@@ -910,7 +911,7 @@ void test_RSA_sign_verify()
 
         std::string input_digest_base64 = base64_encode((const uint8_t *)digest, sizeof(digest) / sizeof(digest[0]));
 
-        payload_json.addData_uint32("keyspec",  keyspec[i]);
+        payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
         payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_PSS);
         payload_json.addData_uint32("digest_mode", EH_SHA_2_256);
@@ -987,7 +988,7 @@ step3. Verify the signature
 */
 void test_ec_p256_sign_verify()
 {
-    case_number ++;
+    case_number++;
     ehsm_status_t ret = EH_OK;
     char *returnJsonChar = nullptr;
     char digest[] = "SIGN";
@@ -1055,10 +1056,10 @@ void test_ec_p256_sign_verify()
     result = retJsonObj.readData_bool("result");
     printf("Verify result : %s\n", result ? "true" : "false");
     if (result == true)
-        {
-            success_number++;
-            printf("Verify signature SUCCESSFULLY!\n");
-        }
+    {
+        success_number++;
+        printf("Verify signature SUCCESSFULLY!\n");
+    }
 
 cleanup:
     SAFE_FREE(signature_base64);
@@ -1079,7 +1080,7 @@ step3. Verify the signature
 */
 void test_sm2_sign_verify()
 {
-    case_number ++;
+    case_number++;
     ehsm_status_t ret = EH_OK;
     char *returnJsonChar = nullptr;
     char digest[] = "SIGN";
@@ -1147,10 +1148,10 @@ void test_sm2_sign_verify()
     result = retJsonObj.readData_bool("result");
     printf("Verify result : %s\n", result ? "true" : "false");
     if (result == true)
-        {
-            success_number++;
-            printf("Verify signature SUCCESSFULLY!\n");
-        }
+    {
+        success_number++;
+        printf("Verify signature SUCCESSFULLY!\n");
+    }
 
 cleanup:
     SAFE_FREE(signature_base64);
@@ -1727,7 +1728,7 @@ int main(int argc, char *argv[])
     }
     printf("Initialize done\n");
 
-    test_AES_SM_encrypt_decrypt();
+    test_symmertric_encrypt_decrypt();
 
     test_RSA_encrypt_decrypt();
 

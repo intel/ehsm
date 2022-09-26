@@ -66,12 +66,12 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY)
+    if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -114,6 +114,11 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -124,13 +129,8 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
     /* only support to directly encrypt data of less than 6 KB */
-    if (plaintext->data == NULL || plaintext->datalen == 0 ||
+    if (plaintext->datalen == 0 ||
         plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -179,7 +179,7 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (ciphertext->data == NULL || ciphertext->datalen == 0)
+    if (ciphertext->datalen == 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -563,7 +563,7 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
         ret = SGX_ERROR_INVALID_PARAMETER;
         goto out;
     }
-    if (cmk->keyblob == NULL || ukey->keyblob == NULL || olddatakey->data == NULL || newdatakey->data == NULL)
+    if (cmk->keyblob == NULL || ukey->keyblob == NULL)
     {
         ret = SGX_ERROR_INVALID_PARAMETER;
         goto out;

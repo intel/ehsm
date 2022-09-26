@@ -206,7 +206,7 @@ extern "C"
             goto out;
         }
         cipher_data = (ehsm_data_t *)realloc(cipher_data, APPEND_SIZE_TO_DATA_T(cipher_data->datalen));
-        if (cipher_data->data == NULL)
+        if (cipher_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -286,7 +286,7 @@ extern "C"
         }
 
         plaint_data = (ehsm_data_t *)realloc(plaint_data, plaint_data->datalen);
-        if (plaint_data->data == NULL)
+        if (plaint_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -369,7 +369,7 @@ extern "C"
         }
 
         cipher_data = (ehsm_data_t *)realloc(cipher_data, APPEND_SIZE_TO_DATA_T(cipher_data->datalen));
-        if (cipher_data->data == NULL)
+        if (cipher_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -444,7 +444,7 @@ extern "C"
         }
 
         plaint_data = (ehsm_data_t *)realloc(plaint_data, APPEND_SIZE_TO_DATA_T(plaint_data->datalen));
-        if (plaint_data->data == NULL)
+        if (plaint_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -522,7 +522,7 @@ extern "C"
         }
 
         cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, APPEND_SIZE_TO_DATA_T(cipher_datakey->datalen));
-        if (cipher_datakey->data == NULL)
+        if (cipher_datakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -608,7 +608,7 @@ extern "C"
         }
 
         cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, APPEND_SIZE_TO_DATA_T(cipher_datakey->datalen));
-        if (cipher_datakey->data == NULL)
+        if (cipher_datakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -709,7 +709,7 @@ extern "C"
         }
 
         newdatakey = (ehsm_data_t *)realloc(newdatakey, APPEND_SIZE_TO_DATA_T(newdatakey->datalen));
-        if (newdatakey->data == NULL)
+        if (newdatakey == NULL)
         {
             ret = EH_DEVICE_MEMORY;
             goto out;
@@ -806,7 +806,7 @@ extern "C"
         }
 
         signature = (ehsm_data_t *)realloc(signature, APPEND_SIZE_TO_DATA_T(signature->datalen));
-        if (signature->data == NULL)
+        if (signature == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");

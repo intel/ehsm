@@ -674,7 +674,7 @@ ehsm_status_t unmarshal_asymmetric_encrypt_data_from_json(JsonObj payloadJson, e
     case EH_RSA_3072:
     case EH_RSA_4096:
     case EH_SM2:
-        plaintext_maxLen = get_asymmetric_encrypt_max_plaintext_size((*cmk)->metadata.keyspec, (*cmk)->metadata.padding_mode);
+        plaintext_maxLen = get_asymmetric_max_encrypt_plaintext_size((*cmk)->metadata.keyspec, (*cmk)->metadata.padding_mode);
         break;
     default:
         printf("The cmk's keyspec is invalid.\n");

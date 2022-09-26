@@ -69,7 +69,7 @@ sgx_status_t ehsm_calc_keyblob_size(const uint32_t keyspec, uint32_t &key_size)
         break;
     case EH_RSA_4096:
         key_size = PEM_BUFSIZE * 5 + sizeof(sgx_aes_gcm_data_ex_t);
-        break;        
+        break;
     case EH_EC_P224:
     case EH_SM2:
         key_size = PEM_BUFSIZE + sizeof(sgx_aes_gcm_data_ex_t);
@@ -103,13 +103,8 @@ uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
 
 // use the g_domain_key to encrypt the cmk and get it ciphertext
 sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaintext_size,
-                                 const uint8_t *aad, const uint32_t aad_size,
                                  sgx_aes_gcm_data_ex_t *keyblob_data)
 {
-    uint32_t real_aad_size = aad_size;
-    if (NULL == aad)
-        real_aad_size = 0;
-
     sgx_status_t ret = sgx_read_rand(keyblob_data->iv, sizeof(keyblob_data->iv));
     if (ret != SGX_SUCCESS)
     {
@@ -121,7 +116,7 @@ sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaint
                                      plaintext, plaintext_size,
                                      keyblob_data->payload,
                                      keyblob_data->iv, sizeof(keyblob_data->iv),
-                                     &(keyblob_data->payload[keyblob_data->ciphertext_size]), real_aad_size,
+                                     &(keyblob_data->payload[keyblob_data->ciphertext_size]), 0,
                                      reinterpret_cast<uint8_t(*)[16]>(keyblob_data->mac));
     if (SGX_SUCCESS != ret)
     {
@@ -130,7 +125,7 @@ sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaint
     else
     {
         keyblob_data->ciphertext_size = plaintext_size;
-        keyblob_data->aad_size = real_aad_size;
+        keyblob_data->aad_size = 0;
     }
 
     return ret;
@@ -226,8 +221,6 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
     }
     ret = ehsm_create_keyblob(key,
                               keysize,
-                              NULL,
-                              0,
                               (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
     memset_s(key, keysize, 0, keysize);
@@ -326,7 +319,7 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 
-    ret = ehsm_create_keyblob(pem_keypair, key_size, NULL, 0, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
     if (ret != SGX_SUCCESS)
     {
@@ -431,7 +424,7 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 
-    ret = ehsm_create_keyblob(pem_keypair, key_size, NULL, 0, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
     if (ret != SGX_SUCCESS)
     {
@@ -484,8 +477,6 @@ sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk)
     }
     ret = ehsm_create_keyblob(key,
                               keysize,
-                              NULL,
-                              0,
                               (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
     memset_s(key, keysize, 0, keysize);
@@ -554,7 +545,7 @@ sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
             return SGX_SUCCESS;
         }
     }
-    
+
     uint8_t *temp_datakey = NULL;
     temp_datakey = (uint8_t *)malloc(plaintext->datalen);
     if (temp_datakey == NULL)
