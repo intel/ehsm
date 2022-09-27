@@ -119,7 +119,7 @@ Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 
 Enclave_Config_File := Enclave/enclave_config/enclave_hsm.config.xml
 ######## NAPI Settings ########
-Napi_Cpp_Files := App/ehsm_napi.cpp
+Napi_Cpp_Files := App/ehsm_provider.cpp
 Napi_Include_Paths := \
 	-I$(SGX_SDK)/include \
 	-IInclude \
@@ -207,7 +207,7 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 	@echo "SIGN =>  $@"
 
 ######## NAPI Objects ########
-App/ehsm_napi.o: App/ehsm_napi.cpp
+App/ehsm_provider.o: App/ehsm_provider.cpp
 	@$(CXX) $(Napi_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 

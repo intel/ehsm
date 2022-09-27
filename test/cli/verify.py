@@ -1,3 +1,4 @@
+from signal import sigwaitinfo
 import requests
 import json
 import argparse
@@ -23,7 +24,7 @@ def get_args():
     return base_url, args.keyid, args.digest, args.sig
 
 def verify(base_url, keyid, digest, sig):
-    print('encrypt data with an asymmetric cmk')
+    print('verify data with an signature')
 
     payload = OrderedDict()
     payload["digest"] = digest
@@ -42,5 +43,5 @@ if __name__ == "__main__":
 
     base_url, keyid, digest, sig = get_args()
 
-    verify(base_url, keyid, digest, sig)
+    verify(base_url, keyid, digest, sigwaitinfo)
 

@@ -1,0 +1,1427 @@
+/*
+ * Copyright (C) 2021-2022 Intel Corporation
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *   3. Neither the name of Intel Corporation nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+#include <cstring>
+#include <uuid/uuid.h>
+
+#include "base64.h"
+#include "ffi_operation.h"
+#include "serialize.h"
+#include "log_utils.h"
+#include "datatypes.h"
+#include "ehsm_marshal.h"
+
+#include "sample_ra_msg.h"
+#include "sgx_dcap_ql_wrapper.h"
+
+#include "ehsm_marshal.h"
+#include "auto_version.h"
+
+#include "openssl/rsa.h"
+#include "ehsm_provider.h"
+
+using namespace std;
+// using namespace EHsmProvider;
+
+extern "C"
+{
+    /*
+    create the enclave
+    @return
+    [string] json string
+        {
+            code: int,
+            message: string,
+            result: {}
+        }
+    */
+    char *ffi_initialize()
+    {
+        log_i("Service name:\t\teHSM-KMS service %s", EHSM_VERSION);
+        log_i("Service built:\t\t%s", EHSM_DATE);
+        log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
+
+        RetJsonObj retJsonObj;
+        ehsm_status_t ret = EH_OK;
+
+        ret = Initialize();
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+        }
+        return retJsonObj.toChar();
+    }
+
+    /*
+    destory the enclave
+    */
+    char *ffi_finalize()
+    {
+        RetJsonObj retJsonObj;
+        ehsm_status_t ret = EH_OK;
+
+        ret = Finalize();
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+        }
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief Create key and save the parameters when using the key for encrypt, decrypt, sign and verify
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    keyspec : int,
+                    purpose : int,
+                    origin : int,
+                    padding_mode : int,
+                    digest_mode : int
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                cmk : a base64 string
+            }
+        }
+     */
+    char *ffi_createKey(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *master_key;
+        string cmk_base64;
+        ret = unmarshal_creatkey_data_from_json(payloadJson, &master_key);
+
+        // temporary
+        // ehsm_keyblob_t *master = (ehsm_keyblob_t*)unmarshal_data_from_json(payloadJson, "cmk");
+
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = CreateKey(master_key);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        master_key = (ehsm_keyblob_t *)realloc(master_key, APPEND_SIZE_TO_KEYBLOB_T(master_key->keybloblen));
+        if (master_key == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = CreateKey(master_key);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        ret = marshal_single_data_to_json(master_key, retJsonObj, "cmk");
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+    out:
+        SAFE_FREE(master_key);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief encrypt plaintext with specicied key
+     * this function is used for aes_gcm and sm4
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    plaintext : a base64 string,
+                    aad : a base64 string
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                ciphertext : a base64 string
+            }
+        }
+     */
+    char *ffi_encrypt(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *plaint_data = NULL;
+        ehsm_data_t *aad_data = NULL;
+        ehsm_data_t *cipher_data = NULL;
+        ehsm_status_t ret = EH_OK;
+        std::string cipherText_base64;
+
+        ret = unmarshal_encrypt_data_from_json(payloadJson, &cmk, &plaint_data, &aad_data, &cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = Encrypt(cmk, plaint_data, aad_data, cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        cipher_data = (ehsm_data_t *)realloc(cipher_data, APPEND_SIZE_TO_DATA_T(cipher_data->datalen));
+        if (cipher_data == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = Encrypt(cmk, plaint_data, aad_data, cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = marshal_single_data_to_json(cipher_data, retJsonObj, "ciphertext");
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(aad_data);
+        SAFE_FREE(plaint_data);
+        SAFE_FREE(cipher_data);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief decrypt ciphertext with specicied key
+     * this function is used for aes_gcm and sm4
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    ciphertext : a base64 string,
+                    aad : a base64 string
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                plaintext : a base64 string
+            }
+        }
+     */
+    char *ffi_decrypt(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        ehsm_status_t ret = EH_OK;
+        string plaintext_base64;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *plaint_data = NULL;
+        ehsm_data_t *aad_data = NULL;
+        ehsm_data_t *cipher_data = NULL;
+
+        ret = unmarshal_decrypt_data_from_json(payloadJson, &cmk, &plaint_data, &aad_data, &cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception");
+            goto out;
+        }
+
+        ret = Decrypt(cmk, cipher_data, aad_data, plaint_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception");
+            goto out;
+        }
+
+        plaint_data = (ehsm_data_t *)realloc(plaint_data, plaint_data->datalen);
+        if (plaint_data == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = Decrypt(cmk, cipher_data, aad_data, plaint_data);
+        if (ret != EH_OK)
+        {
+            if (ret == EH_FUNCTION_FAILED)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+                retJsonObj.setMessage("Decryption failed, Please confirm that your parameters are correct.");
+            }
+            else
+            {
+                retJsonObj.setCode(retJsonObj.CODE_FAILED);
+                retJsonObj.setMessage("Server exception.");
+            }
+            goto out;
+        }
+
+        ret = marshal_single_data_to_json(plaint_data, retJsonObj, "plaintext");
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception");
+            goto out;
+        }
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(aad_data);
+        SAFE_FREE(plaint_data);
+        SAFE_FREE(cipher_data);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief encrypt plaintext with specicied key
+     * this function is used for aes_gcm and sm4
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    plaintext : a base64 string
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                ciphertext : a base64 string
+            }
+        }
+     */
+    char *ffi_asymmetricEncrypt(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *plaint_data = NULL;
+        ehsm_data_t *cipher_data = NULL;
+
+        ret = unmarshal_asymmetric_encrypt_data_from_json(payloadJson, &cmk, &plaint_data, &cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        ret = AsymmetricEncrypt(cmk, plaint_data, cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        cipher_data = (ehsm_data_t *)realloc(cipher_data, APPEND_SIZE_TO_DATA_T(cipher_data->datalen));
+        if (cipher_data == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = AsymmetricEncrypt(cmk, plaint_data, cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = marshal_single_data_to_json(cipher_data, retJsonObj, "ciphertext");
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(plaint_data);
+        SAFE_FREE(cipher_data);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief decrypt ciphertext with specicied key
+     * this function is used for aes_gcm and sm4
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    ciphertext : a base64 string,
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                plaintext : a base64 string
+            }
+        }
+     */
+    char *ffi_asymmetricDecrypt(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *cipher_data = NULL;
+        ehsm_data_t *plaint_data = NULL;
+
+        ret = unmarshal_asymmetric_decrypt_data_from_json(payloadJson, &cmk,
+                                                          &plaint_data, &cipher_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        ret = AsymmetricDecrypt(cmk, cipher_data, plaint_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        plaint_data = (ehsm_data_t *)realloc(plaint_data, APPEND_SIZE_TO_DATA_T(plaint_data->datalen));
+        if (plaint_data == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = AsymmetricDecrypt(cmk, cipher_data, plaint_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        ret = marshal_single_data_to_json(plaint_data, retJsonObj, "plaintext");
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(plaint_data);
+        SAFE_FREE(cipher_data);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief generate key and encrypt with specicied function
+     * only support symmetric key
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    keylen : int,
+                    aad : a base64 string
+                }
+     *
+     * @return char* return value have key plaintext and ciphertext
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                plaintext : a base64 string,
+                ciphertext : a base64 string
+            }
+        }
+     */
+    char *ffi_generateDataKey(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *aad_data = NULL;
+        ehsm_data_t *plaint_datakey = NULL;
+        ehsm_data_t *cipher_datakey = NULL;
+
+        ret = unmarshal_generatedata_key_data_from_json(payloadJson, &cmk, &aad_data, &plaint_datakey, &cipher_datakey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = GenerateDataKey(cmk, aad_data, plaint_datakey, cipher_datakey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, APPEND_SIZE_TO_DATA_T(cipher_datakey->datalen));
+        if (cipher_datakey == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = GenerateDataKey(cmk, aad_data, plaint_datakey, cipher_datakey);
+        if (ret != EH_OK)
+        {
+            if (ret == EH_ARGUMENTS_BAD)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+                retJsonObj.setMessage("Failed, Please confirm that your parameters are correct.");
+            }
+            else
+            {
+                retJsonObj.setCode(retJsonObj.CODE_FAILED);
+                retJsonObj.setMessage("Server exception.");
+            }
+            goto out;
+        }
+
+        ret = marshal_multi_data_to_json(plaint_datakey, cipher_datakey, "plaintext", "ciphertext", retJsonObj);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(aad_data);
+        SAFE_FREE(plaint_datakey);
+        SAFE_FREE(cipher_datakey);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief generate key and encrypt with specicied function
+     * only support symmetric key
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk_base64 : a base64 string,
+                    keylen : int,
+                    aad_base64 : a base64 string
+                }
+     *
+     * @return char* return value have key plaintext and ciphertext
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                ciphertext : a base64 string
+            }
+        }
+     */
+    char *ffi_generateDataKeyWithoutPlaintext(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *aad_data = NULL;
+        ehsm_data_t *plaint_datakey = NULL;
+        ehsm_data_t *cipher_datakey = NULL;
+
+        ret = unmarshal_generatedata_key_data_from_json(payloadJson, &cmk, &aad_data, &plaint_datakey, &cipher_datakey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        ret = GenerateDataKeyWithoutPlaintext(cmk, aad_data, plaint_datakey, cipher_datakey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, APPEND_SIZE_TO_DATA_T(cipher_datakey->datalen));
+        if (cipher_datakey == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = GenerateDataKeyWithoutPlaintext(cmk, aad_data, plaint_datakey, cipher_datakey);
+        if (ret != EH_OK)
+        {
+            if (ret == EH_ARGUMENTS_BAD)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+                retJsonObj.setMessage("Failed, Please confirm that your parameters are correct.");
+            }
+            else
+            {
+                retJsonObj.setCode(retJsonObj.CODE_FAILED);
+                retJsonObj.setMessage("Server exception.");
+            }
+            goto out;
+        }
+
+        ret = marshal_single_data_to_json(cipher_datakey, retJsonObj, "ciphertext");
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(aad_data);
+        SAFE_FREE(plaint_datakey);
+        SAFE_FREE(cipher_datakey);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief pass in a key to decrypt the data key
+     * use after ffi_GenerateDataKeyWithoutPlaintext
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    ukey : a base64 string,
+                    aad : a base64 string,
+                    olddatakey : a base64 string
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                newdatakey : a base64 string
+            }
+        }
+     */
+    char *ffi_exportDataKey(JsonObj payloadJson)
+    {
+        ehsm_status_t ret = EH_OK;
+        RetJsonObj retJsonObj;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_keyblob_t *ukey = NULL;
+        ehsm_data_t *aad = NULL;
+        ehsm_data_t *olddatakey = NULL;
+        ehsm_data_t *newdatakey = NULL;
+
+        ret = unmarshal_exportdata_key_data_from_json(payloadJson, &cmk, &aad, &olddatakey, &ukey, &newdatakey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        ret = ExportDataKey(cmk, ukey, aad, olddatakey, newdatakey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            if (ret == EH_ARGUMENTS_BAD)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+                retJsonObj.setMessage("Failed, Please confirm that your parameters are correct.");
+            }
+            else if (ret == EH_KEYSPEC_INVALID)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+                retJsonObj.setMessage("key invalid.");
+            }
+            else
+            {
+                retJsonObj.setCode(retJsonObj.CODE_FAILED);
+                retJsonObj.setMessage("Server exception.");
+            }
+            goto out;
+        }
+
+        newdatakey = (ehsm_data_t *)realloc(newdatakey, APPEND_SIZE_TO_DATA_T(newdatakey->datalen));
+        if (newdatakey == NULL)
+        {
+            ret = EH_DEVICE_MEMORY;
+            goto out;
+        }
+        if (newdatakey->datalen == 0)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("Failed datakeylen unavailable.");
+        }
+        ret = ExportDataKey(cmk, ukey, aad, olddatakey, newdatakey);
+        if (ret != EH_OK)
+        {
+            if (ret == EH_ARGUMENTS_BAD)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+                retJsonObj.setMessage("Failed, Please confirm that your parameters are correct.");
+            }
+            else if (ret == EH_KEYSPEC_INVALID)
+            {
+                retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+                retJsonObj.setMessage("key invalid.");
+            }
+            else
+            {
+                retJsonObj.setCode(retJsonObj.CODE_FAILED);
+                retJsonObj.setMessage("Server exception.");
+            }
+            goto out;
+        }
+        ret = marshal_single_data_to_json(newdatakey, retJsonObj, "newdatakey");
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(ukey);
+        SAFE_FREE(aad);
+        SAFE_FREE(olddatakey);
+        SAFE_FREE(newdatakey);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief create key sign with rsa/ec/sm2
+     *
+     * @param paramJson Pass in the key parameter in the form of JSON string
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                cmk_base64 : string,
+                digest_base64 : string
+            }
+        }
+    *
+     *
+    *
+    * @return char*
+    * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                signature_base64 : string
+            }
+        }
+    */
+    char *ffi_sign(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *digest_data = NULL;
+        ehsm_data_t *signature = NULL;
+        ret = unmarshal_sign_data_from_json(payloadJson, &cmk, &digest_data, &signature);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = Sign(cmk, digest_data, signature);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        signature = (ehsm_data_t *)realloc(signature, APPEND_SIZE_TO_DATA_T(signature->datalen));
+        if (signature == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        // sign
+        ret = Sign(cmk, digest_data, signature);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = marshal_single_data_to_json(signature, retJsonObj, "signature");
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(signature);
+        SAFE_FREE(digest_data);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief verify key sign
+     *
+     * @param paramJson Pass in the key parameter in the form of JSON string
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                cmk_base64 : string,
+                digest_base64 : string,
+                signature_base64 ： string
+            }
+        }
+    *
+     *
+    *
+    * @return char*
+    * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                result : bool,
+            }
+        }
+    */
+    char *ffi_verify(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        ehsm_status_t ret = EH_OK;
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *digest_data = NULL;
+        ehsm_data_t *signature_data = NULL;
+        bool result = false;
+        ret = unmarshal_verify_data_from_json(payloadJson, &cmk, &digest_data, &signature_data);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        // verify sign
+        ret = Verify(cmk, digest_data, signature_data, &result);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        retJsonObj.addData_bool("result", result);
+
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(signature_data);
+        SAFE_FREE(digest_data);
+        return retJsonObj.toChar();
+    }
+
+    /*
+     *  @param p_msg0 : msg0 json string
+     *  @return
+     *  [string] json string
+     *      {
+     *          code: int,
+     *          message: string,
+     *          result: {
+     *              "challenge" : string,
+     *              "g_a" : Json::Value
+     *                  {
+     *                      gx : array(int),
+     *                      gy : array(int)
+     *                  }
+     *          }
+     *      }
+     */
+    char *ffi_RA_HANDSHAKE_MSG0(const char *p_msg0)
+    {
+        RetJsonObj retJsonObj;
+        //     log_d("***ffi_RA_HANDSHAKE_MSG0 start.");
+        //     if (p_msg0 == NULL)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        //         retJsonObj.setMessage("paramter invalid.");
+        //         return retJsonObj.toChar();
+        //     }
+        //     log_d("msg0: \n %s", p_msg0);
+
+        //     ehsm_status_t ret = EH_OK;
+        //     sgx_ra_msg1_t *p_msg1;
+        //     JsonObj msg0_json;
+
+        //     std::string json_key;
+
+        //     memset(&p_msg1, 0, sizeof(p_msg1));
+
+        //     std::string challenge;
+        //     if (p_msg0 != nullptr)
+        //     {
+        //         std::string response = p_msg0;
+        //         msg0_json.parse(response);
+        //         challenge = msg0_json.readData_string("challenge");
+        //     }
+        //     if (challenge.empty())
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        //         retJsonObj.setMessage("paramter invalid.");
+        //         goto out;
+        //     }
+
+        //     retJsonObj.addData_string("challenge", challenge);
+
+        //     p_msg1 = (sgx_ra_msg1_t *)malloc(sizeof(sgx_ra_msg1_t));
+        //     if (p_msg1 == NULL)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        //         retJsonObj.setMessage("Server exception.");
+        //         goto out;
+        //     }
+
+        //     ret = ra_get_msg1(p_msg1);
+        //     if (ret != EH_OK)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        //         retJsonObj.setMessage("Server exception.");
+        //         goto out;
+        //     }
+
+        //     json_key.clear();
+        //     json_key = json_key + "g_a" + LAYERED_CHARACTER + "gx";
+        //     retJsonObj.addData_uint8Array(json_key, p_msg1->g_a.gx, SGX_ECP256_KEY_SIZE);
+        //     json_key.clear();
+        //     json_key = json_key + "g_a" + LAYERED_CHARACTER + "gy";
+        //     retJsonObj.addData_uint8Array(json_key, p_msg1->g_a.gy, SGX_ECP256_KEY_SIZE);
+
+        // out:
+        //     SAFE_FREE(p_msg1);
+        //     log_d("msg1: \n%s", retJsonObj.toChar());
+        //     log_d("***ffi_RA_HANDSHAKE_MSG0 end.");
+        return retJsonObj.toChar();
+    }
+
+    /*
+     *  @param p_msg2 : msg2 json string
+     *  @return
+     *  [string] json string
+     *      {
+     *          code: int,
+     *          message: string,
+     *          result: {
+     *              msg3_base64 : string
+     *          }
+     *      }
+     */
+    char *ffi_RA_HANDSHAKE_MSG2(const char *p_msg2)
+    {
+        RetJsonObj retJsonObj;
+        //     log_d("***ffi_RA_HANDSHAKE_MSG2 start.");
+        //     if (p_msg2 == NULL)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        //         retJsonObj.setMessage("paramter invalid.");
+        //         return retJsonObj.toChar();
+        //     }
+        //     log_d("msg2: \n %s", p_msg2);
+
+        //     ehsm_status_t ret = EH_OK;
+        //     sgx_ra_msg2_t ra_msg2;
+        //     std::string msg2_str;
+        //     uint32_t msg2_size = 0;
+
+        //     quote3_error_t qe3_ret;
+        //     sgx_ra_msg3_t *p_msg3;
+        //     uint32_t quote_size = 0;
+        //     uint32_t p_msg3_size = 0;
+
+        //     // process msg2
+        //     msg2_str = p_msg2;
+        //     ret = unmarshal_msg2_from_json(msg2_str, &ra_msg2, &msg2_size);
+        //     if (ret != EH_OK)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        //         retJsonObj.setMessage("Server exception.");
+        //         goto out;
+        //     }
+
+        //     // build msg3
+        //     qe3_ret = sgx_qe_get_quote_size(&quote_size);
+        //     if (SGX_QL_SUCCESS != qe3_ret)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        //         retJsonObj.setMessage("Server exception.");
+        //         goto out;
+        //     }
+        //     p_msg3_size = static_cast<uint32_t>(sizeof(sgx_ra_msg3_t)) + quote_size;
+        //     ret = ra_get_msg3(&ra_msg2, msg2_size, &p_msg3, p_msg3_size);
+        //     if (ret != EH_OK)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        //         retJsonObj.setMessage("Server exception.");
+        //         goto out;
+        //     }
+
+        //     ret = marshal_msg3_to_json(p_msg3, &retJsonObj, quote_size);
+        //     if (ret != EH_OK)
+        //     {
+        //         log_e("ra_proc_msg2 failed(%d).", ret);
+        //         goto out;
+        //     }
+
+        // out:
+        //     SAFE_FREE(p_msg3);
+        //     log_d("msg3: \n%s", retJsonObj.toChar());
+        //     log_d("***ffi_RA_HANDSHAKE_MSG2 end.");
+        return retJsonObj.toChar();
+    }
+
+    /*
+     *  @param p_att_result_msg : att_result_msg json string
+     *  @return
+     *  [string] json string
+     *      {
+     *          code: int,
+     *          message: string,
+     *          result: {
+     *              appid : string
+     *              apikey : string
+     *          }
+     *      }
+     */
+    char *ffi_RA_GET_API_KEY(const char *p_att_result_msg)
+    {
+        RetJsonObj retJsonObj;
+        //     log_d("***ffi_RA_GET_API_KEY start.");
+        //     if (p_att_result_msg == NULL)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        //         retJsonObj.setMessage("paramter invalid.");
+        //         return retJsonObj.toChar();
+        //     }
+        //     log_d("att_result_msg: \n %s", p_att_result_msg);
+
+        //     ehsm_status_t ret = EH_OK;
+        //     sample_ra_att_result_msg_t *pt_att_result_msg;
+        //     std::string att_result_msg_str;
+
+        //     char p_appid[UUID_STR_LEN] = {0};
+        //     ehsm_data_t p_apikey;
+        //     ehsm_data_t cipherapikey;
+
+        //     memset(&pt_att_result_msg, 0, sizeof(pt_att_result_msg));
+
+        //     // process att_result_msg
+        //     uint32_t att_result_msg_size = sizeof(sample_ra_att_result_msg_t) + SGX_DOMAIN_KEY_SIZE;
+        //     pt_att_result_msg = (sample_ra_att_result_msg_t *)malloc(att_result_msg_size);
+        //     if (pt_att_result_msg == NULL)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        //         retJsonObj.setMessage("Server exception.");
+        //         goto OUT;
+        //     }
+
+        //     att_result_msg_str = p_att_result_msg;
+        //     ret = unmarshal_att_result_msg_from_json(att_result_msg_str, pt_att_result_msg);
+        //     if (ret != EH_OK)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        //         retJsonObj.setMessage("Server exception.");
+        //         goto OUT;
+        //     }
+
+        //     // Verify att_result_msg
+        //     ret = verify_att_result_msg(pt_att_result_msg);
+        //     if (ret != EH_OK)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+        //         retJsonObj.setMessage("Verify att_result_msg failed.");
+        //         goto OUT;
+        //     }
+        //     log_d("Verify att_result_msg SUCCESS.");
+
+        //     // create appid
+        //     uuid_t uu;
+        //     uuid_generate(uu);
+        //     uuid_unparse(uu, p_appid);
+
+        //     // create apikey
+        //     p_apikey.datalen = EH_API_KEY_SIZE;
+        //     p_apikey.data = (uint8_t *)calloc(p_apikey.datalen + 1, sizeof(uint8_t));
+        //     if (p_apikey.data == NULL)
+        //     {
+        //         ret = EH_DEVICE_MEMORY;
+        //         goto OUT;
+        //     }
+
+        //     // create cipherapikey
+        //     cipherapikey.datalen = EH_API_KEY_SIZE + SGX_AESGCM_IV_SIZE + SGX_AESGCM_MAC_SIZE;
+        //     cipherapikey.data = (uint8_t *)calloc(cipherapikey.datalen, sizeof(uint8_t));
+        //     if (cipherapikey.data == NULL)
+        //     {
+        //         ret = EH_DEVICE_MEMORY;
+        //         goto OUT;
+        //     }
+
+        //     ret = generate_apikey(&p_apikey, &cipherapikey);
+        //     if (ret != EH_OK)
+        //     {
+        //         retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        //         retJsonObj.setMessage("Server exception.");
+        //         goto OUT;
+        //     }
+
+        //     retJsonObj.addData_uint8Array("nonce", pt_att_result_msg->platform_info_blob.nonce.rand, 16);
+        //     retJsonObj.addData_string("appid", p_appid);
+        //     retJsonObj.addData_string("apikey", (char *)p_apikey.data);
+        //     retJsonObj.addData_uint8Array("cipherapikey", cipherapikey.data, cipherapikey.datalen);
+
+        //     log_d("apikey_result_msg: \n%s", retJsonObj.toChar());
+        //     log_d("***ffi_RA_GET_API_KEY end.");
+
+        // OUT:
+        //     explicit_bzero(p_apikey.data, p_apikey.datalen);
+        //     SAFE_FREE(pt_att_result_msg);
+        //     SAFE_FREE(cipherapikey.data);
+        return retJsonObj.toChar();
+    }
+
+    /*
+     *  @return
+     *  [string] json string
+     *      {
+     *          code: int,
+     *          message: string,
+     *          result: {
+     *              appid : string
+     *              apikey : string
+     *          }
+     *      }
+     */
+    char *ffi_enroll()
+    {
+        RetJsonObj retJsonObj;
+        log_d("%s start.", __func__);
+
+        ehsm_status_t ret = EH_OK;
+
+        ehsm_data_t *apikey = NULL;
+        ehsm_data_t *appid = NULL;
+
+        appid = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(UUID_STR_LEN));
+        if (appid == NULL)
+        {
+            ret = EH_DEVICE_MEMORY;
+            goto OUT;
+        }
+        appid->datalen = UUID_STR_LEN;
+
+        apikey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_API_KEY_SIZE + 1));
+        if (apikey == NULL)
+        {
+            ret = EH_DEVICE_MEMORY;
+            goto OUT;
+        }
+        apikey->datalen = EH_API_KEY_SIZE;
+
+        ret = Enroll(appid, apikey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto OUT;
+        }
+
+        retJsonObj.addData_string("appid", (char *)appid->data);
+        retJsonObj.addData_string("apikey", (char *)apikey->data);
+
+        log_d("%s end.", __func__);
+
+    OUT:
+        SAFE_FREE(apikey);
+        SAFE_FREE(appid);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief Generate a quote of the eHSM-KMS core enclave for user used to do the SGX DCAP Remote Attestation.
+     * User may send it to a remote reliable third party or directly send it to eHSM-KMS via VerifyQuote API to do the quote verification.
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    challenge : a base64 string
+                }
+     *  @return
+     *  [string] json string
+     *      {
+     *          code: int,
+     *          message: string,
+     *          result: {
+     *              "challenge" : a base64 string,
+     *              "quote" : a base64 string
+     *          }
+     *      }
+     */
+    char *ffi_generateQuote(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        const char *challenge_base64 = payloadJson.readData_cstr("challenge");
+
+        if (challenge_base64 == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("paramter invalid.");
+            return retJsonObj.toChar();
+        }
+        log_d("challenge: \n %s", challenge_base64);
+
+        ehsm_status_t ret = EH_OK;
+        ehsm_data_t *quote;
+        string quote_base64;
+
+        quote = (ehsm_data_t *)malloc(sizeof(ehsm_data_t));
+        if (quote == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's length is invalid.");
+            goto out;
+        }
+
+        quote->datalen = 0;
+        ret = GenerateQuote(quote);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        log_d("get the quote size successfuly\n");
+
+        quote = (ehsm_data_t *)realloc(quote, APPEND_SIZE_TO_DATA_T(quote->datalen));
+        if (quote == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = GenerateQuote(quote);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        log_d("GenerateQuote successfuly\n");
+
+        quote_base64 = base64_encode(quote->data, quote->datalen);
+        if (quote_base64.size() <= 0)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        retJsonObj.addData_string("challenge", challenge_base64);
+        retJsonObj.addData_string("quote", quote_base64);
+
+    out:
+        SAFE_FREE(quote);
+        return retJsonObj.toChar();
+    }
+
+    /**
+     * @brief Users are expected already got a valid DCAP format QUOTE.
+     * And it could use this API to send it to eHSM-KMS to do a quote verification.
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    quote : a base64 string,
+                    mr_signer : string,
+                    mr_enclave : string,
+                    nonce : a base64 string
+                }
+     *  @return
+     *  [string] json string
+     *      {
+     *          code: int,
+     *          message: string,
+     *          result: {
+     *              result : bool,
+     *              "nonce" : a base64 string
+     *          }
+     *      }
+     */
+    char *ffi_verifyQuote(JsonObj payloadJson)
+    {
+        RetJsonObj retJsonObj;
+
+        const char *quote_base64 = payloadJson.readData_cstr("quote");
+        const char *mr_signer = payloadJson.readData_cstr("mr_signer");
+        const char *mr_enclave = payloadJson.readData_cstr("mr_enclave");
+        const char *nonce_base64 = payloadJson.readData_cstr("nonce");
+
+        if (quote_base64 == NULL || nonce_base64 == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("paramter invalid.");
+            return retJsonObj.toChar();
+        }
+
+        ehsm_status_t ret = EH_OK;
+        sgx_ql_qv_result_t verifyresult;
+        bool result = false;
+        ehsm_data_t *quote;
+
+        string quote_str = base64_decode(quote_base64);
+        int quote_size = quote_str.size();
+        if (quote_size == 0 || quote_size > EH_QUOTE_MAX_SIZE)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The quote's length is invalid.");
+            goto out;
+        }
+        quote = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(quote_size));
+        if (quote == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The cmk's length is invalid.");
+            goto out;
+        }
+        quote->datalen = quote_size;
+        memcpy_s(quote->data, quote_size, (uint8_t *)quote_str.data(), quote_size);
+
+        ret = VerifyQuote(quote, mr_signer, mr_enclave, &verifyresult);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        log_d("VerifyQuote successfuly\n");
+
+        if (verifyresult == SGX_QL_QV_RESULT_OK)
+            result = true;
+
+        retJsonObj.addData_bool("result", result);
+        retJsonObj.addData_string("nonce", nonce_base64);
+
+    out:
+        return retJsonObj.toChar();
+    }
+
+    /*
+     *  @return
+     *  [string] json string
+     *      {
+     *          code: int,
+     *          message: string,
+     *          result: {
+     *              "version" : string,
+     *              "git_sha" : string
+     *          }
+     *      }
+     */
+    char *ffi_getVersion()
+    {
+        RetJsonObj retJsonObj;
+        retJsonObj.addData_string("version", EHSM_VERSION);
+        retJsonObj.addData_string("git_sha", EHSM_GIT_SHA);
+        return retJsonObj.toChar();
+    }
+
+} // extern "C"

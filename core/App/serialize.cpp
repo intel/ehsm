@@ -35,12 +35,12 @@
 #include "serialize.h"
 
 
-uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_len)
+uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_size)
 {
-    if (data && data_len) {
-        memcpy(buf, (void *)data, data_len);
+    if (data && data_size) {
+        memcpy(buf, (void *)data, data_size);
     }
-    return buf + data_len;
+    return buf + data_size;
 }
 
 uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val)
@@ -49,57 +49,8 @@ uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val)
 }
 
 uint8_t *append_sized_buf_to_buf(uint8_t *buf, const uint8_t *data,
-                                 uint32_t data_len)
+                                 uint32_t data_size)
 {
-    return append_to_buf(buf, data, data_len);
+    return append_to_buf(buf, data, data_size);
 }
 
-ehsm_status_t ehsm_serialize_cmk(const ehsm_keyblob_t *cmk, uint8_t** out,
-                             uint32_t *out_size)
-{
-    uint8_t *tmp;
-
-    if (!out || !cmk || !out_size) {
-        return EH_ARGUMENTS_BAD;
-    }
-
-    *out_size = sizeof(cmk->metadata) + cmk->keybloblen;
-    *out = (uint8_t*)malloc(*out_size);
-    if(!*out) {
-        return EH_DEVICE_MEMORY;
-    }
-
-    tmp = append_sized_buf_to_buf(*out, (uint8_t*)&(cmk->metadata), sizeof(cmk->metadata));
-    tmp = append_sized_buf_to_buf(tmp, cmk->keyblob, cmk->keybloblen);
-
-    return EH_OK;
-}
-
-ehsm_status_t ehsm_deserialize_cmk(ehsm_keyblob_t *cmk, const uint8_t* data, uint32_t datalen)
-{
-    uint8_t *keyblob;
-    uint32_t keybloblen;
-
-    if (!cmk || !data || !datalen) {
-        return EH_ARGUMENTS_BAD;
-    }
-
-    if (datalen < sizeof(ehsm_keyblob_t)) {
-        return EH_ARGUMENTS_BAD;
-    }
-
-    memcpy(&(cmk->metadata), data, sizeof(ehsm_keymetadata_t));
-
-    keybloblen = datalen - sizeof(ehsm_keymetadata_t);
-    keyblob = (uint8_t *) malloc(keybloblen);
-    if (!keyblob) {
-        return EH_DEVICE_MEMORY;
-    }
-
-    memcpy(keyblob, data+sizeof(ehsm_keymetadata_t), keybloblen);
-
-    cmk->keyblob = keyblob;
-    cmk->keybloblen = keybloblen;
-
-    return EH_OK;
-}

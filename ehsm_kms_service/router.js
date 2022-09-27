@@ -1,4 +1,4 @@
-const { ehsm_keySpec_t, ehsm_keyorigin_t } = require('./constant')
+const { ehsm_keySpec_t, ehsm_keyorigin_t, ehsm_paddingMode_t, ehsm_digestMode_t } = require('./constant')
 const { KMS_ACTION } = require('./apis')
 const logger = require('./logger')
 const {
@@ -111,22 +111,27 @@ const router = async (p) => {
       break
     case KMS_ACTION.cryptographic.CreateKey:
       try {
-        let { keyspec, origin } = payload
+        let { keyspec, origin, purpose = 0, padding_mode = 'NO_PADDING', digest_mode = 'NONE'} = payload
         /**
          * keyspec、origin convert to enum type
          * enum in thie constant.js file
          */
         keyspec = ehsm_keySpec_t[keyspec]
         origin = ehsm_keyorigin_t[origin]
-        const napi_res = napi_result(action, res, [keyspec, origin])
+        padding_mode = ehsm_paddingMode_t[padding_mode]
+        digest_mode = ehsm_digestMode_t[digest_mode]
+        const napi_res = napi_result(action, res, { keyspec, origin, purpose, padding_mode, digest_mode })
         napi_res && store_cmk(napi_res, res, appid, payload, DB)
-      } catch (error) { }
+      } catch (error) {
+        logger.error(error)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+      }
       break
     case KMS_ACTION.cryptographic.Encrypt:
       try {
         const { keyid, plaintext, aad = '' } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        const napi_res = napi_result(action, res, [cmk_base64, plaintext, aad])
+        const napi_res = napi_result(action, res, { cmk: cmk_base64, plaintext, aad })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
@@ -134,15 +139,18 @@ const router = async (p) => {
       try {
         const { keyid, ciphertext, aad = '' } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, [cmk_base64, ciphertext, aad])
+        napi_res = napi_result(action, res, { cmk: cmk_base64, ciphertext, aad })
         napi_res && res.send(napi_res)
-      } catch (error) { }
+      } catch (error) {
+        logger.error(error)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+      }
       break
     case KMS_ACTION.cryptographic.GenerateDataKey:
       try {
         const { keyid, keylen, aad = '' } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, [cmk_base64, keylen, aad])
+        napi_res = napi_result(action, res, { cmk: cmk_base64, keylen, aad })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
@@ -150,7 +158,7 @@ const router = async (p) => {
       try {
         const { keyid, keylen, aad = '' } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, [cmk_base64, keylen, aad])
+        napi_res = napi_result(action, res, { cmk: cmk_base64, keylen, aad })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
@@ -158,7 +166,7 @@ const router = async (p) => {
       try {
         const { keyid, digest } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, [cmk_base64, digest])
+        napi_res = napi_result(action, res, { cmk: cmk_base64, digest })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
@@ -166,11 +174,7 @@ const router = async (p) => {
       try {
         const { keyid, digest, signature } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, [
-          cmk_base64,
-          digest,
-          signature,
-        ])
+        napi_res = napi_result(action, res, { cmk: cmk_base64, digest, signature })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
@@ -178,7 +182,7 @@ const router = async (p) => {
       try {
         const { keyid, plaintext } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, [cmk_base64, plaintext])
+        napi_res = napi_result(action, res, { cmk: cmk_base64, plaintext })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
@@ -186,7 +190,7 @@ const router = async (p) => {
       try {
         const { keyid, ciphertext } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, [cmk_base64, ciphertext])
+        napi_res = napi_result(action, res, { cmk: cmk_base64, ciphertext })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
@@ -195,26 +199,21 @@ const router = async (p) => {
         const { keyid, ukeyid, aad = '', olddatakey_base } = payload
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         const ukey_base64 = await find_cmk_by_keyid(appid, ukeyid, res, DB)
-        napi_res = napi_result(action, res, [
-          cmk_base64,
-          ukey_base64,
-          aad,
-          olddatakey_base,
-        ])
+        napi_res = napi_result(action, res, { cmk: cmk_base64, ukey: ukey_base64, aad, olddatakey: olddatakey_base })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
     case KMS_ACTION.enroll.RA_HANDSHAKE_MSG0:
       try {
         const json_str_params = JSON.stringify({ ...req.body })
-        napi_res = napi_result(action, res, [json_str_params])
+        napi_res = napi_result(action, res, json_str_params)
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
     case KMS_ACTION.enroll.RA_HANDSHAKE_MSG2:
       try {
         const json_str_params = JSON.stringify({ ...req.body })
-        napi_res = napi_result(action, res, [json_str_params])
+        napi_res = napi_result(action, res, json_str_params)
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
