@@ -78,12 +78,4 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk);
 
-sgx_status_t ehsm_generate_datakey_aes(const ehsm_keyblob_t *cmk,
-                                       const ehsm_data_t *aad,
-                                       ehsm_data_t *plaintext,
-                                       ehsm_data_t *ciphertext);
-
-sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
-                                       ehsm_data_t *plaintext,
-                                       ehsm_data_t *ciphertext);
 #endif

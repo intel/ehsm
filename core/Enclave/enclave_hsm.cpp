@@ -41,6 +41,7 @@
 #include "sgx_report.h"
 #include "sgx_utils.h"
 #include "sgx_tkey_exchange.h"
+#include "openssl/rand.h"
 
 #include "datatypes.h"
 #include "key_factory.h"
@@ -281,6 +282,31 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     return ret;
 }
 
+static size_t get_signature_length(ehsm_keyspec_t keyspec)
+{
+    if (keyspec == EH_RSA_2048)
+    {
+        return RSA_OAEP_2048_SIGNATURE_SIZE;
+    }
+    if (keyspec == EH_RSA_3072)
+    {
+        return RSA_OAEP_3072_SIGNATURE_SIZE;
+    }
+    if (keyspec == EH_RSA_4096)
+    {
+        return RSA_OAEP_4096_SIGNATURE_SIZE;
+    }
+    if (keyspec == EH_EC_P256)
+    {
+        return EC_P256_SIGNATURE_MAX_SIZE;
+    }
+    if (keyspec == EH_SM2)
+    {
+        return EC_SM2_SIGNATURE_MAX_SIZE;
+    }
+    return -1;
+}
+
 sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
                           const ehsm_data_t *data, size_t data_size,
                           ehsm_data_t *signature, size_t signature_size)
@@ -293,9 +319,8 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
         printf("ecall sign cmk or cmk len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (cmk->keybloblen == NULL || cmk->keyblob == NULL)
+    if (cmk->keybloblen == 0 || cmk->metadata.origin != EH_INTERNAL_KEY)
     {
-        printf("ecall sign keyblob is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
@@ -304,51 +329,20 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     }
 
     // check signatrue length
-    if (signature->datalen != 0)
+    if (signature->datalen == 0)
     {
-        switch (cmk->metadata.keyspec)
+        signature->datalen = get_signature_length(cmk->metadata.keyspec);
+        if (signature->datalen == -1)
         {
-        case EH_RSA_2048:
-            if (signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE)
-            {
-                printf("ecall rsa_sign 2048 signature_size is too small than the expected 256.\n");
-                return SGX_ERROR_INVALID_PARAMETER;
-            }
-            break;
-        case EH_RSA_3072:
-            if (signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE)
-            {
-                printf("ecall rsa_sign 3072 signature_size is too small than the expected 384.\n");
-                return SGX_ERROR_INVALID_PARAMETER;
-            }
-            break;
-        case EH_RSA_4096:
-            if (signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE)
-            {
-                printf("ecall rsa_sign 4096 signature_size is too small than the expected 512.\n");
-                return SGX_ERROR_INVALID_PARAMETER;
-            }
-            break;
-        case EH_EC_P256:
-            if (signature->datalen != EC_P256_SIGNATURE_MAX_SIZE)
-            {
-                printf("ecall ec_sign 256 or sm2 signature_size is too large than the expected 64.\n");
-                return SGX_ERROR_INVALID_PARAMETER;
-            }
-            break;
-        case EH_SM2:
-            if (signature->datalen != EC_SM2_SIGNATURE_MAX_SIZE)
-            {
-                printf("ecall ec_sign sm2 signature_size is too large than the expected 64.\n");
-                return SGX_ERROR_INVALID_PARAMETER;
-            }
-            if (cmk->metadata.digest_mode != EH_SM3)
-            {
-                printf("ecall ec_sign sm2 digest made not support.\n");
-                return SGX_ERROR_INVALID_PARAMETER;
-            }
-            break;
+            printf("ecall sign cant get signature length.\n");
+            return SGX_ERROR_INVALID_PARAMETER;
         }
+        return SGX_SUCCESS;
+    }
+    if (signature->datalen != get_signature_length(cmk->metadata.keyspec))
+    {
+        printf("ecall sign signature length error.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
     }
     if (data == NULL || data_size == 0)
     {
@@ -392,12 +386,11 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
 
     if (cmk == NULL || cmk_size == NULL)
     {
-        printf("ecall sign cmk or cmk len is wrong.\n");
+        printf("ecall verify cmk or cmk len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (cmk->keybloblen == NULL || cmk->keyblob == NULL)
+    if (cmk->keybloblen == 0 || cmk->metadata.origin != EH_INTERNAL_KEY)
     {
-        printf("ecall sign keyblob is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
@@ -417,6 +410,11 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
     if (signature == NULL || signature_size == 0)
     {   
         printf("ecall verify signature or signature len is wrong.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (signature->datalen == 0)
+    {
+        printf("ecall verify signature length error.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (data == NULL || data_size == 0)
@@ -471,7 +469,7 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (cmk->keybloblen == NULL || cmk->keyblob == NULL)
+    if (cmk->keybloblen == 0 || cmk->metadata.origin != EH_INTERNAL_KEY)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -497,26 +495,71 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
+    if (ciphertext->datalen == 0)
+    {
+        switch (cmk->metadata.keyspec)
+        {
+        case EH_AES_GCM_128:
+        case EH_AES_GCM_192:
+        case EH_AES_GCM_256:
+            ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
+            return SGX_SUCCESS;
+        case EH_SM4_CBC:
+            if (plaintext->datalen % 16 != 0)
+            {
+                ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
+                return SGX_SUCCESS;
+            }
+            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
+            return SGX_SUCCESS;
+        case EH_SM4_CTR:
+            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
+            return SGX_SUCCESS;
+        default:
+            return SGX_ERROR_INVALID_PARAMETER;
+        }
+    }
+
+    uint8_t *temp_datakey = NULL;
+    
+    temp_datakey = (uint8_t *)malloc(plaintext->datalen);
+    if (temp_datakey == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+    if (RAND_bytes(temp_datakey, plaintext->datalen) != 1)
+    {
+        free(temp_datakey);
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+
+    memcpy_s(plaintext->data, plaintext->datalen, temp_datakey, plaintext->datalen);
+    
     switch (cmk->metadata.keyspec)
     {
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
-        ret = ehsm_generate_datakey_aes(cmk,
-                                        aad,
-                                        plaintext,
-                                        ciphertext);
+        ret = ehsm_aes_gcm_encrypt(aad,
+                                   cmk,
+                                   plaintext,
+                                   ciphertext);
         break;
     case EH_SM4_CBC:
+        ret = ehsm_sm4_cbc_encrypt(cmk,
+                                   plaintext,
+                                   ciphertext);
+        break;
     case EH_SM4_CTR:
-        ret = ehsm_generate_datakey_sm4(cmk,
-                                        plaintext,
-                                        ciphertext);
+        ret = ehsm_sm4_ctr_encrypt(cmk,
+                                   plaintext,
+                                   ciphertext);
         break;
     default:
         break;
     }
-
+    memset_s(temp_datakey, plaintext->datalen, 0, plaintext->datalen);
+    free(temp_datakey);
     return ret;
 }
 

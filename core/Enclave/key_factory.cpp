@@ -48,7 +48,6 @@
 #include "openssl/ec.h"
 #include "openssl/pem.h"
 #include "openssl/bio.h"
-#include "openssl/rand.h"
 
 #include "key_factory.h"
 #include "key_operation.h"
@@ -482,99 +481,5 @@ sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk)
     memset_s(key, keysize, 0, keysize);
 
     free(key);
-    return ret;
-}
-sgx_status_t ehsm_generate_datakey_aes(const ehsm_keyblob_t *cmk,
-                                       const ehsm_data_t *aad,
-                                       ehsm_data_t *plaintext,
-                                       ehsm_data_t *ciphertext)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    if (ciphertext->datalen == 0)
-    {
-        ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
-        return SGX_SUCCESS;
-    }
-
-    uint8_t *temp_datakey = NULL;
-    temp_datakey = (uint8_t *)malloc(plaintext->datalen);
-    if (temp_datakey == NULL)
-    {
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-    if (RAND_bytes(temp_datakey, plaintext->datalen) != 1)
-    {
-        free(temp_datakey);
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-
-    memcpy_s(plaintext->data, plaintext->datalen, temp_datakey, plaintext->datalen);
-
-    ret = ehsm_aes_gcm_encrypt(aad,
-                               cmk,
-                               plaintext,
-                               ciphertext);
-
-    memset_s(temp_datakey, plaintext->datalen, 0, plaintext->datalen);
-    free(temp_datakey);
-
-    return ret;
-}
-
-sgx_status_t ehsm_generate_datakey_sm4(const ehsm_keyblob_t *cmk,
-                                       ehsm_data_t *plaintext,
-                                       ehsm_data_t *ciphertext)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    if (ciphertext->datalen == 0)
-    {
-        if (cmk->metadata.keyspec == EH_SM4_CTR)
-        {
-            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
-            return SGX_SUCCESS;
-        }
-        else
-        {
-            if (plaintext->datalen % 16 != 0)
-            {
-                ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
-                return SGX_SUCCESS;
-            }
-            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
-            return SGX_SUCCESS;
-        }
-    }
-
-    uint8_t *temp_datakey = NULL;
-    temp_datakey = (uint8_t *)malloc(plaintext->datalen);
-    if (temp_datakey == NULL)
-    {
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-    if (RAND_bytes(temp_datakey, plaintext->datalen) != 1)
-    {
-        free(temp_datakey);
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-
-    memcpy_s(plaintext->data, plaintext->datalen, temp_datakey, plaintext->datalen);
-
-    if (cmk->metadata.keyspec == EH_SM4_CTR)
-    {
-        ret = ehsm_sm4_ctr_encrypt(cmk,
-                                   plaintext,
-                                   ciphertext);
-    }
-    else
-    {
-        ret = ehsm_sm4_cbc_encrypt(cmk,
-                                   plaintext,
-                                   ciphertext);
-    }
-
-    memset_s(temp_datakey, plaintext->datalen, 0, plaintext->datalen);
-    free(temp_datakey);
-
     return ret;
 }

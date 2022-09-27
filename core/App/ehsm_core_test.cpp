@@ -1176,6 +1176,7 @@ step5. decrypt the cipher text by CMK
 */
 void test_generate_AES_datakey()
 {
+    case_number++;
     printf("============test_generate_AES_datakey start==========\n");
     char *returnJsonChar = nullptr;
     char aad[] = "challenge";
@@ -1278,6 +1279,7 @@ void test_generate_AES_datakey()
     }
     printf("step2 Decrypt_Json = %s\n", returnJsonChar);
     printf("Decrypt step2 data SUCCESSFULLY!\n");
+    success_number++;
 
 cleanup:
     SAFE_FREE(ciphertext_without_base64);
@@ -1302,6 +1304,7 @@ step5. decrypt the cipher text by CMK
 */
 void test_generate_SM4_datakey()
 {
+    case_number++;
     printf("============test_generate_SM4_datakey start==========\n");
     char *returnJsonChar = nullptr;
     char *cmk_base64 = nullptr;
@@ -1313,7 +1316,7 @@ void test_generate_SM4_datakey()
 
     JsonObj payload_json;
     JsonObj param_json;
-    payload_json.addData_uint32("keyspec", EH_SM4_CTR);
+    payload_json.addData_uint32("keyspec", EH_SM4_CBC);
     payload_json.addData_uint32("origin", 0);
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1400,6 +1403,7 @@ void test_generate_SM4_datakey()
     }
     printf("step2 Decrypt_Json = %s\n", returnJsonChar);
     printf("Decrypt step2 data SUCCESSFULLY!\n");
+    success_number++;
 
 cleanup:
     SAFE_FREE(ciphertext_without_base64);
