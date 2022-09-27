@@ -40,6 +40,9 @@
 #include "dsohandle.h"
 #include "json_utils.h"
 
+#include <iostream>
+#include <fstream>
+
 #include <pthread.h>
 #include <chrono>
 
@@ -1622,19 +1625,76 @@ void test_GenerateQuote_and_VerifyQuote()
     JsonObj param_json;
     JsonObj payload_json;
 
+    RetJsonObj retJsonObj;
+    char *returnJsonChar = nullptr;
+    char *quote_base64 = nullptr;
+
     char challenge[32] = "challenge123456";
     char nonce[16] = "nonce123456";
+
+    std::string input_challenge_base64 = base64_encode((const uint8_t *)challenge, sizeof(challenge) / sizeof(challenge[0]));
+    std::string input_nonce_base64 = base64_encode((const uint8_t *)nonce, sizeof(nonce) / sizeof(nonce[0]));
+
     // the string generated after converting the value of mr_signer and mr_enclave to hexadecimal
     // notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
     // you can get mr_signer and mr_enclave through cmd:
     // "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
-    char mr_signer[65] = "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835";
-    char mr_enclave[65] = "c3113b289e296cc25b6756eac281f89d75270c8c3e38c7dc085c6f51c9823e85";
-    RetJsonObj retJsonObj;
-    char *returnJsonChar = nullptr;
-    char *quote_base64 = nullptr;
-    std::string input_challenge_base64 = base64_encode((const uint8_t *)challenge, sizeof(challenge) / sizeof(challenge[0]));
-    std::string input_nonce_base64 = base64_encode((const uint8_t *)nonce, sizeof(nonce) / sizeof(nonce[0]));
+    std::string mr_enclave;
+    std::string mr_signer;
+    system("/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave ../../out/ehsm-core/libenclave-ehsm-core.signed.so -dumpfile /tmp/ehsm_enclave_out.log");
+    std::fstream ifs;
+    std::string line;
+    u_int32_t readEnclaveLineNum = 0;
+    u_int32_t readSignerLineNum = 0;
+    ifs.open("/tmp/ehsm_enclave_out.log", std::ios::in);
+    if (!ifs.is_open())
+    {
+        printf("load mr_signer & mr_enclave faild. \n");
+        goto cleanup;
+    }
+    while (getline(ifs, line))
+    {
+        if (readEnclaveLineNum > 0)
+        {
+            readEnclaveLineNum -= 1;
+            mr_enclave += line;
+        }
+        if (readSignerLineNum > 0)
+        {
+            readSignerLineNum -= 1;
+            mr_signer += line;
+        }
+        if (line.compare("metadata->enclave_css.body.enclave_hash.m:") == 0)
+        {
+            if (mr_enclave.length() == 0)
+            {
+                readEnclaveLineNum = 2;
+            }
+        }
+        if (line.compare("mrsigner->value:") == 0)
+        {
+            if (mr_signer.length() == 0)
+            {
+                readSignerLineNum = 2;
+            }
+        }
+    }
+    while (mr_enclave.find("0x") != -1)
+    {
+        mr_enclave = mr_enclave.replace(mr_enclave.find("0x"), 2, "");
+    }
+    while (mr_enclave.find(" ") != -1)
+    {
+        mr_enclave = mr_enclave.replace(mr_enclave.find(" "), 1, "");
+    }
+    while (mr_signer.find("0x") != -1)
+    {
+        mr_signer = mr_signer.replace(mr_signer.find("0x"), 2, "");
+    }
+    while (mr_signer.find(" ") != -1)
+    {
+        mr_signer = mr_signer.replace(mr_signer.find(" "), 1, "");
+    }
 
     payload_json.addData_string("challenge", input_challenge_base64);
     param_json.addData_uint32("action", EH_GENERATE_QUOTE);

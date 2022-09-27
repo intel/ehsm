@@ -170,8 +170,27 @@ def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     # notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
     # you can get mr_signer and mr_enclave through cmd: 
     # "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
-    mr_enclave = '59ac5a9f3f2c63846c3d469b38f31452760615f4562fc7723edafecaaf946807';
-    mr_signer = 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835';   
+    mr_enclave = '';
+    mr_signer = '';
+    os.system('/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave ../ehsm_kms_service/libenclave-ehsm-core.signed.so -dumpfile /tmp/ehsm_enclave_out.log')
+    enclave_file = open("/tmp/ehsm_enclave_out.log",'rb')
+    readEnclaveLineNum = 0;
+    readSignerLineNum = 0;
+    for line in enclave_file.readlines():
+        line = line.strip()
+        if(readEnclaveLineNum > 0):
+            readEnclaveLineNum -= 1;
+            mr_enclave += str(line, 'UTF-8').replace('0x' , '').replace(' ' , '');
+        if(readSignerLineNum > 0):
+            readSignerLineNum -= 1;
+            mr_signer += str(line, 'UTF-8').replace('0x' , '').replace(' ' , '');
+        if(line.endswith("metadata->enclave_css.body.enclave_hash.m:".encode('utf-8'))):
+            if(len(mr_enclave) == 0):
+                readEnclaveLineNum = 2
+        if(line.endswith("mrsigner->value:".encode('utf-8'))):
+            if(len(mr_signer) == 0):
+                readSignerLineNum = 2
+    enclave_file.close()
 
     policyId = uploadQuotePolicy.uploadQuotePolicy(base_url, mr_enclave, mr_signer)
 
