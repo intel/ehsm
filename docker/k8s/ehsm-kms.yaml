@@ -150,6 +150,7 @@ spec:
       containers:
       - name: dkeycache
         image: intelccc/ehsm_dkeycache:latest
+        imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
         volumeMounts:
