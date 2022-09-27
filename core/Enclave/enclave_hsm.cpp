@@ -164,17 +164,17 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
     if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -211,17 +211,17 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
     if (plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen))
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -249,6 +249,11 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     if (cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -258,12 +263,7 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-
-    if (cmk == NULL || cmk->metadata.origin != EH_INTERNAL_KEY || plaintext == NULL || ciphertext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
+    
     switch (cmk->metadata.keyspec)
     {
     case EH_RSA_2048:

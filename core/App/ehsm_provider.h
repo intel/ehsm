@@ -100,7 +100,7 @@ extern "C"
 
 ehsm_status_t Initialize();
 
-void Finalize();
+ehsm_status_t Finalize();
 
 /*
 Description:

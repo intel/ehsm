@@ -203,7 +203,7 @@ char *EHSM_FFI_CALL(const char *paramJson)
         resp = ffi_initialize();
         break;
     case EH_FINALIZE:
-        ffi_finalize();
+        resp = ffi_finalize();
         break;
     case EH_CREATE_KEY:
         resp = ffi_createKey(payloadJson);
@@ -287,9 +287,16 @@ ehsm_status_t Initialize()
     return rc;
 }
 
-void Finalize()
+ehsm_status_t Finalize()
 {
-    sgx_destroy_enclave(g_enclave_id);
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+
+    sgxStatus = sgx_destroy_enclave(g_enclave_id);
+
+    if (sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
 }
 
 ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
@@ -665,17 +672,6 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
     case EH_AES_GCM_256:
         if (ciphertext->datalen != 0 && ciphertext->datalen != plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
             return EH_ARGUMENTS_BAD;
-
-        ret = enclave_generate_datakey(g_enclave_id,
-                                       &sgxStatus,
-                                       cmk,
-                                       APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                                       aad,
-                                       APPEND_SIZE_TO_DATA_T(aad->datalen),
-                                       plaintext,
-                                       APPEND_SIZE_TO_DATA_T(plaintext->datalen),
-                                       ciphertext,
-                                       APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
         break;
     case EH_SM4_CBC:
         if (plaintext->datalen % 16 != 0 &&
@@ -685,23 +681,16 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
         if (plaintext->datalen % 16 == 0 &&
             ((ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE) && ciphertext->datalen != 0))
             return EH_ARGUMENTS_BAD;
-
-        ret = enclave_generate_datakey(g_enclave_id,
-                                       &sgxStatus,
-                                       cmk,
-                                       APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                                       aad,
-                                       APPEND_SIZE_TO_DATA_T(aad->datalen),
-                                       plaintext,
-                                       APPEND_SIZE_TO_DATA_T(plaintext->datalen),
-                                       ciphertext,
-                                       APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
         break;
     case EH_SM4_CTR:
         if (ciphertext->datalen != 0 && ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE)
             return EH_ARGUMENTS_BAD;
+        break;
+    default:
+        return EH_KEYSPEC_INVALID;
+    }
 
-        ret = enclave_generate_datakey(g_enclave_id,
+    ret = enclave_generate_datakey(g_enclave_id,
                                        &sgxStatus,
                                        cmk,
                                        APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
@@ -711,10 +700,6 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
                                        APPEND_SIZE_TO_DATA_T(plaintext->datalen),
                                        ciphertext,
                                        APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
-        break;
-    default:
-        return EH_KEYSPEC_INVALID;
-    }
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;
@@ -749,17 +734,6 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
     case EH_AES_GCM_256:
         if (ciphertext->datalen != 0 && ciphertext->datalen != plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
             return EH_ARGUMENTS_BAD;
-
-        ret = enclave_generate_datakey(g_enclave_id,
-                                       &sgxStatus,
-                                       cmk,
-                                       APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                                       aad,
-                                       APPEND_SIZE_TO_DATA_T(aad->datalen),
-                                       plaintext,
-                                       APPEND_SIZE_TO_DATA_T(plaintext->datalen),
-                                       ciphertext,
-                                       APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
         break;
     case EH_SM4_CBC:
         if (plaintext->datalen % 16 != 0 &&
@@ -769,36 +743,25 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
         if (plaintext->datalen % 16 == 0 &&
             ((ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE) && ciphertext->datalen != 0))
             return EH_ARGUMENTS_BAD;
-
-        ret = enclave_generate_datakey(g_enclave_id,
-                                       &sgxStatus,
-                                       cmk,
-                                       APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                                       aad,
-                                       APPEND_SIZE_TO_DATA_T(aad->datalen),
-                                       plaintext,
-                                       APPEND_SIZE_TO_DATA_T(plaintext->datalen),
-                                       ciphertext,
-                                       APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
         break;
     case EH_SM4_CTR:
         if (ciphertext->datalen != 0 && ciphertext->datalen != plaintext->datalen + SGX_SM4_IV_SIZE)
             return EH_ARGUMENTS_BAD;
-
-        ret = enclave_generate_datakey(g_enclave_id,
-                                       &sgxStatus,
-                                       cmk,
-                                       APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                                       aad,
-                                       APPEND_SIZE_TO_DATA_T(aad->datalen),
-                                       plaintext,
-                                       APPEND_SIZE_TO_DATA_T(plaintext->datalen),
-                                       ciphertext,
-                                       APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
         break;
     default:
         return EH_KEYSPEC_INVALID;
     }
+
+    ret = enclave_generate_datakey(g_enclave_id,
+                                   &sgxStatus,
+                                   cmk,
+                                   APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                                   aad,
+                                   APPEND_SIZE_TO_DATA_T(aad->datalen),
+                                   plaintext,
+                                   APPEND_SIZE_TO_DATA_T(plaintext->datalen),
+                                   ciphertext,
+                                   APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;

@@ -83,9 +83,18 @@ extern "C"
     /*
     destory the enclave
     */
-    void ffi_finalize()
+    char *ffi_finalize()
     {
-        Finalize();
+        RetJsonObj retJsonObj;
+        ehsm_status_t ret = EH_OK;
+
+        ret = Finalize();
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+        }
+        return retJsonObj.toChar();
     }
 
     /**

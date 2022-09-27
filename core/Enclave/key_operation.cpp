@@ -305,7 +305,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
     int temp_len = 0;
     EVP_CIPHER_CTX *pState = NULL;
 
-    if (cmk == NULL || cipherblob == NULL || plaintext == NULL)
+    if (cmk == NULL || cipherblob == NULL || plaintext == NULL || aad == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }

@@ -51,7 +51,7 @@ extern "C"
     /*
     destory the enclave
     */
-    void ffi_finalize();
+    char *ffi_finalize();
 
     /**
      * @brief Create key and save the parameters when using the key for encrypt, decrypt, sign and verify
