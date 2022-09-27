@@ -117,6 +117,10 @@ extern "C"
         ehsm_keyblob_t *master_key;
         string cmk_base64;
         ret = unmarshal_creatkey_data_from_json(payloadJson, &master_key);
+
+        // temporary
+        // ehsm_keyblob_t *master = (ehsm_keyblob_t*)unmarshal_data_from_json(payloadJson, "cmk");
+
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);

@@ -35,6 +35,19 @@
 #include "string.h"
 #include "ehsm_provider.h"
 
+using namespace std;
+
+void* unmarshal_data_from_json(JsonObj payloadJson, string key)
+{
+    ehsm_keyblob_t *cmk;
+    if (!key.compare("cmk"))
+    {
+        cmk = (ehsm_keyblob_t*)malloc(sizeof(ehsm_keyblob_t));
+        cmk->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+    }
+
+    return cmk;
+}
 /*
  * process receive msg2 json string to sgx_ra_msg2_t
  *  @param ra_msg2 : receive msg2 json string

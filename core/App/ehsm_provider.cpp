@@ -329,7 +329,7 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
     {
         return EH_ARGUMENTS_BAD;
     }
-        
+
     switch (cmk->metadata.keyspec)
     {
     case EH_AES_GCM_128:
@@ -356,15 +356,15 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
     }
 
     ret = enclave_encrypt(g_enclave_id,
-                              &sgxStatus,
-                              cmk,
-                              APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                              aad,
-                              APPEND_SIZE_TO_DATA_T(aad->datalen),
-                              plaintext,
-                              APPEND_SIZE_TO_DATA_T(plaintext->datalen),
-                              ciphertext,
-                              APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
+                          &sgxStatus,
+                          cmk,
+                          APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                          aad,
+                          APPEND_SIZE_TO_DATA_T(aad->datalen),
+                          plaintext,
+                          APPEND_SIZE_TO_DATA_T(plaintext->datalen),
+                          ciphertext,
+                          APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
     {
@@ -412,15 +412,15 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
     }
 
     ret = enclave_decrypt(g_enclave_id,
-                              &sgxStatus,
-                              cmk,
-                              APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                              aad,
-                              APPEND_SIZE_TO_DATA_T(aad->datalen),
-                              ciphertext,
-                              APPEND_SIZE_TO_DATA_T(ciphertext->datalen),
-                              plaintext,
-                              APPEND_SIZE_TO_DATA_T(plaintext->datalen));
+                          &sgxStatus,
+                          cmk,
+                          APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                          aad,
+                          APPEND_SIZE_TO_DATA_T(aad->datalen),
+                          ciphertext,
+                          APPEND_SIZE_TO_DATA_T(ciphertext->datalen),
+                          plaintext,
+                          APPEND_SIZE_TO_DATA_T(plaintext->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
     {
@@ -538,24 +538,6 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
         return EH_ARGUMENTS_BAD;
     }
 
-    /* calculate the signature length */
-    if (signature->datalen == 0)
-    {
-        ret = enclave_sign(g_enclave_id,
-                           &sgxStatus,
-                           cmk,
-                           APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                           digest,
-                           APPEND_SIZE_TO_DATA_T(digest->datalen),
-                           signature,
-                           APPEND_SIZE_TO_DATA_T(signature->datalen));
-
-        if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
-            return EH_FUNCTION_FAILED;
-        else
-            return EH_OK;
-    }
-
     switch (cmk->metadata.keyspec)
     {
     case EH_RSA_2048:
@@ -563,7 +545,12 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
     case EH_RSA_4096:
     case EH_EC_P256:
     case EH_SM2:
-        if (signature->datalen != EC_P256_SIGNATURE_MAX_SIZE && signature->datalen != EC_SM2_SIGNATURE_MAX_SIZE && signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE && signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE && signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE)
+        if (signature->datalen != 0 &&
+            signature->datalen != EC_P256_SIGNATURE_MAX_SIZE &&
+            signature->datalen != EC_SM2_SIGNATURE_MAX_SIZE &&
+            signature->datalen != RSA_OAEP_2048_SIGNATURE_SIZE &&
+            signature->datalen != RSA_OAEP_3072_SIGNATURE_SIZE &&
+            signature->datalen != RSA_OAEP_4096_SIGNATURE_SIZE)
         {
             return EH_ARGUMENTS_BAD;
         }
@@ -618,7 +605,7 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
         printf("rsa verify requires a <=264B message.\n");
         return EH_ARGUMENTS_BAD;
     }
-    
+
     if (signature->datalen == 0)
     {
         return EH_ARGUMENTS_BAD;
@@ -850,27 +837,6 @@ ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
     if (olddatakey->datalen > 1024 || olddatakey->datalen == 0)
         return EH_ARGUMENTS_BAD;
 
-    if (newdatakey->datalen == 0)
-    {
-        ret = enclave_export_datakey(g_enclave_id,
-                                     &sgxStatus,
-                                     cmk,
-                                     APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                                     aad,
-                                     APPEND_SIZE_TO_DATA_T(aad->datalen),
-                                     olddatakey,
-                                     APPEND_SIZE_TO_DATA_T(olddatakey->datalen),
-                                     ukey,
-                                     APPEND_SIZE_TO_KEYBLOB_T(ukey->keybloblen),
-                                     newdatakey,
-                                     APPEND_SIZE_TO_DATA_T(newdatakey->datalen));
-        goto out;
-    }
-
-    if (newdatakey->datalen == 0)
-    {
-        return EH_ARGUMENTS_BAD;
-    }
     ret = enclave_export_datakey(g_enclave_id,
                                  &sgxStatus,
                                  cmk,

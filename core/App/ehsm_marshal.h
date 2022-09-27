@@ -38,6 +38,10 @@
 
 #include <string>
 
+using namespace std;
+
+void* unmarshal_data_from_json(JsonObj payloadJson, string key);
+
 /*
  * process receive msg2 json string to sgx_ra_msg2_t
  *  @param ra_msg2 : receive msg2 json string

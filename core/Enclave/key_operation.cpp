@@ -164,7 +164,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     int temp_len = 0;
     EVP_CIPHER_CTX *pState = NULL;
 
-    if (cmk == NULL || plaintext == NULL || cipherblob == NULL)
+    if (cmk == NULL || plaintext == NULL || cipherblob == NULL || aad == NULL)
         return SGX_ERROR_INVALID_PARAMETER;
 
     /* this api only support for symmetric keys */
