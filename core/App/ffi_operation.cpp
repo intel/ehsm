@@ -58,6 +58,10 @@ extern "C"
         if (!key.compare("metadata"))
         {
             ehsm_keyblob_t *cmk = (ehsm_keyblob_t *)malloc(sizeof(ehsm_keyblob_t));
+            if (cmk == NULL)
+            {
+                return NULL;
+            }
             cmk->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
             cmk->metadata.digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
             cmk->metadata.padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
@@ -76,7 +80,12 @@ extern "C"
                 return NULL;
             }
             cmk = (ehsm_keyblob_t *)malloc(cmk_size);
+            if (cmk == NULL)
+            {
+                return NULL;
+            }
             memcpy_s(cmk, cmk_size, (ehsm_keyblob_t *)cmk_str.data(), cmk_size);
+
             return cmk;
         }
         else
@@ -89,6 +98,11 @@ extern "C"
                 return NULL;
             }
             data = (ehsm_data_t*)malloc(APPEND_SIZE_TO_DATA_T(data_size));
+            if (data == NULL)
+            {
+                return NULL;
+            }
+
             memcpy_s(data->data, data_size, (uint8_t *)data_str.data(), data_size);
             data->datalen = data_size;
 
