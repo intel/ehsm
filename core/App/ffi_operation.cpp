@@ -93,18 +93,17 @@ extern "C"
             ehsm_data_t *data;
             string data_str = base64_decode(payloadJson.readData_string(key));
             size_t data_size = data_str.size();
-            if (data_size == 0)
-            {
-                return NULL;
-            }
+
             data = (ehsm_data_t*)malloc(APPEND_SIZE_TO_DATA_T(data_size));
             if (data == NULL)
             {
                 return NULL;
             }
-
-            memcpy_s(data->data, data_size, (uint8_t *)data_str.data(), data_size);
             data->datalen = data_size;
+            if(data_size > 0)
+            {
+                memcpy_s(data->data, data_size, (uint8_t *)data_str.data(), data_size);
+            }
 
             return data;
         }

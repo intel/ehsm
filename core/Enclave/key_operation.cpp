@@ -167,9 +167,6 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     int temp_len = 0;
     EVP_CIPHER_CTX *pState = NULL;
 
-    if (cmk == NULL || plaintext == NULL || cipherblob == NULL || aad == NULL)
-        return SGX_ERROR_INVALID_PARAMETER;
-
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
         cmk->metadata.keyspec != EH_AES_GCM_192 &&
@@ -308,11 +305,6 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
     int temp_len = 0;
     EVP_CIPHER_CTX *pState = NULL;
 
-    if (cmk == NULL || cipherblob == NULL || plaintext == NULL || aad == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
         cmk->metadata.keyspec != EH_AES_GCM_192 &&
@@ -445,9 +437,6 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     int temp_len = 0;
     EVP_CIPHER_CTX *pState = NULL;
 
-    if (cmk == NULL || plaintext == NULL || cipherblob == NULL)
-        return SGX_ERROR_INVALID_PARAMETER;
-
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CTR)
     {
@@ -554,10 +543,6 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int temp_len = 0;
     EVP_CIPHER_CTX *pState = NULL;
-    if (cmk == NULL || cipherblob == NULL || plaintext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CTR)
@@ -669,9 +654,6 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     int pad = -1;
     uint8_t *iv = NULL;
     EVP_CIPHER_CTX *pState = NULL;
-
-    if (cmk == NULL || plaintext == NULL || cipherblob == NULL)
-        return SGX_ERROR_INVALID_PARAMETER;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CBC)
@@ -812,10 +794,6 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     int temp_len = 0;
     int pad = -1;
     EVP_CIPHER_CTX *pState = NULL;
-    if (cmk == NULL || cipherblob == NULL || plaintext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CBC)
@@ -933,15 +911,6 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk == NULL || ciphertext == NULL || plaintext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (plaintext->datalen == 0)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
     RSA *rsa_pubkey = NULL;
@@ -1001,15 +970,6 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
                               ehsm_data_t *ciphertext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    if (cmk == NULL || ciphertext == NULL || plaintext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (plaintext->datalen == 0)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
 
     uint8_t *sm2_keypair = NULL;
     BIO *bio = NULL;
@@ -1109,15 +1069,6 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk == NULL || ciphertext == NULL || plaintext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (ciphertext->datalen == 0)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
     RSA *rsa_prikey = NULL;
@@ -1178,15 +1129,6 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
                               ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    if (cmk == NULL || ciphertext == NULL || plaintext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (ciphertext->datalen == 0)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
 
     uint8_t *sm2_keypair = NULL;
     BIO *bio = NULL;
