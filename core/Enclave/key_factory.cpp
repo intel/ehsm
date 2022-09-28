@@ -69,7 +69,7 @@ sgx_status_t ehsm_calc_keyblob_size(const uint32_t keyspec, uint32_t &key_size)
     case EH_RSA_4096:
         key_size = PEM_BUFSIZE * 5 + sizeof(sgx_aes_gcm_data_ex_t);
         break;
-    case EH_EC_P224:
+    case EH_EC_P256:
     case EH_SM2:
         key_size = PEM_BUFSIZE + sizeof(sgx_aes_gcm_data_ex_t);
         break;

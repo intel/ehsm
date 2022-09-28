@@ -163,7 +163,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
                                   ehsm_data_t *cipherblob)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    
+
     int temp_len = 0;
     EVP_CIPHER_CTX *pState = NULL;
 
@@ -249,7 +249,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     }
 
     // Provide AAD data if exist
-    if (NULL != aad->data)
+    if (aad != NULL && aad->datalen > 0)
     {
         if (1 != EVP_EncryptUpdate(pState, NULL, &temp_len, aad->data, aad->datalen))
         {
@@ -390,7 +390,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
-    if (NULL != aad->data)
+    if (aad != NULL && aad->datalen > 0)
     {
         if (!EVP_DecryptUpdate(pState, NULL, &temp_len, aad->data, aad->datalen))
         {
@@ -678,7 +678,7 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    
+
     uint32_t keysize = 0;
     if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
     {
@@ -1820,10 +1820,10 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_SUCCESS;
 
-    uint8_t *ec_keypair    = NULL;
-    BIO *bio               = NULL;
-    EVP_PKEY *evpkey       = NULL;
-    EVP_MD_CTX *mdctx      = NULL;
+    uint8_t *ec_keypair = NULL;
+    BIO *bio = NULL;
+    EVP_PKEY *evpkey = NULL;
+    EVP_MD_CTX *mdctx = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;
     EC_KEY *ec_key = NULL;
 
@@ -1964,11 +1964,11 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_SUCCESS;
 
-    uint8_t *ec_keypair    = NULL;
-    BIO *bio               = NULL;
-    EC_KEY *ec_key         = NULL;
-    EVP_PKEY *evpkey       = NULL;
-    EVP_MD_CTX *mdctx      = NULL;
+    uint8_t *ec_keypair = NULL;
+    BIO *bio = NULL;
+    EC_KEY *ec_key = NULL;
+    EVP_PKEY *evpkey = NULL;
+    EVP_MD_CTX *mdctx = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;
 
     do
