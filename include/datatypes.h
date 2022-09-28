@@ -132,17 +132,20 @@ typedef enum {
 
 //sgx-ssl framework
 typedef enum  {
+    EH_ORIGIN_NONE = 0,
     EH_INTERNAL_KEY,
-    EXTERNAL_KEY,
+    EH_EXTERNAL_KEY,
 } ehsm_keyorigin_t;
 
 typedef enum {
-    ENCRYPT_DECRYPT = 0,
-    SIGN_VERIFY = 1,
+    EH_PURPOSE_NONE = 0,
+    EH_PURPOSE_ENCRYPT_DECRYPT,
+    EH_PURPOSE_SIGN_VERIFY,
 } ehsm_keypurpose_t;
 
 typedef enum {
-    EH_AES_GCM_128 = 0,
+    EH_KEYSPEC_NONE = 0,
+    EH_AES_GCM_128,
     EH_AES_GCM_192,
     EH_AES_GCM_256,
     EH_RSA_2048,
@@ -159,7 +162,7 @@ typedef enum {
 } ehsm_keyspec_t;
 
 typedef enum {
-    EH_NONE = 0,
+    EH_DIGEST_NONE = 0,
     EH_SHA_2_224,
     EH_SHA_2_256,
     EH_SHA_2_384,
@@ -168,6 +171,7 @@ typedef enum {
 } ehsm_digest_mode_t;
 
 typedef enum {
+    EH_PADDING_NONE = 0,
     EH_PAD_RSA_PKCS1 = 1,
     EH_PAD_RSA_NO = 3,        
     EH_PAD_RSA_PKCS1_OAEP = 4,
