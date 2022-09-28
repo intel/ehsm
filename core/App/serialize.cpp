@@ -35,12 +35,12 @@
 #include "serialize.h"
 
 
-uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_size)
+uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_len)
 {
-    if (data && data_size) {
-        memcpy(buf, (void *)data, data_size);
+    if (data && data_len) {
+        memcpy(buf, (void *)data, data_len);
     }
-    return buf + data_size;
+    return buf + data_len;
 }
 
 uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val)
@@ -49,8 +49,8 @@ uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val)
 }
 
 uint8_t *append_sized_buf_to_buf(uint8_t *buf, const uint8_t *data,
-                                 uint32_t data_size)
+                                 uint32_t data_len)
 {
-    return append_to_buf(buf, data, data_size);
+    return append_to_buf(buf, data, data_len);
 }
 

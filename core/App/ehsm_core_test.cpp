@@ -1806,13 +1806,13 @@ int main(int argc, char *argv[])
 
     test_generate_AES_datakey();
 
-    test_generate_SM4_datakey();
+    // test_generate_SM4_datakey();
 
     test_export_datakey();
 
-    test_GenerateQuote_and_VerifyQuote();
+    // test_GenerateQuote_and_VerifyQuote();
 
-    test_Enroll();
+    // test_Enroll();
 
     Finalize();
 
