@@ -645,6 +645,15 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
         return EH_OK;
 }
 
+/**
+ * @brief verify the signature is correct
+ *
+ * @param cmk storage the key metadata and keyblob
+ * @param aad additional data
+ * @param plaintext data to be encrypted
+ * @param ciphertext information of ciphertext
+ * @return ehsm_status_t
+ */
 ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
                               ehsm_data_t *aad,
                               ehsm_data_t *plaintext,

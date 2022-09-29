@@ -342,7 +342,17 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
         return -1;
     }
 }
-
+/**
+ * @brief Sign the message and store it in signature
+ *
+ * @param cmk storage the key metadata and keyblob
+ * @param cmk_size size of input cmk
+ * @param data message to be signed
+ * @param data_size size of input message
+ * @param signature generated signature
+ * @param signature_size size of input signature
+ * @return ehsm_status_t
+ */
 sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
                           const ehsm_data_t *data, size_t data_size,
                           ehsm_data_t *signature, size_t signature_size)
@@ -422,6 +432,18 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     return ret;
 }
 
+/**
+ * @brief verify the signature is correct
+ *
+ * @param cmk storage the key metadata and keyblob
+ * @param cmk_size size of input cmk
+ * @param data message for signature
+ * @param data_size size of input message
+ * @param signature generated signature
+ * @param signature_size size of input signature
+ * @param result Signature match result
+ * @return ehsm_status_t
+ */
 sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
                             const ehsm_data_t *data, size_t data_size,
                             const ehsm_data_t *signature, size_t signature_size,
@@ -498,6 +520,19 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
     return ret;
 }
 
+/**
+ * @brief verify the signature is correct
+ *
+ * @param cmk storage the key metadata and keyblob
+ * @param cmk_size size of input cmk
+ * @param aad additional data
+ * @param aad_size size of additional data
+ * @param plaintext data to be encrypted
+ * @param plaintext_size size of data to be encrypted
+ * @param ciphertext information of ciphertext
+ * @param ciphertext_size size of ciphertext
+ * @return ehsm_status_t
+ */
 sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
                                       const ehsm_data_t *aad, size_t aad_size,
                                       ehsm_data_t *plaintext, size_t plaintext_size,

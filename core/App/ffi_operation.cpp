@@ -630,9 +630,9 @@ extern "C"
      *
      * @param payload : Pass in the key parameter in the form of JSON string
                 {
-                    cmk_base64 : a base64 string,
+                    cmk : a base64 string,
                     keylen : int,
-                    aad_base64 : a base64 string
+                    aad : a base64 string
                 }
      *
      * @return char* return value have key plaintext and ciphertext
@@ -814,14 +814,14 @@ extern "C"
     /**
      * @brief create key sign with rsa/ec/sm2
      *
-     * @param paramJson Pass in the key parameter in the form of JSON string
+     * @param payload Pass in the key parameter in the form of JSON string
      * [string] json string
         {
             code: int,
             message: string,
             result: {
-                cmk_base64 : string,
-                digest_base64 : string
+                cmk : string,
+                digest : string
             }
         }
     *
@@ -890,15 +890,15 @@ extern "C"
     /**
      * @brief verify key sign
      *
-     * @param paramJson Pass in the key parameter in the form of JSON string
+     * @param payload Pass in the key parameter in the form of JSON string
      * [string] json string
         {
             code: int,
             message: string,
             result: {
-                cmk_base64 : string,
-                digest_base64 : string,
-                signature_base64 ： string
+                cmk : string,
+                digest : string,
+                signature ： string
             }
         }
     *
