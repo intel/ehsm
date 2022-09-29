@@ -197,9 +197,9 @@ extern "C"
      *
      * @param payload : Pass in the key parameter in the form of JSON string
                 {
-                    cmk_base64 : a base64 string,
+                    cmk : a base64 string,
                     keylen : int,
-                    aad_base64 : a base64 string
+                    aad : a base64 string
                 }
      *
      * @return char* return value have key plaintext and ciphertext
@@ -264,10 +264,9 @@ extern "C"
      *
      * @param payload : Pass in the key parameter in the form of JSON string
                 {
-                    cmk_base64 : a base64 string,
-                    digest_base64 : a base64 string,
-                    appid_base64 : a base64 string,
-                    signature_base64 ： a base64 string
+                    cmk : a base64 string,
+                    digest : a base64 string,
+                    signature ： a base64 string
                 }
      *
      * @return char*

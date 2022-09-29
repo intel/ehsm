@@ -35,13 +35,13 @@
 #include "ehsm_provider.h"
 
 
-uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_size);
+uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_len);
 
 uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val);
 
 
 uint8_t *append_sized_buf_to_buf(uint8_t *buf, const uint8_t *data,
-                                 uint32_t data_size);
+                                 uint32_t data_len);
 
 
 

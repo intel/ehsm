@@ -1194,7 +1194,7 @@ void test_generate_AES_datakey()
     JsonObj payload_json;
     JsonObj param_json;
     payload_json.addData_uint32("keyspec", EH_AES_GCM_128);
-    payload_json.addData_uint32("origin", 0);
+    payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -1320,7 +1320,7 @@ void test_generate_SM4_datakey()
     JsonObj payload_json;
     JsonObj param_json;
     payload_json.addData_uint32("keyspec", EH_SM4_CBC);
-    payload_json.addData_uint32("origin", 0);
+    payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -1808,7 +1808,7 @@ int main(int argc, char *argv[])
 
     test_generate_SM4_datakey();
 
-    test_export_datakey();
+    // test_export_datakey();
 
     test_GenerateQuote_and_VerifyQuote();
 

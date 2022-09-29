@@ -30,7 +30,7 @@ const ehsm_keySpec_t = {
 }
 const ehsm_keyorigin_t = {
   EH_INTERNAL_KEY: 0,
-  EXTERNAL_KEY: 1
+  EH_EXTERNAL_KEY: 1
 }
 
 const ehsm_paddingMode_t = {

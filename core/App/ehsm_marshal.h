@@ -32,15 +32,12 @@
 #ifndef _EHSM_MARSHAL_H_
 #define _EHSM_MARSHAL_H_
 
+
 #include "serialize.h"
 #include "sample_ra_msg.h"
 #include "json_utils.h"
 
 #include <string>
-
-using namespace std;
-
-void* unmarshal_data_from_json(JsonObj payloadJson, string key);
 
 /*
  * process receive msg2 json string to sgx_ra_msg2_t
@@ -79,42 +76,5 @@ ehsm_status_t marshal_msg3_to_json(sgx_ra_msg3_t *p_msg3, RetJsonObj *retJsonObj
  *  @param req_att_result_msg : return sample_ra_att_result_msg_t
  */
 ehsm_status_t unmarshal_att_result_msg_from_json(std::string ra_att_result_msg, sample_ra_att_result_msg_t *req_att_result_msg);
-
-ehsm_status_t unmarshal_creatkey_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk);
-
-ehsm_status_t marshal_single_data_to_json(void *data, RetJsonObj &retJsonObj, std::string key);
-
-ehsm_status_t marshal_multi_data_to_json(void *data1, void *data2, std::string key1,
-                                         std::string key2, RetJsonObj &retJsonObj);
-
-ehsm_status_t unmarshal_encrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                               ehsm_data_t **plaint_data, ehsm_data_t **aad_data,
-                                               ehsm_data_t **cipher_data);
-
-ehsm_status_t unmarshal_decrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                               ehsm_data_t **plaint_data, ehsm_data_t **aad_data,
-                                               ehsm_data_t **cipher_data);
-
-ehsm_status_t unmarshal_asymmetric_encrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                                          ehsm_data_t **plaint_data, ehsm_data_t **cipher_data);
-
-ehsm_status_t unmarshal_asymmetric_decrypt_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                                          ehsm_data_t **plaint_data, ehsm_data_t **cipher_data);
-
-ehsm_status_t unmarshal_generatedata_key_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                                        ehsm_data_t **aad_data, ehsm_data_t **plaint_datakey,
-                                                        ehsm_data_t **cipher_datakey);
-
-ehsm_status_t unmarshal_exportdata_key_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                                      ehsm_data_t **aad_data, ehsm_data_t **olddatakey,
-                                                      ehsm_keyblob_t **ukey, ehsm_data_t **newdatakey);
-
-ehsm_status_t unmarshal_sign_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                            ehsm_data_t **digest_data,
-                                            ehsm_data_t **signature);
-
-ehsm_status_t unmarshal_verify_data_from_json(JsonObj payloadJson, ehsm_keyblob_t **cmk,
-                                              ehsm_data_t **digest_data,
-                                              ehsm_data_t **signature_data);
 
 #endif
