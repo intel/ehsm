@@ -1792,17 +1792,17 @@ int main(int argc, char *argv[])
     }
     printf("Initialize done\n");
 
-    // test_symmertric_encrypt_decrypt();
+    test_symmertric_encrypt_decrypt();
 
-    // test_RSA_encrypt_decrypt();
+    test_RSA_encrypt_decrypt();
 
-    // test_RSA_sign_verify();
+    test_RSA_sign_verify();
 
-    // test_sm2_sign_verify();
+    test_sm2_sign_verify();
 
-    // test_ec_p256_sign_verify();
+    test_ec_p256_sign_verify();
 
-    // test_SM2_encrypt_decrypt();
+    test_SM2_encrypt_decrypt();
 
     test_generate_AES_datakey();
 
