@@ -101,7 +101,6 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
         break;
     default:
         ret = SGX_ERROR_INVALID_PARAMETER;
-        break;
     }
 
     return ret;
