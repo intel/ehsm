@@ -404,6 +404,11 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
         printf("ecall sign data or data len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
+    if(data->datalen == 0)
+    {
+        printf("ecall sign datalen wrong.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     switch (cmk->metadata.keyspec)
     {
@@ -482,6 +487,11 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
     if (data == NULL || data_size != APPEND_SIZE_TO_DATA_T(data->datalen))
     {
         printf("ecall verify data or data len is wrong.\n");
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if(data->datalen == 0)
+    {
+        printf("ecall sign datalen wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (result == NULL)
