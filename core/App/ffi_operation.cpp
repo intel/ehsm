@@ -68,7 +68,6 @@ extern "C"
             cmk->metadata.origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
             cmk->metadata.purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
             cmk->keybloblen = 0;
-
             return cmk;
         }
         else if (!key.compare("cmk") || !key.compare("ukey"))
@@ -94,18 +93,17 @@ extern "C"
             ehsm_data_t *data;
             string data_str = base64_decode(payloadJson.readData_string(key));
             size_t data_size = data_str.size();
-            if (data_size == 0)
-            {
-                return NULL;
-            }
+
             data = (ehsm_data_t*)malloc(APPEND_SIZE_TO_DATA_T(data_size));
             if (data == NULL)
             {
                 return NULL;
             }
-
-            memcpy_s(data->data, data_size, (uint8_t *)data_str.data(), data_size);
             data->datalen = data_size;
+            if(data_size > 0)
+            {
+                memcpy_s(data->data, data_size, (uint8_t *)data_str.data(), data_size);
+            }
 
             return data;
         }
@@ -283,14 +281,14 @@ extern "C"
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception1.");
             goto out;
         }
         cipher_data = (ehsm_data_t *)realloc(cipher_data, APPEND_SIZE_TO_DATA_T(cipher_data->datalen));
         if (cipher_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception2.");
             goto out;
         }
 
@@ -298,7 +296,7 @@ extern "C"
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception3.");
             goto out;
         }
 
@@ -306,7 +304,7 @@ extern "C"
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
+            retJsonObj.setMessage("Server exception4.");
             goto out;
         }
 
