@@ -311,8 +311,7 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     {
         goto out;
     }
-    memset_s(pem_keypair, key_size, 0, key_size);
-
+    
     if (BIO_read(bio, pem_keypair, key_size) < 0)
     {
         goto out;
@@ -328,6 +327,8 @@ out:
     EVP_PKEY_CTX_free(pkey_ctx);
     EVP_PKEY_free(pkey);
     BIO_free(bio);
+
+    memset_s(pem_keypair, key_size, 0, key_size);
     SAFE_FREE(pem_keypair);
     return ret;
 }
@@ -416,7 +417,6 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
     {
         goto out;
     }
-    memset_s(pem_keypair, key_size, 0, key_size);
 
     if (BIO_read(bio, pem_keypair, key_size) < 0)
     {
@@ -433,6 +433,8 @@ out:
     EVP_PKEY_CTX_free(pkey_ctx);
     EVP_PKEY_free(pkey);
     BIO_free(bio);
+
+    memset_s(pem_keypair, key_size, 0, key_size);
     SAFE_FREE(pem_keypair);
     return ret;
 }

@@ -991,6 +991,8 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
 out:
     BIO_free(bio);
     RSA_free(rsa_pubkey);
+
+    memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
 
     return ret;
@@ -1098,6 +1100,8 @@ out:
     RSA_free(sm2_pubkey);
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ectx);
+
+    memset_s(sm2_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(sm2_keypair);
 
     return ret;
@@ -1168,6 +1172,8 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
 out:
     BIO_free(bio);
     RSA_free(rsa_prikey);
+
+    memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
 
     return ret;
@@ -1267,6 +1273,8 @@ out:
     BIO_free(bio);
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(dctx);
+
+    memset_s(sm2_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(sm2_keypair);
 
     return ret;
@@ -1402,6 +1410,8 @@ out:
     BIO_free(bio);
     EVP_PKEY_free(evpkey);
     EVP_MD_CTX_free(mdctx);
+
+    memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
 
     return ret;
@@ -1535,6 +1545,8 @@ out:
     BIO_free(bio);
     EVP_PKEY_free(evpkey);
     EVP_MD_CTX_free(mdctx);
+
+    memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
 
     if (ret != SGX_SUCCESS)
@@ -1667,6 +1679,8 @@ out:
     EC_KEY_free(ec_key);
     EVP_PKEY_free(evpkey);
     EVP_MD_CTX_free(mdctx);
+
+    memset_s(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
 
     return ret;
@@ -1775,6 +1789,8 @@ out:
     EC_KEY_free(ec_key);
     EVP_PKEY_free(evpkey);
     EVP_MD_CTX_free(mdctx);
+
+    memset_s(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
 
     if (ret != SGX_SUCCESS)
@@ -1920,6 +1936,8 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     EVP_PKEY_free(evpkey);
     EVP_MD_CTX_free(mdctx);
     EVP_PKEY_CTX_free(pkey_ctx);
+
+    memset_s(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
 
     return ret;
@@ -2051,6 +2069,8 @@ out:
     EVP_PKEY_free(evpkey);
     EVP_MD_CTX_free(mdctx);
     EVP_PKEY_CTX_free(pkey_ctx);
+
+    memset_s(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
 
     if (ret != SGX_SUCCESS)
