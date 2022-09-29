@@ -691,15 +691,15 @@ ehsm_status_t GenerateDataKey(ehsm_keyblob_t *cmk,
     }
 
     ret = enclave_generate_datakey(g_enclave_id,
-                                       &sgxStatus,
-                                       cmk,
-                                       APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                                       aad,
-                                       APPEND_SIZE_TO_DATA_T(aad->datalen),
-                                       plaintext,
-                                       APPEND_SIZE_TO_DATA_T(plaintext->datalen),
-                                       ciphertext,
-                                       APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
+                                   &sgxStatus,
+                                   cmk,
+                                   APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                                   aad,
+                                   APPEND_SIZE_TO_DATA_T(aad->datalen),
+                                   plaintext,
+                                   APPEND_SIZE_TO_DATA_T(plaintext->datalen),
+                                   ciphertext,
+                                   APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;
@@ -768,6 +768,16 @@ ehsm_status_t GenerateDataKeyWithoutPlaintext(ehsm_keyblob_t *cmk,
     else
         return EH_OK;
 }
+/**
+ * @brief decrypt data key using cmk then use ukey encrypt it 
+ *
+ * @param cmk symmetric key
+ * @param ukey asymmetric key
+ * @param aad extra data to ensure data integrity
+ * @param olddatakey cmk wrapped data key
+ * @param newdatakey ukey wrapped data key
+ * @return ehsm_status_t
+ */
 ehsm_status_t ExportDataKey(ehsm_keyblob_t *cmk,
                             ehsm_keyblob_t *ukey,
                             ehsm_data_t *aad,
