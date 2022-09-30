@@ -1,4 +1,4 @@
-#!/bin sh
+#! /bin/bash
 echo '# PCCS server address' > /etc/sgx_default_qcnl.conf
 echo 'PCCS_URL='${PCCS_URL}'/sgx/certification/v3/' >> /etc/sgx_default_qcnl.conf
 echo '# To accept insecure HTTPS certificate, set this option to FALSE' >> /etc/sgx_default_qcnl.conf

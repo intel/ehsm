@@ -460,6 +460,7 @@ int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port) {
         log_e("Failed(%d) to setup the secure channel.\n", ret);
         goto out;
     }
+    system("touch /tmp/dkeycache_isready.status");// create a file for k8s,flag the dkeycache is ready.
     log_i("Successfully received the DomainKey from deploy server.");
 
 out:

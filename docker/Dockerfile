@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     debhelper \
     git \
+    dnsutils \
     libcurl4-openssl-dev \
     libprotobuf-dev \
     libssl-dev \
@@ -27,7 +28,7 @@ RUN apt-get update && apt-get install -y \
     make \
     module-init-tools \
     g++ \
-    libjsoncpp-dev\
+    libjsoncpp-dev \
     uuid-dev
 
 # Install the SDK
