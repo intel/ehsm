@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <mbusafecrt.h>
+#include <type_traits>
 
 #include "sgx_report.h"
 #include "sgx_utils.h"
@@ -48,9 +49,12 @@
 #include "openssl/ec.h"
 #include "openssl/pem.h"
 #include "openssl/bio.h"
+#include "openssl/rand.h"
 
 #include "key_factory.h"
 #include "key_operation.h"
+
+#define DUMMY_SIZE 128
 
 sgx_aes_gcm_128bit_key_t g_domain_key = {0};
 
@@ -90,6 +94,80 @@ sgx_status_t ehsm_calc_keyblob_size(const uint32_t keyspec, uint32_t &key_size)
     }
 
     return SGX_SUCCESS;
+}
+
+sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    uint8_t *rsa_keypair = NULL;
+    BIO *bio = NULL;
+    RSA *rsa_pubkey = NULL;
+    RSA *rsa_prikey = NULL;
+    uint8_t *ciphertext = NULL;
+    uint8_t *random = (uint8_t *)malloc(DUMMY_SIZE);
+
+    if (RAND_bytes(random, DUMMY_SIZE) != 1)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+
+    // load rsa public key
+    rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (rsa_keypair == NULL)
+    {
+        goto out;
+    }
+
+    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+    bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
+    if (bio == NULL)
+    {
+        printf("failed to load public key pem\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
+    if (rsa_pubkey == NULL)
+    {
+        printf("failed to load public key\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
+    if (rsa_prikey == NULL)
+    {
+        printf("failed to load private key\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    ciphertext = (uint8_t *)malloc(RSA_size(rsa_pubkey));
+
+    // encryption
+    if (RSA_public_encrypt(128, random, ciphertext, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey))
+    {
+        printf("failed to make rsa encryption\n");
+        goto out;
+    }
+
+    // decryption
+
+    ret = SGX_SUCCESS;
+out:
+    BIO_free(bio);
+    RSA_free(rsa_pubkey);
+
+    memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
+    SAFE_FREE(rsa_keypair);
+
+    return ret;
 }
 
 uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
@@ -248,6 +326,10 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     uint8_t *pem_keypair = NULL;
     uint32_t key_size = 0;
 
+    uint8_t *rsa_keypair_test = NULL;
+    BIO *bio_test = NULL;
+    RSA *rsa_pubkey_test = NULL;
+
     pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
     if (pkey_ctx == NULL)
     {
@@ -311,7 +393,7 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     {
         goto out;
     }
-    
+
     if (BIO_read(bio, pem_keypair, key_size) < 0)
     {
         goto out;
@@ -323,6 +405,9 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     {
         goto out;
     }
+
+    // make sure this key pair can work
+    // ehsm_judge_rsa_keypair_available(cmk);
 out:
     EVP_PKEY_CTX_free(pkey_ctx);
     EVP_PKEY_free(pkey);
