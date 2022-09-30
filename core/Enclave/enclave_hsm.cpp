@@ -201,7 +201,7 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    
+
     switch (cmk->metadata.keyspec)
     {
     case EH_AES_GCM_128:
@@ -303,7 +303,7 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    
+
     switch (cmk->metadata.keyspec)
     {
     case EH_RSA_2048:
@@ -606,7 +606,7 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size
     }
 
     uint8_t *temp_datakey = NULL;
-    
+
     temp_datakey = (uint8_t *)malloc(plaintext->datalen);
     if (temp_datakey == NULL)
     {
@@ -619,7 +619,7 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size
     }
 
     memcpy_s(plaintext->data, plaintext->datalen, temp_datakey, plaintext->datalen);
-    
+
     switch (cmk->metadata.keyspec)
     {
     case EH_AES_GCM_128:
@@ -749,12 +749,6 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
         goto out;
     }
     // calc length
-    if (newdatakey->datalen == 0)
-    {
-        ret = enclave_asymmetric_encrypt(ukey, ukey_size, tmp_datakey, tmp_datakey_size, newdatakey, newdatakey_size);
-        goto out;
-    }
-
     // encrypt datakey using ukey
     // or just ret = enclave_asymmetric_encrypt(ukey, ukey_size, tmp_datakey, tmp_datakey_size, newdatakey, newdatakey_size);
     switch (ukey->metadata.keyspec)
@@ -767,6 +761,10 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
         break;
     default:
         ret = SGX_ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+    if (ret != SGX_SUCCESS)
+    {
         goto out;
     }
 out:

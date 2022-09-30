@@ -709,7 +709,7 @@ extern "C"
     }
 
     /**
-     * @brief pass in a key to decrypt the data key
+     * @brief pass in a key to decrypt the data key then wrap it up using user key
      * use after ffi_GenerateDataKeyWithoutPlaintext
      *
      * @param payload : Pass in the key parameter in the form of JSON string

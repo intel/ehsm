@@ -96,7 +96,7 @@ typedef int errno_t;
 
 #define SM2PKE_MAX_ENCRYPTION_SIZE              6047
 #define EH_ENCRYPT_MAX_SIZE                    (6*1024)
-#define EH_DATA_KEY_MAX_SIZE                    1024
+#define EH_DATA_KEY_MAX_SIZE                    (6*1024)
 
 #define MESSAGE_EXCHANGE 0x0
 
@@ -106,6 +106,9 @@ typedef int errno_t;
 
 #define EH_CMK_MAX_SIZE (8*1024)
 #define EH_AAD_MAX_SIZE (8*1024)
+#define EH_PLAINTEXT_MAX_SIZE (6*1024)
+#define EH_CIPHERTEXT_MAX_SIZE (6*1024)
+#define EH_PAYLOAD_MAX_SIZE (12*1024)
 #define EH_QUOTE_MAX_SIZE (8*1024)
 
 #define SGX_DOMAIN_KEY_SIZE     16
