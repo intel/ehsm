@@ -763,7 +763,7 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
         ret = SGX_ERROR_INVALID_PARAMETER;
         goto out;
     }
-    if (ret = != SGX_SUCCESS)
+    if (ret != SGX_SUCCESS)
     {
         goto out;
     }
