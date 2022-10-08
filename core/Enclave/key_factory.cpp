@@ -105,12 +105,8 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
     RSA *rsa_pubkey = NULL;
     RSA *rsa_prikey = NULL;
     uint8_t *ciphertext = NULL;
-    uint8_t *random = (uint8_t *)malloc(DUMMY_SIZE);
-
-    if (RAND_bytes(random, DUMMY_SIZE) != 1)
-    {
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
+    string plaintext = "rsa_test_ciphertext";
+    uint8_t *dec_text = (uint8_t *)malloc(strlen(plaintext.c_str()));
 
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -151,15 +147,25 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
     ciphertext = (uint8_t *)malloc(RSA_size(rsa_pubkey));
 
     // encryption
-    if (RSA_public_encrypt(128, random, ciphertext, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey))
+    if (RSA_public_encrypt(strlen(plaintext.c_str()), (unsigned char *)plaintext.c_str(),
+                           ciphertext, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey))
     {
         printf("failed to make rsa encryption\n");
         goto out;
     }
-
     // decryption
+    if (!RSA_private_decrypt(RSA_size(rsa_pubkey), ciphertext, dec_text, rsa_prikey, cmk->metadata.padding_mode))
+    {
+        printf("failed to make rsa decrypt\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
 
-    ret = SGX_SUCCESS;
+    if (!strcmp((const char *)dec_text, plaintext.c_str()))
+    {
+        ret = SGX_SUCCESS;
+    }
+
 out:
     BIO_free(bio);
     RSA_free(rsa_pubkey);
@@ -407,7 +413,7 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     }
 
     // make sure this key pair can work
-    // ehsm_judge_rsa_keypair_available(cmk);
+    ret = ehsm_judge_rsa_keypair_available(cmk);
 out:
     EVP_PKEY_CTX_free(pkey_ctx);
     EVP_PKEY_free(pkey);
