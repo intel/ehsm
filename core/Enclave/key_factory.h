@@ -55,6 +55,8 @@ typedef struct _aes_gcm_data_ex_t
     uint8_t payload[]; /* ciphertext + aad */
 } sgx_aes_gcm_data_ex_t;
 
+sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk);
+
 // use the g_domain_key to encrypt the cmk and get it ciphertext
 sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
                                 const sgx_aes_gcm_data_ex_t *keyblob_data);
