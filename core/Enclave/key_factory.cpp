@@ -148,13 +148,13 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
 
     // encryption
     if (RSA_public_encrypt(strlen(plaintext.c_str()), (unsigned char *)plaintext.c_str(),
-                           ciphertext, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey))
+                           ciphertext, rsa_pubkey, EH_PAD_RSA_PKCS1_OAEP) != RSA_size(rsa_pubkey))
     {
         printf("failed to make rsa encryption\n");
         goto out;
     }
     // decryption
-    if (!RSA_private_decrypt(RSA_size(rsa_pubkey), ciphertext, dec_text, rsa_prikey, cmk->metadata.padding_mode))
+    if (!RSA_private_decrypt(RSA_size(rsa_pubkey), ciphertext, dec_text, rsa_prikey, EH_PAD_RSA_PKCS1_OAEP))
     {
         printf("failed to make rsa decrypt\n");
         ret = SGX_ERROR_UNEXPECTED;
