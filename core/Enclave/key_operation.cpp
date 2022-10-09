@@ -122,35 +122,6 @@ static const EVP_MD *GetDigestMode(ehsm_digest_mode_t digestMode)
 }
 
 /**
- * @brief verify Padding Mode from cmk
- *
- * @param paddingMode the paddingMode passed in by cmk
- * @param digestMode the digestMode passed in by cmk
- * @param evpkey EVP_PKEY created by the context
- * @return [false] unsupported padding mode/ [true] supported padding mode
- */
-static bool verifyPaddingMode(uint8_t paddingMode, const EVP_MD *digestMode, EVP_PKEY *evpkey)
-{
-    switch (paddingMode)
-    {
-    case EH_PAD_RSA_PKCS1:
-        return true;
-    case EH_PAD_RSA_NO:
-        return false;
-    case EH_PAD_RSA_PKCS1_OAEP:
-        return false;
-    case EH_PAD_RSA_PKCS1_PSS:
-        if (EVP_MD_size(digestMode) * 2 + 2 > (size_t)EVP_PKEY_size(evpkey))
-        {
-            return false;
-        }
-        return true;
-    default:
-        return false;
-    }
-}
-
-/**
  * @brief Check parameters and encrypted data
  * @param aad Additional data
  * @param cmk Key information
@@ -911,6 +882,12 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    //verify padding mode
+    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
     RSA *rsa_pubkey = NULL;
@@ -1079,6 +1056,12 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
                               ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    //verify padding mode
+    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
@@ -1251,6 +1234,12 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    //verify padding mode
+    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_PSS)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
     RSA *rsa_prikey = NULL;
@@ -1302,12 +1291,16 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
         printf("ecall rsa_sign fail to set the evpkey by RSA_KEY\n");
         goto out;
     }
-    // verify Padding Mode
-    if (!verifyPaddingMode(cmk->metadata.padding_mode, digestMode, evpkey))
+    // verify digestmode and padding mode
+    if (cmk->metadata.padding_mode == RSA_PKCS1_PSS_PADDING)
     {
-        printf("ecall rsa_sign unsupported padding mode.\n");
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        goto out;
+        //Referenced from https://android.googlesource.com/platform/system/keymaster/+/refs/heads/master/km_openssl/rsa_operation.cpp
+        if (EVP_MD_size(digestMode) * 2 + 2 > (size_t)EVP_PKEY_size(evpkey))
+        {
+            printf("ecall rsa_sign unsupported padding mode.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            goto out;
+        }
     }
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
@@ -1389,6 +1382,12 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
                              bool *result)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  
+    //verify padding mode
+    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_PSS)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
@@ -1441,13 +1440,16 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
         printf("ecall rsa_verify fail to set the evpkey by RSA_KEY\n");
         goto out;
     }
-
-    // verify Padding Mode
-    if (!verifyPaddingMode(cmk->metadata.padding_mode, digestMode, evpkey))
+    // verify digestmode and padding mode
+    if (cmk->metadata.padding_mode == RSA_PKCS1_PSS_PADDING)
     {
-        printf("ecall rsa_verify unsupported padding mode.\n");
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        goto out;
+        //Referenced from https://android.googlesource.com/platform/system/keymaster/+/refs/heads/master/km_openssl/rsa_operation.cpp
+        if (EVP_MD_size(digestMode) * 2 + 2 > (size_t)EVP_PKEY_size(evpkey))
+        {
+            printf("ecall rsa_sign unsupported padding mode.\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+            goto out;
+        }
     }
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)

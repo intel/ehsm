@@ -258,10 +258,6 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     case EH_RSA_2048:
     case EH_RSA_3072:
     case EH_RSA_4096:
-        if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
-        {
-            return SGX_ERROR_INVALID_PARAMETER;
-        }
         ret = ehsm_rsa_encrypt(cmk, plaintext, ciphertext);
         break;
     case EH_SM2:
@@ -309,10 +305,6 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     case EH_RSA_2048:
     case EH_RSA_3072:
     case EH_RSA_4096:
-        if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
-        {
-            return SGX_ERROR_INVALID_PARAMETER;
-        }
         ret = ehsm_rsa_decrypt(cmk, ciphertext, plaintext);
         break;
     case EH_SM2:
