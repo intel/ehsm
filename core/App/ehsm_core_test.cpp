@@ -1917,7 +1917,9 @@ int main(int argc, char *argv[])
     }
     printf("Initialize done\n");
 
-    test_performance();
+    #if ENABLE_PERFORMANCE_TEST
+        test_performance();
+    #endif
 
     test_symmertric_encrypt_decrypt();
 
