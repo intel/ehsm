@@ -150,6 +150,7 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
     if (RSA_public_encrypt(strlen(plaintext.c_str()), (unsigned char *)plaintext.c_str(),
                            ciphertext, rsa_pubkey, EH_PAD_RSA_PKCS1_OAEP) != RSA_size(rsa_pubkey))
     {
+        ret = SGX_ERROR_UNEXPECTED;
         log_d("failed to make rsa encryption\n");
         goto out;
     }
@@ -167,8 +168,10 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
     }
 
 out:
-    BIO_free(bio);
-    RSA_free(rsa_pubkey);
+    if (bio)
+        BIO_free(bio);
+    if (rsa_pubkey)
+        RSA_free(rsa_pubkey);
 
     memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
@@ -415,9 +418,12 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     // make sure this key pair can work
     ret = ehsm_judge_rsa_keypair_available(cmk);
 out:
-    EVP_PKEY_CTX_free(pkey_ctx);
-    EVP_PKEY_free(pkey);
-    BIO_free(bio);
+    if (pkey_ctx)
+        EVP_PKEY_CTX_free(pkey_ctx);
+    if (pkey)
+        EVP_PKEY_free(pkey);
+    if (bio)
+        BIO_free(bio);
 
     memset_s(pem_keypair, key_size, 0, key_size);
     SAFE_FREE(pem_keypair);
@@ -521,9 +527,12 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 out:
-    EVP_PKEY_CTX_free(pkey_ctx);
-    EVP_PKEY_free(pkey);
-    BIO_free(bio);
+    if (pkey_ctx)
+        EVP_PKEY_CTX_free(pkey_ctx);
+    if (pkey)
+        EVP_PKEY_free(pkey);
+    if (bio)
+        BIO_free(bio);
 
     memset_s(pem_keypair, key_size, 0, key_size);
     SAFE_FREE(pem_keypair);

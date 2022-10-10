@@ -136,7 +136,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     int temp_len = 0;
-    EVP_CIPHER_CTX *pState = NULL;
+    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
@@ -203,14 +203,14 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     }
 
     // Create and init ctx
-    if (!(pState = EVP_CIPHER_CTX_new()))
+    if (!(pctx = EVP_CIPHER_CTX_new()))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     // Initialise encrypt/decrpty, key and IV
-    if (1 != EVP_EncryptInit_ex(pState, block_mode, NULL, (unsigned char *)enc_key, iv))
+    if (1 != EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)enc_key, iv))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
@@ -219,7 +219,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     // Provide AAD data if exist
     if (aad != NULL && aad->datalen > 0)
     {
-        if (1 != EVP_EncryptUpdate(pState, NULL, &temp_len, aad->data, aad->datalen))
+        if (1 != EVP_EncryptUpdate(pctx, NULL, &temp_len, aad->data, aad->datalen))
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
@@ -229,7 +229,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     if (plaintext->datalen > 0)
     {
         // Provide the message to be encrypted, and obtain the encrypted output.
-        if (1 != EVP_EncryptUpdate(pState, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen))
+        if (1 != EVP_EncryptUpdate(pctx, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen))
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
@@ -237,22 +237,22 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
     }
 
     // Finalise the encryption/decryption
-    if (1 != EVP_EncryptFinal_ex(pState, cipherblob->data + temp_len, &temp_len))
+    if (1 != EVP_EncryptFinal_ex(pctx, cipherblob->data + temp_len, &temp_len))
     {
         ret = SGX_ERROR_MAC_MISMATCH;
         goto out;
     }
 
     // Get tag
-    if (1 != EVP_CIPHER_CTX_ctrl(pState, EVP_CTRL_GCM_GET_TAG, SGX_AESGCM_MAC_SIZE, mac))
+    if (1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_GET_TAG, SGX_AESGCM_MAC_SIZE, mac))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 out:
-    if (pState)
+    if (pctx)
     {
-        EVP_CIPHER_CTX_free(pState);
+        EVP_CIPHER_CTX_free(pctx);
     }
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
     SAFE_FREE(enc_key);
@@ -274,7 +274,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     uint8_t l_tag[SGX_AESGCM_MAC_SIZE];
     int temp_len = 0;
-    EVP_CIPHER_CTX *pState = NULL;
+    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_AES_GCM_128 &&
@@ -341,21 +341,21 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
     memcpy(l_tag, mac, SGX_AESGCM_MAC_SIZE);
 
     // Create and initialise the context
-    if (!(pState = EVP_CIPHER_CTX_new()))
+    if (!(pctx = EVP_CIPHER_CTX_new()))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     // Initialise decrypt, key and IV
-    if (!EVP_DecryptInit_ex(pState, block_mode, NULL, (unsigned char *)dec_key, iv))
+    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)dec_key, iv))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     if (aad != NULL && aad->datalen > 0)
     {
-        if (!EVP_DecryptUpdate(pState, NULL, &temp_len, aad->data, aad->datalen))
+        if (!EVP_DecryptUpdate(pctx, NULL, &temp_len, aad->data, aad->datalen))
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
@@ -363,14 +363,14 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
     }
 
     // Decrypt message, obtain the plaintext output
-    if (!EVP_DecryptUpdate(pState, plaintext->data, &temp_len, cipherblob->data, plaintext->datalen))
+    if (!EVP_DecryptUpdate(pctx, plaintext->data, &temp_len, cipherblob->data, plaintext->datalen))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     // Update expected tag value
-    if (!EVP_CIPHER_CTX_ctrl(pState, EVP_CTRL_GCM_SET_TAG, SGX_AESGCM_MAC_SIZE, l_tag))
+    if (!EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_TAG, SGX_AESGCM_MAC_SIZE, l_tag))
     {
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
@@ -378,15 +378,15 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
 
     // Finalise the decryption. A positive return value indicates success,
     // anything else is a failure - the plaintext is not trustworthy.
-    if (EVP_DecryptFinal_ex(pState, plaintext->data + temp_len, &temp_len) <= 0)
+    if (EVP_DecryptFinal_ex(pctx, plaintext->data + temp_len, &temp_len) <= 0)
     {
         ret = SGX_ERROR_MAC_MISMATCH;
         goto out;
     }
 out:
-    if (pState != NULL)
+    if (pctx != NULL)
     {
-        EVP_CIPHER_CTX_free(pState);
+        EVP_CIPHER_CTX_free(pctx);
     }
     memset_s(&l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
     memset_s(dec_key, sizeof(dec_key), 0, sizeof(dec_key));
@@ -406,7 +406,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int temp_len = 0;
-    EVP_CIPHER_CTX *pState = NULL;
+    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CTR)
@@ -467,14 +467,14 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
         goto out;
     }
     // Create and initialize pState
-    if (!(pState = EVP_CIPHER_CTX_new()))
+    if (!(pctx = EVP_CIPHER_CTX_new()))
     {
         log_d("Error: fail to initialize EVP_CIPHER_CTX\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Initialize encrypt, key and ctr
-    if (EVP_EncryptInit_ex(pState, block_mode, NULL, (unsigned char *)enc_key, iv) != 1)
+    if (EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)enc_key, iv) != 1)
     {
         log_d("Error: fail to initialize encrypt, key and ctr\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -482,7 +482,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     }
 
     // 3. Encrypt the plaintext and obtain the encrypted output
-    if (EVP_EncryptUpdate(pState, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen) != 1)
+    if (EVP_EncryptUpdate(pctx, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen) != 1)
     {
         log_d("Error: fail to encrypt the plaintext\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -490,7 +490,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     }
 
     // 4. Finalize the encryption
-    if (EVP_EncryptFinal_ex(pState, cipherblob->data + temp_len, &temp_len) != 1)
+    if (EVP_EncryptFinal_ex(pctx, cipherblob->data + temp_len, &temp_len) != 1)
     {
         log_d("Error: fail to finalize the encryption\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -498,9 +498,9 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     }
 
 out:
-    if (pState)
+    if (pctx)
     {
-        EVP_CIPHER_CTX_free(pState);
+        EVP_CIPHER_CTX_free(pctx);
     }
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
     SAFE_FREE(enc_key);
@@ -513,7 +513,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int temp_len = 0;
-    EVP_CIPHER_CTX *pState = NULL;
+    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CTR)
@@ -574,14 +574,14 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     }
 
     // Create and initialize ctx
-    if (!(pState = EVP_CIPHER_CTX_new()))
+    if (!(pctx = EVP_CIPHER_CTX_new()))
     {
         log_d("Error: fail to initialize EVP_CIPHER_CTX\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Initialize decrypt, key and ctr
-    if (!EVP_DecryptInit_ex(pState, block_mode, NULL, (unsigned char *)dec_key, iv))
+    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)dec_key, iv))
     {
         log_d("Error: fail to initialize decrypt, key and ctr\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -589,7 +589,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     }
 
     // Decrypt the ciphertext and obtain the decrypted output
-    if (!EVP_DecryptUpdate(pState, plaintext->data, &temp_len, cipherblob->data, plaintext->datalen))
+    if (!EVP_DecryptUpdate(pctx, plaintext->data, &temp_len, cipherblob->data, plaintext->datalen))
     {
         log_d("Error: fail to decrypt the ciphertext\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -599,7 +599,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     // Finalize the decryption:
     // - A positive return value indicates success;
     // - Anything else is a failure - the msg is not trustworthy.
-    if (EVP_DecryptFinal_ex(pState, plaintext->data + temp_len, &temp_len) <= 0)
+    if (EVP_DecryptFinal_ex(pctx, plaintext->data + temp_len, &temp_len) <= 0)
     {
         log_d("Error: fail to finalize the decryption\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -607,9 +607,9 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     }
 
 out:
-    if (pState != NULL)
+    if (pctx != NULL)
     {
-        EVP_CIPHER_CTX_free(pState);
+        EVP_CIPHER_CTX_free(pctx);
     }
     memset_s(dec_key, sizeof(dec_key), 0, sizeof(dec_key));
     SAFE_FREE(dec_key);
@@ -624,7 +624,7 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     int temp_len = 0;
     int pad = -1;
     uint8_t *iv = NULL;
-    EVP_CIPHER_CTX *pState = NULL;
+    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CBC)
@@ -711,21 +711,21 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     pad = (plaintext->datalen % 16 == 0) ? SM4_NO_PAD : SM4_PAD;
 
     // Create and initialize ctx
-    if (!(pState = EVP_CIPHER_CTX_new()))
+    if (!(pctx = EVP_CIPHER_CTX_new()))
     {
         log_d("Error: fail to initialize EVP_CIPHER_CTX\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Initialize encrypt, key and ctr
-    if (EVP_EncryptInit_ex(pState, block_mode, NULL, (unsigned char *)enc_key, iv) != 1)
+    if (EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)enc_key, iv) != 1)
     {
         log_d("Error: fail to initialize encrypt, key and ctr\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
-    if (EVP_CIPHER_CTX_set_padding(pState, pad) != 1)
+    if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
     {
         log_d("Error: fail to set padding\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -733,14 +733,14 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     }
 
     // Encrypt the plaintext and obtain the encrypted output
-    if (EVP_EncryptUpdate(pState, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen) != 1)
+    if (EVP_EncryptUpdate(pctx, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen) != 1)
     {
         log_d("Error: fail to encrypt the plaintext\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Finalize the encryption
-    if (EVP_EncryptFinal_ex(pState, cipherblob->data + temp_len, &temp_len) != 1)
+    if (EVP_EncryptFinal_ex(pctx, cipherblob->data + temp_len, &temp_len) != 1)
     {
         log_d("Error: fail to finalize the encryption\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -748,9 +748,9 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     }
 
 out:
-    if (pState)
+    if (pctx)
     {
-        EVP_CIPHER_CTX_free(pState);
+        EVP_CIPHER_CTX_free(pctx);
     }
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
     SAFE_FREE(enc_key);
@@ -764,7 +764,7 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int temp_len = 0;
     int pad = -1;
-    EVP_CIPHER_CTX *pState = NULL;
+    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CBC)
@@ -824,21 +824,21 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     }
     pad = (plaintext->datalen % 16 == 0) ? 0 : 1;
     // Create and initialize ctx
-    if (!(pState = EVP_CIPHER_CTX_new()))
+    if (!(pctx = EVP_CIPHER_CTX_new()))
     {
         log_d("Error: fail to initialize EVP_CIPHER_CTX\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Initialize decrypt, key and IV
-    if (!EVP_DecryptInit_ex(pState, block_mode, NULL, (unsigned char *)dec_key, iv))
+    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)dec_key, iv))
     {
         log_d("Error: fail to initialize decrypt, key and IV\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
-    if (EVP_CIPHER_CTX_set_padding(pState, pad) != 1)
+    if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
     {
         log_d("Error: fail to set padding\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -846,7 +846,7 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     }
 
     // Decrypt the ciphertext and obtain the decrypted output
-    if (!EVP_DecryptUpdate(pState, plaintext->data, &temp_len, cipherblob->data, cipherblob->datalen - 16))
+    if (!EVP_DecryptUpdate(pctx, plaintext->data, &temp_len, cipherblob->data, cipherblob->datalen - 16))
     {
         log_d("Error: fail to decrypt the ciphertext\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -859,7 +859,7 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     // - Anything else is a failure - the plaintext is not trustworthy.
     if (plaintext->datalen % 16 != 0)
     {
-        if (EVP_DecryptFinal_ex(pState, plaintext->data + temp_len, &temp_len) <= 0)
+        if (EVP_DecryptFinal_ex(pctx, plaintext->data + temp_len, &temp_len) <= 0)
         {
             log_d("Error: fail to finalize the decryption\n");
             ret = SGX_ERROR_UNEXPECTED;
@@ -867,9 +867,9 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
         }
     }
 out:
-    if (pState != NULL)
+    if (pctx != NULL)
     {
-        EVP_CIPHER_CTX_free(pState);
+        EVP_CIPHER_CTX_free(pctx);
     }
     memset_s(dec_key, sizeof(dec_key), 0, sizeof(dec_key));
     SAFE_FREE(dec_key);
@@ -882,7 +882,7 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    //verify padding mode
+    // verify padding mode
     if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -906,10 +906,10 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
-                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
+    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    {
         goto out;
+    }
 
     bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
@@ -942,8 +942,10 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
 
     ret = SGX_SUCCESS;
 out:
-    BIO_free(bio);
-    RSA_free(rsa_pubkey);
+    if (bio)
+        BIO_free(bio);
+    if (rsa_pubkey)
+        RSA_free(rsa_pubkey);
 
     memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
@@ -970,10 +972,10 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    ret = ehsm_parse_keyblob(sm2_keypair, cmk->keybloblen,
-                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
+    if (SGX_SUCCESS != ehsm_parse_keyblob(sm2_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    {
         goto out;
+    }
 
     bio = BIO_new_mem_buf(sm2_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
@@ -1040,10 +1042,14 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 
     ret = SGX_SUCCESS;
 out:
-    BIO_free(bio);
-    RSA_free(sm2_pubkey);
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(ectx);
+    if (bio)
+        BIO_free(bio);
+    if (sm2_pubkey)
+        RSA_free(sm2_pubkey);
+    if (pkey)
+        EVP_PKEY_free(pkey);
+    if (ectx)
+        EVP_PKEY_CTX_free(ectx);
 
     memset_s(sm2_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(sm2_keypair);
@@ -1057,7 +1063,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    //verify padding mode
+    // verify padding mode
     if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -1118,8 +1124,10 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
     }
 
 out:
-    BIO_free(bio);
-    RSA_free(rsa_prikey);
+    if (bio)
+        BIO_free(bio);
+    if (rsa_prikey)
+        RSA_free(rsa_prikey);
 
     memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
@@ -1209,9 +1217,12 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
     }
 
 out:
-    BIO_free(bio);
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(dctx);
+    if (bio)
+        BIO_free(bio);
+    if (pkey)
+        EVP_PKEY_free(pkey);
+    if (dctx)
+        EVP_PKEY_CTX_free(dctx);
 
     memset_s(sm2_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(sm2_keypair);
@@ -1234,7 +1245,7 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    //verify padding mode
+    // verify padding mode
     if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_PSS)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -1257,12 +1268,11 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     }
     // load private key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
-    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
-                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
-        goto out;
 
-    ret = SGX_ERROR_UNEXPECTED;
+    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    {
+        goto out;
+    }
 
     bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
@@ -1294,7 +1304,7 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     // verify digestmode and padding mode
     if (cmk->metadata.padding_mode == RSA_PKCS1_PSS_PADDING)
     {
-        //Referenced from https://android.googlesource.com/platform/system/keymaster/+/refs/heads/master/km_openssl/rsa_operation.cpp
+        // Referenced from https://android.googlesource.com/platform/system/keymaster/+/refs/heads/master/km_openssl/rsa_operation.cpp
         if (EVP_MD_size(digestMode) * 2 + 2 > (size_t)EVP_PKEY_size(evpkey))
         {
             log_d("ecall rsa_sign unsupported padding mode.\n");
@@ -1353,12 +1363,16 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     }
 
     ret = SGX_SUCCESS;
-    
+
 out:
-    RSA_free(rsa_prikey);
-    BIO_free(bio);
-    EVP_PKEY_free(evpkey);
-    EVP_MD_CTX_free(mdctx);
+    if (rsa_prikey)
+        RSA_free(rsa_prikey);
+    if (bio)
+        BIO_free(bio);
+    if (evpkey)
+        EVP_PKEY_free(evpkey);
+    if (mdctx)
+        EVP_MD_CTX_free(mdctx);
 
     memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
@@ -1382,8 +1396,8 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
                              bool *result)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-  
-    //verify padding mode
+
+    // verify padding mode
     if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_PSS)
     {
         return SGX_ERROR_INVALID_PARAMETER;
@@ -1407,12 +1421,10 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
-                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
+    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    {
         goto out;
-
-    ret = SGX_ERROR_UNEXPECTED;
+    }
 
     bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
@@ -1443,7 +1455,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     // verify digestmode and padding mode
     if (cmk->metadata.padding_mode == RSA_PKCS1_PSS_PADDING)
     {
-        //Referenced from https://android.googlesource.com/platform/system/keymaster/+/refs/heads/master/km_openssl/rsa_operation.cpp
+        // Referenced from https://android.googlesource.com/platform/system/keymaster/+/refs/heads/master/km_openssl/rsa_operation.cpp
         if (EVP_MD_size(digestMode) * 2 + 2 > (size_t)EVP_PKEY_size(evpkey))
         {
             log_d("ecall rsa_sign unsupported padding mode.\n");
@@ -1490,8 +1502,16 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
         goto out;
     }
     // start verify
-    if (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen) != 1)
+    switch (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen))
     {
+    case 1:
+        *result = true;
+        break;
+    case 0:
+        // tbs did not match the original data or the signature had an invalid form
+        *result = false;
+        break;
+    default:
         log_d("ecall rsa_verify EVP_DigestVerifyFinal failed.\n");
         goto out;
     }
@@ -1499,22 +1519,18 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     ret = SGX_SUCCESS;
 
 out:
-    RSA_free(rsa_pubkey);
-    BIO_free(bio);
-    EVP_PKEY_free(evpkey);
-    EVP_MD_CTX_free(mdctx);
+    if (rsa_pubkey)
+        RSA_free(rsa_pubkey);
+    if (bio)
+        BIO_free(bio);
+    if (evpkey)
+        EVP_PKEY_free(evpkey);
+    if (mdctx)
+        EVP_MD_CTX_free(mdctx);
 
     memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
 
-    if (ret != SGX_SUCCESS)
-    {
-        *result = false;
-    }
-    else
-    {
-        *result = true;
-    }
     return ret;
 }
 
@@ -1558,12 +1574,11 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     }
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
-    ret = ehsm_parse_keyblob(ec_keypair, cmk->keybloblen,
-                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
-        goto out;
 
-    ret = SGX_ERROR_UNEXPECTED;
+    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    {
+        goto out;
+    }
 
     bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
@@ -1632,11 +1647,14 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     ret = SGX_SUCCESS;
 
 out:
-
-    BIO_free(bio);
-    EC_KEY_free(ec_key);
-    EVP_PKEY_free(evpkey);
-    EVP_MD_CTX_free(mdctx);
+    if (ec_key)
+        EC_KEY_free(ec_key);
+    if (bio)
+        BIO_free(bio);
+    if (evpkey)
+        EVP_PKEY_free(evpkey);
+    if (mdctx)
+        EVP_MD_CTX_free(mdctx);
 
     memset_s(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
@@ -1678,12 +1696,10 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    ret = ehsm_parse_keyblob(ec_keypair, cmk->keybloblen,
-                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
+    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    {
         goto out;
-    
-    ret = SGX_ERROR_UNEXPECTED;
+    }
 
     bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
@@ -1734,31 +1750,35 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
         log_d("ecall ec_verify EVP_DigestVerifyUpdate failed.\n");
         goto out;
     }
-    if (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen) != 1)
+
+    switch (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen))
     {
-        log_d("ecall ec_verify EVP_DigestVerifyFinal failed.\n");
+    case 1:
+        *result = true;
+        break;
+    case 0:
+        // tbs did not match the original data or the signature had an invalid form
+        *result = false;
+        break;
+    default:
+        log_d("ecall ec_verify EVP_DigestVerifyUpdate failed.\n");
         goto out;
     }
 
     ret = SGX_SUCCESS;
 
 out:
-    BIO_free(bio);
-    EC_KEY_free(ec_key);
-    EVP_PKEY_free(evpkey);
-    EVP_MD_CTX_free(mdctx);
+    if (ec_key)
+        EC_KEY_free(ec_key);
+    if (bio)
+        BIO_free(bio);
+    if (evpkey)
+        EVP_PKEY_free(evpkey);
+    if (mdctx)
+        EVP_MD_CTX_free(mdctx);
 
     memset_s(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
-
-    if (ret != SGX_SUCCESS)
-    {
-        *result = false;
-    }
-    else
-    {
-        *result = true;
-    }
 
     return ret;
 }
@@ -1795,12 +1815,11 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     }
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
-    ret = ehsm_parse_keyblob(ec_keypair, cmk->keybloblen,
-                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
-        goto out;
 
-    ret = SGX_ERROR_UNEXPECTED;
+    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    {
+        goto out;
+    }
 
     bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
@@ -1887,13 +1906,17 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
 
     ret = SGX_SUCCESS;
 
-
- out:
-    BIO_free(bio);
-    EC_KEY_free(ec_key);
-    EVP_PKEY_free(evpkey);
-    EVP_MD_CTX_free(mdctx);
-    EVP_PKEY_CTX_free(pkey_ctx);
+out:
+    if (ec_key)
+        EC_KEY_free(ec_key);
+    if (bio)
+        BIO_free(bio);
+    if (evpkey)
+        EVP_PKEY_free(evpkey);
+    if (mdctx)
+        EVP_MD_CTX_free(mdctx);
+    if (pkey_ctx)
+        EVP_PKEY_CTX_free(pkey_ctx);
 
     memset_s(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
@@ -1935,12 +1958,10 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    ret = ehsm_parse_keyblob(ec_keypair, cmk->keybloblen,
-                                (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
+    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    {
         goto out;
-
-    ret = SGX_ERROR_UNEXPECTED;
+    }
 
     bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
@@ -2012,8 +2033,17 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
         log_d("ecall sm2_verify EVP_DigestVerifyUpdate failed.\n");
         goto out;
     }
-    if (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen) != 1)
+
+    switch (EVP_DigestVerifyFinal(mdctx, signature->data, signature->datalen))
     {
+    case 1:
+        *result = true;
+        break;
+    case 0:
+        // tbs did not match the original data or the signature had an invalid form
+        *result = false;
+        break;
+    default:
         log_d("ecall sm2_verify EVP_DigestVerifyFinal failed.\n");
         goto out;
     }
@@ -2021,24 +2051,19 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     ret = SGX_SUCCESS;
 
 out:
-
-    BIO_free(bio);
-    EC_KEY_free(ec_key);
-    EVP_PKEY_free(evpkey);
-    EVP_MD_CTX_free(mdctx);
-    EVP_PKEY_CTX_free(pkey_ctx);
+    if (ec_key)
+        EC_KEY_free(ec_key);
+    if (bio)
+        BIO_free(bio);
+    if (evpkey)
+        EVP_PKEY_free(evpkey);
+    if (mdctx)
+        EVP_MD_CTX_free(mdctx);
+    if (pkey_ctx)
+        EVP_PKEY_CTX_free(pkey_ctx);
 
     memset_s(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
-
-    if (ret != SGX_SUCCESS)
-    {
-        *result = false;
-    }
-    else
-    {
-        *result = true;
-    }
 
     return ret;
 }
