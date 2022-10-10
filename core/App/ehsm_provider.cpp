@@ -745,7 +745,7 @@ ehsm_status_t generate_apikey(ehsm_data_t *apikey, ehsm_data_t *cipherapikey)
                                   cipherapikey->datalen);
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
     {
-        printf("error: generate apikey faild (%d)(%d).\n", ret, sgxStatus);
+        log_e("error: generate apikey faild (%d)(%d).\n", ret, sgxStatus);
         return EH_FUNCTION_FAILED;
     }
     else

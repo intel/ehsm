@@ -354,7 +354,7 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     // check cmk_blob and cmk_blob_size
     if (cmk == NULL || cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
     {
-        printf("ecall sign cmk is NULL.\n");
+        log_d("ecall sign cmk is NULL.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (cmk->keybloblen == 0 || cmk->metadata.origin != EH_INTERNAL_KEY)
@@ -367,12 +367,12 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     }
     if(signature == NULL || signature_size != APPEND_SIZE_TO_DATA_T(signature->datalen))
     {
-        printf("ecall sign signture or signature_size wrong.\n");
+        log_d("ecall sign signture or signature_size wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (cmk->metadata.keyspec == EH_SM2 && cmk->metadata.digest_mode != EH_SM3)
     {
-        printf("ecall ec_sign sm2 digest made not support.\n");
+        log_d("ecall ec_sign sm2 digest made not support.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     // Set signature data length
@@ -383,22 +383,22 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     }
     if (signature->datalen == -1)
     {
-        printf("ecall sign cant get signature length.\n");
+        log_d("ecall sign cant get signature length.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (signature->datalen != get_signature_length(cmk->metadata.keyspec))
     {
-        printf("ecall sign signature length error.\n");
+        log_d("ecall sign signature length error.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (data == NULL || data_size != APPEND_SIZE_TO_DATA_T(data->datalen))
     {
-        printf("ecall sign data or data len is wrong.\n");
+        log_d("ecall sign data or data len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if(data->datalen == 0)
     {
-        printf("ecall sign datalen wrong.\n");
+        log_d("ecall sign datalen wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -422,7 +422,7 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
                             signature);
         break;
     default:
-        printf("ecall sign unsupport keyspec.\n");
+        log_d("ecall sign unsupport keyspec.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -450,7 +450,7 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
 
     if (cmk == NULL || cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen))
     {
-        printf("ecall verify cmk or cmk len is wrong.\n");
+        log_d("ecall verify cmk or cmk len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (cmk->keybloblen == 0 || cmk->metadata.origin != EH_INTERNAL_KEY)
@@ -463,32 +463,32 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
     }
     if (cmk->metadata.keyspec == EH_SM2 && cmk->metadata.digest_mode != EH_SM3)
     {
-        printf("ecall ec_verify sm2 digest made not support.\n");
+        log_d("ecall ec_verify sm2 digest made not support.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if(signature == NULL || signature_size != APPEND_SIZE_TO_DATA_T(signature->datalen))
     {
-        printf("ecall verify signture or signature_size wrong.\n");
+        log_d("ecall verify signture or signature_size wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (signature->datalen <= 0)
     {
-        printf("ecall verify signature length error.\n");
+        log_d("ecall verify signature length error.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (data == NULL || data_size != APPEND_SIZE_TO_DATA_T(data->datalen))
     {
-        printf("ecall verify data or data len is wrong.\n");
+        log_d("ecall verify data or data len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if(data->datalen == 0)
     {
-        printf("ecall sign datalen wrong.\n");
+        log_d("ecall sign datalen wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (result == NULL)
     {
-        printf("ecall verify result is NULL.\n");
+        log_d("ecall verify result is NULL.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -515,7 +515,7 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
                               result);
         break;
     default:
-        printf("ecall verify unsupport keyspec.\n");
+        log_d("ecall verify unsupport keyspec.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -842,7 +842,7 @@ sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
                                      reinterpret_cast<uint8_t(*)[EH_AES_GCM_MAC_SIZE]>(mac));
     if (ret != SGX_SUCCESS)
     {
-        printf("error encrypting plain text\n");
+        log_d("error encrypting plain text\n");
     }
     memset_s(sk_key, sizeof(sgx_ec_key_128bit_t), 0, sizeof(sgx_ec_key_128bit_t));
     memset_s(temp, apikey_size, 0, apikey_size);
@@ -981,7 +981,7 @@ sgx_status_t enclave_verify_quote_policy(uint8_t *quote, uint32_t quote_size,
 {
     if (quote == NULL || mr_signer_good == NULL || mr_enclave_good == NULL)
     {
-        printf("quote or mr_signer_good or mr_enclave_good is null");
+        log_d("quote or mr_signer_good or mr_enclave_good is null");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     string mr_signer_str;
@@ -999,14 +999,14 @@ sgx_status_t enclave_verify_quote_policy(uint8_t *quote, uint32_t quote_size,
     if ((mr_signer_str.size() != mr_signer_good_size) ||
         (mr_enclave_str.size() != mr_enclave_good_size))
     {
-        printf("mr_signer_str length is not same with mr_signer_good_size or\
+        log_d("mr_signer_str length is not same with mr_signer_good_size or\
                 mr_enclave_str length is not same with mr_enclave_good_size!\n");
         return SGX_ERROR_UNEXPECTED;
     }
     if (strncmp(mr_signer_good, mr_signer_str.c_str(), mr_signer_str.size()) != 0 ||
         strncmp(mr_enclave_good, mr_enclave_str.c_str(), mr_enclave_str.size()) != 0)
     {
-        printf("mr_signer or mr_enclave is invalid!\n");
+        log_d("mr_signer or mr_enclave is invalid!\n");
         return SGX_ERROR_UNEXPECTED;
     }
     return SGX_SUCCESS;

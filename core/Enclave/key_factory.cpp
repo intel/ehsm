@@ -123,7 +123,7 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
     bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
     {
-        printf("failed to load public key pem\n");
+        log_d("failed to load public key pem\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -131,7 +131,7 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
     PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
     if (rsa_pubkey == NULL)
     {
-        printf("failed to load public key\n");
+        log_d("failed to load public key\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -139,7 +139,7 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
     PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
     if (rsa_prikey == NULL)
     {
-        printf("failed to load private key\n");
+        log_d("failed to load private key\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -150,13 +150,13 @@ sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
     if (RSA_public_encrypt(strlen(plaintext.c_str()), (unsigned char *)plaintext.c_str(),
                            ciphertext, rsa_pubkey, EH_PAD_RSA_PKCS1_OAEP) != RSA_size(rsa_pubkey))
     {
-        printf("failed to make rsa encryption\n");
+        log_d("failed to make rsa encryption\n");
         goto out;
     }
     // decryption
     if (!RSA_private_decrypt(RSA_size(rsa_pubkey), ciphertext, dec_text, rsa_prikey, EH_PAD_RSA_PKCS1_OAEP))
     {
-        printf("failed to make rsa decrypt\n");
+        log_d("failed to make rsa decrypt\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -191,7 +191,7 @@ sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaint
     sgx_status_t ret = sgx_read_rand(keyblob_data->iv, sizeof(keyblob_data->iv));
     if (ret != SGX_SUCCESS)
     {
-        printf("error generating iv.\n");
+        log_d("error generating iv.\n");
         return ret;
     }
 
@@ -203,7 +203,7 @@ sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaint
                                      reinterpret_cast<uint8_t(*)[16]>(keyblob_data->mac));
     if (SGX_SUCCESS != ret)
     {
-        printf("gcm encrypting failed.\n");
+        log_d("gcm encrypting failed.\n");
     }
     else
     {
