@@ -96,88 +96,7 @@ sgx_status_t ehsm_calc_keyblob_size(const uint32_t keyspec, uint32_t &key_size)
     return SGX_SUCCESS;
 }
 
-sgx_status_t ehsm_judge_rsa_keypair_available(const ehsm_keyblob_t *cmk)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    uint8_t *rsa_keypair = NULL;
-    BIO *bio = NULL;
-    RSA *rsa_pubkey = NULL;
-    RSA *rsa_prikey = NULL;
-    uint8_t *ciphertext = NULL;
-    string plaintext = "rsa_test_ciphertext";
-    uint8_t *dec_text = (uint8_t *)malloc(strlen(plaintext.c_str()));
-
-    // load rsa public key
-    rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
-    if (rsa_keypair == NULL)
-    {
-        goto out;
-    }
-
-    ret = ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen,
-                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-    if (ret != SGX_SUCCESS)
-        goto out;
-
-    bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load public key pem\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
-    if (rsa_pubkey == NULL)
-    {
-        log_d("failed to load public key\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
-    if (rsa_prikey == NULL)
-    {
-        log_d("failed to load private key\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    ciphertext = (uint8_t *)malloc(RSA_size(rsa_pubkey));
-
-    // encryption
-    if (RSA_public_encrypt(strlen(plaintext.c_str()), (unsigned char *)plaintext.c_str(),
-                           ciphertext, rsa_pubkey, EH_PAD_RSA_PKCS1_OAEP) != RSA_size(rsa_pubkey))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        log_d("failed to make rsa encryption\n");
-        goto out;
-    }
-    // decryption
-    if (!RSA_private_decrypt(RSA_size(rsa_pubkey), ciphertext, dec_text, rsa_prikey, EH_PAD_RSA_PKCS1_OAEP))
-    {
-        log_d("failed to make rsa decrypt\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    if (!strcmp((const char *)dec_text, plaintext.c_str()))
-    {
-        ret = SGX_SUCCESS;
-    }
-
-out:
-    if (bio)
-        BIO_free(bio);
-    if (rsa_pubkey)
-        RSA_free(rsa_pubkey);
-
-    memset_s(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
-    SAFE_FREE(rsa_keypair);
-
-    return ret;
-}
 
 uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
 {
@@ -191,6 +110,11 @@ uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
 sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaintext_size,
                                  sgx_aes_gcm_data_ex_t *keyblob_data)
 {
+    if (keyblob_data == NULL || plaintext == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     sgx_status_t ret = sgx_read_rand(keyblob_data->iv, sizeof(keyblob_data->iv));
     if (ret != SGX_SUCCESS)
     {
@@ -414,9 +338,6 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     {
         goto out;
     }
-
-    // make sure this key pair can work
-    ret = ehsm_judge_rsa_keypair_available(cmk);
 out:
     if (pkey_ctx)
         EVP_PKEY_CTX_free(pkey_ctx);

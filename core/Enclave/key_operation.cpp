@@ -892,13 +892,6 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     RSA *rsa_pubkey = NULL;
 
-    // make sure this key pair can work
-    // ret = ehsm_judge_rsa_keypair_available(cmk);
-    // if (ret != SGX_SUCCESS)
-    // {
-    //     goto out;
-    // }
-
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (rsa_keypair == NULL)
@@ -1072,13 +1065,6 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
     uint8_t *rsa_keypair = NULL;
     BIO *bio = NULL;
     RSA *rsa_prikey = NULL;
-
-    // make sure this key pair can work
-    // ret = ehsm_judge_rsa_keypair_available(cmk);
-    // if (ret != SGX_SUCCESS)
-    // {
-    //     goto out;
-    // }
 
     // load private key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
