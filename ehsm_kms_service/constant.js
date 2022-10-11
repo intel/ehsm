@@ -13,20 +13,21 @@ const Definition = {
 }
 
 const ehsm_keySpec_t = {
-  AES_GCM_128: 0,
-  AES_GCM_192: 1,
-  AES_GCM_256: 2,
-  RSA_2048: 3,
-  RSA_3072: 4,
-  RSA_4096: 5,
-  EC_P224: 6,
-  EC_P256: 7,
-  EC_P384: 8,
-  EC_P512: 9,
-  HMAC: 10,
-  SM2: 11,
-  SM4_CTR: 12,
-  SM4_CBC: 13
+  KEYSPEC_NONE : 0,
+  AES_GCM_128: 1,
+  AES_GCM_192: 2,
+  AES_GCM_256: 3,
+  RSA_2048: 10,
+  RSA_3072: 11,
+  RSA_4096: 12,
+  EC_P224: 20,
+  EC_P256: 21,
+  EC_P384: 22,
+  EC_P512: 23,
+  HMAC: 30,
+  SM2: 31,
+  SM4_CTR: 32,
+  SM4_CBC: 33
 }
 const ehsm_keyorigin_t = {
   EH_INTERNAL_KEY: 0,

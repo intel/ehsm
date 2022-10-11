@@ -96,10 +96,6 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *signature,
                              bool *result);
 
-sgx_status_t ehsm_ec_encrypt(const ehsm_keyblob_t *cmk);
-
-sgx_status_t ehsm_ec_decrypt(const ehsm_keyblob_t *cmk);
-
 sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature);

@@ -148,20 +148,20 @@ typedef enum {
 
 typedef enum {
     EH_KEYSPEC_NONE = 0,
-    EH_AES_GCM_128,
-    EH_AES_GCM_192,
-    EH_AES_GCM_256,
-    EH_RSA_2048,
-    EH_RSA_3072,
-    EH_RSA_4096,
-    EH_EC_P224,
-    EH_EC_P256,
-    EH_EC_P384,
-    EH_EC_P512,
-    EH_HMAC,
-    EH_SM2,
-    EH_SM4_CTR,
-    EH_SM4_CBC
+    EH_AES_GCM_128 = 1,
+    EH_AES_GCM_192 = 2,
+    EH_AES_GCM_256 = 3,
+    EH_RSA_2048 = 10,
+    EH_RSA_3072 = 11,
+    EH_RSA_4096 = 12,
+    EH_EC_P224 = 20,
+    EH_EC_P256 = 21,
+    EH_EC_P384 = 22,
+    EH_EC_P512 = 23,
+    EH_HMAC = 30,
+    EH_SM2 = 31,
+    EH_SM4_CTR = 32,
+    EH_SM4_CBC= 33
 } ehsm_keyspec_t;
 
 typedef enum {

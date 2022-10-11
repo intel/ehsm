@@ -76,7 +76,7 @@ void printf(const char *fmt, ...)
  * @param keyspec the type of key
  * @return const CHIPER* (openssl callback, tempoary)
  */
-static const EVP_CIPHER *ehsm_get_symmetric_block_mode(ehsm_keyspec_t keyspec)
+static const EVP_CIPHER *get_symmetric_block_mode(ehsm_keyspec_t keyspec)
 {
     switch (keyspec)
     {
@@ -180,7 +180,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
+    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -322,7 +322,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
+    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -445,7 +445,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
+    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -469,14 +469,14 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     // Create and initialize pState
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
-        log_d("Error: fail to initialize EVP_CIPHER_CTX\n");
+        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Initialize encrypt, key and ctr
     if (EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)enc_key, iv) != 1)
     {
-        log_d("Error: fail to initialize encrypt, key and ctr\n");
+        log_d("Error: failed to initialize encrypt, key and ctr\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -484,7 +484,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     // 3. Encrypt the plaintext and obtain the encrypted output
     if (EVP_EncryptUpdate(pctx, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen) != 1)
     {
-        log_d("Error: fail to encrypt the plaintext\n");
+        log_d("Error: failed to encrypt the plaintext\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -492,7 +492,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     // 4. Finalize the encryption
     if (EVP_EncryptFinal_ex(pctx, cipherblob->data + temp_len, &temp_len) != 1)
     {
-        log_d("Error: fail to finalize the encryption\n");
+        log_d("Error: failed to finalize the encryption\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -558,7 +558,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
+    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -576,14 +576,14 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     // Create and initialize ctx
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
-        log_d("Error: fail to initialize EVP_CIPHER_CTX\n");
+        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Initialize decrypt, key and ctr
     if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)dec_key, iv))
     {
-        log_d("Error: fail to initialize decrypt, key and ctr\n");
+        log_d("Error: failed to initialize decrypt, key and ctr\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -591,7 +591,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     // Decrypt the ciphertext and obtain the decrypted output
     if (!EVP_DecryptUpdate(pctx, plaintext->data, &temp_len, cipherblob->data, plaintext->datalen))
     {
-        log_d("Error: fail to decrypt the ciphertext\n");
+        log_d("Error: failed to decrypt the ciphertext\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -601,7 +601,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
     // - Anything else is a failure - the msg is not trustworthy.
     if (EVP_DecryptFinal_ex(pctx, plaintext->data + temp_len, &temp_len) <= 0)
     {
-        log_d("Error: fail to finalize the decryption\n");
+        log_d("Error: failed to finalize the decryption\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -685,7 +685,7 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
+    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -713,21 +713,21 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     // Create and initialize ctx
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
-        log_d("Error: fail to initialize EVP_CIPHER_CTX\n");
+        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Initialize encrypt, key and ctr
     if (EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)enc_key, iv) != 1)
     {
-        log_d("Error: fail to initialize encrypt, key and ctr\n");
+        log_d("Error: failed to initialize encrypt, key and ctr\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
     {
-        log_d("Error: fail to set padding\n");
+        log_d("Error: failed to set padding\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -735,14 +735,14 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
     // Encrypt the plaintext and obtain the encrypted output
     if (EVP_EncryptUpdate(pctx, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen) != 1)
     {
-        log_d("Error: fail to encrypt the plaintext\n");
+        log_d("Error: failed to encrypt the plaintext\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Finalize the encryption
     if (EVP_EncryptFinal_ex(pctx, cipherblob->data + temp_len, &temp_len) != 1)
     {
-        log_d("Error: fail to finalize the encryption\n");
+        log_d("Error: failed to finalize the encryption\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -809,7 +809,7 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = ehsm_get_symmetric_block_mode(cmk->metadata.keyspec);
+    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
     if (block_mode == NULL)
     {
         ret = SGX_ERROR_UNEXPECTED;
@@ -826,21 +826,21 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     // Create and initialize ctx
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
-        log_d("Error: fail to initialize EVP_CIPHER_CTX\n");
+        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
     // Initialize decrypt, key and IV
     if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)dec_key, iv))
     {
-        log_d("Error: fail to initialize decrypt, key and IV\n");
+        log_d("Error: failed to initialize decrypt, key and IV\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
     {
-        log_d("Error: fail to set padding\n");
+        log_d("Error: failed to set padding\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -848,20 +848,20 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     // Decrypt the ciphertext and obtain the decrypted output
     if (!EVP_DecryptUpdate(pctx, plaintext->data, &temp_len, cipherblob->data, cipherblob->datalen - 16))
     {
-        log_d("Error: fail to decrypt the ciphertext\n");
+        log_d("Error: failed to decrypt the ciphertext\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     // Finalize the decryption:
-    // If length of decrypted data is integral multiple of 16, do not execute EVP_DecryptFinal_ex(), or it will fail to decrypt
+    // If length of decrypted data is integral multiple of 16, do not execute EVP_DecryptFinal_ex(), or it will failed to decrypt
     // - A positive return value indicates success;
     // - Anything else is a failure - the plaintext is not trustworthy.
     if (plaintext->datalen % 16 != 0)
     {
         if (EVP_DecryptFinal_ex(pctx, plaintext->data + temp_len, &temp_len) <= 0)
         {
-            log_d("Error: fail to finalize the decryption\n");
+            log_d("Error: failed to finalize the decryption\n");
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
         }
@@ -908,7 +908,6 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
     if (bio == NULL)
     {
         log_d("failed to load public key pem\n");
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
@@ -917,7 +916,6 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
     if (rsa_pubkey == NULL)
     {
         log_d("failed to load rsa key\n");
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
@@ -974,7 +972,6 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
     if (bio == NULL)
     {
         log_d("failed to load public key pem\n");
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
@@ -987,27 +984,23 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
     }
     if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1)
     {
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     ectx = EVP_PKEY_CTX_new(pkey, NULL);
     if (ectx == NULL)
     {
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     if (EVP_PKEY_encrypt_init(ectx) != 1)
     {
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     size_t strLen;
     if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
     {
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
@@ -1023,7 +1016,6 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
         if (EVP_PKEY_encrypt(ectx, ciphertext->data, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
         {
             log_d("failed to make sm2 encryption\n");
-            ret = SGX_ERROR_UNEXPECTED;
             goto out;
         }
     }
@@ -1284,7 +1276,7 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     // use EVP_PKEY store RSA private key
     if (EVP_PKEY_set1_RSA(evpkey, rsa_prikey) != 1)
     {
-        log_d("ecall rsa_sign fail to set the evpkey by RSA_KEY\n");
+        log_d("ecall rsa_sign failed to set the evpkey by RSA_KEY\n");
         goto out;
     }
     // verify digestmode and padding mode
@@ -1301,7 +1293,7 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
     {
-        log_d("ecall rsa_sign fail to create a EVP_MD_CTX.\n");
+        log_d("ecall rsa_sign failed to create a EVP_MD_CTX.\n");
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
@@ -1435,7 +1427,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     // use EVP_PKEY store RSA public key
     if (EVP_PKEY_set1_RSA(evpkey, rsa_pubkey) != 1)
     {
-        log_d("ecall rsa_verify fail to set the evpkey by RSA_KEY\n");
+        log_d("ecall rsa_verify failed to set the evpkey by RSA_KEY\n");
         goto out;
     }
     // verify digestmode and padding mode
@@ -1452,7 +1444,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
     {
-        log_d("ecall rsa_verify fail to create a EVP_MD_CTX.\n");
+        log_d("ecall rsa_verify failed to create a EVP_MD_CTX.\n");
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
@@ -1581,14 +1573,14 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     }
     if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
     {
-        log_d("ecall ecc_sign fail to set the evpkey by EC_KEY\n");
+        log_d("ecall ecc_sign failed to set the evpkey by EC_KEY\n");
         goto out;
     }
 
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
     {
-        log_d("ecall ec_sign fail to create a EVP_MD_CTX.\n");
+        log_d("ecall ec_sign failed to create a EVP_MD_CTX.\n");
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
@@ -1701,14 +1693,14 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
     }
     if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
     {
-        log_d("ecall ec_verify fail to set the evpkey by RSA_KEY\n");
+        log_d("ecall ec_verify failed to set the evpkey by RSA_KEY\n");
         goto out;
     }
 
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
     {
-        log_d("ecall ec_verify fail to create a EVP_MD_CTX.\n");
+        log_d("ecall ec_verify failed to create a EVP_MD_CTX.\n");
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
@@ -1822,14 +1814,14 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     }
     if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
     {
-        log_d("ecall sm2_sign fail to set the evpkey by EC_KEY\n");
+        log_d("ecall sm2_sign failed to set the evpkey by EC_KEY\n");
         goto out;
     }
 
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
     {
-        log_d("ecall sm2_sign fail to create a EVP_MD_CTX.\n");
+        log_d("ecall sm2_sign failed to create a EVP_MD_CTX.\n");
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
@@ -1842,18 +1834,18 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     // set sm2 evp pkey
     if (EVP_PKEY_set_alias_type(evpkey, EVP_PKEY_SM2) != 1)
     {
-        log_d("ecall sm2_sign fail to modify the evpkey to use SM2\n");
+        log_d("ecall sm2_sign failed to modify the evpkey to use SM2\n");
         goto out;
     }
     pkey_ctx = EVP_PKEY_CTX_new(evpkey, NULL);
     if (pkey_ctx == NULL)
     {
-        log_d("ecall sm2_sign fail to create a EVP_PKEY_CTX\n");
+        log_d("ecall sm2_sign failed to create a EVP_PKEY_CTX\n");
         goto out;
     }
     if (EVP_PKEY_CTX_set1_id(pkey_ctx, g_default_userid, g_default_userid_len) != 1)
     {
-        log_d("ecall sm2_sign fail to set sm2_user_id to the EVP_PKEY_CTX\n");
+        log_d("ecall sm2_sign failed to set sm2_user_id to the EVP_PKEY_CTX\n");
         goto out;
     }
     EVP_MD_CTX_set_pkey_ctx(mdctx, pkey_ctx);
@@ -1963,14 +1955,14 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     }
     if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
     {
-        log_d("ecall sm2_verify fail to set the evpkey by RSA_KEY\n");
+        log_d("ecall sm2_verify failed to set the evpkey by RSA_KEY\n");
         goto out;
     }
 
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
     {
-        log_d("ecall sm2_verify fail to create a EVP_MD_CTX.\n");
+        log_d("ecall sm2_verify failed to create a EVP_MD_CTX.\n");
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
@@ -1983,19 +1975,19 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     // set sm2 evp pkey
     if (EVP_PKEY_set_alias_type(evpkey, EVP_PKEY_SM2) != 1)
     {
-        log_d("ecall sm2_verify fail to modify the evpkey to use SM2\n");
+        log_d("ecall sm2_verify failed to modify the evpkey to use SM2\n");
         goto out;
     }
     pkey_ctx = EVP_PKEY_CTX_new(evpkey, NULL);
     if (pkey_ctx == NULL)
     {
-        log_d("ecall sm2_verify fail to create a EVP_PKEY_CTX\n");
+        log_d("ecall sm2_verify failed to create a EVP_PKEY_CTX\n");
         goto out;
     }
     // set sm2 id and len to pkeyctx
     if (EVP_PKEY_CTX_set1_id(pkey_ctx, g_default_userid, g_default_userid_len) != 1)
     {
-        log_d("ecall sm2_verify fail to set sm2_user_id to the EVP_PKEY_CTX\n");
+        log_d("ecall sm2_verify failed to set sm2_user_id to the EVP_PKEY_CTX\n");
         goto out;
     }
     EVP_MD_CTX_set_pkey_ctx(mdctx, pkey_ctx);
