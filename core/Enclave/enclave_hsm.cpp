@@ -83,19 +83,14 @@ uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec, ehsm_
     {
     case EH_RSA_2048:
         return 256 - padding_size;
-        break;
     case EH_RSA_3072:
         return 384 - padding_size;
-        break;
     case EH_RSA_4096:
         return 512 - padding_size;
-        break;
     case EH_SM2:
         return 64; // why 64: sm2 key length is 256 bits
-        break;
     default:
         return 0;
-        break;
     }
 }
 
