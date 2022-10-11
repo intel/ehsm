@@ -1520,14 +1520,6 @@ out:
     return ret;
 }
 
-sgx_status_t ehsm_ecc_encrypt(const ehsm_keyblob_t *cmk)
-{
-}
-
-sgx_status_t ehsm_ecc_decrypt(const ehsm_keyblob_t *cmk)
-{
-}
-
 /**
  * @brief make ec sign with the designated digest mode
  * digest mode is optional
