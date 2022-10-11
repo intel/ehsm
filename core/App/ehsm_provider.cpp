@@ -116,41 +116,6 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
     return EH_OK;
 }
 
-uint32_t get_asymmetric_max_encrypt_plaintext_size(const uint32_t keyspec, const uint32_t padding)
-{
-    uint32_t padding_size;
-    switch (padding)
-    {
-    case RSA_PKCS1_PADDING:
-        padding_size = RSA_PKCS1_PADDING_SIZE;
-        break;
-    case RSA_PKCS1_OAEP_PADDING:
-        padding_size = 42; // where is 42 from: https://github.com/openssl/openssl/blob/master/crypto/rsa/rsa_oaep.c
-        break;
-    case RSA_NO_PADDING:
-    default:
-        padding_size = 0;
-        break;
-    }
-    switch (keyspec)
-    {
-    case EH_RSA_2048:
-        return 256 - padding_size;
-        break;
-    case EH_RSA_3072:
-        return 384 - padding_size;
-        break;
-    case EH_RSA_4096:
-        return 512 - padding_size;
-        break;
-    case EH_SM2:
-        return 64; // why 64: sm2 key length is 256 bits
-        break;
-    default:
-        return 0;
-        break;
-    }
-}
 static bool validate_params(const ehsm_keyblob_t *data, size_t max_size, bool required = true)
 {
     if (required)

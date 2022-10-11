@@ -338,7 +338,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
 
     // Autenthication Tag returned by Decrypt to be compared with Tag created during seal
     memset_s(&l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
-    memcpy(l_tag, mac, SGX_AESGCM_MAC_SIZE);
+    memcpy_s(l_tag, SGX_AESGCM_MAC_SIZE, mac, SGX_AESGCM_MAC_SIZE);
 
     // Create and initialise the context
     if (!(pctx = EVP_CIPHER_CTX_new()))

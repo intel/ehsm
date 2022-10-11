@@ -63,6 +63,42 @@ static const sgx_ec256_public_t g_sp_pub_key = {
 
 };
 
+uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec, ehsm_padding_mode_t padding)
+{
+    uint32_t padding_size;
+    switch (padding)
+    {
+    case EH_PAD_RSA_PKCS1:
+        padding_size = 11;
+        break;
+    case EH_PAD_RSA_PKCS1_OAEP:
+        padding_size = 42; // where is 42 from: https://github.com/openssl/openssl/blob/master/crypto/rsa/rsa_oaep.c
+        break;
+    case EH_PAD_RSA_NO:
+    default:
+        padding_size = 0;
+        break;
+    }
+    switch (keyspec)
+    {
+    case EH_RSA_2048:
+        return 256 - padding_size;
+        break;
+    case EH_RSA_3072:
+        return 384 - padding_size;
+        break;
+    case EH_RSA_4096:
+        return 512 - padding_size;
+        break;
+    case EH_SM2:
+        return 64; // why 64: sm2 key length is 256 bits
+        break;
+    default:
+        return 0;
+        break;
+    }
+}
+
 sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -249,6 +285,11 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     }
 
     if (plaintext->datalen == 0)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    // Verify the maximum plaintext length supported by different keyspac
+    if (plaintext->datalen > get_asymmetric_max_encrypt_plaintext_size(cmk->metadata.keyspec, cmk->metadata.padding_mode))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }

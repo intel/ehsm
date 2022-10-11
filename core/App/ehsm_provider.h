@@ -72,8 +72,6 @@ typedef enum
 
 extern "C"
 {
-    uint32_t get_asymmetric_max_encrypt_plaintext_size(const uint32_t keyspec, const uint32_t padding);
-
     /**
      * @brief The unique ffi entry for the ehsm provider libaray.
      *
