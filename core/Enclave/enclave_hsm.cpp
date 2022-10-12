@@ -63,7 +63,7 @@ static const sgx_ec256_public_t g_sp_pub_key = {
 
 };
 
-uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec, ehsm_padding_mode_t padding)
+static uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec, ehsm_padding_mode_t padding)
 {
     uint32_t padding_size;
     switch (padding)
