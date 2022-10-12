@@ -94,6 +94,25 @@ static uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec
     }
 }
 
+static size_t get_signature_length(ehsm_keyspec_t keyspec)
+{
+    switch (keyspec)
+    {
+    case EH_RSA_2048:
+        return RSA_OAEP_2048_SIGNATURE_SIZE;
+    case EH_RSA_3072:
+        return RSA_OAEP_3072_SIGNATURE_SIZE;
+    case EH_RSA_4096:
+        return RSA_OAEP_4096_SIGNATURE_SIZE;
+    case EH_EC_P256:
+        return EC_P256_SIGNATURE_MAX_SIZE;
+    case EH_SM2:
+        return EC_SM2_SIGNATURE_MAX_SIZE;
+    default:
+        return -1;
+    }
+}
+
 sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -352,24 +371,6 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     return ret;
 }
 
-static size_t get_signature_length(ehsm_keyspec_t keyspec)
-{
-    switch (keyspec)
-    {
-    case EH_RSA_2048:
-        return RSA_OAEP_2048_SIGNATURE_SIZE;
-    case EH_RSA_3072:
-        return RSA_OAEP_3072_SIGNATURE_SIZE;
-    case EH_RSA_4096:
-        return RSA_OAEP_4096_SIGNATURE_SIZE;
-    case EH_EC_P256:
-        return EC_P256_SIGNATURE_MAX_SIZE;
-    case EH_SM2:
-        return EC_SM2_SIGNATURE_MAX_SIZE;
-    default:
-        return -1;
-    }
-}
 /**
  * @brief Sign the message and store it in signature
  *
@@ -397,18 +398,9 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (EH_SM3 < cmk->metadata.digest_mode || cmk->metadata.digest_mode < 0)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
     if(signature == NULL || signature_size != APPEND_SIZE_TO_DATA_T(signature->datalen))
     {
         log_d("ecall sign signture or signature_size wrong.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (cmk->metadata.keyspec == EH_SM2 && cmk->metadata.digest_mode != EH_SM3)
-    {
-        log_d("ecall ec_sign sm2 digest made not support.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     // Set signature data length
@@ -491,15 +483,6 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
     }
     if (cmk->keybloblen == 0 || cmk->metadata.origin != EH_INTERNAL_KEY)
     {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (EH_SM3 < cmk->metadata.digest_mode || cmk->metadata.digest_mode < 0)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (cmk->metadata.keyspec == EH_SM2 && cmk->metadata.digest_mode != EH_SM3)
-    {
-        log_d("ecall ec_verify sm2 digest made not support.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if(signature == NULL || signature_size != APPEND_SIZE_TO_DATA_T(signature->datalen))
@@ -590,12 +573,7 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (plaintext == NULL || ciphertext == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen) 
-        || ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
+    if (plaintext == NULL || plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -603,11 +581,14 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
+    if (ciphertext == NULL || ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
     if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-
     if (ciphertext->datalen == 0)
     {
         switch (cmk->metadata.keyspec)
@@ -695,23 +676,19 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (olddatakey == NULL || ukey == NULL || newdatakey == NULL)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
     if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (olddatakey_size != APPEND_SIZE_TO_DATA_T(olddatakey->datalen))
+    if (olddatakey == NULL || olddatakey_size != APPEND_SIZE_TO_DATA_T(olddatakey->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (ukey_size != APPEND_SIZE_TO_KEYBLOB_T(ukey->keybloblen))
+    if (ukey == NULL || ukey_size != APPEND_SIZE_TO_KEYBLOB_T(ukey->keybloblen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (newdatakey_size != APPEND_SIZE_TO_DATA_T(newdatakey->datalen))
+    if (newdatakey == NULL || newdatakey_size != APPEND_SIZE_TO_DATA_T(newdatakey->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }

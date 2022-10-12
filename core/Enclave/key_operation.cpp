@@ -1536,7 +1536,7 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     size_t temp_signature_size = 0;
 
     const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
-    if (digestMode == NULL)
+    if (digestMode == NULL || digestMode == EVP_sm3())
     {
         log_d("ecall ec_sign digestMode error.\n");
         ret = SGX_ERROR_INVALID_PARAMETER;
@@ -1657,7 +1657,7 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
     EVP_PKEY_CTX *pkey_ctx = NULL;
 
     const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
-    if (digestMode == NULL)
+    if (digestMode == NULL || digestMode == EVP_sm3())
     {
         log_d("ecall ec_verify digestMode error.\n");
         ret = SGX_ERROR_INVALID_PARAMETER;
