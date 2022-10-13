@@ -146,17 +146,17 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t keysize = 0;
-    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
-    {
-        return SGX_ERROR_UNEXPECTED;
-    }
-
     /* calculate the ciphertext length */
     if (cipherblob->datalen == 0)
     {
         cipherblob->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
         return SGX_SUCCESS;
+    }
+
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
+    {
+        return SGX_ERROR_UNEXPECTED;
     }
 
     uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
@@ -413,16 +413,18 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    uint32_t keysize = 0;
-    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
-    {
-        return SGX_ERROR_UNEXPECTED;
-    }
+
     /* calculate the ciphertext length */
     if (cipherblob->datalen == 0)
     {
         cipherblob->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
         return SGX_SUCCESS;
+    }
+
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
+    {
+        return SGX_ERROR_UNEXPECTED;
     }
 
     uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
@@ -632,12 +634,6 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    uint32_t keysize = 0;
-    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
-    {
-        return SGX_ERROR_UNEXPECTED;
-    }
-
     /* calculate the ciphertext length */
     if (cipherblob->datalen == 0)
     {
@@ -648,6 +644,12 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         }
         cipherblob->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
         return SGX_SUCCESS;
+    }
+
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
+    {
+        return SGX_ERROR_UNEXPECTED;
     }
 
     uint32_t enc_key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
