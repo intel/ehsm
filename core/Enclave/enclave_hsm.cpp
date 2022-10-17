@@ -274,7 +274,9 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen) || plaintext->datalen == 0 ||
+    if (plaintext == NULL || 
+        plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen) || 
+        plaintext->datalen == 0 ||
         /* Verify the maximum plaintext length supported by different keyspac */
         plaintext->datalen > get_asymmetric_max_encrypt_plaintext_size(cmk->metadata.keyspec, cmk->metadata.padding_mode))
     {
@@ -385,7 +387,9 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
         log_d("ecall sign cant get signature length or ecall sign signature length error.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (data == NULL || data_size != APPEND_SIZE_TO_DATA_T(data->datalen) || data->datalen == 0)
+    if (data == NULL ||
+        data_size != APPEND_SIZE_TO_DATA_T(data->datalen) ||
+        data->datalen == 0)
     {
         log_d("ecall sign data or data len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
@@ -444,12 +448,16 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (signature == NULL || signature_size != APPEND_SIZE_TO_DATA_T(signature->datalen) || signature->datalen <= 0)
+    if (signature == NULL ||
+        signature_size != APPEND_SIZE_TO_DATA_T(signature->datalen) ||
+        signature->datalen <= 0)
     {
         log_d("ecall verify signture or signature_size wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (data == NULL || data_size != APPEND_SIZE_TO_DATA_T(data->datalen) || data->datalen == 0)
+    if (data == NULL ||
+        data_size != APPEND_SIZE_TO_DATA_T(data->datalen) ||
+        data->datalen == 0)
     {
         log_d("ecall verify data or data len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
@@ -622,7 +630,9 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (ukey == NULL || ukey_size != APPEND_SIZE_TO_KEYBLOB_T(ukey->keybloblen) || ukey->keyblob == NULL)
+    if (ukey == NULL ||
+        ukey_size != APPEND_SIZE_TO_KEYBLOB_T(ukey->keybloblen) ||
+        ukey->keyblob == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
