@@ -44,7 +44,7 @@ You must have at least three computers,a master-node server,one or more work-nod
     #### Step 4 Preparation of ipvs
     ```Shell
     $ modprobe br_netfilter
-    $ vim /etc/systemd/modules/ipvs.modules
+    $ vim /etc/systemd/network/ipvs.modules
 
     modprobe -- ip_vs 
     modprobe -- ip_vs_rr 
@@ -58,7 +58,7 @@ You must have at least three computers,a master-node server,one or more work-nod
 ---
 
 ## Kubernetes installation
-- After the kubernetes node server initialization is completed, we start to install kubernetes. First, you need to execute step 1 to step 3 on each kubernetes node server to complete the preparations for kubernetes initialization, then execute step 4 on the master-node server to initialize, and execute step 5 on each work-node to join the work-node to the master-server.
+- After the kubernetes node server initialization is completed, we start to install kubernetes. First, you need to execute step 1 to step 3 on each kubernetes node server to complete the preparations for kubernetes initialization, then execute step 4 on the master-node server to initialize, and execute step 5 on each work-node to join the work-node to the master-server. So far, the kubernetes has been installed, If you want to support SGX Device Plugin for Kubernetes, you can perform step 6.
 
     ### Step 1 Docker installation
     ```Shell
@@ -92,7 +92,7 @@ You must have at least three computers,a master-node server,one or more work-nod
 
     $ apt-get update
 
-    $ apt-get -y install kubeadm=1.19.0-00 kubectl=1.19.0-00 kubelet=1.19.0-00
+    $ apt-get -y install kubeadm=1.23.5-00 kubectl=1.23.5-00 kubelet=1.23.5-00
 
     $ systemctl enable kubelet.service
     ```
@@ -100,7 +100,7 @@ You must have at least three computers,a master-node server,one or more work-nod
     ### Step 3 Import required Kubernetes cluster images for installation
     Download kubeadm-basic.images.tar.gz and docker load. You can use the following command to view the image you need to import.
     ```Shell
-    $ kubeadm config images list --kubernetes-version v1.19.0
+    $ kubeadm config images list --kubernetes-version v1.23.5
     ```
 
     ### Step 4 Initialize master-node
@@ -113,10 +113,15 @@ You must have at least three computers,a master-node server,one or more work-nod
 
     # Change 1.2.3.4 to your master-node's IP
     localAPIEndpoint:
-    advertiseAddress: 1.2.3.4
+      advertiseAddress: 1.2.3.4
+
+    # Change node to your master-node's hostname
+    nodeRegistration:
+      name: node
+
 
     # Check the version is your kubeadm version.
-    kubernetesVersion: v1.19.0
+    kubernetesVersion: v1.23.5
 
     # Add podSubnet settings.
     networking:
@@ -130,7 +135,7 @@ You must have at least three computers,a master-node server,one or more work-nod
     apiVersion: kubeproxy.config.k8s.io/v1alpha1
     kind: KubeProxyConfiguration
     featureGates:
-    SupportIPVSProxyMode: true
+      SupportIPVSProxyMode: true
     mode: ipvs
 
     # Start initialize and save log to kubeadm-init.log
@@ -151,4 +156,23 @@ You must have at least three computers,a master-node server,one or more work-nod
     ```Shell
     $ kubeadm join 1.2.3.4:6443 --token xxxxxxx.xxxxxxxxxxxxxxxxxxx \
     --discovery-token-ca-cert-hash sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx 
+    ```
+
+    ### Step 6 Deploy the Intel SGX Device Plugin for Kubernetes
+    Here we would want to deploy the plugin as a DaemonSet, so pull the source code. 
+    ```Shell
+    $ git clone https://github.com/intel/intel-device-plugins-for-kubernetes.git
+    ```
+    In the working directory, compile with
+    ```Shell\
+    $ make intel-sgx-plugin
+    $ make intel-sgx-initcontainer
+    ```
+    Deploy the DaemonSet with
+    ```Shell
+    $ kubectl apply -k deployments/sgx_plugin/overlays/epc-register/
+    ```
+    Verify with (replace the <node name> with your own node name)
+    ```Shell
+    $ kubectl describe node <node name> | grep sgx.intel.com
     ```
