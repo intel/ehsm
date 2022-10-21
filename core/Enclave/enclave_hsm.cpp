@@ -183,7 +183,8 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (ciphertext == NULL || ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
+    if (ciphertext == NULL ||
+        ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -228,7 +229,8 @@ sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen))
+    if (plaintext == NULL ||
+        plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -283,7 +285,8 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (ciphertext == NULL || ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
+    if (ciphertext == NULL ||
+        ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -318,7 +321,8 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen))
+    if (plaintext == NULL ||
+        plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -371,7 +375,8 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (signature == NULL || signature_size != APPEND_SIZE_TO_DATA_T(signature->datalen))
+    if (signature == NULL ||
+        signature_size != APPEND_SIZE_TO_DATA_T(signature->datalen))
     {
         log_d("ecall sign signture or signature_size wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
@@ -382,7 +387,8 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
         signature->datalen = get_signature_length(cmk->metadata.keyspec);
         return SGX_SUCCESS;
     }
-    if (signature->datalen == -1 || signature->datalen != get_signature_length(cmk->metadata.keyspec))
+    if (signature->datalen == -1 ||
+        signature->datalen != get_signature_length(cmk->metadata.keyspec))
     {
         log_d("ecall sign cant get signature length or ecall sign signature length error.\n");
         return SGX_ERROR_INVALID_PARAMETER;
@@ -473,12 +479,19 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
     case EH_RSA_2048:
     case EH_RSA_3072:
     case EH_RSA_4096:
+        if (signature->datalen != get_signature_length(cmk->metadata.keyspec))
+        {
+            log_d("ecall verify cant get signature length or ecall sign signature length error.\n");
+            return SGX_ERROR_INVALID_PARAMETER;
+        }
         ret = ehsm_rsa_verify(cmk,
                               data,
                               signature,
                               result);
         break;
     case EH_EC_P256:
+    // not check ecc & sm2 signateure len because the len will be change after sign
+    //refence https://wiki.openssl.org/index.php/EVP_Signing_and_Verifying#Signing
         ret = ehsm_ecc_verify(cmk,
                               data,
                               signature,
@@ -536,7 +549,8 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (ciphertext == NULL || ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
+    if (ciphertext == NULL ||
+        ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -626,7 +640,8 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (olddatakey == NULL || olddatakey_size != APPEND_SIZE_TO_DATA_T(olddatakey->datalen))
+    if (olddatakey == NULL ||
+        olddatakey_size != APPEND_SIZE_TO_DATA_T(olddatakey->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -636,7 +651,8 @@ sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (newdatakey == NULL || newdatakey_size != APPEND_SIZE_TO_DATA_T(newdatakey->datalen))
+    if (newdatakey == NULL ||
+        newdatakey_size != APPEND_SIZE_TO_DATA_T(newdatakey->datalen))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -758,7 +774,8 @@ sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (cipherapikey == NULL || cipherapikey_size < EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
+    if (cipherapikey == NULL || 
+        cipherapikey_size < EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
