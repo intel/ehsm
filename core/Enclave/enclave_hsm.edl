@@ -67,6 +67,8 @@ enclave {
 
     trusted {
         /* Interfaces for eHSM core crypto functions */
+        public sgx_status_t enclave_self_test();
+        
         public sgx_status_t enclave_create_key([in, out, size=cmk_size] ehsm_keyblob_t *cmk, size_t cmk_size);
 
         public sgx_status_t enclave_encrypt([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,

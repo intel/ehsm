@@ -279,8 +279,8 @@ char *EHSM_FFI_CALL(const char *paramJson)
 ehsm_status_t Initialize()
 {
     ehsm_status_t rc = EH_OK;
-    sgx_status_t sgxStatus;
-    sgx_status_t ret;
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     ret = sgx_create_enclave(_T(ENCLAVE_PATH),
                              SGX_DEBUG_FLAG,
@@ -305,6 +305,14 @@ ehsm_status_t Initialize()
     }
 
     // TODO: add self-test cases for FIPS-140
+    ret = enclave_self_test(g_enclave_id, &sgxStatus);
+    
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    {
+        // TODO: close
+        printf("ret=%d\n",ret);
+        printf("sgxStatus=%d\n",sgxStatus);
+    }
 
     return rc;
 }

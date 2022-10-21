@@ -33,6 +33,8 @@
 #include "log_utils.h"
 #include "sgx_tseal.h"
 
+#include "enclave_self_test.h"
+
 #include <string>
 #include <stdio.h>
 #include <stdbool.h>
@@ -111,6 +113,15 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
     default:
         return -1;
     }
+}
+
+sgx_status_t enclave_self_test()
+{
+    sgx_status_t ret;
+    
+    ret= ehsm_self_test();
+    
+    return ret;
 }
 
 sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
