@@ -51,6 +51,8 @@
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
 #define APPEND_SIZE_TO_KEYBLOB_T(x)    (sizeof(ehsm_keyblob_t) + x*sizeof(uint8_t))
 #define APPEND_SIZE_TO_DATA_T(x)    (sizeof(ehsm_data_t) + x*sizeof(uint8_t))
+#define SM2_DEFAULT_USERID      "1234567812345678" 
+#define SM2_DEFAULT_USERID_LEN      sizeof(SM2_DEFAULT_USERID) - 1
 
 #define _T(x) x
 

@@ -284,7 +284,7 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         key_size = RSA_4096_KEY_BITS;
         break;
     default:
-        break;
+        goto out;
     }
 
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, key_size) <= 0)
@@ -398,7 +398,7 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
         }
         break;
     default:
-        break;
+        goto out;
     }
 
     if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0)

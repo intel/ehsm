@@ -1766,7 +1766,13 @@ void test_GenerateQuote_and_VerifyQuote()
     // "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
     std::string mr_enclave;
     std::string mr_signer;
-    system("/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave ../../out/ehsm-core/libenclave-ehsm-core.signed.so -dumpfile /tmp/ehsm_enclave_out.log");
+    std::string signedEnclaveFileName = SIGNED_ENCLAVE_PATH;
+    std::string sgxSignFileName = SGX_SIGN_PATH;
+    std::string CMD1 = " dump -enclave ";
+    std::string CMD2 = " -dumpfile /tmp/ehsm_enclave_out.log";
+    std::string splicedCMD = sgxSignFileName + CMD1 + signedEnclaveFileName + CMD2;
+    const char* dumpFileCMD = splicedCMD.data();
+    system(dumpFileCMD);
     std::fstream ifs;
     std::string line;
     u_int32_t readEnclaveLineNum = 0;

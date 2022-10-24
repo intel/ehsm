@@ -58,9 +58,6 @@
 
 using namespace std;
 
-static char g_default_userid[] = "1234567812345678";
-static size_t g_default_userid_len = sizeof(g_default_userid) - 1;
-
 void printf(const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
@@ -1845,7 +1842,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
         log_d("ecall sm2_sign failed to create a EVP_PKEY_CTX\n");
         goto out;
     }
-    if (EVP_PKEY_CTX_set1_id(pkey_ctx, g_default_userid, g_default_userid_len) != 1)
+    if (EVP_PKEY_CTX_set1_id(pkey_ctx, SM2_DEFAULT_USERID, SM2_DEFAULT_USERID_LEN) != 1)
     {
         log_d("ecall sm2_sign failed to set sm2_user_id to the EVP_PKEY_CTX\n");
         goto out;
@@ -1987,7 +1984,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
         goto out;
     }
     // set sm2 id and len to pkeyctx
-    if (EVP_PKEY_CTX_set1_id(pkey_ctx, g_default_userid, g_default_userid_len) != 1)
+    if (EVP_PKEY_CTX_set1_id(pkey_ctx, SM2_DEFAULT_USERID, SM2_DEFAULT_USERID_LEN) != 1)
     {
         log_d("ecall sm2_verify failed to set sm2_user_id to the EVP_PKEY_CTX\n");
         goto out;
