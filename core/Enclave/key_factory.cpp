@@ -314,8 +314,6 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 
-    printf("pem_keypair=%s\n", pem_keypair);
-
     ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
     if (ret != SGX_SUCCESS)

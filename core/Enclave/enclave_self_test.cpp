@@ -1,42 +1,57 @@
-// test vector comes from ：
-// https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program
-
 #include "enclave_self_test.h"
 #include <string.h>
 #include <vector>
 #include <map>
 #include "datatypes.h"
-#include "key_operation.h"
 
 using namespace std;
-
-typedef vector<map<string, string>> EHSM_TEST_VECTOR;
 
 #define GET_PARAMETER(x) \
     uint8_t *x = (uint8_t *)get_parameter(#x, test_vector);
 
-EHSM_TEST_VECTOR aes_gcm_test_vectors =
-    {
-        {// case1
-            {"key", "feffe9928665731c6d6a8f9467308308"},
-            {"plaintext", "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39"},
-            {"aad", "feedfacedeadbeeffeedfacedeadbeefabaddad2"},
-            {"iv", "cafebabefacedbaddecaf888"},
-            {"ciphertext", "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e091"},
-            {"tag", "5bc94fbc3221a5db94fae95ae7121a47"}
-        },
-        {// case2
-            {"key", "c939cc13397c1d37de6ae0e1cb7c423c"},
-            {"plaintext", "c3b3c41f113a31b73d9a5cd432103069"},
-            {"aad", "24825602bd12a984e0092d3e448eda5f"},
-            {"iv", "b3d8cc017cbb89b39e0f67e2"},
-            {"ciphertext", "93fe7d9e9bfd10348a5606e5cafa7354"},
-            {"tag", "0032a1dc85f1c9786925a2e71d8272dd"}
-        }
-    };
+EHSM_TEST_VECTOR aes_gcm_test_vectors = {
+    {// case1
+     {"key", "c939cc13397c1d37de6ae0e1cb7c423c"},
+     {"plaintext", "c3b3c41f113a31b73d9a5cd432103069"},
+     {"aad", "24825602bd12a984e0092d3e448eda5f"},
+     {"iv", "b3d8cc017cbb89b39e0f67e2"},
+     {"ciphertext", "93fe7d9e9bfd10348a5606e5cafa7354"},
+     {"tag", "0032a1dc85f1c9786925a2e71d8272dd"}},
+    {// case2
+     {"key", "599eb65e6b2a2a7fcc40e51c4f6e3257"},
+     {"plaintext", "a6c9e0f248f07a3046ece12125666921"},
+     {"aad", "10e72efe048648d40139477a2016f8ce"},
+     {"iv", "d407301cfa29af8525981c17"},
+     {"ciphertext", "1be9359a543fd7ec3c4bc6f3c9395e89"},
+     {"tag", "e2e9c07d4c3c10a6137ca433da42f9a8"}},
+    {// case3
+     {"key", "2d265491712fe6d7087a5545852f4f44"},
+     {"plaintext", "301873be69f05a84f22408aa0862d19a"},
+     {"aad", "67105634ac9fbf849970dc416de7ad30"},
+     {"iv", "c59868b8701fbf88e6343262"},
+     {"ciphertext", "98b03c77a67831bcf16b1dd96c324e1c"},
+     {"tag", "39152e26bdc4d17e8c00493fa0be92f2"}},
+    {// case4
+     {"key", "1fd1e536a1c39c75fd583bc8e3372029"},
+     {"plaintext", "f801e0839619d2c1465f0245869360da"},
+     {"aad", "bf12a140d86727f67b860bcf6f34e55f"},
+     {"iv", "281f2552f8c34fb9b3ec85aa"},
+     {"ciphertext", "35371f2779f4140dfdb1afe79d563ed9"},
+     {"tag", "cc2b0b0f1f8b3db5dc1b41ce73f5c221"}}};
 
-bool StrToHex(const char *str, unsigned char buf[], int len)
+/**
+ * @brief make string to hex array, string length needs to be a even number
+ *
+ * @param str "a0b23d" will change to "/xa0/xb2/x3d"
+ * @param buf buffer for saving the result
+ * @param len str length / 2
+ */
+static bool StrToHex(const char *str, unsigned char buf[], int len)
 {
+    if ((len % 2) != 0)
+    {
+        return false;
+    }
     if (str != NULL && buf != NULL && len != 0)
     {
         int Length = sizeof(str);
@@ -64,7 +79,7 @@ bool StrToHex(const char *str, unsigned char buf[], int len)
             len = n;
         }
     }
-    return 1;
+    return true;
 }
 
 void *get_parameter(string key_name, map<string, string> test_vector)
@@ -85,44 +100,10 @@ bool aes_gcm_encrypt(map<string, string> test_vector)
     GET_PARAMETER(ciphertext);
     GET_PARAMETER(tag);
 
-    int temp_len = 0;
-    EVP_CIPHER_CTX *pctx = NULL;
-
-    if (!(pctx = EVP_CIPHER_CTX_new()))
-    {
-        return false;
-    }
-
-    if (1 != EVP_EncryptInit_ex(pctx, EVP_aes_128_gcm(), NULL, key, iv))
-    {
-        return false;
-    }
-
-    if (VECTOR_LENGTH("aad") > 0)
-    {
-        if (1 != EVP_EncryptUpdate(pctx, NULL, &temp_len, aad, VECTOR_LENGTH("aad")))
-        {
-            return false;
-        }
-    }
-
     uint8_t *_ciphertext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
     uint8_t *_tag = (uint8_t *)malloc(VECTOR_LENGTH("tag"));
-
-    if (1 != EVP_EncryptUpdate(pctx, _ciphertext, &temp_len, plaintext, VECTOR_LENGTH("plaintext")))
-    {
-        return false;
-    }
-
-    if (1 != EVP_EncryptFinal_ex(pctx, _ciphertext, &temp_len))
-    {
-        return false;
-    }
-
-    if (1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_GET_TAG, VECTOR_LENGTH("tag"), _tag))
-    {
-        return false;
-    }
+    (void)aes_gcm_encrypt(key, _ciphertext, EVP_aes_128_gcm(), plaintext, VECTOR_LENGTH("plaintext"),
+                          aad, VECTOR_LENGTH("aad"), iv, VECTOR_LENGTH("iv"), _tag, VECTOR_LENGTH("tag"));
 
     CHECK_EQUAL(ciphertext);
     CHECK_EQUAL(tag);
@@ -139,56 +120,10 @@ bool aes_gcm_decrypt(map<string, string> test_vector)
     GET_PARAMETER(ciphertext);
     GET_PARAMETER(tag);
 
-    int temp_len = 0;
-    EVP_CIPHER_CTX *pctx = NULL;
-
-    if (!(pctx = EVP_CIPHER_CTX_new()))
-    {
-        return false;
-    }
-
-    if (!EVP_DecryptInit_ex(pctx, EVP_aes_128_gcm(), NULL, key, iv))
-    {
-        return false;
-    }
-
-    if (VECTOR_LENGTH("aad") > 0)
-    {
-        if (!EVP_DecryptUpdate(pctx, NULL, &temp_len, aad, VECTOR_LENGTH("aad")))
-        {
-            return false;
-        }
-    }
-
     uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    (void)aes_gcm_decrypt(key, _plaintext, EVP_aes_128_gcm(), ciphertext, VECTOR_LENGTH("ciphertext"),
+                          aad, VECTOR_LENGTH("aad"), iv, VECTOR_LENGTH("iv"), tag, VECTOR_LENGTH("tag"));
 
-    if (!EVP_DecryptUpdate(pctx, _plaintext, &temp_len, ciphertext, VECTOR_LENGTH("plaintext")))
-    {
-        return false;
-    }
-
-    if (!EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_TAG, VECTOR_LENGTH("tag"), tag))
-    {
-        return false;
-    }
-
-    if (EVP_DecryptFinal_ex(pctx, _plaintext + temp_len, &temp_len) <= 0)
-    {
-        return false;
-    }
-
-    for (int i = 0; i < VECTOR_LENGTH("plaintext"); i++)
-    {
-        printf("%02x", plaintext[i]);
-    }
-    
-    for (int i = 0; i < VECTOR_LENGTH("plaintext"); i++)
-    {
-        printf("%02x", _plaintext[i]);
-    }
-    
-    EVP_CIPHER_CTX_free(pctx);
-    
     CHECK_EQUAL(plaintext);
 
     return true;

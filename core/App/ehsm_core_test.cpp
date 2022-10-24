@@ -60,12 +60,13 @@ void test_perf_createkey()
     RetJsonObj retJsonObj;
     JsonObj param_json;
     JsonObj payload_json;
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
 
     // Start measuring time
     auto begin = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < PERF_NUM*100; i++) {
+    for (int i = 0; i < PERF_NUM * 100; i++)
+    {
         payload_json.addData_uint32("keyspec", EH_AES_GCM_256);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
         param_json.addData_uint32("action", EH_CREATE_KEY);
@@ -74,7 +75,8 @@ void test_perf_createkey()
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
 
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("Createkey with aes-256 failed in time(%d)\n", i);
             SAFE_FREE(returnJsonChar);
             break;
@@ -87,13 +89,14 @@ void test_perf_createkey()
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 
-    printf("Time measured of CreateKey(AES_256) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM*100, elapsed.count() * 1e-9);
+    printf("Time measured of CreateKey(AES_256) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM * 100, elapsed.count() * 1e-9);
 
     // Start measuring time
     begin = std::chrono::high_resolution_clock::now();
     /*The EVP_PKEY_keygen() function in RSA createkey runs for a long time
     cannot be tested for PERF_NUM times */
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++)
+    {
         payload_json.addData_uint32("keyspec", EH_RSA_4096);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
         payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
@@ -103,7 +106,8 @@ void test_perf_createkey()
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
 
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("Createkey with rsa-4096 failed in time(%d)\n", i);
             SAFE_FREE(returnJsonChar);
             break;
@@ -119,7 +123,7 @@ void test_perf_createkey()
 
 void test_perf_encrypt()
 {
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
     char plaintext[32] = "helloworld";
     char aad[] = "challenge";
 
@@ -127,9 +131,9 @@ void test_perf_encrypt()
     std::chrono::high_resolution_clock::time_point end;
     std::chrono::nanoseconds elapsed;
 
-    char* cmk_base64 = nullptr;
-    char* plaintext_base64 = nullptr;
-    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    char *cmk_base64 = nullptr;
+    char *plaintext_base64 = nullptr;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
     std::string input_aad_base64 = base64_encode((const uint8_t *)aad, sizeof(aad) / sizeof(aad[0]));
 
     RetJsonObj retJsonObj;
@@ -143,17 +147,19 @@ void test_perf_encrypt()
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
 
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("Createkey with aes-gcm-256 failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    //printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
+    // printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     // Start measuring time
     begin = std::chrono::high_resolution_clock::now();
 
-    for(int i=0; i<PERF_NUM*100; i++){
+    for (int i = 0; i < PERF_NUM * 100; i++)
+    {
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
         payload_json.addData_string("plaintext", input_plaintext_base64);
@@ -165,11 +171,12 @@ void test_perf_encrypt()
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
 
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        //printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        // printf("NAPI_Encrypt json = %s\n", returnJsonChar);
         SAFE_FREE(returnJsonChar);
     }
 
@@ -177,7 +184,7 @@ void test_perf_encrypt()
     end = std::chrono::high_resolution_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 
-    printf("Time measured of Encrypt(AES_256) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM*100, elapsed.count() * 1e-9);
+    printf("Time measured of Encrypt(AES_256) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM * 100, elapsed.count() * 1e-9);
 
 cleanup:
     SAFE_FREE(plaintext_base64);
@@ -187,7 +194,7 @@ cleanup:
 
 void test_perf_decrypt()
 {
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
     char plaintext[32] = "helloworld";
     char aad[] = "challenge";
 
@@ -197,7 +204,7 @@ void test_perf_decrypt()
     char *cmk_base64 = nullptr;
     char *ciphertext_base64 = nullptr;
     char *plaintext_base64 = nullptr;
-    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
     std::string input_aad_base64 = base64_encode((const uint8_t *)aad, sizeof(aad) / sizeof(aad[0]));
 
     RetJsonObj retJsonObj;
@@ -211,11 +218,12 @@ void test_perf_decrypt()
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
 
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("Createkey with aes-gcm-256 failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    //printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
+    // printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
@@ -229,20 +237,22 @@ void test_perf_decrypt()
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
 
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
 
-    //printf("NAPI_Encrypt json = %s\n", returnJsonChar);
-    //printf("Encrypt data SUCCESSFULLY!\n");
+    // printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+    // printf("Encrypt data SUCCESSFULLY!\n");
 
     ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
 
     // Start measuring time
     begin = std::chrono::high_resolution_clock::now();
 
-    for(int i=0; i<PERF_NUM*100; i++){
+    for (int i = 0; i < PERF_NUM * 100; i++)
+    {
         payload_json.addData_string("ciphertext", ciphertext_base64);
 
         param_json.addData_uint32("action", EH_DECRYPT);
@@ -251,11 +261,12 @@ void test_perf_decrypt()
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
 
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        //printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        // printf("NAPI_Encrypt json = %s\n", returnJsonChar);
         SAFE_FREE(returnJsonChar);
     }
 
@@ -263,7 +274,7 @@ void test_perf_decrypt()
     end = std::chrono::high_resolution_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 
-    printf("Time measured of Decrypt(AES_256) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM*100, elapsed.count() * 1e-9);
+    printf("Time measured of Decrypt(AES_256) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM * 100, elapsed.count() * 1e-9);
 
 cleanup:
     SAFE_FREE(ciphertext_base64);
@@ -275,7 +286,7 @@ cleanup:
 void test_perf_sign()
 {
     ehsm_status_t ret = EH_OK;
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
     char digest[] = "SIGN";
 
     std::chrono::high_resolution_clock::time_point begin;
@@ -298,7 +309,8 @@ void test_perf_sign()
     param_json.addData_JsonValue("payload", payload_json.getJson());
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
@@ -310,7 +322,8 @@ void test_perf_sign()
     // Start measuring time
     begin = std::chrono::high_resolution_clock::now();
 
-    for(int i=0; i<PERF_NUM; i++){
+    for (int i = 0; i < PERF_NUM; i++)
+    {
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
         payload_json.addData_string("digest", input_digest_base64);
@@ -320,11 +333,12 @@ void test_perf_sign()
 
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        //printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        // printf("NAPI_Encrypt json = %s\n", returnJsonChar);
         SAFE_FREE(returnJsonChar);
     }
 
@@ -342,7 +356,7 @@ cleanup:
 void test_perf_verify()
 {
     ehsm_status_t ret = EH_OK;
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
     char digest[] = "SIGN";
 
     std::chrono::high_resolution_clock::time_point begin;
@@ -367,7 +381,8 @@ void test_perf_verify()
     param_json.addData_JsonValue("payload", payload_json.getJson());
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
@@ -385,7 +400,8 @@ void test_perf_verify()
 
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
@@ -396,7 +412,8 @@ void test_perf_verify()
     // Start measuring time
     begin = std::chrono::high_resolution_clock::now();
 
-    for(int i=0; i<PERF_NUM; i++){
+    for (int i = 0; i < PERF_NUM; i++)
+    {
         payload_json.addData_string("signature", signature_base64);
 
         param_json.addData_uint32("action", EH_VERIFY);
@@ -404,7 +421,8 @@ void test_perf_verify()
 
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
@@ -429,10 +447,10 @@ void test_perf_asymmetricencrypt()
     std::chrono::high_resolution_clock::time_point end;
     std::chrono::nanoseconds elapsed;
 
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
     char plaintext[32] = "TestRSA-4096";
-    char* cmk_base64 = nullptr;
-    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    char *cmk_base64 = nullptr;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
 
     RetJsonObj retJsonObj;
     JsonObj param_json;
@@ -445,7 +463,8 @@ void test_perf_asymmetricencrypt()
 
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
@@ -456,7 +475,8 @@ void test_perf_asymmetricencrypt()
     // Start measuring time
     begin = std::chrono::high_resolution_clock::now();
 
-    for(int i=0; i<PERF_NUM; i++){
+    for (int i = 0; i < PERF_NUM; i++)
+    {
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
         payload_json.addData_string("plaintext", input_plaintext_base64);
@@ -466,7 +486,8 @@ void test_perf_asymmetricencrypt()
 
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
@@ -489,13 +510,13 @@ void test_perf_asymmetricdecrypt()
     std::chrono::high_resolution_clock::time_point end;
     std::chrono::nanoseconds elapsed;
 
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
     char plaintext[32] = "TestRSA-3072";
-    char* cmk_base64 = nullptr;
-    char* ciphertext_base64 = nullptr;
-    char* plaintext_base64 = nullptr;
+    char *cmk_base64 = nullptr;
+    char *ciphertext_base64 = nullptr;
+    char *plaintext_base64 = nullptr;
     RetJsonObj retJsonObj;
-    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
+    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
 
     JsonObj param_json;
     JsonObj payload_json;
@@ -507,7 +528,8 @@ void test_perf_asymmetricdecrypt()
 
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
@@ -525,7 +547,8 @@ void test_perf_asymmetricdecrypt()
 
     returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
     retJsonObj.parse(returnJsonChar);
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
@@ -534,10 +557,11 @@ void test_perf_asymmetricdecrypt()
 
     ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
 
-        // Start measuring time
+    // Start measuring time
     begin = std::chrono::high_resolution_clock::now();
 
-    for(int i=0; i<PERF_NUM; i++){
+    for (int i = 0; i < PERF_NUM; i++)
+    {
         payload_json.addData_string("ciphertext", ciphertext_base64);
 
         param_json.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
@@ -545,7 +569,8 @@ void test_perf_asymmetricdecrypt()
 
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
@@ -574,10 +599,11 @@ void *test_createkey(void *threadid)
     RetJsonObj retJsonObj;
     JsonObj param_json;
     JsonObj payload_json;
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
     long tid = (long)threadid;
 
-    for (int i = 0; i < PERF_NUM; i++) {
+    for (int i = 0; i < PERF_NUM; i++)
+    {
         payload_json.addData_uint32("keyspec", EH_AES_GCM_256);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
         param_json.addData_uint32("action", EH_CREATE_KEY);
@@ -586,7 +612,8 @@ void *test_createkey(void *threadid)
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
 
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("Createkey with aes-128 failed in time(%d)\n", i);
             SAFE_FREE(returnJsonChar);
             break;
@@ -595,7 +622,7 @@ void *test_createkey(void *threadid)
         printf("Thread[%ld], CreateKey(AES-128) succeed in time[%d]\n", tid, i);
     }
 
-   pthread_exit(NULL);
+    pthread_exit(NULL);
 }
 
 void test_multi_createkey()
@@ -604,18 +631,22 @@ void test_multi_createkey()
     pthread_t threads[NUM_THREADS];
     int rc;
     int i;
-    for( i=0; i < NUM_THREADS; i++ ){
+    for (i = 0; i < NUM_THREADS; i++)
+    {
         printf("creating thread [%d]\n", i);
         rc = pthread_create(&threads[i], NULL, test_createkey, (void *)i);
-        if (rc){
+        if (rc)
+        {
             printf("Error(%d):unable to create thread\n", rc);
             exit(-1);
         }
     }
 
-    for( i = 0; i < NUM_THREADS; i++ ) {
+    for (i = 0; i < NUM_THREADS; i++)
+    {
         rc = pthread_join(threads[i], &status);
-        if (rc) {
+        if (rc)
+        {
             printf("Error(%d) to join with thread[%d]\n", rc, i);
             exit(-1);
         }
@@ -627,16 +658,16 @@ void test_multi_createkey()
 void *test_encrypt(void *threadid)
 {
     long tid = (long)threadid;
-    char* returnJsonChar = nullptr;
+    char *returnJsonChar = nullptr;
     char plaintext[32] = "helloworld";
     char aad[] = "challenge";
 
     printf("Thread[%ld]. plaintext is %s\n", tid, plaintext);
 
-    char* cmk_base64 = nullptr;
-    char* plaintext_base64 = nullptr;
-    std::string input_plaintext_base64 = base64_encode((const uint8_t*)plaintext, sizeof(plaintext)/sizeof(plaintext[0]));
-    std::string input_aad_base64 = base64_encode((const uint8_t*)aad, sizeof(aad)/sizeof(aad[0]));
+    char *cmk_base64 = nullptr;
+    char *plaintext_base64 = nullptr;
+    std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext, sizeof(plaintext) / sizeof(plaintext[0]));
+    std::string input_aad_base64 = base64_encode((const uint8_t *)aad, sizeof(aad) / sizeof(aad[0]));
 
     RetJsonObj retJsonObj;
     JsonObj param_json;
@@ -646,14 +677,16 @@ void *test_encrypt(void *threadid)
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    if(retJsonObj.getCode() != 200){
+    if (retJsonObj.getCode() != 200)
+    {
         printf("Thread[%ld], Createkey with aes-gcm-128 failed, error message: %s \n", tid, retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    printf("Thread[%ld], NAPI_CreateKey Json = %s\n",tid, returnJsonChar);
+    printf("Thread[%ld], NAPI_CreateKey Json = %s\n", tid, returnJsonChar);
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
-    for(int i=0; i<PERF_NUM; i++){
+    for (int i = 0; i < PERF_NUM; i++)
+    {
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
         payload_json.addData_string("plaintext", input_plaintext_base64);
@@ -665,7 +698,8 @@ void *test_encrypt(void *threadid)
         returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
         retJsonObj.parse(returnJsonChar);
 
-        if(retJsonObj.getCode() != 200){
+        if (retJsonObj.getCode() != 200)
+        {
             printf("Thread[%ld] with time[%d], failed to Encrypt the plaittext data, error message: %s \n", tid, i, retJsonObj.getMessage().c_str());
             goto cleanup;
         }
@@ -689,18 +723,22 @@ void test_multi_encrypt()
     pthread_t threads[NUM_THREADS];
     int rc;
     int i;
-    for( i=0; i < NUM_THREADS; i++ ){
+    for (i = 0; i < NUM_THREADS; i++)
+    {
         printf("creating thread [%d]\n", i);
         rc = pthread_create(&threads[i], NULL, test_encrypt, (void *)i);
-        if (rc){
+        if (rc)
+        {
             printf("Error(%d):unable to create thread\n", rc);
             exit(-1);
         }
     }
 
-    for( i = 0; i < NUM_THREADS; i++ ) {
+    for (i = 0; i < NUM_THREADS; i++)
+    {
         rc = pthread_join(threads[i], &status);
-        if (rc) {
+        if (rc)
+        {
             printf("Error(%d) to join with thread[%d]\n", rc, i);
             exit(-1);
         }
@@ -1771,7 +1809,7 @@ void test_GenerateQuote_and_VerifyQuote()
     std::string CMD1 = " dump -enclave ";
     std::string CMD2 = " -dumpfile /tmp/ehsm_enclave_out.log";
     std::string splicedCMD = sgxSignFileName + CMD1 + signedEnclaveFileName + CMD2;
-    const char* dumpFileCMD = splicedCMD.data();
+    const char *dumpFileCMD = splicedCMD.data();
     system(dumpFileCMD);
     std::fstream ifs;
     std::string line;
@@ -1923,31 +1961,31 @@ int main(int argc, char *argv[])
     }
     printf("Initialize done\n");
 
-    // #if ENABLE_PERFORMANCE_TEST
-    //     test_performance();
-    // #endif
+#if ENABLE_PERFORMANCE_TEST
+    test_performance();
+#endif
 
-    // test_symmertric_encrypt_decrypt();
+    test_symmertric_encrypt_decrypt();
 
     test_RSA_encrypt_decrypt();
 
-    // test_RSA_sign_verify();
+    test_RSA_sign_verify();
 
-    // test_sm2_sign_verify();
+    test_sm2_sign_verify();
 
-    // test_ec_p256_sign_verify();
+    test_ec_p256_sign_verify();
 
-    // test_SM2_encrypt_decrypt();
+    test_SM2_encrypt_decrypt();
 
-    // test_generate_AES_datakey();
+    test_generate_AES_datakey();
 
-    // test_generate_SM4_datakey();
+    test_generate_SM4_datakey();
 
-    // test_export_datakey();
+    test_export_datakey();
 
-    // test_GenerateQuote_and_VerifyQuote();
+    test_GenerateQuote_and_VerifyQuote();
 
-    // test_Enroll();
+    test_Enroll();
 
     Finalize();
 

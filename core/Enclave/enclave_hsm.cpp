@@ -118,9 +118,9 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
 sgx_status_t enclave_self_test()
 {
     sgx_status_t ret;
-    
-    ret= ehsm_self_test();
-    
+
+    ret = ehsm_self_test();
+
     return ret;
 }
 
@@ -165,9 +165,9 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
     return ret;
 }
 
-sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
-                             const ehsm_data_t *aad, size_t aad_size,
-                             const ehsm_data_t *plaintext, size_t plaintext_size,
+sgx_status_t enclave_encrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
+                             ehsm_data_t *aad, size_t aad_size,
+                             ehsm_data_t *plaintext, size_t plaintext_size,
                              ehsm_data_t *ciphertext, size_t ciphertext_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -220,9 +220,9 @@ sgx_status_t enclave_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
     return ret;
 }
 
-sgx_status_t enclave_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
-                             const ehsm_data_t *aad, size_t aad_size,
-                             const ehsm_data_t *ciphertext, size_t ciphertext_size,
+sgx_status_t enclave_decrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
+                             ehsm_data_t *aad, size_t aad_size,
+                             ehsm_data_t *ciphertext, size_t ciphertext_size,
                              ehsm_data_t *plaintext, size_t plaintext_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -287,8 +287,8 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    if (plaintext == NULL || 
-        plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen) || 
+    if (plaintext == NULL ||
+        plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen) ||
         plaintext->datalen == 0 ||
         /* Verify the maximum plaintext length supported by different keyspac */
         plaintext->datalen > get_asymmetric_max_encrypt_plaintext_size(cmk->metadata.keyspec, cmk->metadata.padding_mode))
@@ -501,8 +501,8 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
                               result);
         break;
     case EH_EC_P256:
-    // not check ecc & sm2 signateure len because the len will be change after sign
-    //refence https://wiki.openssl.org/index.php/EVP_Signing_and_Verifying#Signing
+        // not check ecc & sm2 signateure len because the len will be change after sign
+        // refence https://wiki.openssl.org/index.php/EVP_Signing_and_Verifying#Signing
         ret = ehsm_ecc_verify(cmk,
                               data,
                               signature,
@@ -535,8 +535,8 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
  * @param ciphertext_size size of ciphertext
  * @return ehsm_status_t
  */
-sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
-                                      const ehsm_data_t *aad, size_t aad_size,
+sgx_status_t enclave_generate_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
+                                      ehsm_data_t *aad, size_t aad_size,
                                       ehsm_data_t *plaintext, size_t plaintext_size,
                                       ehsm_data_t *ciphertext, size_t ciphertext_size)
 {
@@ -633,10 +633,10 @@ sgx_status_t enclave_generate_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size
     return ret;
 }
 
-sgx_status_t enclave_export_datakey(const ehsm_keyblob_t *cmk, size_t cmk_size,
-                                    const ehsm_data_t *aad, size_t aad_size,
+sgx_status_t enclave_export_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
+                                    ehsm_data_t *aad, size_t aad_size,
                                     ehsm_data_t *olddatakey, size_t olddatakey_size,
-                                    const ehsm_keyblob_t *ukey, size_t ukey_size,
+                                    ehsm_keyblob_t *ukey, size_t ukey_size,
                                     ehsm_data_t *newdatakey, size_t newdatakey_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -785,7 +785,7 @@ sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (cipherapikey == NULL || 
+    if (cipherapikey == NULL ||
         cipherapikey_size < EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
     {
         return SGX_ERROR_INVALID_PARAMETER;

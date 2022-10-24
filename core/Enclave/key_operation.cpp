@@ -118,6 +118,120 @@ static const EVP_MD *GetDigestMode(ehsm_digest_mode_t digestMode)
     }
 }
 
+sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
+                             const EVP_CIPHER *block_mode,
+                             uint8_t *plaintext, uint32_t plaintext_len,
+                             uint8_t *aad, uint32_t aad_len,
+                             uint8_t *iv, uint32_t iv_len,
+                             uint8_t *tag, uint32_t tag_len)
+{
+    sgx_status_t ret;
+    int temp_len = 0;
+    EVP_CIPHER_CTX *pctx = NULL;
+    // Create and init ctx
+    if (!(pctx = EVP_CIPHER_CTX_new()))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Initialise encrypt/decrpty, key and IV
+    if (1 != EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)key, iv))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Provide AAD data if exist
+    if (aad != NULL && aad_len > 0)
+    {
+        if (1 != EVP_EncryptUpdate(pctx, NULL, &temp_len, aad, aad_len))
+        {
+            return SGX_ERROR_UNEXPECTED;
+        }
+    }
+
+    if (plaintext_len > 0)
+    {
+        // Provide the message to be encrypted, and obtain the encrypted output.
+        if (1 != EVP_EncryptUpdate(pctx, cipherblob, &temp_len, plaintext, plaintext_len))
+        {
+            return SGX_ERROR_UNEXPECTED;
+        }
+    }
+
+    // Finalise the encryption/decryption
+    if (1 != EVP_EncryptFinal_ex(pctx, cipherblob + temp_len, &temp_len))
+    {
+        return SGX_ERROR_MAC_MISMATCH;
+    }
+
+    // Get tag
+    if (1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_GET_TAG, tag_len, tag))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    if (pctx)
+    {
+        EVP_CIPHER_CTX_free(pctx);
+    }
+    return SGX_SUCCESS;
+}
+
+sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
+                             const EVP_CIPHER *block_mode,
+                             uint8_t *ciphertext, uint32_t ciphertext_len,
+                             uint8_t *aad, uint32_t aad_len,
+                             uint8_t *iv, uint32_t iv_len,
+                             uint8_t *tag, uint32_t tag_len)
+{
+    sgx_status_t ret;
+    int temp_len = 0;
+    EVP_CIPHER_CTX *pctx = NULL;
+    // Create and initialise the context
+    if (!(pctx = EVP_CIPHER_CTX_new()))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Initialise decrypt, key and IV
+    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)key, iv))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+    if (aad != NULL && aad_len > 0)
+    {
+        if (!EVP_DecryptUpdate(pctx, NULL, &temp_len, aad, aad_len))
+        {
+            return SGX_ERROR_UNEXPECTED;
+        }
+    }
+
+    // Decrypt message, obtain the plaintext output
+    if (!EVP_DecryptUpdate(pctx, plaintext, &temp_len, ciphertext, ciphertext_len))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Update expected tag value
+    if (!EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_TAG, tag_len, tag))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Finalise the decryption. A positive return value indicates success,
+    // anything else is a failure - the plaintext is not trustworthy.
+    if (EVP_DecryptFinal_ex(pctx, plaintext, &temp_len) <= 0)
+    {
+        return SGX_ERROR_MAC_MISMATCH;
+    }
+
+    if (pctx)
+    {
+        EVP_CIPHER_CTX_free(pctx);
+    }
+    return SGX_SUCCESS;
+}
+
 /**
  * @brief Check parameters and encrypted data
  * @param aad Additional data
@@ -125,9 +239,9 @@ static const EVP_MD *GetDigestMode(ehsm_digest_mode_t digestMode)
  * @param plaintext Data to be encrypted
  * @param cipherblob The information of ciphertext
  */
-sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
-                                  const ehsm_keyblob_t *cmk,
-                                  const ehsm_data_t *plaintext,
+sgx_status_t ehsm_aes_gcm_encrypt(ehsm_data_t *aad,
+                                  ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *plaintext,
                                   ehsm_data_t *cipherblob)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -199,58 +313,10 @@ sgx_status_t ehsm_aes_gcm_encrypt(const ehsm_data_t *aad,
         goto out;
     }
 
-    // Create and init ctx
-    if (!(pctx = EVP_CIPHER_CTX_new()))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
+    ret = aes_gcm_encrypt(enc_key, cipherblob->data, block_mode, plaintext->data, plaintext->datalen,
+                          aad->data, aad->datalen, iv, SGX_AESGCM_IV_SIZE, mac, EH_AES_GCM_MAC_SIZE);
 
-    // Initialise encrypt/decrpty, key and IV
-    if (1 != EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)enc_key, iv))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Provide AAD data if exist
-    if (aad != NULL && aad->datalen > 0)
-    {
-        if (1 != EVP_EncryptUpdate(pctx, NULL, &temp_len, aad->data, aad->datalen))
-        {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-    }
-
-    if (plaintext->datalen > 0)
-    {
-        // Provide the message to be encrypted, and obtain the encrypted output.
-        if (1 != EVP_EncryptUpdate(pctx, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen))
-        {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-    }
-
-    // Finalise the encryption/decryption
-    if (1 != EVP_EncryptFinal_ex(pctx, cipherblob->data + temp_len, &temp_len))
-    {
-        ret = SGX_ERROR_MAC_MISMATCH;
-        goto out;
-    }
-
-    // Get tag
-    if (1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_GET_TAG, SGX_AESGCM_MAC_SIZE, mac))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
 out:
-    if (pctx)
-    {
-        EVP_CIPHER_CTX_free(pctx);
-    }
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
     SAFE_FREE(enc_key);
     return ret;
@@ -263,9 +329,9 @@ out:
  * @param cipherblob The ciphertext to be decrypted
  * @param plaintext Decrypted plaintext
  */
-sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
-                                  const ehsm_keyblob_t *cmk,
-                                  const ehsm_data_t *cipherblob,
+sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
+                                  ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *cipherblob,
                                   ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -337,49 +403,8 @@ sgx_status_t ehsm_aes_gcm_decrypt(const ehsm_data_t *aad,
     memset_s(&l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
     memcpy_s(l_tag, SGX_AESGCM_MAC_SIZE, mac, SGX_AESGCM_MAC_SIZE);
 
-    // Create and initialise the context
-    if (!(pctx = EVP_CIPHER_CTX_new()))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Initialise decrypt, key and IV
-    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)dec_key, iv))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-    if (aad != NULL && aad->datalen > 0)
-    {
-        if (!EVP_DecryptUpdate(pctx, NULL, &temp_len, aad->data, aad->datalen))
-        {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-    }
-
-    // Decrypt message, obtain the plaintext output
-    if (!EVP_DecryptUpdate(pctx, plaintext->data, &temp_len, cipherblob->data, plaintext->datalen))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Update expected tag value
-    if (!EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_TAG, SGX_AESGCM_MAC_SIZE, l_tag))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Finalise the decryption. A positive return value indicates success,
-    // anything else is a failure - the plaintext is not trustworthy.
-    if (EVP_DecryptFinal_ex(pctx, plaintext->data + temp_len, &temp_len) <= 0)
-    {
-        ret = SGX_ERROR_MAC_MISMATCH;
-        goto out;
-    }
+    ret = aes_gcm_decrypt(dec_key, plaintext->data, block_mode, cipherblob->data, cipherblob->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE,
+                          aad->data, aad->datalen, iv, SGX_AESGCM_IV_SIZE, l_tag, SGX_AESGCM_MAC_SIZE);
 out:
     if (pctx != NULL)
     {
@@ -1409,7 +1434,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
         log_d("failed to load rsa key pem\n");
         goto out;
     }
-    PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
+    PEM_read_bio_RSAPublicKey(bio, &rsa_pubkey, NULL, NULL);
     if (rsa_pubkey == NULL)
     {
         log_d("failed to load rsa key\n");
