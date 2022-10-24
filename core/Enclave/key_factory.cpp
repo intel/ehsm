@@ -251,48 +251,32 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         return ehsm_calc_keyblob_size(cmk->metadata.keyspec, cmk->keybloblen);
     }
 
-    EVP_PKEY_CTX *pkey_ctx = NULL;
-    EVP_PKEY *pkey = NULL;
+    RSA *rsa_keypair = NULL;
     BIO *bio = NULL;
     uint8_t *pem_keypair = NULL;
     uint32_t key_size = 0;
 
-    uint8_t *rsa_keypair_test = NULL;
-    BIO *bio_test = NULL;
-    RSA *rsa_pubkey_test = NULL;
-
-    pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
-    if (pkey_ctx == NULL)
+    rsa_keypair = RSA_new();
+    if (rsa_keypair == NULL)
     {
         goto out;
     }
 
-    if (EVP_PKEY_keygen_init(pkey_ctx) <= 0)
-    {
-        goto out;
-    }
-
-    switch (cmk->metadata.keyspec)
+    switch (cmk->metadata.keyspec) // https://github.com/intel/linux-sgx/blob/master/SampleCode/SampleAttestedTLS/common/utility.cpp
     {
     case EH_RSA_2048:
-        key_size = RSA_2048_KEY_BITS;
+        rsa_keypair = RSA_generate_key(RSA_2048_KEY_BITS, RSA_F4, NULL, NULL);
         break;
     case EH_RSA_3072:
-        key_size = RSA_3072_KEY_BITS;
+        rsa_keypair = RSA_generate_key(RSA_3072_KEY_BITS, RSA_F4, NULL, NULL);
         break;
     case EH_RSA_4096:
-        key_size = RSA_4096_KEY_BITS;
+        rsa_keypair = RSA_generate_key(RSA_4096_KEY_BITS, RSA_F4, NULL, NULL);
         break;
     default:
         goto out;
     }
-
-    if (EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, key_size) <= 0)
-    {
-        goto out;
-    }
-
-    if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0)
+    if (rsa_keypair == NULL) // https://doc.ecoscentric.com/ref/openssl-crypto-rsa-generate-key.html
     {
         goto out;
     }
@@ -303,12 +287,12 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 
-    if (!PEM_write_bio_PUBKEY(bio, pkey))
+    if (!PEM_write_bio_RSAPublicKey(bio, rsa_keypair))
     {
         goto out;
     }
 
-    if (!PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL))
+    if (!PEM_write_bio_RSAPrivateKey(bio, rsa_keypair, NULL, NULL, 0, NULL, NULL))
     {
         goto out;
     }
@@ -330,6 +314,8 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 
+    printf("pem_keypair=%s\n", pem_keypair);
+
     ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
     if (ret != SGX_SUCCESS)
@@ -337,10 +323,8 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 out:
-    if (pkey_ctx)
-        EVP_PKEY_CTX_free(pkey_ctx);
-    if (pkey)
-        EVP_PKEY_free(pkey);
+    if (rsa_keypair)
+        RSA_free(rsa_keypair);
     if (bio)
         BIO_free(bio);
 
@@ -349,7 +333,7 @@ out:
     return ret;
 }
 
-sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk)
+sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk) // https://github.com/intel/linux-sgx/blob/master/SampleCode/SampleAttestedTLS/common/utility.cpp
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 

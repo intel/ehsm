@@ -736,7 +736,7 @@ void test_symmertric_encrypt_decrypt()
         char *cmk_base64 = nullptr;
         char *ciphertext_base64 = nullptr;
         char *plaintext_base64 = nullptr;
-        std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext[i].c_str(), sizeof(plaintext[i]));
+        std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext[i].c_str(), plaintext[i].length());
         std::string input_aad_base64 = base64_encode((const uint8_t *)aad, sizeof(aad) / sizeof(aad[0]));
 
         RetJsonObj retJsonObj;
@@ -832,7 +832,7 @@ void test_RSA_encrypt_decrypt()
         char *cmk_base64 = nullptr;
         char *ciphertext_base64 = nullptr;
         char *plaintext_base64 = nullptr;
-        std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext[i].c_str(), sizeof(plaintext[i]));
+        std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext[i].c_str(), plaintext[i].length());
 
         RetJsonObj retJsonObj;
         JsonObj param_json;
@@ -867,7 +867,7 @@ void test_RSA_encrypt_decrypt()
 
         if (retJsonObj.getCode() != 200)
         {
-            printf("Failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("Failed to Encrypt the plaintext data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         printf("NAPI_Encrypt json = %s\n", returnJsonChar);
@@ -927,7 +927,7 @@ void test_SM2_encrypt_decrypt()
         char *cmk_base64 = nullptr;
         char *ciphertext_base64 = nullptr;
         char *plaintext_base64 = nullptr;
-        std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext[i].c_str(), sizeof(plaintext[i]));
+        std::string input_plaintext_base64 = base64_encode((const uint8_t *)plaintext[i].c_str(), plaintext[i].length());
 
         RetJsonObj retJsonObj;
         JsonObj param_json;
@@ -1929,7 +1929,7 @@ int main(int argc, char *argv[])
 
     // test_symmertric_encrypt_decrypt();
 
-    // test_RSA_encrypt_decrypt();
+    test_RSA_encrypt_decrypt();
 
     // test_RSA_sign_verify();
 

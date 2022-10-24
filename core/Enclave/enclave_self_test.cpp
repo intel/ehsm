@@ -10,10 +10,12 @@
 
 using namespace std;
 
+typedef vector<map<string, string>> EHSM_TEST_VECTOR;
+
 #define GET_PARAMETER(x) \
     uint8_t *x = (uint8_t *)get_parameter(#x, test_vector);
 
-vector<map<string, string>> aes_gcm_crypto =
+EHSM_TEST_VECTOR aes_gcm_test_vectors =
     {
         {// case1
             {"key", "feffe9928665731c6d6a8f9467308308"},
@@ -32,24 +34,6 @@ vector<map<string, string>> aes_gcm_crypto =
             {"tag", "0032a1dc85f1c9786925a2e71d8272dd"}
         }
     };
-
-void extract_key(std::string &key, size_t const &sepPos,
-                 const std::string &line)
-{
-    key = line.substr(0, sepPos);
-    if (key.find('\t') != line.npos || key.find(' ') != line.npos)
-    {
-        key.erase(key.find_first_of("\t "));
-    }
-}
-
-void extract_value(std::string &value, size_t const &sepPos,
-                   const std::string &line)
-{
-    value = line.substr(sepPos + 1);
-    value.erase(0, value.find_first_not_of("\t "));
-    value.erase(value.find_last_not_of("\t ") + 1);
-}
 
 bool StrToHex(const char *str, unsigned char buf[], int len)
 {
@@ -187,22 +171,21 @@ bool aes_gcm_decrypt(map<string, string> test_vector)
     {
         return false;
     }
-printf("whh5\n");
+
     if (EVP_DecryptFinal_ex(pctx, _plaintext + temp_len, &temp_len) <= 0)
     {
         return false;
     }
-printf("whh6\n");
+
     for (int i = 0; i < VECTOR_LENGTH("plaintext"); i++)
     {
         printf("%02x", plaintext[i]);
     }
-    printf("\n");
+    
     for (int i = 0; i < VECTOR_LENGTH("plaintext"); i++)
     {
         printf("%02x", _plaintext[i]);
     }
-    printf("\n");
     
     EVP_CIPHER_CTX_free(pctx);
     
@@ -214,7 +197,7 @@ printf("whh6\n");
 sgx_status_t aes_gcm_crypto_test()
 {
     sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
-    for (auto test_vector : aes_gcm_crypto)
+    for (auto test_vector : aes_gcm_test_vectors)
     {
         if (!aes_gcm_encrypt(test_vector) || !aes_gcm_decrypt(test_vector))
         {

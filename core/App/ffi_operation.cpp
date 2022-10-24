@@ -54,7 +54,6 @@ extern "C"
 {
     static void *import_struct_from_json(JsonObj payloadJson, string key)
     {
-
         if (!key.compare("metadata"))
         {
             ehsm_keyblob_t *cmk = (ehsm_keyblob_t *)malloc(sizeof(ehsm_keyblob_t));
@@ -88,19 +87,24 @@ extern "C"
 
             return cmk;
         }
-        else
+        else if (!key.compare("plaintext") ||
+                 !key.compare("aad") ||
+                 !key.compare("ciphertext") ||
+                 !key.compare("digest") ||
+                 !key.compare("signature") ||
+                 !key.compare("olddatakey"))
         {
             ehsm_data_t *data;
             string data_str = base64_decode(payloadJson.readData_string(key));
             size_t data_size = data_str.size();
 
-            data = (ehsm_data_t*)malloc(APPEND_SIZE_TO_DATA_T(data_size));
+            data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(data_size));
             if (data == NULL)
             {
                 return NULL;
             }
             data->datalen = data_size;
-            if(data_size > 0)
+            if (data_size > 0)
             {
                 memcpy_s(data->data, data_size, (uint8_t *)data_str.data(), data_size);
             }
@@ -988,7 +992,7 @@ extern "C"
         ehsm_keyblob_t *cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
         ehsm_data_t *digest_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "digest");
         ehsm_data_t *signature_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "signature");
-        
+
         // verify sign
         ret = Verify(cmk, digest_data, signature_data, &result);
         if (ret != EH_OK)

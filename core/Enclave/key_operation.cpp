@@ -911,7 +911,7 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
     }
 
     // make encryption
-    PEM_read_bio_RSA_PUBKEY(bio, &rsa_pubkey, NULL, NULL);
+    PEM_read_bio_RSAPublicKey(bio, &rsa_pubkey, NULL, NULL);
     if (rsa_pubkey == NULL)
     {
         log_d("failed to load rsa key\n");
