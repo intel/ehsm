@@ -363,24 +363,8 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk) // https://github.com/intel
         goto out;
     }
 
-    switch (cmk->metadata.keyspec)
+    if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_X9_62_prime256v1) <= 0)
     {
-    case EH_EC_P224:
-    case EH_EC_P256:
-    case EH_EC_P384:
-    case EH_EC_P512:
-        if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_X9_62_prime256v1) <= 0)
-        {
-            goto out;
-        }
-        break;
-    case EH_SM2:
-        if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_sm2) <= 0)
-        {
-            goto out;
-        }
-        break;
-    default:
         goto out;
     }
 
@@ -433,6 +417,102 @@ out:
         EVP_PKEY_CTX_free(pkey_ctx);
     if (pkey)
         EVP_PKEY_free(pkey);
+    if (bio)
+        BIO_free(bio);
+
+    memset_s(pem_keypair, key_size, 0, key_size);
+    SAFE_FREE(pem_keypair);
+    return ret;
+}
+
+sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk) // https://github.com/intel/intel-sgx-ssl/blob/master/Linux/sgx/test_app/enclave/tests/evp_smx.c
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL)
+    {
+        return ret;
+    }
+
+    if (cmk->keybloblen == 0)
+    {
+        return ehsm_calc_keyblob_size(cmk->metadata.keyspec, cmk->keybloblen);
+    }
+
+    BIO *bio = NULL;
+    uint8_t *pem_keypair = NULL;
+    uint32_t key_size = 0;
+    EC_GROUP *ec_group = NULL;
+    EC_KEY *ec_key = NULL;
+
+    ec_group = EC_GROUP_new_by_curve_name(NID_sm2);
+    if (ec_group == NULL)
+    {
+        printf("Error: fail to create an EC_GROUP object for SM2\n");
+        goto out;
+    }
+
+    ec_key = EC_KEY_new();
+    if (ec_key == NULL)
+    {
+        printf("Error: fail to create a new EC key\n");
+        goto out;
+    }
+
+    if (EC_KEY_set_group(ec_key, ec_group) != 1)
+    {
+        printf("Error: fail to set the new EC key's curve\n");
+        goto out;
+    }
+
+    if (!EC_KEY_generate_key(ec_key))
+    {
+        printf("Error: fail to generate key pair based on the curve\n");
+        goto out;
+    }
+
+    bio = BIO_new(BIO_s_mem());
+    if (bio == NULL)
+    {
+        goto out;
+    }
+
+    if (!PEM_write_bio_EC_PUBKEY(bio, ec_key))
+    {
+        goto out;
+    }
+
+    if (!PEM_write_bio_ECPrivateKey(bio, ec_key, NULL, NULL, 0, NULL, NULL))
+    {
+        goto out;
+    }
+
+    key_size = BIO_pending(bio);
+    if (key_size <= 0)
+    {
+        goto out;
+    }
+
+    pem_keypair = (uint8_t *)malloc(key_size);
+    if (pem_keypair == NULL)
+    {
+        goto out;
+    }
+
+    if (BIO_read(bio, pem_keypair, key_size) < 0)
+    {
+        goto out;
+    }
+
+    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+
+    if (ret != SGX_SUCCESS)
+    {
+        goto out;
+    }
+out:
+    if (ec_key)
+        EC_KEY_free(ec_key);
     if (bio)
         BIO_free(bio);
 

@@ -118,6 +118,7 @@ static const EVP_MD *GetDigestMode(ehsm_digest_mode_t digestMode)
     }
 }
 
+// https://github.com/openssl/openssl/blob/master/test/aesgcmtest.c
 sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
                              const EVP_CIPHER *block_mode,
                              uint8_t *plaintext, uint32_t plaintext_len,
@@ -177,6 +178,7 @@ sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
     return SGX_SUCCESS;
 }
 
+// https://github.com/openssl/openssl/blob/master/test/aesgcmtest.c
 sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
                              const EVP_CIPHER *block_mode,
                              uint8_t *ciphertext, uint32_t ciphertext_len,

@@ -76,6 +76,8 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk);
 
+sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk);
+
 sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk);
 
 #endif
