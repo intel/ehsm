@@ -57,10 +57,10 @@ typedef struct _aes_gcm_data_ex_t
 
 // use the g_domain_key to encrypt the cmk and get it ciphertext
 sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
-                                const sgx_aes_gcm_data_ex_t *keyblob_data);
+                                sgx_aes_gcm_data_ex_t *keyblob_data);
 
 // use the g_domain_key to decrypt the cmk and get it plaintext
-sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaintext_size,
+sgx_status_t ehsm_create_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
                                  sgx_aes_gcm_data_ex_t *keyblob_data);
 
 // calculate the keyblob size based on the key metadata infomations.

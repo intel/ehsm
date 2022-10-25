@@ -105,7 +105,7 @@ uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data)
 }
 
 // use the g_domain_key to encrypt the cmk and get it ciphertext
-sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaintext_size,
+sgx_status_t ehsm_create_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
                                  sgx_aes_gcm_data_ex_t *keyblob_data)
 {
     if (keyblob_data == NULL || plaintext == NULL)
@@ -120,15 +120,15 @@ sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaint
         return ret;
     }
 
-    ret = sgx_rijndael128GCM_encrypt(&g_domain_key,
-                                     plaintext, plaintext_size,
-                                     keyblob_data->payload,
-                                     keyblob_data->iv, sizeof(keyblob_data->iv),
-                                     &(keyblob_data->payload[keyblob_data->ciphertext_size]), 0,
-                                     reinterpret_cast<uint8_t(*)[16]>(keyblob_data->mac));
+    ret = aes_gcm_encrypt((uint8_t *)g_domain_key,
+                          keyblob_data->payload, EVP_aes_128_gcm(),
+                          plaintext, plaintext_size,
+                          NULL, 0,
+                          keyblob_data->iv, SGX_AESGCM_IV_SIZE,
+                          keyblob_data->mac, SGX_AESGCM_MAC_SIZE);
     if (SGX_SUCCESS != ret)
     {
-        log_d("gcm encrypting failed.\n");
+        printf("gcm encrypting failed.\n");
     }
     else
     {
@@ -141,17 +141,18 @@ sgx_status_t ehsm_create_keyblob(const uint8_t *plaintext, const uint32_t plaint
 
 // use the g_domain_key to decrypt the cmk and get it plaintext
 sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
-                                const sgx_aes_gcm_data_ex_t *keyblob_data)
+                                sgx_aes_gcm_data_ex_t *keyblob_data)
 {
     if (NULL == keyblob_data || NULL == plaintext || NULL == plaintext_size || plaintext_size < keyblob_data->ciphertext_size)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    sgx_status_t ret = sgx_rijndael128GCM_decrypt(&g_domain_key,
-                                                  keyblob_data->payload, keyblob_data->ciphertext_size,
-                                                  plaintext,
-                                                  keyblob_data->iv, sizeof(keyblob_data->iv),
-                                                  &(keyblob_data->payload[keyblob_data->ciphertext_size]), keyblob_data->aad_size,
-                                                  (const sgx_aes_gcm_128bit_tag_t *)keyblob_data->mac);
+    sgx_status_t ret = aes_gcm_decrypt((uint8_t *)g_domain_key,
+                                       plaintext, EVP_aes_128_gcm(),
+                                       keyblob_data->payload, keyblob_data->ciphertext_size,
+                                       NULL, 0,
+                                       keyblob_data->iv, SGX_AESGCM_IV_SIZE,
+                                       keyblob_data->mac, SGX_AESGCM_MAC_SIZE);
+
     if (SGX_SUCCESS != ret)
         printf("gcm decrypting failed.\n");
     else

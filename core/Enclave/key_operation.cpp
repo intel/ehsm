@@ -190,18 +190,21 @@ sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
     // Create and initialise the context
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
+        printf("whh1\n");
         return SGX_ERROR_UNEXPECTED;
     }
 
     // Initialise decrypt, key and IV
     if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)key, iv))
     {
+        printf("whh2\n");
         return SGX_ERROR_UNEXPECTED;
     }
     if (aad != NULL && aad_len > 0)
     {
         if (!EVP_DecryptUpdate(pctx, NULL, &temp_len, aad, aad_len))
         {
+            printf("whh3\n");
             return SGX_ERROR_UNEXPECTED;
         }
     }
@@ -209,19 +212,22 @@ sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
     // Decrypt message, obtain the plaintext output
     if (!EVP_DecryptUpdate(pctx, plaintext, &temp_len, ciphertext, ciphertext_len))
     {
+        printf("whh4\n");
         return SGX_ERROR_UNEXPECTED;
     }
 
     // Update expected tag value
     if (!EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_TAG, tag_len, tag))
     {
+        printf("whh5\n");
         return SGX_ERROR_UNEXPECTED;
     }
 
     // Finalise the decryption. A positive return value indicates success,
     // anything else is a failure - the plaintext is not trustworthy.
-    if (EVP_DecryptFinal_ex(pctx, plaintext, &temp_len) <= 0)
+    if (EVP_DecryptFinal_ex(pctx, plaintext + temp_len, &temp_len) <= 0)
     {
+        printf("whh6\n");
         return SGX_ERROR_MAC_MISMATCH;
     }
 
