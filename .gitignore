@@ -17,6 +17,7 @@ utils/tkey_exchange/*.o
 utils/tkey_exchange/sgx_tkey_exchange_t.*
 utils/tkey_exchange/sgx_tkey_exchange_u.*
 utils/ukey_exchange/*.o
+utils/sgx_socket/tls/*.o
 
 out/
 utils/sgxssl/

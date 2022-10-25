@@ -72,12 +72,14 @@ RM = rm -f
 ######## SGX SSL Settings ########
 OPENSSL_PATH := $(ROOT_DIR)/utils/sgxssl
 OPENSSL_LIBRARY_PATH := $(OPENSSL_PATH)/lib64
+SOCKET_DIR := $(ROOT_DIR)/utils/sgx_socket
 SGXSSL_Library_Name := sgx_tsgxssl
 OpenSSL_Crypto_Library_Name := sgx_tsgxssl_crypto
 SGXSSL_Untrusted_Library_Name := sgx_usgxssl
+OpenSSL_SSL_Library_Name := sgx_tsgxssl_ssl
 
 SgxSSL_Link_Libraries := -L$(OPENSSL_LIBRARY_PATH) -Wl,--whole-archive -l$(SGXSSL_Library_Name) -Wl,--no-whole-archive \
-			-l$(OpenSSL_Crypto_Library_Name) -lsgx_pthread
+			-l$(OpenSSL_SSL_Library_Name) -l$(OpenSSL_Crypto_Library_Name) -lsgx_pthread
 
 ######## SGX SDK Settings ########
 

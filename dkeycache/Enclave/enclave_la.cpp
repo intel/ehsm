@@ -37,6 +37,7 @@
 #include "error_codes.h"
 #include "sgx_ecp_types.h"
 #include "sgx_thread.h"
+#include "log_utils.h"
 #include <map>
 
 #include "sgx_dh.h"
@@ -110,7 +111,7 @@ uint32_t get_message_exchange_response(uint32_t cmd_id, uint8_t** out, uint32_t*
 
     switch(cmd_id) {
         case MESSAGE_EXCHANGE_CMD_DK:
-            printf("Receive cmd: MESSAGE_EXCHANGE_CMD_DK.\n");
+            log_d("Receive cmd: MESSAGE_EXCHANGE_CMD_DK.\n");
             uint8_t *tmp_data;
 
             tmp_data = (uint8_t*)malloc(SGX_DOMAIN_KEY_SIZE);

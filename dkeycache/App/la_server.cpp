@@ -62,7 +62,7 @@ int LaServer::init()
     m_server_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (m_server_sock_fd == -1)
     {
-        printf("socket initiazation error\n");
+        log_d("socket initiazation error\n");
         return -1;
     }
 
@@ -73,14 +73,14 @@ int LaServer::init()
     int bind_result = bind(m_server_sock_fd, (struct sockaddr*)&srv_addr, sizeof(srv_addr));
     if (bind_result == -1)
     {
-        printf("bind error\n");
+        log_d("bind error\n");
         close(m_server_sock_fd);
         return -1;
     }
     
     if (listen(m_server_sock_fd, BACKLOG) == -1)
     {
-        printf("listen error\n");
+        log_d("listen error\n");
         close(m_server_sock_fd);
         return -1;
     }
@@ -131,7 +131,7 @@ void LaServer::doWork()
         
         int ret = select(max_fd + 1, &server_fd_set, NULL, NULL, &tv);
         if(ret < 0) {
-            printf("Warning: server would shutdown\n");
+           log_i("Warning: server would shutdown\n");
             continue;
         } else if(ret == 0) {
             // timeout 
@@ -158,13 +158,13 @@ void LaServer::doWork()
                 }
                     
                 if(index < 0) {
-                    printf("server reach maximum connection!\n");
+                    log_i("server reach maximum connection!\n");
                     bzero(input_msg, BUFFER_SIZE);
                     strcpy(input_msg, "server reach maximum connection\n");
                     send(client_sock_fd, input_msg, BUFFER_SIZE, 0);
                 }
                 }else if (client_sock_fd < 0) {
-                    printf("server: accept() return failure, %s, would exit.\n", strerror(errno));
+                    log_d("server: accept() return failure, %s, would exit.\n", strerror(errno));
                 close(m_server_sock_fd);
                 break;
             }
@@ -187,7 +187,7 @@ void LaServer::doWork()
 
                     msg = (FIFO_MSG *)malloc(byte_num);
                     if (!msg) {
-                        printf("memory allocation failure\n");
+                        log_e("memory allocation failure\n");
                         continue;
                     }
                     memset(msg, 0, byte_num);
@@ -200,7 +200,7 @@ void LaServer::doWork()
                     m_cptask->puttask(msg);
                 }
                 else if(byte_num < 0) {
-                        printf("failed to receive message.\n");
+                        log_d("failed to receive message.\n");
                 } else {
                     // client connect is closed
                     FD_CLR(client_fds[i], &server_fd_set);
@@ -217,7 +217,7 @@ void LaServer::doWork()
  * */
 void LaServer::shutDown()
 {
-    printf("Server would shutdown...\n");
+    log_i("Server would shutdown...\n");
     m_shutdown = 1;
     m_cptask->shutdown();
         
