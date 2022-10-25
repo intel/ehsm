@@ -31,21 +31,37 @@
 
 enclave {
     from "sgx_tkey_exchange.edl" import *;
+    from "sgx_tsgxssl.edl" import *;
+    from "sgx_pthread.edl" import *;
+    from "sgx_ttls.edl" import *;
 
     include "sgx_key_exchange.h"
     include "sgx_quote.h"
     include "sgx_trts.h"
     include "stdbool.h"
+    include "sgx_ttls.h"
+    include "sys/socket.h"
+    include "sys/select.h"
+    include "netdb.h"
+    include "poll.h"
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
+        int ocall_close(int fd);
+        void ocall_get_current_time([out] uint64_t *p_current_time);
+        int ocall_set_dkeyserver_done();
+
         int ocall_read_domain_key([out, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len);
         int ocall_store_domain_key([in, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len);
+
+        int ocall_socket (int domain, int type, int protocol) propagate_errno;
+        int ocall_bind (int fd, [in, size=len] const struct sockaddr *addr, socklen_t len) propagate_errno;
+        int ocall_listen (int fd, int n) propagate_errno;
+        int ocall_accept (int fd, [out, size=addrlen_in] struct sockaddr *addr, socklen_t addrlen_in, [out] socklen_t *addrlen_out) propagate_errno;
+        int ocall_setsockopt (int fd, int level, int optname, [in, size=optlen] const void *optval, socklen_t optlen) propagate_errno;
     };
 
     trusted {
-        public sgx_status_t sgx_wrap_domain_key([in] sgx_aes_gcm_128bit_key_t *p_key,
-                                                [out, size=p_dst_len] uint8_t *p_dst, size_t p_dst_len,
-                                                [out] sgx_aes_gcm_128bit_tag_t *p_out_mac);
+        public int sgx_set_up_tls_server([in, string] char* port);
     };
 };

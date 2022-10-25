@@ -35,6 +35,7 @@
 #include <new>
 #include <sched.h>
 #include <sys/sysinfo.h>
+#include "log_utils.h"
 /*--------------------------------------------------------------------------------------------------*/
 
 Thread::Thread()
@@ -77,7 +78,7 @@ void* Thread::doWork(void* param)
     }
     catch(std::bad_alloc& allocationException)
     {
-        printf("Unable to allocate memory\n");
+        log_e("Unable to allocate memory\n");
 		(void)allocationException;
         throw;
     }

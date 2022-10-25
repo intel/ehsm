@@ -49,6 +49,7 @@
 
 #include "la_task.h"
 #include "la_server.h"
+#include "log_utils.h"
 
 extern sgx_enclave_id_t g_enclave_id;
 
@@ -72,7 +73,7 @@ int generate_and_send_session_msg1_resp(int clientfd)
     ret = enclave_la_session_request(g_enclave_id, &status, &msg1resp.dh_msg1, &msg1resp.sessionid);
     if (ret != SGX_SUCCESS)
     {
-        printf("failed to do ECALL session_request.\n");
+        log_d("failed to do ECALL session_request.\n");
         return -1;
     }
     
@@ -80,7 +81,7 @@ int generate_and_send_session_msg1_resp(int clientfd)
     fifo_resp = (FIFO_MSG *)malloc(respmsgsize);
     if (!fifo_resp)
     {
-        printf("memory allocation failure.\n");
+        log_e("memory allocation failure.\n");
         return -1;
     }
     memset(fifo_resp, 0, respmsgsize);
@@ -93,7 +94,7 @@ int generate_and_send_session_msg1_resp(int clientfd)
     //send message 1 to client
     if (send(clientfd, reinterpret_cast<char *>(fifo_resp), static_cast<int>(respmsgsize), 0) == -1)
     {
-        printf("fail to send msg1 response.\n");
+        log_d("fail to send msg1 response.\n");
         retcode = -1;
     }
     free(fifo_resp);
@@ -121,7 +122,7 @@ int process_exchange_report(int clientfd, SESSION_MSG2 * msg2)
     response = (FIFO_MSG *)malloc(msgsize);
     if (!response)
     {
-        printf("memory allocation failure\n");
+        log_e("memory allocation failure\n");
         return -1;
     }
     memset(response, 0, msgsize);
@@ -136,7 +137,7 @@ int process_exchange_report(int clientfd, SESSION_MSG2 * msg2)
     ret = enclave_la_exchange_report(g_enclave_id, &status, &msg2->dh_msg2, &msg3->dh_msg3, msg2->sessionid);
     if (ret != SGX_SUCCESS)
     {
-        printf("EnclaveResponse_exchange_report failure.\n");
+        log_d("EnclaveResponse_exchange_report failure.\n");
         free(response);
         return -1;
     }
@@ -144,7 +145,7 @@ int process_exchange_report(int clientfd, SESSION_MSG2 * msg2)
     // send ECDH message 3 to client
     if (send(clientfd, reinterpret_cast<char *>(response), static_cast<int>(msgsize), 0) == -1)
     {
-        printf("server_send() failure.\n");
+        log_d("server_send() failure.\n");
         free(response);
         return -1;
     }
@@ -170,7 +171,7 @@ int process_msg_transfer(int clientfd, FIFO_MSGBODY_REQ *req_msg)
 
     if (!req_msg)
     {
-        printf("invalid parameter.\n");
+        log_d("invalid parameter.\n");
         return -1;
     }
 
@@ -179,7 +180,7 @@ int process_msg_transfer(int clientfd, FIFO_MSGBODY_REQ *req_msg)
     resp_message = (secure_message_t*)malloc(resp_message_size);
     if (!resp_message)
     {
-        printf("memory allocation failure.\n");
+        log_e("memory allocation failure.\n");
         return -1;
     }
     memset(resp_message, 0, resp_message_size);
@@ -187,7 +188,7 @@ int process_msg_transfer(int clientfd, FIFO_MSGBODY_REQ *req_msg)
     ret = enclave_la_generate_response(g_enclave_id, &status, (secure_message_t *)req_msg->buf, req_msg->size, req_msg->max_payload_size, resp_message, resp_message_size, req_msg->session_id);
     if (ret != SGX_SUCCESS)
     {
-        printf("EnclaveResponder_generate_response error.\n");
+        log_d("EnclaveResponder_generate_response error.\n");
         free(resp_message);
         return -1;
     }
@@ -195,7 +196,7 @@ int process_msg_transfer(int clientfd, FIFO_MSGBODY_REQ *req_msg)
     fifo_resp = (FIFO_MSG *)malloc(sizeof(FIFO_MSG) + resp_message_size);
     if (!fifo_resp)
     {
-        printf("memory allocation failure.\n");
+        log_e("memory allocation failure.\n");
         free(resp_message);
         return -1;
     }
@@ -209,7 +210,7 @@ int process_msg_transfer(int clientfd, FIFO_MSGBODY_REQ *req_msg)
 
     if (send(clientfd, reinterpret_cast<char *>(fifo_resp), sizeof(FIFO_MSG) + static_cast<int>(resp_message_size), 0) == -1)
     {
-        printf("server_send() failure.\n");
+        log_d("server_send() failure.\n");
         free(fifo_resp);
         return -1;
     }
@@ -243,7 +244,7 @@ int process_close_req(int clientfd, SESSION_CLOSE_REQ * close_req)
 
     if (send(clientfd, reinterpret_cast<char *>(&close_ack), sizeof(FIFO_MSG), 0) == -1)
     {
-        printf("server_send() failure.\n");
+        log_d("server_send() failure.\n");
         return -1;
     }
 
@@ -273,7 +274,7 @@ void LaTask::run()
             
                 if (generate_and_send_session_msg1_resp(clientfd) != 0)
                 {
-                    printf("failed to generate and send session msg1 resp.\n");
+                    log_d("failed to generate and send session msg1 resp.\n");
                     break;
                 }
 
@@ -289,7 +290,7 @@ void LaTask::run()
 
                 if (process_exchange_report(clientfd, msg2) != 0)
                 {
-                    printf("failed to process exchange_report request.\n");
+                    log_d("failed to process exchange_report request.\n");
                     break;
                 }
             }
@@ -305,7 +306,7 @@ void LaTask::run()
             
                 if (process_msg_transfer(clientfd, msg) != 0)   
                 {
-                    printf("failed to process message transfer request.\n");
+                    log_d("failed to process message transfer request.\n");
                     break;
                 }
             }
@@ -325,7 +326,7 @@ void LaTask::run()
             break;
         default:
             {
-                printf("Unknown message.\n");
+                log_d("Unknown message.\n");
             }
             break;
         }

@@ -64,7 +64,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++14
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -Wl,-rpath=$(CURDIR)
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -Wl,-rpath=$(CURDIR) -L$(OPENSSL_LIBRARY_PATH) -Wl,--whole-archive -l$(SGXSSL_Untrusted_Library_Name) -Wl,--no-whole-archive -lsgx_utls -lsgx_dcap_ql -lsgx_dcap_quoteverify -lcrypto
 
 ifneq ($(SGX_MODE), HW)
     App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -77,13 +77,17 @@ App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
 ######## Enclave Settings ########
 Enclave_Cpp_Files := $(wildcard Enclave/*.cpp)
+Enclave_Cpp_Files += $(wildcard ../utils/sgx_socket/tls/*.cpp)
 
 Enclave_Include_Paths := \
 	-IEnclave \
 	-I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc \
 	-I$(SGX_SDK)/include/libcxx \
-	-I$(TOPDIR)/include
+	-I$(TOPDIR)/include \
+	-I$(OPENSSL_PATH)/include \
+	-I$(SOCKET_DIR) \
+	-I$(SOCKET_DIR)/tls
 
 Enclave_C_Flags := \
 	$(Enclave_Include_Paths) \
@@ -99,7 +103,7 @@ else
 	Enclave_C_Flags += -fstack-protector-strong
 endif
 
-Enclave_Cpp_Flags := $(Enclave_C_Flags) -nostdinc++
+Enclave_Cpp_Flags := $(Enclave_C_Flags) -nostdinc++ -include "tsgxsslio.h"
 
 # Enable the security flags
 Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
@@ -112,9 +116,10 @@ Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
 # Do NOT move the libraries linked with `--start-group' and `--end-group' within `--whole-archive' and `--no-whole-archive' options.
 # Otherwise, you may get some undesirable errors.
 Enclave_Link_Flags := $(MITIGATION_LDFLAGS) $(Enclave_Security_Link_Flags) \
+	$(SgxSSL_Link_Libraries) \
     -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_TRUSTED_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tcrypto -l$(Service_Library_Name) -lra_tkey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tcrypto -lsgx_dcap_tvl -lsgx_ttls -l$(Service_Library_Name) -lra_tkey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \
@@ -151,7 +156,7 @@ App/auto_version.h:
 	@echo "  ==>  touch App/auto_version.h"
 
 App/enclave_u.h: $(SGX_EDGER8R) Enclave/enclave.edl
-	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include --search-path $(SOCKET_DIR)
 	@echo "GEN  =>  $@"
 
 App/enclave_u.c: App/enclave_u.h
@@ -171,7 +176,7 @@ $(App_Name): App/enclave_u.o $(App_Cpp_Objects) App/auto_version.h
 ######## Enclave Objects ########
 
 Enclave/enclave_t.h: $(SGX_EDGER8R) Enclave/enclave.edl
-	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/enclave.edl --search-path ../Enclave --search-path $(SOCKET_DIR)/tls --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include --search-path $(SOCKET_DIR)
 	@echo "GEN  =>  $@"
 
 Enclave/enclave_t.c: Enclave/enclave_t.h
@@ -181,6 +186,10 @@ Enclave/enclave_t.o: Enclave/enclave_t.c
 	@echo "CC   <=  $<"
 
 Enclave/%.o: Enclave/%.cpp Enclave/enclave_t.h
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Enclave_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+../utils/sgx_socket/tls/%.o: ../utils/sgx_socket/tls/%.cpp Enclave/enclave_t.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 

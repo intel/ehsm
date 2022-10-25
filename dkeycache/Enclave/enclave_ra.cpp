@@ -1,79 +1,55 @@
-/*
- * Copyright (C) 2020-2021 Intel Corporation
+/**
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * MIT License
  *
- *   1. Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in
- *      the documentation and/or other materials provided with the
- *      distribution.
- *   3. Neither the name of Intel Corporation nor the names of its
- *      contributors may be used to endorse or promote products derived
- *      from this software without specific prior written permission.
+ * Copyright (c) Open Enclave SDK contributors.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE
  *
  */
 
-#include "enclave_t.h"
-#include "sgx_tseal.h"
-
-#include <string>
+#include <errno.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
+#include <openssl/x509_vfy.h>
+#include <string.h>
+#include <stdarg.h>
 #include <stdio.h>
-#include <stdbool.h>
-#include <mbusafecrt.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <byteswap.h>
+#include "sgx_trts.h"
+#include "openssl_utility.h"
+#include "enclave_t.h"
+#include "log_utils.h"
 
-#include <assert.h>
-#include "sgx_tkey_exchange.h"
-#include "sgx_tcrypto.h"
+#define SGX_DOMAIN_KEY_SIZE 16
 
-#define SGX_AES_KEY_SIZE 16
-
-#define SGX_DOMAIN_KEY_SIZE     16
-
-// This is the public EC key of the SP. The corresponding private EC key is
-// used by the SP to sign data used in the remote attestation SIGMA protocol
-// to sign channel binding data in MSG2. A successful verification of the
-// signature confirms the identity of the SP to the ISV app in remote
-// attestation secure channel binding. The public EC key should be hardcoded in
-// the enclave or delivered in a trustworthy manner. The use of a spoofed public
-// EC key in the remote attestation with secure channel binding session may lead
-// to a security compromise. Every different SP the enclave communicates to
-// must have a unique SP public key. Delivery of the SP public key is
-// determined by the ISV. The TKE SIGMA protocol expects an Elliptical Curve key
-// based on NIST P-256
-static const sgx_ec256_public_t g_sp_pub_key = {
-    {
-        0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
-        0x85, 0xd0, 0x3a, 0x62, 0x37, 0x30, 0xae, 0xad,
-        0x3e, 0x3d, 0xaa, 0xee, 0x9c, 0x60, 0x73, 0x1d,
-        0xb0, 0x5b, 0xe8, 0x62, 0x1c, 0x4b, 0xeb, 0x38
-    },
-    {
-        0xd4, 0x81, 0x40, 0xd9, 0x50, 0xe2, 0x57, 0x7b,
-        0x26, 0xee, 0xb7, 0x41, 0xe7, 0xc6, 0x14, 0xe2,
-        0x24, 0xb7, 0xbd, 0xc9, 0x03, 0xf2, 0x9a, 0x28,
-        0xa8, 0x3c, 0xc8, 0x10, 0x11, 0x14, 0x5e, 0x06
-    }
-
-};
-
-// Used to store the secret passed by the SP in the sample code.
 uint8_t g_domain_key[SGX_DOMAIN_KEY_SIZE] = {0};
+
+int verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
 
 void printf(const char *fmt, ...)
 {
@@ -85,309 +61,320 @@ void printf(const char *fmt, ...)
     ocall_print_string(buf);
 }
 
-
-#ifdef SUPPLIED_KEY_DERIVATION
-
-#pragma message ("Supplied key derivation function is used.")
-
-typedef struct _hash_buffer_t
+void t_time(time_t *current_t)
 {
-    uint8_t counter[4];
-    sgx_ec256_dh_shared_t shared_secret;
-    uint8_t algorithm_id[4];
-} hash_buffer_t;
-
-const char ID_U[] = "SGXRAENCLAVE";
-const char ID_V[] = "SGXRASERVER";
-
-// Derive two keys from shared key and key id.
-bool derive_key(
-    const sgx_ec256_dh_shared_t *p_shared_key,
-    uint8_t key_id,
-    sgx_ec_key_128bit_t *first_derived_key,
-    sgx_ec_key_128bit_t *second_derived_key)
-{
-    sgx_status_t sgx_ret = SGX_SUCCESS;
-    hash_buffer_t hash_buffer;
-    sgx_sha_state_handle_t sha_context;
-    sgx_sha256_hash_t key_material;
-
-    memset(&hash_buffer, 0, sizeof(hash_buffer_t));
-    /* counter in big endian  */
-    hash_buffer.counter[3] = key_id;
-
-    /*convert from little endian to big endian */
-    for (size_t i = 0; i < sizeof(sgx_ec256_dh_shared_t); i++)
-    {
-        hash_buffer.shared_secret.s[i] = p_shared_key->s[sizeof(p_shared_key->s)-1 - i];
-    }
-
-    sgx_ret = sgx_sha256_init(&sha_context);
-    if (sgx_ret != SGX_SUCCESS)
-    {
-        return false;
-    }
-    sgx_ret = sgx_sha256_update((uint8_t*)&hash_buffer, sizeof(hash_buffer_t), sha_context);
-    if (sgx_ret != SGX_SUCCESS)
-    {
-        sgx_sha256_close(sha_context);
-        return false;
-    }
-    sgx_ret = sgx_sha256_update((uint8_t*)&ID_U, sizeof(ID_U), sha_context);
-    if (sgx_ret != SGX_SUCCESS)
-    {
-        sgx_sha256_close(sha_context);
-        return false;
-    }
-    sgx_ret = sgx_sha256_update((uint8_t*)&ID_V, sizeof(ID_V), sha_context);
-    if (sgx_ret != SGX_SUCCESS)
-    {
-        sgx_sha256_close(sha_context);
-        return false;
-    }
-    sgx_ret = sgx_sha256_get_hash(sha_context, &key_material);
-    if (sgx_ret != SGX_SUCCESS)
-    {
-        sgx_sha256_close(sha_context);
-        return false;
-    }
-    sgx_ret = sgx_sha256_close(sha_context);
-
-    assert(sizeof(sgx_ec_key_128bit_t)* 2 == sizeof(sgx_sha256_hash_t));
-    memcpy(first_derived_key, &key_material, sizeof(sgx_ec_key_128bit_t));
-    memcpy(second_derived_key, (uint8_t*)&key_material + sizeof(sgx_ec_key_128bit_t), sizeof(sgx_ec_key_128bit_t));
-
-    // memset here can be optimized away by compiler, so please use memset_s on
-    // windows for production code and similar functions on other OSes.
-    memset(&key_material, 0, sizeof(sgx_sha256_hash_t));
-
-    return true;
+    ocall_get_current_time((uint64_t *)current_t);
 }
 
-//isv defined key derivation function id
-#define ISV_KDF_ID 2
-
-typedef enum _derive_key_type_t
+uint16_t htons(uint16_t n)
 {
-    DERIVE_KEY_SMK_SK = 0,
-    DERIVE_KEY_MK_VK,
-} derive_key_type_t;
-
-sgx_status_t key_derivation(const sgx_ec256_dh_shared_t* shared_key,
-    uint16_t kdf_id,
-    sgx_ec_key_128bit_t* smk_key,
-    sgx_ec_key_128bit_t* sk_key,
-    sgx_ec_key_128bit_t* mk_key,
-    sgx_ec_key_128bit_t* vk_key)
-{
-    bool derive_ret = false;
-
-    if (NULL == shared_key)
+    union
     {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if (ISV_KDF_ID != kdf_id)
-    {
-        //fprintf(stderr, "\nError, key derivation id mismatch in [%s].", __FUNCTION__);
-        return SGX_ERROR_KDF_MISMATCH;
-    }
-
-    derive_ret = derive_key(shared_key, DERIVE_KEY_SMK_SK,
-        smk_key, sk_key);
-    if (derive_ret != true)
-    {
-        //fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
-        return SGX_ERROR_UNEXPECTED;
-    }
-
-    derive_ret = derive_key(shared_key, DERIVE_KEY_MK_VK,
-        mk_key, vk_key);
-    if (derive_ret != true)
-    {
-        //fprintf(stderr, "\nError, derive key fail in [%s].", __FUNCTION__);
-        return SGX_ERROR_UNEXPECTED;
-    }
-    return SGX_SUCCESS;
-}
-#else
-#pragma message ("Default key derivation function is used.")
-#endif
-
-// This ecall is a wrapper of sgx_ra_init to create the trusted
-// KE exchange key context needed for the remote attestation
-// SIGMA API's. Input pointers aren't checked since the trusted stubs
-// copy them into EPC memory.
-//
-// @param b_pse Indicates whether the ISV app is using the
-//              platform services.
-// @param p_context Pointer to the location where the returned
-//                  key context is to be copied.
-//
-// @return Any error returned from the trusted key exchange API
-//         for creating a key context.
-
-sgx_status_t enclave_init_ra(
-    int b_pse,
-    sgx_ra_context_t *p_context)
-{
-    // isv enclave call to trusted key exchange library.
-    sgx_status_t ret;
-#ifdef SUPPLIED_KEY_DERIVATION
-    ret = sgx_ra_init_ex(&g_sp_pub_key, b_pse, key_derivation, p_context);
-#else
-    ret = sgx_ra_init(&g_sp_pub_key, b_pse, p_context);
-#endif
-    return ret;
+        int i;
+        char c;
+    } u = {1};
+    return u.c ? bswap_16(n) : n;
 }
 
-
-// Closes the tKE key context used during the SIGMA key
-// exchange.
-//
-// @param context The trusted KE library key context.
-//
-// @return Return value from the key context close API
-
-sgx_status_t SGXAPI enclave_ra_close(
-    sgx_ra_context_t context)
+// support socket APIs inside enclave
+// for socket APIs, refer to https://en.wikipedia.org/wiki/Berkeley_sockets
+int socket(int domain, int type, int protocol)
 {
-    sgx_status_t ret;
-    ret = sgx_ra_close(context);
-    return ret;
-}
+    int ret = -1;
 
-
-// Verify the mac sent in att_result_msg from the SP using the
-// MK key. Input pointers aren't checked since the trusted stubs
-// copy them into EPC memory.
-//
-//
-// @param context The trusted KE library key context.
-// @param p_message Pointer to the message used to produce MAC
-// @param message_size Size in bytes of the message.
-// @param p_mac Pointer to the MAC to compare to.
-// @param mac_size Size in bytes of the MAC
-//
-// @return SGX_ERROR_INVALID_PARAMETER - MAC size is incorrect.
-// @return Any error produced by tKE  API to get SK key.
-// @return Any error produced by the AESCMAC function.
-// @return SGX_ERROR_MAC_MISMATCH - MAC compare fails.
-
-sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
-                                   uint8_t* p_message,
-                                   size_t message_size,
-                                   uint8_t* p_mac,
-                                   size_t mac_size)
-{
-    sgx_status_t ret;
-    sgx_ec_key_128bit_t mk_key;
-
-    if(mac_size != sizeof(sgx_mac_t))
-    {
-        ret = SGX_ERROR_INVALID_PARAMETER;
+    if (ocall_socket(&ret, domain, type, protocol) == SGX_SUCCESS)
         return ret;
-    }
-    if(message_size > UINT32_MAX)
-    {
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        return ret;
-    }
 
-    do {
-        uint8_t mac[SGX_CMAC_MAC_SIZE] = {0};
-
-        ret = sgx_ra_get_keys(context, SGX_RA_KEY_MK, &mk_key);
-        if(SGX_SUCCESS != ret)
-        {
-            break;
-        }
-        ret = sgx_rijndael128_cmac_msg(&mk_key,
-                                       p_message,
-                                       (uint32_t)message_size,
-                                       &mac);
-        if(SGX_SUCCESS != ret)
-        {
-            break;
-        }
-        if(0 == consttime_memequal(p_mac, mac, sizeof(mac)))
-        {
-            ret = SGX_ERROR_MAC_MISMATCH;
-            break;
-        }
-
-    }
-    while(0);
-
-    return ret;
+    return -1;
 }
 
-
-// Generate a secret information for the SP encrypted with SK.
-// Input pointers aren't checked since the trusted stubs copy
-// them into EPC memory.
-//
-// @param context The trusted KE library key context.
-// @param p_secret Message containing the secret.
-// @param secret_size Size in bytes of the secret message.
-// @param p_gcm_mac The pointer the the AESGCM MAC for the
-//                 message.
-//
-// @return SGX_ERROR_INVALID_PARAMETER - secret size if
-//         incorrect.
-// @return Any error produced by tKE  API to get SK key.
-// @return Any error produced by the AESGCM function.
-// @return SGX_ERROR_UNEXPECTED - the secret doesn't match the
-//         expected value.
-
-sgx_status_t enclave_store_domainkey (
-    sgx_ra_context_t context,
-    uint8_t *p_secret,
-    uint32_t secret_size,
-    uint8_t *p_gcm_mac)
+int connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen)
 {
-    sgx_status_t ret = SGX_SUCCESS;
-    sgx_ec_key_128bit_t sk_key;
-    uint32_t i;
+    int ret = -1;
 
-    do {
-        if(secret_size != SGX_DOMAIN_KEY_SIZE)
+    if (ocall_connect(&ret, sockfd, servaddr, addrlen) == SGX_SUCCESS)
+        return ret;
+
+    return -1;
+}
+
+unsigned long inet_addr2(const char *str)
+{
+    unsigned long lHost = 0;
+    char *pLong = (char *)&lHost;
+    char *p = (char *)str;
+    while (p)
+    {
+        *pLong++ = atoi(p);
+        p = strchr(p, '.');
+        if (p)
+            ++p;
+    }
+    return lHost;
+}
+
+// This routine conducts a simple HTTP request/response communication with server
+int communicate_with_server(SSL *ssl)
+{
+    unsigned char buf[200];
+    int ret = 1;
+    int error = 0;
+    int len = 0;
+    int bytes_written = 0;
+    int bytes_read = 0;
+
+    // Write an GET request to the server
+    log_d(TLS_CLIENT "-----> Write to server:\n");
+    len = snprintf((char *)buf, sizeof(buf) - 1, CLIENT_PAYLOAD);
+
+    while ((bytes_written = SSL_write(ssl, buf, (size_t)len)) <= 0)
+    {
+        error = SSL_get_error(ssl, bytes_written);
+        if (error == SSL_ERROR_WANT_WRITE)
+            continue;
+        log_d(TLS_CLIENT "Failed! SSL_write returned %d\n", error);
+        ret = bytes_written;
+        goto done;
+    }
+
+    log_d(TLS_CLIENT "%d bytes written\n", bytes_written);
+
+    // Read the HTTP response from server
+    log_d(TLS_CLIENT "<---- Read from server:\n");
+    do
+    {
+        len = sizeof(buf) - 1;
+        memset(buf, 0, sizeof(buf));
+        bytes_read = SSL_read(ssl, buf, (size_t)len);
+
+        if (bytes_read <= 0)
         {
-            ret = SGX_ERROR_INVALID_PARAMETER;
+            int error = SSL_get_error(ssl, bytes_read);
+            if (error == SSL_ERROR_WANT_READ)
+                continue;
+
+            log_d(TLS_CLIENT "Failed! SSL_read returned error=%d\n", error);
+            ret = bytes_read;
             break;
         }
 
-        ret = sgx_ra_get_keys(context, SGX_RA_KEY_SK, &sk_key);
-        if(SGX_SUCCESS != ret)
+        log_d(TLS_CLIENT " %d bytes read\n", bytes_read);
+
+        if (bytes_read != SGX_DOMAIN_KEY_SIZE)
         {
+            log_d(
+                TLS_CLIENT "ERROR: expected reading %lu bytes but only "
+                           "received %d bytes\n",
+                SGX_DOMAIN_KEY_SIZE,
+                bytes_read);
+            ret = bytes_read;
             break;
         }
-
-        uint8_t aes_gcm_iv[12] = {0};
-        ret = sgx_rijndael128GCM_decrypt(&sk_key,
-                                         p_secret,
-                                         secret_size,
-                                         g_domain_key,
-                                         &aes_gcm_iv[0],
-                                         12,
-                                         NULL,
-                                         0,
-                                         (const sgx_aes_gcm_128bit_tag_t *)
-                                            (p_gcm_mac));
-
-        if(ret != SGX_SUCCESS) {
-            printf("Failed to decrypt the secret from server\n");
+        else
+        {
+            log_d(TLS_CLIENT
+                  " received all the expected data from server\n\n");
+            ret = 0;
+            memcpy(g_domain_key, buf, SGX_DOMAIN_KEY_SIZE);
+            log_i("Successfully received the DomainKey from deploy server.\n");
+            for (unsigned long int i = 0; i < sizeof(g_domain_key); i++)
+            {
+                log_d("domain_key[%u]=%2u\n", i, g_domain_key[i]);
+            }
+            int retval = 0;
+            if (ocall_set_dkeycache_done(&retval) != SGX_SUCCESS)
+            {
+                ret = 1;
+                log_e("OCALL status failed.\n");
+                goto done;
+            }
+            if (retval != 0)
+            {
+                ret = 1;
+                log_e("Dkeycache service setting isready status failed .\n");
+                goto done;
+            }
+            break;
         }
-        printf("Decrypt the serect success\n");
-        for (i=0; i<sizeof(g_domain_key); i++) {
-            printf("domain_key[%d]=%2d\n", i, g_domain_key[i]);
-        }
-        // Once the server has the shared secret, it should be sealed to
-        // persistent storage for future use. This will prevents having to
-        // perform remote attestation until the secret goes stale. Once the
-        // enclave is created again, the secret can be unsealed.
-    } while(0);
-
+    } while (1);
+done:
     return ret;
 }
 
+// create a socket and connect to the server_name:server_port
+int create_socket(const char *server_name, uint16_t server_port)
+{
+    int sockfd = -1;
+    struct sockaddr_in dest_sock;
+    int res = -1;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1)
+    {
+        log_d(TLS_CLIENT "Error: Cannot create socket %d.\n", errno);
+        goto done;
+    }
+
+    dest_sock.sin_family = AF_INET;
+    dest_sock.sin_port = htons(server_port);
+    dest_sock.sin_addr.s_addr = inet_addr2(server_name);
+    bzero(&(dest_sock.sin_zero), sizeof(dest_sock.sin_zero));
+
+    if (connect(
+            sockfd, (sockaddr *)&dest_sock,
+            sizeof(struct sockaddr)) == -1)
+    {
+        log_d(
+            TLS_CLIENT "failed to connect to %d:%d (errno=%d)\n",
+            server_port,
+            server_port,
+            errno);
+        ocall_close(&res, sockfd);
+        if (res != 0)
+            log_d(TLS_CLIENT "OCALL: error closing socket\n");
+        sockfd = -1;
+        goto done;
+    }
+    log_d(TLS_CLIENT "connected to %s:%d\n", server_name, server_port);
+
+done:
+    return sockfd;
+}
+
+int enclave_launch_tls_client(const char *server_name, uint16_t server_port)
+{
+    log_d(TLS_CLIENT " called launch tls client\n");
+
+    int ret = -1;
+
+    SSL_CTX *ssl_client_ctx = nullptr;
+    SSL *ssl_session = nullptr;
+
+    X509 *cert = nullptr;
+    EVP_PKEY *pkey = nullptr;
+    SSL_CONF_CTX *ssl_confctx = SSL_CONF_CTX_new();
+
+    int client_socket = -1;
+    int error = 0;
+    if (server_name == NULL)
+    {
+        log_d("Starting" TLS_CLIENT "failed: server name unavailable.\n");
+        goto done;
+    }
+    log_d("\nStarting" TLS_CLIENT "\n\n\n");
+
+    if ((ssl_client_ctx = SSL_CTX_new(TLS_client_method())) == nullptr)
+    {
+        log_d(TLS_CLIENT "unable to create a new SSL context\n");
+        goto done;
+    }
+
+    if (SSL_CTX_set_cipher_list(ssl_client_ctx, "TLS_AES_256_GCM_SHA384") != SGX_SUCCESS)
+    {
+        log_d(TLS_CLIENT "unable to create SSL_CTX_set_cipher_list\n ");
+        goto done;
+    }
+
+    if (initalize_ssl_context(ssl_confctx, ssl_client_ctx) != SGX_SUCCESS)
+    {
+        log_d(TLS_CLIENT "unable to create a initialize SSL context\n ");
+        goto done;
+    }
+
+    // specify the verify_callback for custom verification
+    SSL_CTX_set_verify(ssl_client_ctx, SSL_VERIFY_PEER, &verify_callback);
+    log_d(TLS_CLIENT "load cert and key\n");
+    if (load_tls_certificates_and_keys(ssl_client_ctx, cert, pkey) != 0)
+    {
+        log_d(TLS_CLIENT
+              " unable to load certificate and private key on the client\n");
+        goto done;
+    }
+
+    if ((ssl_session = SSL_new(ssl_client_ctx)) == nullptr)
+    {
+        log_d(TLS_CLIENT
+              "Unable to create a new SSL connection state object\n");
+        goto done;
+    }
+
+    log_d(TLS_CLIENT "new ssl connection getting created\n");
+    client_socket = create_socket(server_name, server_port);
+    if (client_socket == -1)
+    {
+        log_d(
+            TLS_CLIENT
+            "create a socket and initiate a TCP connect to server: %s:%d "
+            "(errno=%d)\n",
+            server_name,
+            server_port,
+            errno);
+        goto done;
+    }
+
+    // set up ssl socket and initiate TLS connection with TLS server
+    if (SSL_set_fd(ssl_session, client_socket) != 1)
+    {
+        log_d(TLS_CLIENT "ssl set fd error.\n");
+    }
+    else
+    {
+        log_d(TLS_CLIENT "ssl set fd succeed.\n");
+    }
+
+    if ((error = SSL_connect(ssl_session)) != 1)
+    {
+        log_d(
+            TLS_CLIENT "Error: Could not establish a TLS session ret2=%d "
+                       "SSL_get_error()=%d\n",
+            error,
+            SSL_get_error(ssl_session, error));
+        goto done;
+    }
+    log_d(
+        TLS_CLIENT "successfully established TLS channel:%s\n",
+        SSL_get_version(ssl_session));
+
+    // start the client server communication
+    if ((error = communicate_with_server(ssl_session)) != 0)
+    {
+        log_d(TLS_CLIENT "Failed: communicate_with_server (ret=%d)\n", error);
+        goto done;
+    }
+
+    // Free the structures we don't need anymore
+    ret = 0;
+done:
+
+    if (client_socket != -1)
+    {
+        int closeRet;
+        ocall_close(&closeRet, client_socket);
+        if (closeRet != 0)
+        {
+            log_d(TLS_CLIENT "OCALL: error close socket\n");
+            ret = -1;
+        }
+    }
+
+    if (ssl_session)
+    {
+        SSL_shutdown(ssl_session);
+        SSL_free(ssl_session);
+    }
+
+    if (cert)
+        X509_free(cert);
+
+    if (pkey)
+        EVP_PKEY_free(pkey);
+
+    if (ssl_client_ctx)
+        SSL_CTX_free(ssl_client_ctx);
+
+    if (ssl_confctx)
+        SSL_CONF_CTX_free(ssl_confctx);
+
+    log_d(TLS_CLIENT " %s\n", (ret == 0) ? "success" : "failed");
+    return ret;
+}

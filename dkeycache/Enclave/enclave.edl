@@ -31,36 +31,36 @@
 
 enclave {
     from "sgx_tkey_exchange.edl" import *;
+    from "sgx_tstdc.edl" import *;
+    from "sgx_tsgxssl.edl" import *;
+    from "sgx_ttls.edl" import *;
+    from "sgx_pthread.edl" import *;
 
+    include "sgx_ttls.h"
     include "sgx_key_exchange.h"
     include "sgx_quote.h"
     include "sgx_trts.h"
     include "stdbool.h"
     include "datatypes.h"
     include "dh_session_protocol.h"
+    include "sys/socket.h"
+    include "sys/select.h"
+    include "netdb.h"
+    include "poll.h"
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
+        int ocall_close(int fd);
+        int ocall_set_dkeycache_done();
+        void ocall_get_current_time([out] uint64_t *p_current_time);
+        int ocall_socket (int domain, int type, int protocol) propagate_errno;
+        int ocall_connect (int fd, [in, size=len] const struct sockaddr *addr, socklen_t len) propagate_errno;
     };
 
-    trusted {
-        /* Interfaces for remote attestation */
-        public sgx_status_t enclave_init_ra(int b_pse,
-            [out] sgx_ra_context_t *p_context);
-
-        public sgx_status_t enclave_ra_close(sgx_ra_context_t context);
-
-        public sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
-            [in,size=message_size] uint8_t* message,
-            size_t message_size,
-            [in,size=mac_size] uint8_t* mac,
-            size_t mac_size);
-
-        public sgx_status_t enclave_store_domainkey(sgx_ra_context_t context,
-            [in,size=secret_size] uint8_t* p_secret,
-            uint32_t secret_size,
-            [in,count=16] uint8_t* gcm_mac);
-
+    trusted {       
+        public int enclave_launch_tls_client(
+            [in, string] const char* server_name,
+            uint16_t server_port);
 
         /* Interfaces for local attestation */
 		public uint32_t enclave_la_session_request([out] sgx_dh_msg1_t *dh_msg1,
@@ -70,7 +70,8 @@ enclave {
             [out] sgx_dh_msg3_t *dh_msg3,
             uint32_t session_id);
 
-        public uint32_t enclave_la_generate_response([in, size = req_message_size] secure_message_t* req_message,
+        public uint32_t enclave_la_generate_response(
+            [in, size = req_message_size] secure_message_t* req_message,
             size_t req_message_size,
             size_t max_payload_size,
             [out, size=resp_message_size] secure_message_t* resp_message,
