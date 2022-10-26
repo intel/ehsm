@@ -30,8 +30,9 @@ const ehsm_keySpec_t = {
   SM4_CBC: 33
 }
 const ehsm_keyorigin_t = {
-  EH_INTERNAL_KEY: 0,
-  EH_EXTERNAL_KEY: 1
+  EH_ORIGIN_NONE : 0,
+  EH_INTERNAL_KEY : 1,
+  EH_EXTERNAL_KEY : 2
 }
 
 const ehsm_paddingMode_t = {

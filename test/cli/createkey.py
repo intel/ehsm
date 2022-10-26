@@ -16,8 +16,8 @@ supported_keyspec = ["EH_AES_GCM_128", "EH_AES_GCM_192", "EH_AES_GCM_256", "EH_R
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--url', type=str, help='the address of the ehsm_kms_server', required=True)
-    parser.add_argument('--keyspec', type=str, help='the keyspec [EH_AES_GCM_128, EH_RSA_3072]', required=True)
-    parser.add_argument('--origin', type=str, help='the key origin [default is: EH_INTERNAL_KEY]')
+    parser.add_argument('--keyspec', type=str, help='supported keyspec [EH_AES_GCM_128", "EH_AES_GCM_192", "EH_AES_GCM_256", "EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_RSA_3072", "EH_EC_P256", "EH_SM2", "EH_SM4]', required=True)
+    parser.add_argument('--origin', type=str, help='the key origin [EH_EXTERNAL_KEY or EH_INTERNAL_KEY]', required=True)
     parser.add_argument('--purpose', type=str, help='the key purpose')
     parser.add_argument('--padding_mode', type=str, help='the key padding_mode')
     parser.add_argument('--digest_mode', type=str, help='the key digest_mode')
@@ -27,7 +27,7 @@ def get_args():
     print(base_url)
     return base_url, args.keyspec, args.origin, args.purpose, args.padding_mode, args.digest_mode
 
-def createkey(base_url, keyspec, origin, purpose, padding_mode, digest_mode):
+def createkey(base_url, keyspec, origin, purpose = None, padding_mode = None, digest_mode = None):
     print('generate key with keyspec %s' %(keyspec))
 
     payload = OrderedDict()
