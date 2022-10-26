@@ -136,7 +136,7 @@ sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
     }
 
     // Initialise encrypt/decrpty, key and IV
-    if (1 != EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)key, iv))
+    if (1 != EVP_EncryptInit_ex(pctx, block_mode, NULL, key, iv))
     {
         return SGX_ERROR_UNEXPECTED;
     }
@@ -150,7 +150,7 @@ sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
         }
     }
 
-    if (plaintext_len > 0)
+    if (plaintext != NULL && plaintext_len > 0)
     {
         // Provide the message to be encrypted, and obtain the encrypted output.
         if (1 != EVP_EncryptUpdate(pctx, cipherblob, &temp_len, plaintext, plaintext_len))
@@ -192,36 +192,34 @@ sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
     // Create and initialise the context
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
-        printf("whh1\n");
         return SGX_ERROR_UNEXPECTED;
     }
 
     // Initialise decrypt, key and IV
-    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)key, iv))
+    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, key, iv))
     {
-        printf("whh2\n");
         return SGX_ERROR_UNEXPECTED;
     }
     if (aad != NULL && aad_len > 0)
     {
         if (!EVP_DecryptUpdate(pctx, NULL, &temp_len, aad, aad_len))
         {
-            printf("whh3\n");
             return SGX_ERROR_UNEXPECTED;
         }
     }
 
     // Decrypt message, obtain the plaintext output
-    if (!EVP_DecryptUpdate(pctx, plaintext, &temp_len, ciphertext, ciphertext_len))
+    if (ciphertext != NULL && ciphertext_len > 0)
     {
-        printf("whh4\n");
-        return SGX_ERROR_UNEXPECTED;
+        if (!EVP_DecryptUpdate(pctx, plaintext, &temp_len, ciphertext, ciphertext_len))
+        {
+            return SGX_ERROR_UNEXPECTED;
+        }
     }
 
     // Update expected tag value
     if (!EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_TAG, tag_len, tag))
     {
-        printf("whh5\n");
         return SGX_ERROR_UNEXPECTED;
     }
 
@@ -229,7 +227,6 @@ sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
     // anything else is a failure - the plaintext is not trustworthy.
     if (EVP_DecryptFinal_ex(pctx, plaintext + temp_len, &temp_len) <= 0)
     {
-        printf("whh6\n");
         return SGX_ERROR_MAC_MISMATCH;
     }
 
