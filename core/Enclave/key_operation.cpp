@@ -129,14 +129,28 @@ sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
     sgx_status_t ret;
     int temp_len = 0;
     EVP_CIPHER_CTX *pctx = NULL;
+    
     // Create and init ctx
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
         return SGX_ERROR_UNEXPECTED;
     }
 
+    if (1 != EVP_EncryptInit_ex(pctx, block_mode, NULL, NULL, NULL))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    if (iv_len != SGX_AESGCM_IV_SIZE)
+    {
+        if(1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL))
+        {
+            return SGX_ERROR_UNEXPECTED;
+        }
+    }
+
     // Initialise encrypt/decrpty, key and IV
-    if (1 != EVP_EncryptInit_ex(pctx, block_mode, NULL, key, iv))
+    if (1 != EVP_EncryptInit_ex(pctx, NULL, NULL, key, iv))
     {
         return SGX_ERROR_UNEXPECTED;
     }
@@ -195,11 +209,25 @@ sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
         return SGX_ERROR_UNEXPECTED;
     }
 
-    // Initialise decrypt, key and IV
-    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, key, iv))
+    if (1 != EVP_EncryptInit_ex(pctx, block_mode, NULL, NULL, NULL))
     {
         return SGX_ERROR_UNEXPECTED;
     }
+
+    if (iv_len != SGX_AESGCM_IV_SIZE)
+    {
+        if(1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL))
+        {
+            return SGX_ERROR_UNEXPECTED;
+        }
+    }
+
+    // Initialise decrypt, key and IV
+    if (!EVP_DecryptInit_ex(pctx, NULL, NULL, key, iv))
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
     if (aad != NULL && aad_len > 0)
     {
         if (!EVP_DecryptUpdate(pctx, NULL, &temp_len, aad, aad_len))

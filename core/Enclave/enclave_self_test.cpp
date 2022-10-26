@@ -17,19 +17,19 @@ using namespace std;
 
 EHSM_TEST_VECTOR aes_gcm_test_vectors = {
     {// case1
-     {"key", "cf063a34d4a9a76c2c86787d3f96db71"},
-     {"plaintext", ""},
-     {"aad", ""},
-     {"iv", "113b9785971864c83b01c787"},
-     {"ciphertext", ""},
-     {"tag", "72ac8493e3a5228b5d130a69d2510e42"}},
+     {"key", "5e7709524474167905eab6cda9fe0a2c"},
+     {"plaintext", "5aa34a0b76e656d50e7e0105bf"},
+     {"aad", "072bf43f13d3eed3b79cdc991a702ebdc896b69f86c9543831a36a18f6562ef309a45a2b8798b51aa7f8c84af80f01cf"},
+     {"iv", "f5"},
+     {"ciphertext", "1e8429efd2dbae20ac0e5bce2e"},
+     {"tag", "66f21323825af553ba8681d347883199"}},
     {// case2
-     {"key", "599eb65e6b2a2a7fcc40e51c4f6e3257"},
-     {"plaintext", "a6c9e0f248f07a3046ece12125666921"},
-     {"aad", "10e72efe048648d40139477a2016f8ce"},
-     {"iv", "d407301cfa29af8525981c17"},
-     {"ciphertext", "1be9359a543fd7ec3c4bc6f3c9395e89"},
-     {"tag", "e2e9c07d4c3c10a6137ca433da42f9a8"}},
+     {"key", "58ce5714f6da3eb3ad6b46d36083b699"},
+     {"plaintext", "e2f8cf5f794e749caa3aa5ccea"},
+     {"aad", "6073bea7e46861b8a5010a6658fc0793"},
+     {"iv", "84060061bc5ce669fadb7339f785f45eedbad18e4047989fd63ba078b3a7ebd9d81a896c0b48e208ca79e123c7e2e3c93411c96af97ff9fa485624cbf1f3657a40ab96078e12b95b49d71b79e8d9e2efaf93f288b3ae2d263b270ca06574cf4a5ce4abcc357667a8d5f000139bb74cabfcb7e3e9a991074a2e5ce7863771ed36"},
+     {"ciphertext", "4f68dfc5de9fd949093c350a6e"},
+     {"tag", "b5a33d33c56ba35ebd5f9e18206743c4"}},
     {// case3
      {"key", "2d265491712fe6d7087a5545852f4f44"},
      {"plaintext", "301873be69f05a84f22408aa0862d19a"},
@@ -52,40 +52,26 @@ EHSM_TEST_VECTOR aes_gcm_test_vectors = {
  * @param buf buffer for saving the result
  * @param len str length / 2
  */
-static bool StrToHex(const char *str, unsigned char buf[], int len)
+void Str2Hex(const char *pbSrc, unsigned char *pbDest, int nLen)
 {
-    if ((len % 2) != 0)
+    char h1, h2;
+    char s1, s2;
+    int i;
+
+    for (i = 0; i < nLen; i++)
     {
-        return false;
+        h1 = pbSrc[2 * i];
+        h2 = pbSrc[2 * i + 1];
+
+        s1 = toupper(h1) - 0x30;
+        if (s1 > 9)
+            s1 -= 7;
+        s2 = toupper(h2) - 0x30;
+        if (s2 > 9)
+            s2 -= 7;
+
+        pbDest[i] = s1 * 16 + s2;
     }
-    if (str != NULL && buf != NULL && len != 0)
-    {
-        int Length = sizeof(str);
-        if (Length % 2 == 0)
-        {
-            int i = 0;
-            int n = 0;
-            while (*str != 0 && (n = ((i++) >> 1)) < len)
-            {
-                buf[n] <<= 4;
-                if (*str >= '0' && *str <= '9')
-                {
-                    buf[n] |= *str - '0';
-                }
-                else if (*str >= 'a' && *str <= 'f')
-                {
-                    buf[n] |= *str - 'a' + 10;
-                }
-                else if (*str >= 'A' && *str <= 'F')
-                {
-                    buf[n] |= *str - 'A' + 10;
-                }
-                str++;
-            }
-            len = n;
-        }
-    }
-    return true;
 }
 
 void *get_parameter(string key_name, map<string, string> test_vector)
@@ -93,7 +79,7 @@ void *get_parameter(string key_name, map<string, string> test_vector)
     string target = test_vector[key_name];
     int len = strlen(target.c_str()) / 2;
     uint8_t *value = (uint8_t *)malloc(len);
-    StrToHex(target.c_str(), value, len);
+    Str2Hex(target.c_str(), value, len);
     return value;
 }
 
@@ -106,7 +92,7 @@ bool aes_gcm_encrypt(map<string, string> test_vector)
     GET_PARAMETER(ciphertext);
     GET_PARAMETER(tag);
 
-    uint8_t *_ciphertext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    uint8_t *_ciphertext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext") + VECTOR_LENGTH("aad"));
     uint8_t *_tag = (uint8_t *)malloc(VECTOR_LENGTH("tag"));
     (void)aes_gcm_encrypt(key, _ciphertext, EVP_aes_128_gcm(), plaintext, VECTOR_LENGTH("plaintext"),
                           aad, VECTOR_LENGTH("aad"), iv, VECTOR_LENGTH("iv"), _tag, VECTOR_LENGTH("tag"));
