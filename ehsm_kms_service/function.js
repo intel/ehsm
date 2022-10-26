@@ -255,11 +255,11 @@ const enroll_user_info = (action, DB, res, req) => {
 
   if (napi_res) {
     const { appid, apikey } = napi_res.result
-    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
+    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, undefined, {
       keyspec: ehsm_keySpec_t.AES_GCM_128,
       origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
     })
-    let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
+    let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, undefined, {
       keyspec: ehsm_keySpec_t.AES_GCM_128,
       origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
     })
@@ -267,7 +267,7 @@ const enroll_user_info = (action, DB, res, req) => {
       const { cmk } = cmk_res.result
       // create a default secret manager CMK for current appids
       const sm_default_cmk = sm_default_cmk_res.result.cmk
-      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, {
+      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, undefined, {
         cmk,
         plaintext: base64_encode(apikey),
         aad: ''
