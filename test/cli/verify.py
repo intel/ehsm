@@ -43,5 +43,5 @@ if __name__ == "__main__":
 
     base_url, keyid, digest, sig = get_args()
 
-    verify(base_url, keyid, digest, sigwaitinfo)
+    verify(base_url, keyid, digest)
 
