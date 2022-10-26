@@ -9,14 +9,20 @@ using namespace std;
 #define GET_PARAMETER(x) \
     uint8_t *x = (uint8_t *)get_parameter(#x, test_vector);
 
+#define CHECK_EQUAL(x)                              \
+    if (VECTOR_LENGTH(#x) > 0)                      \
+        for (int i = 0; i < VECTOR_LENGTH(#x); i++) \
+            if (x[i] != _##x[i])                    \
+                return false;
+
 EHSM_TEST_VECTOR aes_gcm_test_vectors = {
     {// case1
-     {"key", "c939cc13397c1d37de6ae0e1cb7c423c"},
-     {"plaintext", "c3b3c41f113a31b73d9a5cd432103069"},
-     {"aad", "24825602bd12a984e0092d3e448eda5f"},
-     {"iv", "b3d8cc017cbb89b39e0f67e2"},
-     {"ciphertext", "93fe7d9e9bfd10348a5606e5cafa7354"},
-     {"tag", "0032a1dc85f1c9786925a2e71d8272dd"}},
+     {"key", "cf063a34d4a9a76c2c86787d3f96db71"},
+     {"plaintext", ""},
+     {"aad", ""},
+     {"iv", "113b9785971864c83b01c787"},
+     {"ciphertext", ""},
+     {"tag", "72ac8493e3a5228b5d130a69d2510e42"}},
     {// case2
      {"key", "599eb65e6b2a2a7fcc40e51c4f6e3257"},
      {"plaintext", "a6c9e0f248f07a3046ece12125666921"},
@@ -132,12 +138,21 @@ bool aes_gcm_decrypt(map<string, string> test_vector)
 sgx_status_t aes_gcm_crypto_test()
 {
     sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
+    int index = 0;
     for (auto test_vector : aes_gcm_test_vectors)
     {
-        if (!aes_gcm_encrypt(test_vector) || !aes_gcm_decrypt(test_vector))
+        if (!aes_gcm_encrypt(test_vector))
         {
+            printf("fail at %d\n", index);
             return SGX_ERROR_INVALID_FUNCTION;
         }
+        index++;
+        if (!aes_gcm_decrypt(test_vector))
+        {
+            printf("fail at %d\n", index);
+            return SGX_ERROR_INVALID_FUNCTION;
+        }
+        index++;
     }
 
     ret = SGX_SUCCESS;
