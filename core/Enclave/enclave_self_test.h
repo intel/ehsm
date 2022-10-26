@@ -15,5 +15,6 @@ using namespace std;
 typedef vector<map<string, string>> EHSM_TEST_VECTOR;
 
 #define VECTOR_LENGTH(x) (uint32_t)(test_vector[x].length()) / 2
+#define SELF_TEST_NUM 8
 
 sgx_status_t ehsm_self_test();
