@@ -42,12 +42,13 @@ OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 
 ######## App Settings ########
 
-App_Cpp_Files := $(wildcard App/*.cpp)
+App_Cpp_Files := $(wildcard App/*.cpp $(TOPDIR)/common/*.cpp)
 
 App_Include_Paths := \
 	-IInclude \
 	-IApp \
 	-I$(TOPDIR)/include \
+	-I$(TOPDIR)/common \
 	-I$(SGX_SDK)/include \
 	-Isample_libcrypto
 
@@ -72,6 +73,12 @@ App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
 	-ldl \
 	-lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) \
 	-lsample_libcrypto -Lsample_libcrypto -Wl,-rpath=$(CURDIR)/sample_libcrypto
+
+ifneq ($(SGX_MODE), HW)
+    App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
+else
+    App_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -ldl
+endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
@@ -162,6 +169,10 @@ App/enclave_u.o: App/enclave_u.c
 	@echo "CC   <=  $<"
 
 App/%.o: App/%.cpp App/auto_version.h
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+$(TOPDIR)/common/%.o: $(TOPDIR)/common/%.cpp
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 

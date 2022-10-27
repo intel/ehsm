@@ -64,9 +64,12 @@ extern "C" {
 #define _ERRNO_T_DEFINED
 typedef int errno_t;
 #endif
+
+#ifndef MEMCPY_S
+#define MEMCPY_S
 errno_t memcpy_s(void *dest, size_t numberOfElements, const void *src,
                  size_t count);
-
+#endif
 
 #ifdef SUPPLIED_KEY_DERIVATION
 

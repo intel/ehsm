@@ -42,12 +42,13 @@ OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 
 ######## App Settings ########
 
-App_Cpp_Files := $(wildcard App/*.cpp)
+App_Cpp_Files := $(wildcard App/*.cpp $(TOPDIR)/common/*.cpp)
 
 App_Include_Paths := \
 	-IApp \
 	-I$(SGX_SDK)/include \
-	-I$(TOPDIR)/include
+	-I$(TOPDIR)/include  \
+	-I$(TOPDIR)/common
 
 App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -161,6 +162,10 @@ App/enclave_u.o: App/enclave_u.c
 	@echo "CC   <=  $<"
 
 App/%.o: App/%.cpp App/auto_version.h
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+$(TOPDIR)/common/%.o: $(TOPDIR)/common/%.cpp
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 

@@ -47,5 +47,19 @@ enclave {
         public sgx_status_t sgx_wrap_domain_key([in] sgx_aes_gcm_128bit_key_t *p_key,
                                                 [out, size=p_dst_len] uint8_t *p_dst, size_t p_dst_len,
                                                 [out] sgx_aes_gcm_128bit_tag_t *p_out_mac);
+
+        /* Interfaces for remote attestation */
+        public sgx_status_t enclave_init_ra(int b_pse,
+                                            [out] sgx_ra_context_t *p_context);
+
+        public sgx_status_t enclave_ra_close(sgx_ra_context_t context);
+
+        public sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
+                                                          [in,size=message_size] uint8_t* message, size_t message_size,
+                                                          [in,size=mac_size] uint8_t* mac, size_t mac_size);
+
+        public sgx_status_t enclave_store_domainkey(sgx_ra_context_t context,
+                                                    [in,size=secret_size] uint8_t* p_secret, uint32_t secret_size,
+                                                    [in,count=16] uint8_t* gcm_mac);
     };
 };
