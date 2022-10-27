@@ -3,7 +3,7 @@
 #include <vector>
 #include <map>
 #include "datatypes.h"
-#include "crypto_test_vector.h"
+#include "self_test_vector.h"
 
 using namespace std;
 
@@ -119,28 +119,144 @@ static bool aes_gcm_decrypt(map<string, string> test_vector)
     return true;
 }
 
+static bool sm4_ctr_encryption(map<string, string> test_vector)
+{
+    GET_PARAMETER(key);
+    GET_PARAMETER(plaintext);
+    GET_PARAMETER(iv);
+    GET_PARAMETER(ciphertext);
+
+    uint8_t *_ciphertext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    (void)sm4_ctr_encrypt(key, _ciphertext, plaintext, VECTOR_LENGTH("plaintext"), iv);
+
+    CHECK_EQUAL(ciphertext);
+
+    free(_ciphertext);
+
+    return true;
+}
+
+static bool sm4_ctr_decryption(map<string, string> test_vector)
+{
+    GET_PARAMETER(key);
+    GET_PARAMETER(plaintext);
+    GET_PARAMETER(iv);
+    GET_PARAMETER(ciphertext);
+
+    uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    (void)sm4_ctr_decrypt(key, _plaintext, ciphertext, VECTOR_LENGTH("plaintext"), iv);
+
+    CHECK_EQUAL(plaintext);
+
+    free(_plaintext);
+
+    return true;
+}
+
+static bool sm4_cbc_encryption(map<string, string> test_vector)
+{
+    GET_PARAMETER(key);
+    GET_PARAMETER(plaintext);
+    GET_PARAMETER(iv);
+    GET_PARAMETER(ciphertext);
+
+    uint8_t *_ciphertext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    (void)sm4_cbc_encrypt(key, _ciphertext, plaintext, VECTOR_LENGTH("plaintext"), iv);
+
+    CHECK_EQUAL(ciphertext);
+
+    free(_ciphertext);
+
+    return true;
+}
+
+static bool sm4_cbc_decryption(map<string, string> test_vector)
+{
+    GET_PARAMETER(key);
+    GET_PARAMETER(plaintext);
+    GET_PARAMETER(iv);
+    GET_PARAMETER(ciphertext);
+
+    uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    (void)sm4_cbc_decrypt(key, _plaintext, ciphertext, VECTOR_LENGTH("plaintext")+VECTOR_LENGTH("iv"), iv);
+
+    CHECK_EQUAL(plaintext);
+
+    free(_plaintext);
+
+    return true;
+}
+
+static bool sm4_cbc_crypto(map<string, string> test_vector)
+{
+
+    return true;
+}
+
 static sgx_status_t aes_gcm_crypto_test()
 {
     sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
-    for (auto test_vector : aes_gcm_encryption_test_vectors)
+    for (auto test_vector : aes_gcm_crypto_test_vectors)
     {
         if (!aes_gcm_encrypt(test_vector))
         {
-            printf("fail at %s case %d\n", __FUNCTION__, index);
+            printf("fail encrypt at %s case %d\n", __FUNCTION__, index);
+            continue;
         }
-        index++;
-    }
-    for (auto test_vector : aes_gcm_decryption_test_vectors)
-    {
         if (!aes_gcm_decrypt(test_vector))
         {
-            printf("fail at %s case %d\n", __FUNCTION__, index);
+            printf("fail decrypt at %s case %d\n", __FUNCTION__, index);
+            continue;
         }
         index++;
     }
 
-    if (index != SELF_TEST_NUM + 1)
+    if (index != aes_gcm_crypto_test_vectors.size() + 1)
+    {
+        return SGX_ERROR_INVALID_FUNCTION;
+    }
+
+    ret = SGX_SUCCESS;
+
+    return ret;
+}
+
+static sgx_status_t sm4_crypto_test()
+{
+    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
+    int index = 1;
+    
+    for (auto test_vector : sm4_ctr_crypto_test_vectors)
+    {
+        if (!sm4_ctr_encryption(test_vector))
+        {
+            printf("fail encrypt at %s case %d\n", __FUNCTION__, index);
+            continue;
+        }
+        if (!sm4_ctr_decryption(test_vector))
+        {
+            printf("fail decrypt at %s case %d\n", __FUNCTION__, index);
+            continue;
+        }
+        index++;
+    }
+    for (auto test_vector : sm4_cbc_crypto_test_vectors)
+    {
+        if (!sm4_cbc_encryption(test_vector))
+        {
+            printf("fail encrypt at %s case %d\n", __FUNCTION__, index);
+            continue;
+        }
+        if (!sm4_cbc_decryption(test_vector))
+        {
+            printf("fail decrypt at %s case %d\n", __FUNCTION__, index);
+            continue;
+        }
+        index++;
+    }
+
+    if (index != sm4_ctr_crypto_test_vectors.size() + sm4_cbc_crypto_test_vectors.size() + 1)
     {
         return SGX_ERROR_INVALID_FUNCTION;
     }
@@ -155,6 +271,7 @@ sgx_status_t ehsm_self_test()
     sgx_status_t ret;
 
     ret = aes_gcm_crypto_test();
+    ret = sm4_crypto_test();
 
     return ret;
 }

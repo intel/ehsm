@@ -50,17 +50,17 @@ sgx_status_t ehsm_aes_gcm_encrypt(ehsm_data_t *aad,
                                   ehsm_data_t *plaintext,
                                   ehsm_data_t *cipherblob);
 
+sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
+                                  ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *cipherblob,
+                                  ehsm_data_t *plaintext);
+
 sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
                              const EVP_CIPHER *block_mode,
                              uint8_t *plaintext, uint32_t plaintext_len,
                              uint8_t *aad, uint32_t aad_len,
                              uint8_t *iv, uint32_t iv_len,
                              uint8_t *tag, uint32_t tag_len);
-
-sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
-                                  ehsm_keyblob_t *cmk,
-                                  ehsm_data_t *cipherblob,
-                                  ehsm_data_t *plaintext);
 
 sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
                              const EVP_CIPHER *block_mode,
@@ -69,21 +69,37 @@ sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
                              uint8_t *iv, uint32_t iv_len,
                              uint8_t *tag, uint32_t tag_len);
 
-sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk_blob,
-                                  const ehsm_data_t *plaintext,
+sgx_status_t ehsm_sm4_ctr_encrypt(ehsm_keyblob_t *cmk_blob,
+                                  ehsm_data_t *plaintext,
                                   ehsm_data_t *cipherblob);
 
-sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk_blob,
-                                  const ehsm_data_t *cipherblob,
+sgx_status_t ehsm_sm4_ctr_decrypt(ehsm_keyblob_t *cmk_blob,
+                                  ehsm_data_t *cipherblob,
                                   ehsm_data_t *plaintext);
 
-sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
-                                  const ehsm_data_t *plaintext,
+sgx_status_t sm4_ctr_encrypt(uint8_t *key, uint8_t *cipherblob,
+                             uint8_t *plaintext, uint32_t plaintext_len,
+                             uint8_t *iv);
+
+sgx_status_t sm4_ctr_decrypt(uint8_t *key, uint8_t *plaintext,
+                             uint8_t *ciphertext, uint32_t ciphertext_len,
+                             uint8_t *iv);
+
+sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *plaintext,
                                   ehsm_data_t *cipherblob);
 
-sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
-                                  const ehsm_data_t *cipherblob,
+sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *cipherblob,
                                   ehsm_data_t *plaintext);
+
+sgx_status_t sm4_cbc_encrypt(uint8_t *key, uint8_t *cipherblob,
+                             uint8_t *plaintext, uint32_t plaintext_len,
+                             uint8_t *iv);
+
+sgx_status_t sm4_cbc_decrypt(uint8_t *key, uint8_t *plaintext,
+                             uint8_t *ciphertext, uint32_t ciphertext_len,
+                             uint8_t *iv);
 
 sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
                               const ehsm_data_t *plaintext,

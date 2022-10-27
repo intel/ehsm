@@ -129,7 +129,7 @@ sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
     sgx_status_t ret;
     int temp_len = 0;
     EVP_CIPHER_CTX *pctx = NULL;
-    
+
     // Create and init ctx
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
@@ -143,7 +143,7 @@ sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
 
     if (iv_len != SGX_AESGCM_IV_SIZE)
     {
-        if(1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL))
+        if (1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL))
         {
             return SGX_ERROR_UNEXPECTED;
         }
@@ -216,7 +216,7 @@ sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
 
     if (iv_len != SGX_AESGCM_IV_SIZE)
     {
-        if(1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL))
+        if (1 != EVP_CIPHER_CTX_ctrl(pctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL))
         {
             return SGX_ERROR_UNEXPECTED;
         }
@@ -262,6 +262,180 @@ sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
     {
         EVP_CIPHER_CTX_free(pctx);
     }
+    return SGX_SUCCESS;
+}
+
+sgx_status_t sm4_ctr_encrypt(uint8_t *key, uint8_t *cipherblob,
+                             uint8_t *plaintext, uint32_t plaintext_len,
+                             uint8_t *iv)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int temp_len = 0;
+    EVP_CIPHER_CTX *pctx = NULL;
+
+    // Create and initialize pState
+    if (!(pctx = EVP_CIPHER_CTX_new()))
+    {
+        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+    // Initialize encrypt, key and ctr
+    if (EVP_EncryptInit_ex(pctx, EVP_sm4_ctr(), NULL, key, iv) != 1)
+    {
+        log_d("Error: failed to initialize encrypt, key and ctr\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // 3. Encrypt the plaintext and obtain the encrypted output
+    if (EVP_EncryptUpdate(pctx, cipherblob, &temp_len, plaintext, plaintext_len) != 1)
+    {
+        log_d("Error: failed to encrypt the plaintext\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // 4. Finalize the encryption
+    if (EVP_EncryptFinal_ex(pctx, cipherblob + temp_len, &temp_len) != 1)
+    {
+        log_d("Error: failed to finalize the encryption\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    return SGX_SUCCESS;
+}
+
+sgx_status_t sm4_ctr_decrypt(uint8_t *key, uint8_t *plaintext,
+                             uint8_t *cipherblob, uint32_t ciphertext_len,
+                             uint8_t *iv)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int temp_len = 0;
+    EVP_CIPHER_CTX *pctx = NULL;
+
+    // Create and initialize ctx
+    if (!(pctx = EVP_CIPHER_CTX_new()))
+    {
+        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+    // Initialize decrypt, key and ctr
+    if (!EVP_DecryptInit_ex(pctx, EVP_sm4_ctr(), NULL, (unsigned char *)key, iv))
+    {
+        log_d("Error: failed to initialize decrypt, key and ctr\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Decrypt the ciphertext and obtain the decrypted output
+    if (!EVP_DecryptUpdate(pctx, plaintext, &temp_len, cipherblob, ciphertext_len))
+    {
+        log_d("Error: failed to decrypt the ciphertext\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Finalize the decryption:
+    // - A positive return value indicates success;
+    // - Anything else is a failure - the msg is not trustworthy.
+    if (EVP_DecryptFinal_ex(pctx, plaintext + temp_len, &temp_len) <= 0)
+    {
+        log_d("Error: failed to finalize the decryption\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    return SGX_SUCCESS;
+}
+
+sgx_status_t sm4_cbc_encrypt(uint8_t *key, uint8_t *cipherblob,
+                             uint8_t *plaintext, uint32_t plaintext_len,
+                             uint8_t *iv)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int temp_len = 0;
+    EVP_CIPHER_CTX *pctx = NULL;
+    // set padding mode
+    int pad = (plaintext_len % 16 == 0) ? SM4_NO_PAD : SM4_PAD;
+
+    // Create and initialize ctx
+    if (!(pctx = EVP_CIPHER_CTX_new()))
+    {
+        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+    // Initialize encrypt, key and ctr
+    if (EVP_EncryptInit_ex(pctx, EVP_sm4_cbc(), NULL, key, iv) != 1)
+    {
+        log_d("Error: failed to initialize encrypt, key and ctr\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
+    {
+        log_d("Error: failed to set padding\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Encrypt the plaintext and obtain the encrypted output
+    if (EVP_EncryptUpdate(pctx, cipherblob, &temp_len, plaintext, plaintext_len) != 1)
+    {
+        log_d("Error: failed to encrypt the plaintext\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+    // Finalize the encryption
+    if (EVP_EncryptFinal_ex(pctx, cipherblob + temp_len, &temp_len) != 1)
+    {
+        log_d("Error: failed to finalize the encryption\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    return SGX_SUCCESS;
+}
+
+sgx_status_t sm4_cbc_decrypt(uint8_t *key, uint8_t *plaintext,
+                             uint8_t *ciphertext, uint32_t ciphertext_len,
+                             uint8_t *iv)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int temp_len = 0;
+    EVP_CIPHER_CTX *pctx = NULL;
+
+    int pad = (ciphertext_len % 16 == 0) ? 0 : 1;
+    // Create and initialize ctx
+    if (!(pctx = EVP_CIPHER_CTX_new()))
+    {
+        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+    // Initialize decrypt, key and IV
+    if (!EVP_DecryptInit_ex(pctx, EVP_sm4_cbc(), NULL, key, iv))
+    {
+        log_d("Error: failed to initialize decrypt, key and IV\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
+    {
+        log_d("Error: failed to set padding\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Decrypt the ciphertext and obtain the decrypted output
+    if (!EVP_DecryptUpdate(pctx, plaintext, &temp_len, ciphertext, ciphertext_len - 16))
+    {
+        log_d("Error: failed to decrypt the ciphertext\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    // Finalize the decryption:
+    // If length of decrypted data is integral multiple of 16, do not execute EVP_DecryptFinal_ex(), or it will failed to decrypt
+    // - A positive return value indicates success;
+    // - Anything else is a failure - the plaintext is not trustworthy.
+    if (ciphertext_len % 16 != 0)
+    {
+        if (EVP_DecryptFinal_ex(pctx, plaintext + temp_len, &temp_len) <= 0)
+        {
+            log_d("Error: failed to finalize the decryption\n");
+            return SGX_ERROR_UNEXPECTED;
+        }
+    }
+
     return SGX_SUCCESS;
 }
 
@@ -453,7 +627,6 @@ sgx_status_t sm2_sign(EC_KEY *ec_key,
     EVP_PKEY_CTX *pkey_ctx = NULL;
     size_t temp_signature_size = 0;
 
-
     evpkey = EVP_PKEY_new();
     if (evpkey == NULL)
     {
@@ -537,13 +710,13 @@ out:
 }
 
 sgx_status_t rsa_verify(RSA *rsa_pubkey,
-                       const EVP_MD *digestMode,
-                       ehsm_padding_mode_t padding_mode,
-                       const uint8_t *data,
-                       uint32_t data_len,
-                       const uint8_t *signature,
-                       uint32_t signature_len,
-                       bool *result)
+                        const EVP_MD *digestMode,
+                        ehsm_padding_mode_t padding_mode,
+                        const uint8_t *data,
+                        uint32_t data_len,
+                        const uint8_t *signature,
+                        uint32_t signature_len,
+                        bool *result)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -1004,13 +1177,11 @@ out:
  * @param plaintext Data to be encrypted
  * @param cipherblob The information of ciphertext
  */
-sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
-                                  const ehsm_data_t *plaintext,
+sgx_status_t ehsm_sm4_ctr_encrypt(ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *plaintext,
                                   ehsm_data_t *cipherblob)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    int temp_len = 0;
-    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CTR)
@@ -1051,13 +1222,6 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
-    if (block_mode == NULL)
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
     ret = sgx_read_rand(iv, SGX_SM4_IV_SIZE);
     if (ret != SGX_SUCCESS)
     {
@@ -1072,49 +1236,18 @@ sgx_status_t ehsm_sm4_ctr_encrypt(const ehsm_keyblob_t *cmk,
         log_d("failed to decrypt key\n");
         goto out;
     }
-    // Create and initialize pState
-    if (!(pctx = EVP_CIPHER_CTX_new()))
-    {
-        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-    // Initialize encrypt, key and ctr
-    if (EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)enc_key, iv) != 1)
-    {
-        log_d("Error: failed to initialize encrypt, key and ctr\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
 
-    // 3. Encrypt the plaintext and obtain the encrypted output
-    if (EVP_EncryptUpdate(pctx, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen) != 1)
-    {
-        log_d("Error: failed to encrypt the plaintext\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // 4. Finalize the encryption
-    if (EVP_EncryptFinal_ex(pctx, cipherblob->data + temp_len, &temp_len) != 1)
-    {
-        log_d("Error: failed to finalize the encryption\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
+    ret = sm4_ctr_encrypt(enc_key, cipherblob->data,
+                          plaintext->data, plaintext->datalen,
+                          iv);
 out:
-    if (pctx)
-    {
-        EVP_CIPHER_CTX_free(pctx);
-    }
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
     SAFE_FREE(enc_key);
     return ret;
 }
 
-sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
-                                  const ehsm_data_t *cipherblob,
+sgx_status_t ehsm_sm4_ctr_decrypt(ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *cipherblob,
                                   ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -1164,13 +1297,6 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
-    if (block_mode == NULL)
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
     ret = ehsm_parse_keyblob(dec_key, dec_key_size,
                              (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
@@ -1179,58 +1305,20 @@ sgx_status_t ehsm_sm4_ctr_decrypt(const ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    // Create and initialize ctx
-    if (!(pctx = EVP_CIPHER_CTX_new()))
-    {
-        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-    // Initialize decrypt, key and ctr
-    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)dec_key, iv))
-    {
-        log_d("Error: failed to initialize decrypt, key and ctr\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Decrypt the ciphertext and obtain the decrypted output
-    if (!EVP_DecryptUpdate(pctx, plaintext->data, &temp_len, cipherblob->data, plaintext->datalen))
-    {
-        log_d("Error: failed to decrypt the ciphertext\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Finalize the decryption:
-    // - A positive return value indicates success;
-    // - Anything else is a failure - the msg is not trustworthy.
-    if (EVP_DecryptFinal_ex(pctx, plaintext->data + temp_len, &temp_len) <= 0)
-    {
-        log_d("Error: failed to finalize the decryption\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
+    ret = sm4_ctr_decrypt(dec_key, plaintext->data, cipherblob->data, plaintext->datalen, iv);
 
 out:
-    if (pctx != NULL)
-    {
-        EVP_CIPHER_CTX_free(pctx);
-    }
     memset_s(dec_key, sizeof(dec_key), 0, sizeof(dec_key));
     SAFE_FREE(dec_key);
     return ret;
 }
 
-sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
-                                  const ehsm_data_t *plaintext,
+sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *plaintext,
                                   ehsm_data_t *cipherblob)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    int temp_len = 0;
-    int pad = -1;
     uint8_t *iv = NULL;
-    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CBC)
@@ -1291,13 +1379,6 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    const EVP_CIPHER *block_mode = get_symmetric_block_mode(cmk->metadata.keyspec);
-    if (block_mode == NULL)
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
     ret = sgx_read_rand(iv, SGX_SM4_IV_SIZE);
     if (ret != SGX_SUCCESS)
     {
@@ -1313,64 +1394,19 @@ sgx_status_t ehsm_sm4_cbc_encrypt(const ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    // set padding mode
-    pad = (plaintext->datalen % 16 == 0) ? SM4_NO_PAD : SM4_PAD;
-
-    // Create and initialize ctx
-    if (!(pctx = EVP_CIPHER_CTX_new()))
-    {
-        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-    // Initialize encrypt, key and ctr
-    if (EVP_EncryptInit_ex(pctx, block_mode, NULL, (unsigned char *)enc_key, iv) != 1)
-    {
-        log_d("Error: failed to initialize encrypt, key and ctr\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
-    {
-        log_d("Error: failed to set padding\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Encrypt the plaintext and obtain the encrypted output
-    if (EVP_EncryptUpdate(pctx, cipherblob->data, &temp_len, plaintext->data, plaintext->datalen) != 1)
-    {
-        log_d("Error: failed to encrypt the plaintext\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-    // Finalize the encryption
-    if (EVP_EncryptFinal_ex(pctx, cipherblob->data + temp_len, &temp_len) != 1)
-    {
-        log_d("Error: failed to finalize the encryption\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
+    ret = sm4_cbc_encrypt(enc_key, cipherblob->data, plaintext->data, plaintext->datalen, iv);
 
 out:
-    if (pctx)
-    {
-        EVP_CIPHER_CTX_free(pctx);
-    }
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
     SAFE_FREE(enc_key);
     return ret;
 }
 
-sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
-                                  const ehsm_data_t *cipherblob,
+sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
+                                  ehsm_data_t *cipherblob,
                                   ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    int temp_len = 0;
-    int pad = -1;
-    EVP_CIPHER_CTX *pctx = NULL;
 
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CBC)
@@ -1428,55 +1464,10 @@ sgx_status_t ehsm_sm4_cbc_decrypt(const ehsm_keyblob_t *cmk,
     {
         goto out;
     }
-    pad = (plaintext->datalen % 16 == 0) ? 0 : 1;
-    // Create and initialize ctx
-    if (!(pctx = EVP_CIPHER_CTX_new()))
-    {
-        log_d("Error: failed to initialize EVP_CIPHER_CTX\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-    // Initialize decrypt, key and IV
-    if (!EVP_DecryptInit_ex(pctx, block_mode, NULL, (unsigned char *)dec_key, iv))
-    {
-        log_d("Error: failed to initialize decrypt, key and IV\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
 
-    if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
-    {
-        log_d("Error: failed to set padding\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
+    ret = sm4_cbc_decrypt(dec_key, plaintext->data, cipherblob->data, cipherblob->datalen, iv);
 
-    // Decrypt the ciphertext and obtain the decrypted output
-    if (!EVP_DecryptUpdate(pctx, plaintext->data, &temp_len, cipherblob->data, cipherblob->datalen - 16))
-    {
-        log_d("Error: failed to decrypt the ciphertext\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-
-    // Finalize the decryption:
-    // If length of decrypted data is integral multiple of 16, do not execute EVP_DecryptFinal_ex(), or it will failed to decrypt
-    // - A positive return value indicates success;
-    // - Anything else is a failure - the plaintext is not trustworthy.
-    if (plaintext->datalen % 16 != 0)
-    {
-        if (EVP_DecryptFinal_ex(pctx, plaintext->data + temp_len, &temp_len) <= 0)
-        {
-            log_d("Error: failed to finalize the decryption\n");
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-    }
 out:
-    if (pctx != NULL)
-    {
-        EVP_CIPHER_CTX_free(pctx);
-    }
     memset_s(dec_key, sizeof(dec_key), 0, sizeof(dec_key));
     SAFE_FREE(dec_key);
     return ret;

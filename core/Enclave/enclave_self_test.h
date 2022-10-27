@@ -13,6 +13,5 @@
 using namespace std;
 
 #define VECTOR_LENGTH(x) (uint32_t)(test_vector[x].length()) / 2
-#define SELF_TEST_NUM 24
 
 sgx_status_t ehsm_self_test();
