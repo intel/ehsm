@@ -1961,31 +1961,31 @@ int main(int argc, char *argv[])
     }
     printf("Initialize done\n");
 
-// #if ENABLE_PERFORMANCE_TEST
-//     test_performance();
-// #endif
+#if ENABLE_PERFORMANCE_TEST
+    test_performance();
+#endif
 
-    // test_symmertric_encrypt_decrypt();
+    test_symmertric_encrypt_decrypt();
 
-//     test_RSA_encrypt_decrypt();
+    test_RSA_encrypt_decrypt();
 
-//     test_RSA_sign_verify();
+    test_RSA_sign_verify();
 
-//     test_sm2_sign_verify();
+    test_sm2_sign_verify();
 
-//     test_ec_p256_sign_verify();
+    test_ec_p256_sign_verify();
 
-//     test_SM2_encrypt_decrypt();
+    test_SM2_encrypt_decrypt();
 
-//     test_generate_AES_datakey();
+    test_generate_AES_datakey();
 
-    // test_generate_SM4_datakey();
+    test_generate_SM4_datakey();
 
-//     test_export_datakey();
+    test_export_datakey();
 
-//     test_GenerateQuote_and_VerifyQuote();
+    test_GenerateQuote_and_VerifyQuote();
 
-//     test_Enroll();
+    test_Enroll();
 
     Finalize();
 
