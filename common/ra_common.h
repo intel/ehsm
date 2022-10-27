@@ -29,21 +29,14 @@
 *
 */
 
-#ifndef _RA_CLIENT_H_
-#define _RA_CLIENT_H_
+#ifndef _RA_COMMON_H_
+#define _RA_COMMON_H_
 
-#include <cstdint>
-#include <vector>
-#include <memory>
+#include "datatypes.h"
+#include "sample_ra_msg.h"
 
 using namespace std;
 
-namespace ra_client {
-
-#define ENCLAVE_PATH "libenclave-ehsm-dkeycache.signed.so"
-
-int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port);
-
-}
+int RetreiveDomainKey(int32_t);
 
 #endif

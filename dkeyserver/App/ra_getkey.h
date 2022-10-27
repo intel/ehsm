@@ -29,8 +29,8 @@
 *
 */
 
-#ifndef _RA_CLIENT_H_
-#define _RA_CLIENT_H_
+#ifndef _RA_GETKEY_H_
+#define _RA_GETKEY_H_
 
 #include <cstdint>
 #include <vector>
@@ -38,11 +38,9 @@
 
 using namespace std;
 
-namespace ra_client {
+namespace ra_getkey {
 
-#define ENCLAVE_PATH "libenclave-ehsm-dkeycache.signed.so"
-
-int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port);
+int32_t Initialize_ra(std::string deploy_ip_addr, uint32_t deploy_port);
 
 }
 

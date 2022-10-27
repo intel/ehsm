@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#include <ra_client.h>
+#include <ra_getkey.h>
 #include "ra_common.h"
 #include "log_utils.h"
 
@@ -28,12 +28,12 @@ using namespace std;
 
 sgx_enclave_id_t g_enclave_id;
 
-namespace ra_client {
+namespace ra_getkey {
 
-int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port) {
+int32_t Initialize_ra(std::string deploy_ip_addr, uint32_t deploy_port) {
     log_i("Applying for a DomainKey from eHSM-KMS domainKey server.");
     int32_t ret = -1;
-    int32_t retry_count = 360;
+    int32_t retry_count = 5;
     struct sockaddr_in serAddr;
     int32_t sockfd = -1;
 
@@ -67,6 +67,7 @@ int32_t Initialize(std::string deploy_ip_addr, uint32_t deploy_port) {
         log_e("Failed(%d) to setup the secure channel.\n", ret);
         goto out;
     }
+    
     log_i("Successfully received the DomainKey from deploy server.");
 
 out:
