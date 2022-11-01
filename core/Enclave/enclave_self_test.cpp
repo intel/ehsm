@@ -178,7 +178,7 @@ static bool sm4_cbc_decryption(map<string, string> test_vector)
     GET_PARAMETER(ciphertext);
 
     uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
-    (void)sm4_cbc_decrypt(key, _plaintext, ciphertext, VECTOR_LENGTH("plaintext")+VECTOR_LENGTH("iv"), iv);
+    (void)sm4_cbc_decrypt(key, _plaintext, ciphertext, VECTOR_LENGTH("plaintext") + VECTOR_LENGTH("iv"), iv);
 
     CHECK_EQUAL(plaintext);
 
@@ -187,8 +187,39 @@ static bool sm4_cbc_decryption(map<string, string> test_vector)
     return true;
 }
 
-static bool sm4_cbc_crypto(map<string, string> test_vector)
+static bool rsa_crypto(map<string, string> test_vector)
 {
+    GET_PARAMETER(n);
+    GET_PARAMETER(e);
+    GET_PARAMETER(d);
+    GET_PARAMETER(p);
+    GET_PARAMETER(q);
+    GET_PARAMETER(dmp1);
+    GET_PARAMETER(dmq1);
+    GET_PARAMETER(iqmp);
+
+    GET_PARAMETER(plaintext);
+    GET_PARAMETER(ciphertext);
+
+    RSA *key = RSA_new();
+
+    RSA_set0_key(key,
+                 BN_bin2bn(n, VECTOR_LENGTH("n"), NULL),
+                 BN_bin2bn(e, VECTOR_LENGTH("e"), NULL),
+                 BN_bin2bn(d, VECTOR_LENGTH("d"), NULL));
+    RSA_set0_factors(key,
+                     BN_bin2bn(p, VECTOR_LENGTH("p"), NULL),
+                     BN_bin2bn(q, VECTOR_LENGTH("q"), NULL));
+    RSA_set0_crt_params(key,
+                        BN_bin2bn(dmp1, VECTOR_LENGTH("dmp1"), NULL),
+                        BN_bin2bn(dmq1, VECTOR_LENGTH("dmq1"), NULL),
+                        BN_bin2bn(iqmp, VECTOR_LENGTH("iqmp"), NULL));
+
+    uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+
+    RSA_private_decrypt(RSA_size(key), ciphertext, _plaintext, key, 1);
+
+    CHECK_EQUAL(plaintext);
 
     return true;
 }
@@ -226,7 +257,7 @@ static sgx_status_t sm4_crypto_test()
 {
     sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
-    
+
     for (auto test_vector : sm4_ctr_crypto_test_vectors)
     {
         if (!sm4_ctr_encryption(test_vector))
@@ -266,12 +297,38 @@ static sgx_status_t sm4_crypto_test()
     return ret;
 }
 
+static sgx_status_t rsa_crypto_test()
+{
+    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
+    int index = 1;
+
+    for (auto test_vector : rsa_crypto_test_vectors)
+    {
+        if (!rsa_crypto(test_vector))
+        {
+            printf("fail decrypt at %s case %d\n", __FUNCTION__, index);
+            continue;
+        }
+        index++;
+    }
+
+    if (index != rsa_crypto_test_vectors.size() + 1)
+    {
+        return SGX_ERROR_INVALID_FUNCTION;
+    }
+
+    ret = SGX_SUCCESS;
+
+    return ret;
+}
+
 sgx_status_t ehsm_self_test()
 {
     sgx_status_t ret;
 
     ret = aes_gcm_crypto_test();
     ret = sm4_crypto_test();
+    ret = rsa_crypto_test();
 
     return ret;
 }
