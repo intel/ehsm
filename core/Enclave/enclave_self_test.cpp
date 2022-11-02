@@ -4,6 +4,12 @@
 #include <map>
 #include "datatypes.h"
 #include "self_test_vector.h"
+#include "openssl/rsa.h"
+#include "openssl/evp.h"
+#include "openssl/ec.h"
+#include "openssl/pem.h"
+#include "openssl/bio.h"
+#include "openssl/bn.h"
 
 using namespace std;
 
@@ -74,6 +80,58 @@ static const EVP_CIPHER *get_block_mode(uint32_t key_length)
     default:
         return EVP_aes_256_gcm(); // return 256 block mode for unexpected key length
     }
+}
+
+static const EVP_MD *get_digestmode(int digestMode)
+{
+    switch (digestMode)
+    {
+    case 224:
+        return EVP_sha224();
+    case 256:
+        return EVP_sha256();
+    case 384:
+        return EVP_sha384();
+    case 512:
+        return EVP_sha512();
+    case 3:
+        return EVP_sm3();
+    default:
+        return NULL;
+    }
+}
+
+static ehsm_padding_mode_t get_paddingmode(int paddingmode)
+{
+    switch (paddingmode)
+    {
+    /* 1 means paddingmode PKCS#1 Ver 1.5, 2 means paddingmode PKCS#1 RSASSA-PSS */
+    case 1:
+        return EH_PAD_RSA_PKCS1;
+    case 2:
+        return EH_PAD_RSA_PKCS1_PSS;
+    case 3:
+        return EH_PAD_RSA_PKCS1_OAEP;
+    default:
+        return EH_PADDING_NONE;
+    }
+}
+
+static void RSA_create_key(RSA *key, const char *n, const char *e, const char *d)
+
+{
+    BIGNUM *modulus = BN_new();
+    BIGNUM *publicExponent = BN_new();
+    BIGNUM *privateExponent = BN_new();
+
+    BN_hex2bn(&modulus, n);
+    BN_hex2bn(&publicExponent, e);
+    BN_hex2bn(&privateExponent, d);
+
+    RSA_set0_key(key,
+                 modulus,
+                 publicExponent,
+                 privateExponent);
 }
 
 static bool aes_gcm_encrypt(map<string, string> test_vector)
@@ -322,13 +380,94 @@ static sgx_status_t rsa_crypto_test()
     return ret;
 }
 
+static bool rsa_sign(map<string, string> test_vector)
+{
+    GET_PARAMETER(n);
+    GET_PARAMETER(e);
+    GET_PARAMETER(d);
+    GET_PARAMETER(msg);
+    GET_PARAMETER(S);
+    int digestmode = atoi((test_vector["digestmode"]).c_str());
+    int paddingmode = atoi((test_vector["paddingmode"]).c_str());
+
+    RSA *key = RSA_new();
+
+    RSA_create_key(key, test_vector["n"].c_str(), test_vector["e"].c_str(), test_vector["d"].c_str());
+
+    uint8_t *_S = (uint8_t *)malloc((uint32_t)RSA_size(key));
+
+    (void)rsa_sign(key, get_digestmode(digestmode), get_paddingmode(paddingmode), msg, VECTOR_LENGTH("msg"),
+                   _S, (uint32_t)RSA_size(key));
+
+    CHECK_EQUAL(S);
+
+    free(_S);
+    RSA_free(key);
+
+    return true;
+}
+
+static bool rsa_verify(map<string, string> test_vector)
+{
+    GET_PARAMETER(n);
+    GET_PARAMETER(e);
+    GET_PARAMETER(d);
+    GET_PARAMETER(msg);
+    GET_PARAMETER(S);
+    int digestmode = atoi((test_vector["digestmode"]).c_str());
+    int paddingmode = atoi((test_vector["paddingmode"]).c_str());
+    bool result = false;
+
+    RSA *key = RSA_new();
+
+    RSA_create_key(key, test_vector["n"].c_str(), test_vector["e"].c_str(), test_vector["d"].c_str());
+
+    (void)rsa_verify(key, get_digestmode(digestmode), get_paddingmode(paddingmode), msg, VECTOR_LENGTH("msg"),
+                     S, VECTOR_LENGTH("S"), &result);
+
+    RSA_free(key);
+
+    return result;
+}
+
+static sgx_status_t rsa_sign_verify_test()
+{
+    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
+    int index = 1;
+    for (auto test_vector : rsa_sign_verify_test_vectors)
+    {
+        if (!rsa_sign(test_vector))
+        {
+            printf("fail at %s case %d\n", __FUNCTION__, index);
+        }
+        index++;
+    }
+    for (auto test_vector : rsa_sign_verify_test_vectors)
+    {
+        if (!rsa_verify(test_vector))
+        {
+            printf("fail at %s case %d\n", __FUNCTION__, index);
+        }
+        index++;
+    }
+
+    if (index != rsa_sign_verify_test_vectors.size() * 2 + 1)
+    {
+        return SGX_ERROR_INVALID_FUNCTION;
+    }
+
+    ret = SGX_SUCCESS;
+
+    return ret;
+}
+
 sgx_status_t ehsm_self_test()
 {
     sgx_status_t ret;
-
     ret = aes_gcm_crypto_test();
     ret = sm4_crypto_test();
     ret = rsa_crypto_test();
+    ret = rsa_sign_verify_test();
 
     return ret;
 }
