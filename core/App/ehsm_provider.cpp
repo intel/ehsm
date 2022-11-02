@@ -304,14 +304,11 @@ ehsm_status_t Initialize()
         sgx_destroy_enclave(g_enclave_id);
     }
 
-    // TODO: add self-test cases for FIPS-140
     ret = enclave_self_test(g_enclave_id, &sgxStatus);
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
     {
-        // TODO: close
-        printf("ret=%d\n", ret);
-        printf("sgxStatus=%d\n", sgxStatus);
+        return EH_FUNCTION_FAILED;
     }
 
     printf("self test pass\n");
