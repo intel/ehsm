@@ -90,15 +90,30 @@ int ocall_store_domain_key(uint8_t* cipher_dk, uint32_t cipher_dk_len)
 
 std::string deploy_ip_addr;
 uint32_t deploy_port = 0;
-static const char* _sopts = "i:p:";
+static const char* _sopts = "i:p:h";
 static const struct option _lopts[] = {{"ip", required_argument, NULL, 'i'},
                                        {"port", required_argument, NULL, 'p'},
+                                       {"help", no_argument, NULL, 'h'},
                                        {0, 0, 0, 0}};
 
 static void show_usage_and_exit(int code) {
     printf("\nusage: ehsm-dkeyserver -i [ActiveServer ip] -p [port]\n\n");
     exit(code);
 }
+
+void show_help(const char* name)
+{
+    cout<<"\nUsage: " << name << " [options]" << std::endl
+        << "Options:" << std::endl
+        << "  -i             the ActiveServer ip, use to obtain ActiveServer's domainkey \n"
+        << "  -p             the ActiveServer port, default is 8888 \n"
+        << "  -h, --help     print this help info \n\n"    
+        << "  If there are no options, start the dkeyserver service. \n"
+        << "  The domainkey is saved in etc/dkey.bin. "
+        << "\n"
+        << std::endl;
+}
+
 static void parse_args(int argc, char* argv[]) {
     int opt;
     int oidx = 0;
@@ -115,6 +130,9 @@ static void parse_args(int argc, char* argv[]) {
                     log_e("port must be a number.");
                 }
                 break;
+            case 'h':
+                show_help(argv[0]);
+                exit(EXIT_FAILURE);
             default:
                 log_e("unrecognized option (%c):\n", opt);
                 show_usage_and_exit(EXIT_FAILURE);
@@ -127,11 +145,6 @@ static void parse_args(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-
-    log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
-    log_i("Service built:\t\t%s", EHSM_DATE);
-    log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
-
     int ret = sgx_create_enclave(ENCLAVE_PATH,
                                  SGX_DEBUG_FLAG,
                                  NULL, NULL,
@@ -152,6 +165,10 @@ int main(int argc, char* argv[]) {
             return -1;
         }
     }
+
+    log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
+    log_i("Service built:\t\t%s", EHSM_DATE);
+    log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
 
     Initialize();
 
