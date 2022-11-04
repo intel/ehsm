@@ -705,7 +705,8 @@ sgx_status_t rsa_verify(RSA *rsa_pubkey,
                         uint32_t data_len,
                         const uint8_t *signature,
                         uint32_t signature_len,
-                        bool *result)
+                        bool *result,
+                        int saltlen)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -763,10 +764,21 @@ sgx_status_t rsa_verify(RSA *rsa_pubkey,
     }
     if (padding_mode == RSA_PKCS1_PSS_PADDING)
     {
-        if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
+        if(saltlen == - 1)
         {
-            log_d("ecall rsa_verify EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
-            goto out;
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
+            {
+                log_d("ecall rsa_verify EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
+                goto out;
+            }
+        }
+        else
+        {
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, saltlen) != 1)
+            {
+                log_d("ecall rsa_verify EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
+                goto out;
+            }
         }
     }
     // update verify
@@ -1917,7 +1929,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
         goto out;
     }
     ret = rsa_verify(rsa_pubkey, digestMode, cmk->metadata.padding_mode,
-                     data->data, data->datalen, signature->data, signature->datalen, result);
+                     data->data, data->datalen, signature->data, signature->datalen, result, -1);
 out:
     if (rsa_pubkey)
         RSA_free(rsa_pubkey);

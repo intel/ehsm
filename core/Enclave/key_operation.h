@@ -136,7 +136,8 @@ sgx_status_t rsa_verify(RSA *rsa_pubkey,
                        uint32_t data_len,
                        const uint8_t *signature,
                        uint32_t signature_len,
-                       bool *result);
+                       bool *result,
+                       int saltlen);
 
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
