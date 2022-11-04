@@ -856,7 +856,7 @@ sgx_status_t ecc_verify(EC_KEY *ec_key,
         *result = false;
         break;
     default:
-        log_d("ecall ec_verify EVP_DigestVerifyUpdate failed.\n");
+        log_d("ecall ECDSA_verify failed.\n");
         goto out;
     }
 

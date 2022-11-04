@@ -380,13 +380,14 @@ static sgx_status_t rsa_crypto_test()
     return ret;
 }
 
-static bool rsa_sign(map<string, string> test_vector)
+static bool rsa_sign_verify(map<string, string> test_vector)
 {
     GET_PARAMETER(n);
     GET_PARAMETER(e);
     GET_PARAMETER(d);
     GET_PARAMETER(msg);
     GET_PARAMETER(S);
+    bool result = false;
     int digestmode = atoi((test_vector["digestmode"]).c_str());
     int paddingmode = atoi((test_vector["paddingmode"]).c_str());
 
@@ -401,33 +402,19 @@ static bool rsa_sign(map<string, string> test_vector)
 
     CHECK_EQUAL(S);
 
-    free(_S);
-    RSA_free(key);
-
-    return true;
-}
-
-static bool rsa_verify(map<string, string> test_vector)
-{
-    GET_PARAMETER(n);
-    GET_PARAMETER(e);
-    GET_PARAMETER(d);
-    GET_PARAMETER(msg);
-    GET_PARAMETER(S);
-    int digestmode = atoi((test_vector["digestmode"]).c_str());
-    int paddingmode = atoi((test_vector["paddingmode"]).c_str());
-    bool result = false;
-
-    RSA *key = RSA_new();
-
-    RSA_create_key(key, test_vector["n"].c_str(), test_vector["e"].c_str(), test_vector["d"].c_str());
-
     (void)rsa_verify(key, get_digestmode(digestmode), get_paddingmode(paddingmode), msg, VECTOR_LENGTH("msg"),
                      S, VECTOR_LENGTH("S"), &result);
 
+    free(_S);
     RSA_free(key);
 
-    return result;
+    if (result == false)
+    {
+        log_d(" Signature error\n");
+        return false;
+    }
+
+    return true;
 }
 
 static sgx_status_t rsa_sign_verify_test()
@@ -436,22 +423,129 @@ static sgx_status_t rsa_sign_verify_test()
     int index = 1;
     for (auto test_vector : rsa_sign_verify_test_vectors)
     {
-        if (!rsa_sign(test_vector))
+        if (!rsa_sign_verify(test_vector))
         {
             printf("fail at %s case %d\n", __FUNCTION__, index);
-        }
-        index++;
-    }
-    for (auto test_vector : rsa_sign_verify_test_vectors)
-    {
-        if (!rsa_verify(test_vector))
-        {
-            printf("fail at %s case %d\n", __FUNCTION__, index);
+            continue;
         }
         index++;
     }
 
-    if (index != rsa_sign_verify_test_vectors.size() * 2 + 1)
+    if (index != rsa_sign_verify_test_vectors.size() + 1)
+    {
+        return SGX_ERROR_INVALID_FUNCTION;
+    }
+
+    ret = SGX_SUCCESS;
+
+    return ret;
+}
+
+static bool ecc_sign_verify(map<string, string> test_vector)
+{
+     EC_KEY *ec_key = NULL;
+    ECDSA_SIG *ecdsa_sig = NULL;
+    uint32_t ecdsa_signiture_max_size = 0;
+    uint8_t *_signature = NULL;
+    uint8_t *signature = NULL;
+    uint8_t *tmp = NULL;
+    uint32_t sig_len = 0;
+    GET_PARAMETER(Qx);
+    GET_PARAMETER(Qy);
+    GET_PARAMETER(R);
+    GET_PARAMETER(S);
+    GET_PARAMETER(d);
+    int digestmode = atoi((test_vector["digestmode"]).c_str());
+    GET_PARAMETER(Msg);
+    bool ret = false;
+    bool result = false;
+
+    ec_key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+    if (ec_key == NULL)
+    {
+        goto out;
+    }
+    ecdsa_sig = ECDSA_SIG_new();
+    if (ecdsa_sig == NULL)
+    {
+        goto out;
+    }
+
+    if (EC_KEY_set_private_key(ec_key, BN_bin2bn(d, VECTOR_LENGTH("d"), NULL)) != 1)
+    {
+        log_d("EC_KEY_set_private_key failed.\n");
+        goto out;
+    }
+    if (EC_KEY_set_public_key_affine_coordinates(ec_key, BN_bin2bn(Qx, VECTOR_LENGTH("Qx"), NULL), BN_bin2bn(Qy, VECTOR_LENGTH("Qy"), NULL)) != 1)
+    {
+        log_d("EC_KEY_set_public_key_affine_coordinates failed.\n");
+        goto out;
+    }
+    ecdsa_signiture_max_size = ECDSA_size(ec_key);
+    {
+        if (ecdsa_signiture_max_size != 72)
+        {
+            log_d("ec key error\n");
+            goto out;
+        }
+    }
+    signature = (uint8_t *)malloc(ecdsa_signiture_max_size);
+
+    //Concatenate R and S into signature in uint8_t* 
+    if (ECDSA_SIG_set0(ecdsa_sig, BN_bin2bn(R, VECTOR_LENGTH("R"), NULL), BN_bin2bn(S, VECTOR_LENGTH("S"), NULL)) != 1)
+    {
+        log_d("ECDSA_SIG_set0 failed.\n");
+        goto out;
+    }
+    tmp = signature;
+    sig_len = i2d_ECDSA_SIG(ecdsa_sig, &tmp);
+    if (sig_len == 0)
+    {
+        log_d("i2d_ECDSA_SIG failed\n");
+        goto out;
+    }
+
+    if (ecc_verify(ec_key, get_digestmode(digestmode), Msg, VECTOR_LENGTH("Msg"),
+                   signature, sig_len, &result) != SGX_SUCCESS)
+    {
+        log_d("ecc_verify failed\n");
+        goto out;
+    }
+
+    if (result == false)
+    {
+        log_d(" Signature error\n");
+        goto out;
+    }
+
+    ret = true;
+out:
+    if (ec_key)
+        EC_KEY_free(ec_key);
+    if (ecdsa_sig)
+        ECDSA_SIG_free(ecdsa_sig);
+
+    memset_s(signature, ecdsa_signiture_max_size, 0, ecdsa_signiture_max_size);
+    SAFE_FREE(signature);
+ 
+    return ret;
+}
+
+static sgx_status_t ecc_sign_verify_test()
+{
+    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
+    int index = 1;
+    for (auto test_vector : ecc_sign_verify_test_vectors)
+    {
+        if (!ecc_sign_verify(test_vector))
+        {
+            printf("fail at %s case %d\n", __FUNCTION__, index);
+            continue;
+        }
+        index++;
+    }
+
+    if (index != ecc_sign_verify_test_vectors.size() + 1)
     {
         return SGX_ERROR_INVALID_FUNCTION;
     }
@@ -468,6 +562,7 @@ sgx_status_t ehsm_self_test()
     ret = sm4_crypto_test();
     ret = rsa_crypto_test();
     ret = rsa_sign_verify_test();
+    ret = ecc_sign_verify_test();
 
     return ret;
 }
