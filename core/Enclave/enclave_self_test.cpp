@@ -16,16 +16,8 @@ using namespace std;
 #define GET_PARAMETER(x) \
     uint8_t *x = (uint8_t *)get_parameter(#x, test_vector);
 
-#define CHECK_EQUAL(x)                              \
-    if (VECTOR_LENGTH(#x) > 0)                      \
-        for (int i = 0; i < VECTOR_LENGTH(#x); i++) \
-            if (x[i] != _##x[i])                    \
-                return false;
+#define TEST_COMPARE(x) (memcmp(x, _##x, VECTOR_LENGTH(#x)) == 0)
 
-// TODO : add test vector for sm4 crypto
-// TODO : add test vector for rsa crypto
-// TODO : add test vector for rsa sign/verify
-// TODO : add test vector for ec sign/verify
 // TODO : add test vector for sm2 crypto
 // TODO : add test vector for sm2 sign/verify
 
@@ -143,18 +135,12 @@ static bool aes_gcm_encrypt(map<string, string> test_vector)
     GET_PARAMETER(ciphertext);
     GET_PARAMETER(tag);
 
-    uint8_t *_ciphertext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext") + VECTOR_LENGTH("aad"));
-    uint8_t *_tag = (uint8_t *)malloc(VECTOR_LENGTH("tag"));
+    uint8_t _ciphertext[VECTOR_LENGTH("plaintext") + VECTOR_LENGTH("aad")] = {0};
+    uint8_t _tag[VECTOR_LENGTH("tag")] = {0};
     (void)aes_gcm_encrypt(key, _ciphertext, get_block_mode(VECTOR_LENGTH("key")), plaintext, VECTOR_LENGTH("plaintext"),
                           aad, VECTOR_LENGTH("aad"), iv, VECTOR_LENGTH("iv"), _tag, VECTOR_LENGTH("tag"));
 
-    CHECK_EQUAL(ciphertext);
-    CHECK_EQUAL(tag);
-
-    free(_ciphertext);
-    free(_tag);
-
-    return true;
+    return (TEST_COMPARE(ciphertext) && TEST_COMPARE(tag));
 }
 
 static bool aes_gcm_decrypt(map<string, string> test_vector)
@@ -166,15 +152,11 @@ static bool aes_gcm_decrypt(map<string, string> test_vector)
     GET_PARAMETER(ciphertext);
     GET_PARAMETER(tag);
 
-    uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    uint8_t _plaintext[VECTOR_LENGTH("plaintext")] = {0};
     (void)aes_gcm_decrypt(key, _plaintext, get_block_mode(VECTOR_LENGTH("key")), ciphertext, VECTOR_LENGTH("ciphertext"),
                           aad, VECTOR_LENGTH("aad"), iv, VECTOR_LENGTH("iv"), tag, VECTOR_LENGTH("tag"));
 
-    CHECK_EQUAL(plaintext);
-
-    free(_plaintext);
-
-    return true;
+    return TEST_COMPARE(plaintext);
 }
 
 static bool sm4_ctr_encryption(map<string, string> test_vector)
@@ -184,14 +166,10 @@ static bool sm4_ctr_encryption(map<string, string> test_vector)
     GET_PARAMETER(iv);
     GET_PARAMETER(ciphertext);
 
-    uint8_t *_ciphertext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    uint8_t _ciphertext[VECTOR_LENGTH("plaintext")] = {0};
     (void)sm4_ctr_encrypt(key, _ciphertext, plaintext, VECTOR_LENGTH("plaintext"), iv);
 
-    CHECK_EQUAL(ciphertext);
-
-    free(_ciphertext);
-
-    return true;
+    return TEST_COMPARE(ciphertext);
 }
 
 static bool sm4_ctr_decryption(map<string, string> test_vector)
@@ -201,14 +179,10 @@ static bool sm4_ctr_decryption(map<string, string> test_vector)
     GET_PARAMETER(iv);
     GET_PARAMETER(ciphertext);
 
-    uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    uint8_t _plaintext[VECTOR_LENGTH("plaintext")] = {0};
     (void)sm4_ctr_decrypt(key, _plaintext, ciphertext, VECTOR_LENGTH("plaintext"), iv);
 
-    CHECK_EQUAL(plaintext);
-
-    free(_plaintext);
-
-    return true;
+    return TEST_COMPARE(plaintext);
 }
 
 static bool sm4_cbc_encryption(map<string, string> test_vector)
@@ -218,14 +192,10 @@ static bool sm4_cbc_encryption(map<string, string> test_vector)
     GET_PARAMETER(iv);
     GET_PARAMETER(ciphertext);
 
-    uint8_t *_ciphertext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    uint8_t _ciphertext[VECTOR_LENGTH("plaintext")] = {0};
     (void)sm4_cbc_encrypt(key, _ciphertext, plaintext, VECTOR_LENGTH("plaintext"), iv);
 
-    CHECK_EQUAL(ciphertext);
-
-    free(_ciphertext);
-
-    return true;
+    return TEST_COMPARE(ciphertext);
 }
 
 static bool sm4_cbc_decryption(map<string, string> test_vector)
@@ -235,14 +205,10 @@ static bool sm4_cbc_decryption(map<string, string> test_vector)
     GET_PARAMETER(iv);
     GET_PARAMETER(ciphertext);
 
-    uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    uint8_t _plaintext[VECTOR_LENGTH("plaintext")] = {0};
     (void)sm4_cbc_decrypt(key, _plaintext, ciphertext, VECTOR_LENGTH("plaintext") + VECTOR_LENGTH("iv"), iv);
 
-    CHECK_EQUAL(plaintext);
-
-    free(_plaintext);
-
-    return true;
+    return TEST_COMPARE(plaintext);
 }
 
 static bool rsa_crypto(map<string, string> test_vector)
@@ -273,13 +239,11 @@ static bool rsa_crypto(map<string, string> test_vector)
                         BN_bin2bn(dmq1, VECTOR_LENGTH("dmq1"), NULL),
                         BN_bin2bn(iqmp, VECTOR_LENGTH("iqmp"), NULL));
 
-    uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
+    uint8_t _plaintext[VECTOR_LENGTH("plaintext")] ={0};
 
     RSA_private_decrypt(RSA_size(key), ciphertext, _plaintext, key, 1);
 
-    CHECK_EQUAL(plaintext);
-
-    return true;
+    return TEST_COMPARE(plaintext);
 }
 
 static sgx_status_t aes_gcm_crypto_test()
@@ -400,7 +364,7 @@ static bool rsa_sign_verify(map<string, string> test_vector)
     (void)rsa_sign(key, get_digestmode(digestmode), get_paddingmode(paddingmode), msg, VECTOR_LENGTH("msg"),
                    _S, (uint32_t)RSA_size(key));
 
-    CHECK_EQUAL(S);
+    TEST_COMPARE(S);
 
     (void)rsa_verify(key, get_digestmode(digestmode), get_paddingmode(paddingmode), msg, VECTOR_LENGTH("msg"),
                      S, VECTOR_LENGTH("S"), &result);
@@ -443,7 +407,7 @@ static sgx_status_t rsa_sign_verify_test()
 
 static bool ecc_sign_verify(map<string, string> test_vector)
 {
-     EC_KEY *ec_key = NULL;
+    EC_KEY *ec_key = NULL;
     ECDSA_SIG *ecdsa_sig = NULL;
     uint32_t ecdsa_signiture_max_size = 0;
     uint8_t *_signature = NULL;
@@ -491,7 +455,7 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     }
     signature = (uint8_t *)malloc(ecdsa_signiture_max_size);
 
-    //Concatenate R and S into signature in uint8_t* 
+    // Concatenate R and S into signature in uint8_t*
     if (ECDSA_SIG_set0(ecdsa_sig, BN_bin2bn(R, VECTOR_LENGTH("R"), NULL), BN_bin2bn(S, VECTOR_LENGTH("S"), NULL)) != 1)
     {
         log_d("ECDSA_SIG_set0 failed.\n");
@@ -527,7 +491,7 @@ out:
 
     memset_s(signature, ecdsa_signiture_max_size, 0, ecdsa_signiture_max_size);
     SAFE_FREE(signature);
- 
+
     return ret;
 }
 
