@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <signal.h>
+#include <sys/stat.h>
 
 #include <enclave_u.h>
 #include <getopt.h>
@@ -107,6 +108,14 @@ int main(int argc, char* argv[])
 
     // process argv
     parse_args(argc, argv);
+
+    if (access(RUNTIME_FOLDER, F_OK) != 0) {
+        log_i("Initializing runtime folder [path: %s].", RUNTIME_FOLDER);
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
+            log_e("Create runtime folder failed!");
+        }
+    }
+    log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
 
     log_i("DomainKey Server IP:\t\t%s", deploy_ip_addr.c_str());
     log_i("DomainKey Server port:\t%d", deploy_port);

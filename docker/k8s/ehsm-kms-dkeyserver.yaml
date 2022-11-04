@@ -56,6 +56,9 @@ spec:
       - name: dev-aesmd
         hostPath:
           path: /var/run/aesmd
+      - name: runtime-folder
+        hostPath:
+          path: /var/run/ehsm
       containers:
       - name: main
         image: intel/dkeyserver:latest
@@ -79,6 +82,8 @@ spec:
           name: dev-provision
         - mountPath: /var/run/aesmd
           name: dev-aesmd
+        - mountPath: /var/run/ehsm
+          name: runtime-folder
         env:
         - name: PCCS_URL 
           valueFrom:
@@ -121,6 +126,9 @@ spec:
       - name: dev-aesmd
         hostPath:
           path: /var/run/aesmd
+      - name: runtime-folder
+        hostPath:
+          path: /var/run/ehsm
       # initContainers:
       # - name: init-worker
       #   # this images same the container's image.
@@ -159,6 +167,8 @@ spec:
           name: dev-provision
         - mountPath: /var/run/aesmd
           name: dev-aesmd
+        - mountPath: /var/run/ehsm
+          name: runtime-folder
         env:
         - name: PCCS_URL 
           valueFrom:

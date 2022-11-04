@@ -37,6 +37,7 @@ services:
       - "${DKEYSERVER_PORT}:8888"
     volumes:
       - /var/run/aesmd:/var/run/aesmd
+      - /var/run/ehsm:/var/run/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}
@@ -59,7 +60,7 @@ services:
     image: "ehsm_dkeycache:${EHSM_VERSION_STR}"
     volumes:
       - /var/run/aesmd:/var/run/aesmd
-      - ${DKEYCACHE_SOCKET_LOCALTION}:${DKEYCACHE_SOCKET_LOCALTION}
+      - /var/run/ehsm:/var/run/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}
@@ -88,7 +89,7 @@ services:
       - "${KMS_PORT}:9000"
     volumes:
       - /var/run/aesmd:/var/run/aesmd
-      - ${DKEYCACHE_SOCKET_LOCALTION}:${DKEYCACHE_SOCKET_LOCALTION}
+      - /var/run/ehsm:/var/run/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}

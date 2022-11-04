@@ -47,7 +47,6 @@
 #define SERVER_PORT 8888
 #define BUFFER_SIZE 1024
 
-#define UNIX_DOMAIN "/var/run/ehsm/dkeyprovision.sock"
 
 /* Function Description:
  * This is server initialization routine, it creates TCP sockets and listen on a port.
