@@ -618,7 +618,9 @@ sgx_status_t sm2_sign(EC_KEY *ec_key,
                       const uint8_t *data,
                       uint32_t data_len,
                       uint8_t *signature,
-                      uint32_t *signature_len)
+                      uint32_t *signature_len,
+                      const uint8_t *id,
+                      uint32_t id_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -665,7 +667,7 @@ sgx_status_t sm2_sign(EC_KEY *ec_key,
         log_d("ecall sm2_sign failed to create a EVP_PKEY_CTX\n");
         goto out;
     }
-    if (EVP_PKEY_CTX_set1_id(pkey_ctx, SM2_DEFAULT_USERID, SM2_DEFAULT_USERID_LEN) != 1)
+    if (EVP_PKEY_CTX_set1_id(pkey_ctx, id, id_len) != 1)
     {
         log_d("ecall sm2_sign failed to set sm2_user_id to the EVP_PKEY_CTX\n");
         goto out;
@@ -894,7 +896,9 @@ sgx_status_t sm2_verify(EC_KEY *ec_key,
                         uint32_t data_len,
                         const uint8_t *signature,
                         uint32_t signature_len,
-                        bool *result)
+                        bool *result,
+                        const uint8_t *id,
+                        uint32_t id_len)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -941,7 +945,7 @@ sgx_status_t sm2_verify(EC_KEY *ec_key,
         goto out;
     }
     // set sm2 id and len to pkeyctx
-    if (EVP_PKEY_CTX_set1_id(pkey_ctx, SM2_DEFAULT_USERID, SM2_DEFAULT_USERID_LEN) != 1)
+    if (EVP_PKEY_CTX_set1_id(pkey_ctx, id, id_len) != 1)
     {
         log_d("ecall sm2_verify failed to set sm2_user_id to the EVP_PKEY_CTX\n");
         goto out;
@@ -2119,7 +2123,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    ret = sm2_sign(ec_key, digestMode, data->data, data->datalen, signature->data, &signature->datalen);
+    ret = sm2_sign(ec_key, digestMode, data->data, data->datalen, signature->data, &signature->datalen, (uint8_t *)SM2_DEFAULT_USERID, strlen(SM2_DEFAULT_USERID));
 
 out:
     if (ec_key)
@@ -2182,7 +2186,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    ret = sm2_verify(ec_key, digestMode, data->data, data->datalen, signature->data, signature->datalen, result);
+    ret = sm2_verify(ec_key, digestMode, data->data, data->datalen, signature->data, signature->datalen, result, (uint8_t *)SM2_DEFAULT_USERID, strlen(SM2_DEFAULT_USERID));
 
 out:
     if (ec_key)

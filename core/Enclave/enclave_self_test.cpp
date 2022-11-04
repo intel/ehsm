@@ -178,7 +178,7 @@ static bool sm4_cbc_decryption(map<string, string> test_vector)
     GET_PARAMETER(ciphertext);
 
     uint8_t *_plaintext = (uint8_t *)malloc(VECTOR_LENGTH("plaintext"));
-    (void)sm4_cbc_decrypt(key, _plaintext, ciphertext, VECTOR_LENGTH("plaintext")+VECTOR_LENGTH("iv"), iv);
+    (void)sm4_cbc_decrypt(key, _plaintext, ciphertext, VECTOR_LENGTH("plaintext") + VECTOR_LENGTH("iv"), iv);
 
     CHECK_EQUAL(plaintext);
 
@@ -226,7 +226,7 @@ static sgx_status_t sm4_crypto_test()
 {
     sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
-    
+
     for (auto test_vector : sm4_ctr_crypto_test_vectors)
     {
         if (!sm4_ctr_encryption(test_vector))
@@ -266,12 +266,198 @@ static sgx_status_t sm4_crypto_test()
     return ret;
 }
 
+static EC_GROUP *create_EC_group(const char *p_hex, const char *a_hex,
+                                 const char *b_hex, const char *x_hex,
+                                 const char *y_hex, const char *order_hex,
+                                 const char *cof_hex)
+{
+    BIGNUM *p = NULL;
+    BIGNUM *a = NULL;
+    BIGNUM *b = NULL;
+    BIGNUM *g_x = NULL;
+    BIGNUM *g_y = NULL;
+    BIGNUM *order = NULL;
+    BIGNUM *cof = NULL;
+    EC_POINT *generator = NULL;
+    EC_GROUP *group = NULL;
+    int ok = 0;
+    if (!BN_hex2bn(&p, p_hex) || !BN_hex2bn(&a, a_hex) || !BN_hex2bn(&b, b_hex))
+        goto done;
+    group = EC_GROUP_new_curve_GFp(p, a, b, NULL);
+    generator = EC_POINT_new(group);
+    if (!BN_hex2bn(&g_x, x_hex) || !BN_hex2bn(&g_y, y_hex) || !EC_POINT_set_affine_coordinates(group, generator, g_x, g_y, NULL))
+        goto done;
+
+    if (!BN_hex2bn(&order, order_hex) || !BN_hex2bn(&cof, cof_hex) || !EC_GROUP_set_generator(group, generator, order, cof))
+        goto done;
+    ok = 1;
+done:
+    BN_free(p);
+    BN_free(a);
+    BN_free(b);
+    BN_free(g_x);
+    BN_free(g_y);
+    EC_POINT_free(generator);
+    BN_free(order);
+    BN_free(cof);
+    if (!ok)
+    {
+        EC_GROUP_free(group);
+        group = NULL;
+    }
+    return group;
+}
+static bool sm2_sign_test(map<string, string> test_vector)
+{
+    // TODO: Signature generation is affected by random values.
+    return true;
+}
+static bool sm2_verify_test(map<string, string> test_vector)
+{
+    EC_KEY *ec_key = NULL;
+    ECDSA_SIG *ecdsa_sig = NULL;
+    uint32_t ecdsa_signiture_max_size = 0;
+    uint8_t *signature = NULL;
+    uint8_t *tmp_sig_ptr = NULL;
+    uint32_t sig_len = 0;
+    EC_POINT *pt = NULL;
+    EC_GROUP *ec_group = NULL;
+    bool ret = false;
+    bool result = false;
+    GET_PARAMETER(R);
+    GET_PARAMETER(S);
+    GET_PARAMETER(Priv);
+
+    ec_key = EC_KEY_new();
+    if (ec_key == NULL)
+    {
+        printf("EC_KEY_new failed.\n");
+        goto out;
+    }
+    ec_group = create_EC_group(test_vector["P"].c_str(),
+                               test_vector["A"].c_str(),
+                               test_vector["B"].c_str(),
+                               test_vector["X"].c_str(),
+                               test_vector["Y"].c_str(),
+                               test_vector["Order"].c_str(),
+                               test_vector["Cof"].c_str());
+    if (ec_group == NULL)
+    {
+        printf("create_EC_group failed.\n");
+        goto out;
+    }
+    if (!EC_KEY_set_group(ec_key, ec_group))
+    {
+        printf("EC_KEY_set_group failed.\n");
+        goto out;
+    }
+
+    if (!EC_KEY_set_private_key(ec_key, BN_bin2bn(Priv, VECTOR_LENGTH("Priv"), NULL)))
+    {
+        printf("EC_KEY_set_private_key failed.\n");
+        goto out;
+    }
+    pt = EC_POINT_new(ec_group);
+    if (pt == NULL)
+    {
+        printf("EC_POINT_new failed.\n");
+        goto out;
+    }
+    if (!EC_POINT_mul(ec_group, pt, BN_bin2bn(Priv, VECTOR_LENGTH("Priv"), NULL), NULL, NULL, NULL))
+    {
+        printf("EC_POINT_mul failed.\n");
+        goto out;
+    }
+    if (!EC_KEY_set_public_key(ec_key, pt))
+    {
+        printf("EC_KEY_set_public_key failed.\n");
+        goto out;
+    }
+    ecdsa_sig = ECDSA_SIG_new();
+    if (ecdsa_sig == NULL)
+    {
+        printf("ECDSA_SIG_new failed.\n");
+        goto out;
+    }
+    ecdsa_signiture_max_size = ECDSA_size(ec_key);
+    if (ecdsa_signiture_max_size != 72)
+    {
+        printf("ec key error\n");
+        goto out;
+    }
+    signature = (uint8_t *)malloc(ecdsa_signiture_max_size);
+    if (signature == NULL)
+    {
+        printf("signature malloc failed.\n");
+        goto out;
+    }
+    if (ECDSA_SIG_set0(ecdsa_sig, BN_bin2bn(R, VECTOR_LENGTH("R"), NULL), BN_bin2bn(S, VECTOR_LENGTH("S"), NULL)) != 1)
+    {
+        printf("ECDSA_SIG_set0 failed.\n");
+        goto out;
+    }
+    tmp_sig_ptr = signature;
+    sig_len = i2d_ECDSA_SIG(ecdsa_sig, &tmp_sig_ptr);
+    if (sig_len <= 0)
+    {
+        printf("i2d_ECDSA_SIG failed\n");
+        goto out;
+    }
+    if (sm2_verify(ec_key, EVP_sm3(), (const uint8_t *)test_vector["Msg"].c_str(), strlen(test_vector["Msg"].c_str()),
+                   signature, sig_len, &result, (const uint8_t *)(test_vector["UserID"].c_str()), strlen(test_vector["UserID"].c_str())) != SGX_SUCCESS)
+    {
+        printf("sm2_verify failed\n");
+        goto out;
+    }
+    if (result == false)
+    {
+        printf(" Signature error\n");
+        goto out;
+    }
+    printf("sm2 signature verify success.\n");
+    ret = true;
+out:
+    if (signature)
+        free(signature);
+    if (ec_key)
+        EC_KEY_free(ec_key);
+    if (pt)
+        EC_POINT_free(pt);
+    if (ecdsa_sig)
+        ECDSA_SIG_free(ecdsa_sig);
+    if (ec_group)
+        EC_GROUP_free(ec_group);
+    return ret;
+}
+static sgx_status_t sm2_sign_verify_test()
+{
+    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
+    int index = 1;
+    for (auto test_vector : sm2_sign_verify_test_vectors)
+    {
+        if (!sm2_verify_test(test_vector))
+        {
+            printf("fail at %s case %d\n", __FUNCTION__, index);
+        }
+        index++;
+    }
+
+    if (index != sm2_sign_verify_test_vectors.size() + 1)
+    {
+        return SGX_ERROR_INVALID_FUNCTION;
+    }
+
+    ret = SGX_SUCCESS;
+
+    return ret;
+}
 sgx_status_t ehsm_self_test()
 {
     sgx_status_t ret;
 
     ret = aes_gcm_crypto_test();
     ret = sm4_crypto_test();
+    ret = sm2_sign_verify_test();
 
     return ret;
 }

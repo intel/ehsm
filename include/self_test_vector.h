@@ -115,3 +115,31 @@ EHSM_TEST_VECTOR sm4_cbc_crypto_test_vectors = {
      {"plaintext", "aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffffaaaaaaaabbbbbbbb"},
      {"iv", "000102030405060708090a0b0c0d0e0f"},
      {"ciphertext", "0d3a6ddc2d21c698857215587b7bb59a91f2c147911a4144665e1fa1d40bae38"}}};
+
+EHSM_TEST_VECTOR sm2_sign_verify_test_vectors = {
+    {// Case 1 sm2 verify, sm3 digest. From draft-shen-sm2-ecdsa-02
+     {"P", "8542D69E4C044F18E8B92435BF6FF7DE457283915C45517D722EDB8B08F1DFC3"},
+     {"A", "787968B4FA32C3FD2417842E73BBFEFF2F3C848B6831D7E0EC65228B3937E498"},
+     {"B", "63E4C6D3B23B0C849CF84241484BFE48F61D59A5B16BA06E6E12D1DA27C5249A"},
+     {"X", "421DEBD61B62EAB6746434EBC3CC315E32220B3BADD50BDC4C4E6C147FEDD43D"},
+     {"Y", "0680512BCBB42C07D47349D2153B70C4E5D7FDFCBFA36EA1A85841B9E46E09A2"},
+     {"Order", "8542D69E4C044F18E8B92435BF6FF7DD297720630485628D5AE74EE7C32E79B7"},
+     {"Cof", "1"},
+     {"Msg", "message digest"},
+     {"UserID", "ALICE123@YAHOO.COM"},
+     {"Priv", "128B2FA8BD433C6C068C8D803DFF79792A519A55171B1B650C23661D15897263"},
+     {"R", "40f1ec59f793d9f49e09dcef49130d4194f79fb1eed2caa55bacdb49c4e755d1"},
+     {"S", "6fc6dac32c5d5cf10c77dfb20f7c2eb667a457872fb09ec56327a67ec7deebe7"}},
+    {// Case 2 sm2 verify, sm3 digest. From Annex A in both GM/T0003.5-2012 and GB/T 32918.5-2016
+     {"P", "fffffffeffffffffffffffffffffffffffffffff00000000ffffffffffffffff"},
+     {"A", "fffffffeffffffffffffffffffffffffffffffff00000000fffffffffffffffc"},
+     {"B", "28e9fa9e9d9f5e344d5a9e4bcf6509a7f39789f515ab8f92ddbcbd414d940e93"},
+     {"X", "32c4ae2c1f1981195f9904466a39c9948fe30bbff2660be1715a4589334c74c7"},
+     {"Y", "bc3736a2f4f6779c59bdcee36b692153d0a9877cc62a474002df32e52139f0a0"},
+     {"Order", "fffffffeffffffffffffffffffffffff7203df6b21c6052b53bbf40939d54123"},
+     {"Cof", "1"},
+     {"Msg", "message digest"},
+     {"UserID", "1234567812345678"},
+     {"Priv", "3945208F7B2144B13F36E38AC6D39F95889393692860B51A42FB81EF4DF7C5B8"},
+     {"R", "F5A03B0648D2C4630EEAC513E1BB81A15944DA3827D5B74143AC7EACEEE720B3"},
+     {"S", "B1B6AA29DF212FD8763182BC0D421CA1BB9038FD1F7F42D4840B69C485BBC1AA"}}};

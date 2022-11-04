@@ -130,13 +130,13 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk_blob,
                            ehsm_data_t *signature);
 
 sgx_status_t rsa_verify(RSA *rsa_pubkey,
-                       const EVP_MD *digestMode,
-                       ehsm_padding_mode_t padding_mode,
-                       const uint8_t *data,
-                       uint32_t data_len,
-                       const uint8_t *signature,
-                       uint32_t signature_len,
-                       bool *result);
+                        const EVP_MD *digestMode,
+                        ehsm_padding_mode_t padding_mode,
+                        const uint8_t *data,
+                        uint32_t data_len,
+                        const uint8_t *signature,
+                        uint32_t signature_len,
+                        bool *result);
 
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
@@ -172,7 +172,9 @@ sgx_status_t sm2_sign(EC_KEY *ec_key,
                       const uint8_t *data,
                       uint32_t data_len,
                       uint8_t *signature,
-                      uint32_t *signature_len);
+                      uint32_t *signature_len,
+                      const uint8_t *id,
+                      uint32_t id_len);
 
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
@@ -184,7 +186,9 @@ sgx_status_t sm2_verify(EC_KEY *ec_key,
                         uint32_t data_len,
                         const uint8_t *signature,
                         uint32_t signature_len,
-                        bool *result);
+                        bool *result,
+                        const uint8_t *id,
+                        uint32_t id_len);
 
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
