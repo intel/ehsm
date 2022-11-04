@@ -55,6 +55,7 @@
 
 #define SM4_NO_PAD 0
 #define SM4_PAD 1
+#define MAX_DIGEST_LENGTH 64
 
 using namespace std;
 
@@ -547,23 +548,11 @@ sgx_status_t ecc_sign(EC_KEY *ec_key,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    EVP_PKEY *evpkey = NULL;
     EVP_MD_CTX *mdctx = NULL;
-    EVP_PKEY_CTX *pkey_ctx = NULL;
-    size_t temp_signature_size = 0;
+    uint8_t *digestMessage = NULL;
+    uint32_t digestMessage_len = MAX_DIGEST_LENGTH;
 
-    evpkey = EVP_PKEY_new();
-    if (evpkey == NULL)
-    {
-        log_d("ecall ecc_sign generate evpkey failed.\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
-    }
-    if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
-    {
-        log_d("ecall ecc_sign failed to set the evpkey by EC_KEY\n");
-        goto out;
-    }
+    digestMessage = (uint8_t *)malloc(digestMessage_len);
 
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
@@ -578,37 +567,37 @@ sgx_status_t ecc_sign(EC_KEY *ec_key,
         goto out;
     }
 
-    if (EVP_DigestSignInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+    //digest message
+    if (EVP_DigestInit(mdctx, digestMode) != 1)
     {
-        log_d("ecall ec_sign EVP_DigestSignInit failed.\n");
+        log_d("ecall ec_sign EVP_DigestInit failed.\n");
+        goto out;
+    }
+    if (EVP_DigestUpdate(mdctx, data, data_len) != 1)
+    {
+        log_d("ecall ec_sign EVP_DigestUpdate failed.\n");
+        goto out;
+    }
+    if (EVP_DigestFinal(mdctx, digestMessage, &digestMessage_len) != 1)
+    {
+        log_d("ecall ec_sign EVP_DigestFinal failed.\n");
         goto out;
     }
 
-    if (EVP_DigestUpdate(mdctx, data, data_len) != 1)
+    if (ECDSA_sign(0, digestMessage, digestMessage_len, signature, signature_len, ec_key) != 1)
     {
-        log_d("ecall ec_sign EVP_DigestSignUpdate failed.\n");
+        log_d("ecall ecdsa_sign failed.\n");
         goto out;
     }
-    if (EVP_DigestSignFinal(mdctx, NULL, &temp_signature_size) != 1)
-    {
-        log_d("ecall ec_sign EVP_DigestSignFinal1 failed.\n");
-        goto out;
-    }
-    if (EVP_DigestSignFinal(mdctx, signature, &temp_signature_size) != 1)
-    {
-        log_d("ecall ec_sign EVP_DigestSignFinal failed.\n");
-        goto out;
-    }
-    // return the exact length
-    *signature_len = (uint32_t)temp_signature_size;
 
     ret = SGX_SUCCESS;
 
 out:
-    if (evpkey)
-        EVP_PKEY_free(evpkey);
     if (mdctx)
         EVP_MD_CTX_free(mdctx);
+
+    memset_s(digestMessage, digestMessage_len, 0, digestMessage_len);
+    SAFE_FREE(digestMessage);
 
     return ret;
 }
@@ -718,7 +707,8 @@ sgx_status_t rsa_verify(RSA *rsa_pubkey,
                         uint32_t data_len,
                         const uint8_t *signature,
                         uint32_t signature_len,
-                        bool *result)
+                        bool *result,
+                        int saltlen)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -776,10 +766,21 @@ sgx_status_t rsa_verify(RSA *rsa_pubkey,
     }
     if (padding_mode == RSA_PKCS1_PSS_PADDING)
     {
-        if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
+        if(saltlen == - 1)
         {
-            log_d("ecall rsa_verify EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
-            goto out;
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, EVP_MD_size(digestMode)) != 1)
+            {
+                log_d("ecall rsa_verify EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
+                goto out;
+            }
+        }
+        else
+        {
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, saltlen) != 1)
+            {
+                log_d("ecall rsa_verify EVP_PKEY_CTX_set_rsa_pss_saltlen failed.\n");
+                goto out;
+            }
         }
     }
     // update verify
@@ -824,22 +825,11 @@ sgx_status_t ecc_verify(EC_KEY *ec_key,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    EVP_PKEY *evpkey = NULL;
     EVP_MD_CTX *mdctx = NULL;
-    EVP_PKEY_CTX *pkey_ctx = NULL;
+    uint8_t *digestMessage = NULL;
+    uint32_t digestMessage_len = MAX_DIGEST_LENGTH;
 
-    evpkey = EVP_PKEY_new();
-    if (evpkey == NULL)
-    {
-        log_d("ecall ec_verify generate evpkey failed.\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
-    }
-    if (EVP_PKEY_set1_EC_KEY(evpkey, ec_key) != 1)
-    {
-        log_d("ecall ec_verify failed to set the evpkey by RSA_KEY\n");
-        goto out;
-    }
+    digestMessage = (uint8_t *)malloc(digestMessage_len);
 
     mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL)
@@ -853,19 +843,24 @@ sgx_status_t ecc_verify(EC_KEY *ec_key,
         log_d("ecall ec_verify EVP_MD_CTX initialize failed.\n");
         goto out;
     }
-    if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
+    //digest message
+    if (EVP_DigestInit(mdctx, digestMode) != 1)
     {
-        log_d("ecall ec_verify EVP_DigestVerifyInit failed.\n");
+        log_d("ecall ec_verify EVP_DigestInit failed.\n");
+        goto out;
+    }
+    if (EVP_DigestUpdate(mdctx, data, data_len) != 1)
+    {
+        log_d("ecall ec_verify EVP_DigestUpdate failed.\n");
+        goto out;
+    }
+    if (EVP_DigestFinal(mdctx, digestMessage, &digestMessage_len) != 1)
+    {
+        log_d("ecall ec_verify EVP_DigestFinal failed.\n");
         goto out;
     }
 
-    if (EVP_DigestVerifyUpdate(mdctx, data, data_len) != 1)
-    {
-        log_d("ecall ec_verify EVP_DigestVerifyUpdate failed.\n");
-        goto out;
-    }
-
-    switch (EVP_DigestVerifyFinal(mdctx, signature, signature_len))
+    switch (ECDSA_verify(0, digestMessage, digestMessage_len, signature, signature_len, ec_key))
     {
     case 1:
         *result = true;
@@ -875,17 +870,18 @@ sgx_status_t ecc_verify(EC_KEY *ec_key,
         *result = false;
         break;
     default:
-        log_d("ecall ec_verify EVP_DigestVerifyUpdate failed.\n");
+        log_d("ecall ECDSA_verify failed.\n");
         goto out;
     }
 
     ret = SGX_SUCCESS;
 
 out:
-    if (evpkey)
-        EVP_PKEY_free(evpkey);
     if (mdctx)
         EVP_MD_CTX_free(mdctx);
+
+    memset_s(digestMessage, MAX_DIGEST_LENGTH, 0, MAX_DIGEST_LENGTH);
+    SAFE_FREE(digestMessage);
 
     return ret;
 }
@@ -1937,7 +1933,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
         goto out;
     }
     ret = rsa_verify(rsa_pubkey, digestMode, cmk->metadata.padding_mode,
-                     data->data, data->datalen, signature->data, signature->datalen, result);
+                     data->data, data->datalen, signature->data, signature->datalen, result, -1);
 out:
     if (rsa_pubkey)
         RSA_free(rsa_pubkey);

@@ -130,13 +130,14 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk_blob,
                            ehsm_data_t *signature);
 
 sgx_status_t rsa_verify(RSA *rsa_pubkey,
-                        const EVP_MD *digestMode,
-                        ehsm_padding_mode_t padding_mode,
-                        const uint8_t *data,
-                        uint32_t data_len,
-                        const uint8_t *signature,
-                        uint32_t signature_len,
-                        bool *result);
+                       const EVP_MD *digestMode,
+                       ehsm_padding_mode_t padding_mode,
+                       const uint8_t *data,
+                       uint32_t data_len,
+                       const uint8_t *signature,
+                       uint32_t signature_len,
+                       bool *result,
+                       int saltlen);
 
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
