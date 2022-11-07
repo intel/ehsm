@@ -11,6 +11,8 @@
 #include "openssl/bio.h"
 #include "openssl/bn.h"
 
+#include "enclave_hsm_t.h"
+
 using namespace std;
 
 #define GET_PARAMETER(x) \
@@ -732,6 +734,47 @@ static bool ecc_sign_verify_test()
     return 1;
 }
 
+static bool sm2_crypto_test()
+{
+    int index = 1;
+    size_t length = 128;
+    for (int i = 0; i < index; i++)
+    {
+        // create key
+        EC_GROUP *ec_group = EC_GROUP_new_by_curve_name(NID_sm2);
+        EC_KEY *ec_key = EC_KEY_new();
+        EC_KEY_set_group(ec_key, ec_group);
+        EC_KEY_generate_key(ec_key);
+        BIO *bio = BIO_new(BIO_s_mem());
+        PEM_write_bio_EC_PUBKEY(bio, ec_key);
+        PEM_write_bio_ECPrivateKey(bio, ec_key, NULL, NULL, 0, NULL, NULL);
+
+        // encryption
+        uint8_t plaintext[length];
+        sgx_read_rand(plaintext, length);
+        EVP_PKEY *pkey1 = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+        EVP_PKEY_set_alias_type(pkey1, EVP_PKEY_SM2);
+        EVP_PKEY_CTX *ectx = EVP_PKEY_CTX_new(pkey1, NULL);
+        EVP_PKEY_encrypt_init(ectx);
+        size_t cipher_len;
+        EVP_PKEY_encrypt(ectx, NULL, &cipher_len, plaintext, length);
+        uint8_t ciphertext[cipher_len] = {0};
+        EVP_PKEY_encrypt(ectx, ciphertext, &cipher_len, plaintext, length);
+
+        // decryption
+        uint8_t _plaintext[length] = {0};
+        EVP_PKEY *pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+        EVP_PKEY_set_alias_type(pkey2, EVP_PKEY_SM2);
+        EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(pkey2, NULL);
+        EVP_PKEY_decrypt_init(dctx);
+        if (EVP_PKEY_decrypt(dctx, _plaintext, &length, ciphertext, cipher_len) <= 0)
+            return 0;
+        if (memcmp(plaintext, _plaintext, length) != 0)
+            return 0;
+    }
+    return 1;
+}
+
 sgx_status_t ehsm_self_test()
 {
     if (aes_gcm_crypto_test() &
@@ -739,7 +782,8 @@ sgx_status_t ehsm_self_test()
         rsa_crypto_test() &
         rsa_sign_verify_test() &
         ecc_sign_verify_test() &
-        sm2_sign_verify_test())
+        sm2_sign_verify_test() &
+        sm2_crypto_test())
     {
         return SGX_SUCCESS;
     }
