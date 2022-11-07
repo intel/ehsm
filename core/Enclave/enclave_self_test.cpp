@@ -18,9 +18,6 @@ using namespace std;
 
 #define TEST_COMPARE(x) (memcmp(x, _##x, VECTOR_LENGTH(#x)) == 0)
 
-// TODO : add test vector for sm2 crypto
-// TODO : add test vector for sm2 sign/verify
-
 /**
  * @brief make string to hex array, string length needs to be a even number
  *
@@ -241,14 +238,13 @@ static bool rsa_crypto(map<string, string> test_vector)
 
     uint8_t _plaintext[VECTOR_LENGTH("plaintext")] = {0};
 
-    RSA_private_decrypt(RSA_size(key), ciphertext, _plaintext, key, 1);
+    RSA_private_decrypt(RSA_size(key), ciphertext, _plaintext, key, 4);
 
     return TEST_COMPARE(plaintext);
 }
 
-static sgx_status_t aes_gcm_crypto_test()
+static bool aes_gcm_crypto_test()
 {
-    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
     for (auto test_vector : aes_gcm_crypto_test_vectors)
     {
@@ -267,17 +263,14 @@ static sgx_status_t aes_gcm_crypto_test()
 
     if (index != aes_gcm_crypto_test_vectors.size() + 1)
     {
-        return SGX_ERROR_INVALID_FUNCTION;
+        return 0;
     }
 
-    ret = SGX_SUCCESS;
-
-    return ret;
+    return 1;
 }
 
-static sgx_status_t sm4_crypto_test()
+static bool sm4_crypto_test()
 {
-    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
 
     for (auto test_vector : sm4_ctr_crypto_test_vectors)
@@ -311,12 +304,10 @@ static sgx_status_t sm4_crypto_test()
 
     if (index != sm4_ctr_crypto_test_vectors.size() + sm4_cbc_crypto_test_vectors.size() + 1)
     {
-        return SGX_ERROR_INVALID_FUNCTION;
+        return 0;
     }
 
-    ret = SGX_SUCCESS;
-
-    return ret;
+    return 1;
 }
 
 static EC_GROUP *create_EC_group(const char *p_hex, const char *a_hex,
@@ -467,7 +458,6 @@ static bool sm2_verify_test(map<string, string> test_vector)
         printf(" Signature error\n");
         goto out;
     }
-    printf("sm2 signature verify success.\n");
     ret = true;
 out:
     if (signature)
@@ -482,9 +472,8 @@ out:
         EC_GROUP_free(ec_group);
     return ret;
 }
-static sgx_status_t sm2_sign_verify_test()
+static bool sm2_sign_verify_test()
 {
-    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
     for (auto test_vector : sm2_sign_verify_test_vectors)
     {
@@ -497,16 +486,13 @@ static sgx_status_t sm2_sign_verify_test()
     }
     if (index != sm2_sign_verify_test_vectors.size() + 1)
     {
-        return SGX_ERROR_INVALID_FUNCTION;
+        return 0;
     }
 
-    ret = SGX_SUCCESS;
-
-    return ret;
+    return 1;
 }
-static sgx_status_t rsa_crypto_test()
+static bool rsa_crypto_test()
 {
-    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
 
     for (auto test_vector : rsa_crypto_test_vectors)
@@ -521,12 +507,10 @@ static sgx_status_t rsa_crypto_test()
 
     if (index != rsa_crypto_test_vectors.size() + 1)
     {
-        return SGX_ERROR_INVALID_FUNCTION;
+        return 0;
     }
 
-    ret = SGX_SUCCESS;
-
-    return ret;
+    return 1;
 }
 
 static bool rsa_sign_verify(map<string, string> test_vector)
@@ -569,8 +553,7 @@ static bool rsa_sign_verify(map<string, string> test_vector)
 
 static bool rsa_PSS_sign_verify(map<string, string> test_vector)
 {
-    /* TODO
-    rsa PSS padding mode sign self test was not done */
+    /* TODO : rsa PSS padding mode sign self test was not done */
     GET_PARAMETER(n);
     GET_PARAMETER(e);
     GET_PARAMETER(msg);
@@ -607,9 +590,8 @@ static bool rsa_PSS_sign_verify(map<string, string> test_vector)
     return true;
 }
 
-static sgx_status_t rsa_sign_verify_test()
+static bool rsa_sign_verify_test()
 {
-    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
     for (auto test_vector : rsa_sign_verify_test_vectors)
     {
@@ -632,12 +614,10 @@ static sgx_status_t rsa_sign_verify_test()
 
     if (index != (rsa_sign_verify_test_vectors.size() + rsa_PSS_sign_verify_test_vectors.size() + 1))
     {
-        return SGX_ERROR_INVALID_FUNCTION;
+        return 0;
     }
 
-    ret = SGX_SUCCESS;
-
-    return ret;
+    return 1;
 }
 
 static bool ecc_sign_verify(map<string, string> test_vector)
@@ -675,8 +655,7 @@ static bool ecc_sign_verify(map<string, string> test_vector)
         log_d("EC_KEY_set_private_key failed.\n");
         goto out;
     }
-    /* TODO
-    ec sign self test was not done */
+    /* TODO : ec sign self test was not done */
     if (EC_KEY_set_public_key_affine_coordinates(ec_key, BN_bin2bn(Qx, VECTOR_LENGTH("Qx"), NULL), BN_bin2bn(Qy, VECTOR_LENGTH("Qy"), NULL)) != 1)
     {
         log_d("EC_KEY_set_public_key_affine_coordinates failed.\n");
@@ -732,9 +711,8 @@ out:
     return ret;
 }
 
-static sgx_status_t ecc_sign_verify_test()
+static bool ecc_sign_verify_test()
 {
-    sgx_status_t ret = SGX_ERROR_INVALID_FUNCTION;
     int index = 1;
     for (auto test_vector : ecc_sign_verify_test_vectors)
     {
@@ -748,29 +726,23 @@ static sgx_status_t ecc_sign_verify_test()
 
     if (index != ecc_sign_verify_test_vectors.size() + 1)
     {
-        return SGX_ERROR_INVALID_FUNCTION;
+        return 0;
     }
 
-    ret = SGX_SUCCESS;
-
-    return ret;
+    return 1;
 }
 
 sgx_status_t ehsm_self_test()
 {
-    sgx_status_t ret = SGX_SUCCESS;
-    if (aes_gcm_crypto_test() != SGX_SUCCESS)
-        ret = SGX_ERROR_INVALID_FUNCTION;
-    if (sm4_crypto_test() != SGX_SUCCESS)
-        ret = SGX_ERROR_INVALID_FUNCTION;
-    if (rsa_crypto_test() != SGX_SUCCESS)
-        ret = SGX_ERROR_INVALID_FUNCTION;
-    if (rsa_sign_verify_test() != SGX_SUCCESS)
-        ret = SGX_ERROR_INVALID_FUNCTION;
-    if (ecc_sign_verify_test() != SGX_SUCCESS)
-        ret = SGX_ERROR_INVALID_FUNCTION;
-    if (sm2_sign_verify_test() != SGX_SUCCESS)
-        ret = SGX_ERROR_INVALID_FUNCTION;
+    if (aes_gcm_crypto_test() &
+        sm4_crypto_test() &
+        rsa_crypto_test() &
+        rsa_sign_verify_test() &
+        ecc_sign_verify_test() &
+        sm2_sign_verify_test())
+    {
+        return SGX_SUCCESS;
+    }
 
-    return ret;
+    return SGX_ERROR_INVALID_FUNCTION;
 }
