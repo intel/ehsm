@@ -90,7 +90,7 @@ static uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec
     case EH_RSA_4096:
         return 512 - padding_size;
     case EH_SM2:
-        return 64; // why 64: sm2 key length is 256 bits
+        return 255; // https://github.com/guanzhi/GmSSL/blob/master/include/gmssl/sm2.h
     default:
         return 0;
     }
