@@ -14,4 +14,10 @@ using namespace std;
 
 #define VECTOR_LENGTH(x) (uint32_t)(test_vector[x].length()) / 2
 
-sgx_status_t ehsm_self_test();
+bool aes_gcm_crypto_test();
+bool sm4_crypto_test();
+bool rsa_crypto_test();
+bool rsa_sign_verify_test();
+bool ecc_sign_verify_test();
+bool sm2_sign_verify_test();
+bool sm2_crypto_test();

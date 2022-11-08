@@ -245,7 +245,7 @@ static bool rsa_crypto(map<string, string> test_vector)
     return TEST_COMPARE(plaintext);
 }
 
-static bool aes_gcm_crypto_test()
+bool aes_gcm_crypto_test()
 {
     int index = 1;
     for (auto test_vector : aes_gcm_crypto_test_vectors)
@@ -271,7 +271,7 @@ static bool aes_gcm_crypto_test()
     return 1;
 }
 
-static bool sm4_crypto_test()
+bool sm4_crypto_test()
 {
     int index = 1;
 
@@ -474,7 +474,7 @@ out:
         EC_GROUP_free(ec_group);
     return ret;
 }
-static bool sm2_sign_verify_test()
+bool sm2_sign_verify_test()
 {
     int index = 1;
     for (auto test_vector : sm2_sign_verify_test_vectors)
@@ -493,7 +493,7 @@ static bool sm2_sign_verify_test()
 
     return 1;
 }
-static bool rsa_crypto_test()
+bool rsa_crypto_test()
 {
     int index = 1;
 
@@ -592,7 +592,7 @@ static bool rsa_PSS_sign_verify(map<string, string> test_vector)
     return true;
 }
 
-static bool rsa_sign_verify_test()
+bool rsa_sign_verify_test()
 {
     int index = 1;
     for (auto test_vector : rsa_sign_verify_test_vectors)
@@ -713,7 +713,7 @@ out:
     return ret;
 }
 
-static bool ecc_sign_verify_test()
+bool ecc_sign_verify_test()
 {
     int index = 1;
     for (auto test_vector : ecc_sign_verify_test_vectors)
@@ -734,7 +734,7 @@ static bool ecc_sign_verify_test()
     return 1;
 }
 
-static bool sm2_crypto_test()
+bool sm2_crypto_test()
 {
     int index = 1;
     size_t length = 128;

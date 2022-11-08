@@ -117,11 +117,18 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
 
 sgx_status_t enclave_self_test()
 {
-    sgx_status_t ret;
+    if (aes_gcm_crypto_test() &
+        sm4_crypto_test() &
+        rsa_crypto_test() &
+        rsa_sign_verify_test() &
+        ecc_sign_verify_test() &
+        sm2_sign_verify_test() &
+        sm2_crypto_test())
+    {
+        return SGX_SUCCESS;
+    }
 
-    ret = ehsm_self_test();
-
-    return ret;
+    return SGX_ERROR_INVALID_FUNCTION;
 }
 
 sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
@@ -599,7 +606,7 @@ sgx_status_t enclave_generate_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_OUT_OF_MEMORY;
     }
-    if (RAND_bytes(temp_datakey, plaintext->datalen) != 1)
+    if (sgx_read_rand(temp_datakey, plaintext->datalen) != SGX_SUCCESS)
     {
         free(temp_datakey);
         return SGX_ERROR_OUT_OF_MEMORY;
