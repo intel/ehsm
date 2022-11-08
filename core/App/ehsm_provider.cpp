@@ -487,8 +487,8 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
-        !validate_params(digest, RSA_OAEP_4096_DIGEST_SIZE) ||
-        !validate_params(signature, RSA_OAEP_4096_SIGNATURE_SIZE))
+        !validate_params(digest, MAX_DIGEST_DATA_SIZE) ||
+        !validate_params(signature, MAX_SIGNATURE_SIZE))
     {
         return EH_ARGUMENTS_BAD;
     }
@@ -526,8 +526,8 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
-        !validate_params(digest, RSA_OAEP_4096_DIGEST_SIZE) ||
-        !validate_params(signature, RSA_OAEP_4096_SIGNATURE_SIZE))
+        !validate_params(digest, MAX_DIGEST_DATA_SIZE) ||
+        !validate_params(signature, MAX_SIGNATURE_SIZE))
     {
         return EH_ARGUMENTS_BAD;
     }
@@ -896,16 +896,15 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
     }
 
     // call DCAP quote verify library for quote verification with Intel QvE.
-    dcap_ret = sgx_qv_verify_quote(
-        quote->data,
-        quote->datalen,
-        NULL,
-        current_time,
-        &collateral_expiration_status,
-        &quote_verification_result,
-        &qve_report_info,
-        supplemental_data_size,
-        p_supplemental_data);
+    dcap_ret = sgx_qv_verify_quote(quote->data,
+                                   quote->datalen,
+                                   NULL,
+                                   current_time,
+                                   &collateral_expiration_status,
+                                   &quote_verification_result,
+                                   &qve_report_info,
+                                   supplemental_data_size,
+                                   p_supplemental_data);
     if (dcap_ret != SGX_QL_SUCCESS)
     {
         log_e("Error in sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);

@@ -157,7 +157,7 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
     case EH_EC_P224:
     case EH_EC_P256:
     case EH_EC_P384:
-    case EH_EC_P512:
+    case EH_EC_P521:
         ret = ehsm_create_ec_key(cmk);
         break;
     case EH_SM2:

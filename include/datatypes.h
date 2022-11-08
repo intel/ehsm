@@ -91,6 +91,8 @@ typedef int errno_t;
 #define EC_SM2_SIGNATURE_MAX_SIZE         72
 
 #define RSA_OAEP_4096_DIGEST_SIZE         264
+#define MAX_DIGEST_DATA_SIZE         (6*1024)
+#define MAX_SIGNATURE_SIZE                512
 
 #define EH_AES_GCM_IV_SIZE  12
 #define EH_AES_GCM_MAC_SIZE 16
@@ -159,7 +161,7 @@ typedef enum {
     EH_EC_P224 = 20,
     EH_EC_P256 = 21,
     EH_EC_P384 = 22,
-    EH_EC_P512 = 23,
+    EH_EC_P521 = 23,
     EH_HMAC = 30,
     EH_SM2 = 31,
     EH_SM4_CTR = 32,

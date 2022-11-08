@@ -76,7 +76,7 @@ sgx_status_t ehsm_calc_keyblob_size(const uint32_t keyspec, uint32_t &key_size)
     case EH_EC_P256:
     case EH_EC_P224:
     case EH_EC_P384:
-    case EH_EC_P512:
+    case EH_EC_P521:
     case EH_SM2:
         key_size = PEM_BUFSIZE + sizeof(sgx_aes_gcm_data_ex_t);
         break;
@@ -394,9 +394,9 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk) // https://github.com/intel
     case EH_EC_P384:
         nid = NID_secp384r1;
         break;
-    // case EH_EC_P512:
-    //     nid = NID_secp521r1;
-    //     break;
+    case EH_EC_P521:
+        nid = NID_secp521r1;
+        break;
     }
 
     if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, nid) <= 0)
