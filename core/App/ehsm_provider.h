@@ -109,7 +109,7 @@ Create a customer master key with the following metadatas
     -EH_RSA_2048,
     -EH_RSA_3072,
     -EH_EC_P256,
-    -EH_EC_P512,
+    -EH_EC_P521,
     -EH_SM2,
     -EH_SM4_CBC,
 .origin;

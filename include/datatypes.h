@@ -159,7 +159,7 @@ typedef enum {
     EH_EC_P224 = 20,
     EH_EC_P256 = 21,
     EH_EC_P384 = 22,
-    EH_EC_P512 = 23,
+    EH_EC_P521 = 23,
     EH_HMAC = 30,
     EH_SM2 = 31,
     EH_SM4_CTR = 32,
