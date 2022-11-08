@@ -238,6 +238,17 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
     return ret;
 }
 
+static bool test_RSA_keypair(RSA *keypair)
+{
+    uint8_t plaintext[] = "test_rsa_keypair";
+    uint8_t ciphertext[RSA_size(keypair)] = {0};
+    uint8_t _plaintext[sizeof(plaintext) / sizeof(plaintext[0])] = {0};
+    RSA_public_encrypt(sizeof(plaintext) / sizeof(plaintext[0]), (unsigned char *)plaintext, ciphertext, keypair, 4);
+    RSA_private_decrypt(RSA_size(keypair), ciphertext, _plaintext, keypair, 4);
+
+    return (memcmp(plaintext, _plaintext, sizeof(plaintext) / sizeof(plaintext[0])) == 0);
+}
+
 sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -278,6 +289,11 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         goto out;
     }
     if (rsa_keypair == NULL) // https://doc.ecoscentric.com/ref/openssl-crypto-rsa-generate-key.html
+    {
+        goto out;
+    }
+
+    if (!test_RSA_keypair(rsa_keypair))
     {
         goto out;
     }
