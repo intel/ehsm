@@ -28,9 +28,7 @@ using namespace std;
 
 sgx_enclave_id_t g_enclave_id;
 
-namespace ra_getkey {
-
-int32_t Initialize_ra(std::string deploy_ip_addr, uint32_t deploy_port) {
+int32_t ra_getkey(std::string deploy_ip_addr, uint32_t deploy_port) {
     log_i("Applying for a DomainKey from eHSM-KMS domainKey server.");
     int32_t ret = -1;
     int32_t retry_count = 5;
@@ -73,6 +71,4 @@ int32_t Initialize_ra(std::string deploy_ip_addr, uint32_t deploy_port) {
 out:
     close(sockfd);
     return ret;
-}
-
 }

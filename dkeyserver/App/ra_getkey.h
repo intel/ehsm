@@ -38,10 +38,6 @@
 
 using namespace std;
 
-namespace ra_getkey {
-
-int32_t Initialize_ra(std::string deploy_ip_addr, uint32_t deploy_port);
-
-}
+int32_t ra_getkey(std::string deploy_ip_addr, uint32_t deploy_port);
 
 #endif
