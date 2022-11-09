@@ -47,16 +47,6 @@ spec:
       labels:
         app: dkey-main
     spec:
-      volumes:
-      - name: dev-enclave
-        hostPath:
-          path: /dev/sgx/enclave
-      - name: dev-provision
-        hostPath:
-          path: /dev/sgx/provision
-      - name: dev-aesmd
-        hostPath:
-          path: /var/run/aesmd
       containers:
       - name: dkey-main
         image: intel/dkeyserver:latest
@@ -73,13 +63,6 @@ spec:
             port: dkey-main-port
           initialDelaySeconds: 20
           periodSeconds: 10
-        volumeMounts:
-        - mountPath: /dev/sgx/enclave
-          name: dev-enclave
-        - mountPath: /dev/sgx/provision
-          name: dev-provision
-        - mountPath: /var/run/aesmd
-          name: dev-aesmd
         ports: 
         - containerPort: 8888
           name: dkey-main-port
@@ -112,16 +95,6 @@ spec:
       labels:
         app: worker
     spec:
-      volumes:
-      - name: dev-enclave
-        hostPath:
-          path: /dev/sgx/enclave
-      - name: dev-provision
-        hostPath:
-          path: /dev/sgx/provision
-      - name: dev-aesmd
-        hostPath:
-          path: /var/run/aesmd
       initContainers:
       - name: init-worker
         # this images same the container's image.
@@ -145,13 +118,6 @@ spec:
           periodSeconds: 10
         securityContext:
           privileged: true
-        volumeMounts:
-        - mountPath: /dev/sgx/enclave
-          name: dev-enclave
-        - mountPath: /dev/sgx/provision
-          name: dev-provision
-        - mountPath: /var/run/aesmd
-          name: dev-aesmd
         env:
         - name: PCCS_URL 
           valueFrom:
