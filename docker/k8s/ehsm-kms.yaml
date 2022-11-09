@@ -161,6 +161,16 @@ spec:
         volumeMounts:
         - mountPath: /var/run/ehsm
           name: dev-dkeyprovision
+        readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "test -e /tmp/dkeycache_isready.status && echo 0"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+        livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "pgrep ehsm-dkeycache && echo 0"]
+            initialDelaySeconds: 60
+            periodSeconds: 10
         env:
         - name: PCCS_URL 
           valueFrom:
@@ -225,6 +235,20 @@ spec:
         volumeMounts:
         - mountPath: /var/run/ehsm
           name: dev-dkeyprovision
+        readinessProbe:
+          httpGet:
+            path: /
+            port: ehsm-kms-port
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: ehsm-kms-port
+            scheme: HTTPS
+          initialDelaySeconds: 60
+          periodSeconds: 5
         env:
         - name: PCCS_URL 
           valueFrom:
@@ -297,7 +321,7 @@ spec:
               name: ehsm-configmap
               key: openssl_crt
         ports:
-        - name: ehsm-kms
+        - name: ehsm-kms-port
           containerPort: 9000
 ---
 apiVersion: v1
@@ -320,4 +344,3 @@ spec:
   externalIPs:
   # This IP is ehsm_kms_service access IP, You need to adjust 1.2.3.4 to the service IP you want to expose
   - 1.2.3.4
-
