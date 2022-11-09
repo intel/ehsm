@@ -1549,7 +1549,6 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 
     uint8_t *sm2_keypair = NULL;
     BIO *bio = NULL;
-    RSA *sm2_pubkey = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ectx = NULL;
 
@@ -1626,8 +1625,6 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 out:
     if (bio)
         BIO_free(bio);
-    if (sm2_pubkey)
-        RSA_free(sm2_pubkey);
     if (pkey)
         EVP_PKEY_free(pkey);
     if (ectx)

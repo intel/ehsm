@@ -108,6 +108,23 @@ static ehsm_padding_mode_t get_paddingmode(int paddingmode)
     }
 }
 
+static int getCurve(int curve)
+{
+    switch (curve)
+    {
+    case 224:
+        return NID_secp224r1;
+    case 256:
+        return NID_secp256k1;
+    case 384:
+        return NID_secp384r1;
+    case 521:
+        return NID_secp521r1;
+    default:
+        return 0;
+    }
+}
+
 static void RSA_create_key(RSA *key, const char *n, const char *e, const char *d)
 
 {
@@ -252,12 +269,12 @@ bool aes_gcm_crypto_test()
     {
         if (!aes_gcm_encrypt(test_vector))
         {
-            printf("fail encrypt at %s case %d\n", __FUNCTION__, index);
+            log_d("fail encrypt at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         if (!aes_gcm_decrypt(test_vector))
         {
-            printf("fail decrypt at %s case %d\n", __FUNCTION__, index);
+            log_d("fail decrypt at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         index++;
@@ -279,12 +296,12 @@ bool sm4_crypto_test()
     {
         if (!sm4_ctr_encryption(test_vector))
         {
-            printf("fail encrypt at %s case %d\n", __FUNCTION__, index);
+            log_d("fail encrypt at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         if (!sm4_ctr_decryption(test_vector))
         {
-            printf("fail decrypt at %s case %d\n", __FUNCTION__, index);
+            log_d("fail decrypt at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         index++;
@@ -293,12 +310,12 @@ bool sm4_crypto_test()
     {
         if (!sm4_cbc_encryption(test_vector))
         {
-            printf("fail encrypt at %s case %d\n", __FUNCTION__, index);
+            log_d("fail encrypt at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         if (!sm4_cbc_decryption(test_vector))
         {
-            printf("fail decrypt at %s case %d\n", __FUNCTION__, index);
+            log_d("fail decrypt at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         index++;
@@ -377,7 +394,7 @@ static bool sm2_verify_test(map<string, string> test_vector)
     ec_key = EC_KEY_new();
     if (ec_key == NULL)
     {
-        printf("EC_KEY_new failed.\n");
+        log_d("EC_KEY_new failed.\n");
         goto out;
     }
     ec_group = create_EC_group(test_vector["P"].c_str(),
@@ -389,75 +406,75 @@ static bool sm2_verify_test(map<string, string> test_vector)
                                test_vector["Cof"].c_str());
     if (ec_group == NULL)
     {
-        printf("create_EC_group failed.\n");
+        log_d("create_EC_group failed.\n");
         goto out;
     }
     if (!EC_KEY_set_group(ec_key, ec_group))
     {
-        printf("EC_KEY_set_group failed.\n");
+        log_d("EC_KEY_set_group failed.\n");
         goto out;
     }
 
     if (!EC_KEY_set_private_key(ec_key, BN_bin2bn(Priv, VECTOR_LENGTH("Priv"), NULL)))
     {
-        printf("EC_KEY_set_private_key failed.\n");
+        log_d("EC_KEY_set_private_key failed.\n");
         goto out;
     }
     pt = EC_POINT_new(ec_group);
     if (pt == NULL)
     {
-        printf("EC_POINT_new failed.\n");
+        log_d("EC_POINT_new failed.\n");
         goto out;
     }
     if (!EC_POINT_mul(ec_group, pt, BN_bin2bn(Priv, VECTOR_LENGTH("Priv"), NULL), NULL, NULL, NULL))
     {
-        printf("EC_POINT_mul failed.\n");
+        log_d("EC_POINT_mul failed.\n");
         goto out;
     }
     if (!EC_KEY_set_public_key(ec_key, pt))
     {
-        printf("EC_KEY_set_public_key failed.\n");
+        log_d("EC_KEY_set_public_key failed.\n");
         goto out;
     }
     ecdsa_sig = ECDSA_SIG_new();
     if (ecdsa_sig == NULL)
     {
-        printf("ECDSA_SIG_new failed.\n");
+        log_d("ECDSA_SIG_new failed.\n");
         goto out;
     }
     ecdsa_signiture_max_size = ECDSA_size(ec_key);
     if (ecdsa_signiture_max_size != 72)
     {
-        printf("ec key error\n");
+        log_d("ec key error\n");
         goto out;
     }
     signature = (uint8_t *)malloc(ecdsa_signiture_max_size);
     if (signature == NULL)
     {
-        printf("signature malloc failed.\n");
+        log_d("signature malloc failed.\n");
         goto out;
     }
     if (ECDSA_SIG_set0(ecdsa_sig, BN_bin2bn(R, VECTOR_LENGTH("R"), NULL), BN_bin2bn(S, VECTOR_LENGTH("S"), NULL)) != 1)
     {
-        printf("ECDSA_SIG_set0 failed.\n");
+        log_d("ECDSA_SIG_set0 failed.\n");
         goto out;
     }
     tmp_sig_ptr = signature;
     sig_len = i2d_ECDSA_SIG(ecdsa_sig, &tmp_sig_ptr);
     if (sig_len <= 0)
     {
-        printf("i2d_ECDSA_SIG failed\n");
+        log_d("i2d_ECDSA_SIG failed\n");
         goto out;
     }
     if (sm2_verify(ec_key, EVP_sm3(), (const uint8_t *)test_vector["Msg"].c_str(), strlen(test_vector["Msg"].c_str()),
                    signature, sig_len, &result, (const uint8_t *)(test_vector["UserID"].c_str()), strlen(test_vector["UserID"].c_str())) != SGX_SUCCESS)
     {
-        printf("sm2_verify failed\n");
+        log_d("sm2_verify failed\n");
         goto out;
     }
     if (result == false)
     {
-        printf(" Signature error\n");
+        log_d(" Signature error\n");
         goto out;
     }
     ret = true;
@@ -481,7 +498,7 @@ bool sm2_sign_verify_test()
     {
         if (!sm2_verify_test(test_vector))
         {
-            printf("fail at %s case %d\n", __FUNCTION__, index);
+            log_d("fail at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         index++;
@@ -501,7 +518,7 @@ bool rsa_crypto_test()
     {
         if (!rsa_crypto(test_vector))
         {
-            printf("fail decrypt at %s case %d\n", __FUNCTION__, index);
+            log_d("fail decrypt at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         index++;
@@ -599,7 +616,7 @@ bool rsa_sign_verify_test()
     {
         if (!rsa_sign_verify(test_vector))
         {
-            printf("fail at %s case %d\n", __FUNCTION__, index);
+            log_d("fail at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         index++;
@@ -608,7 +625,7 @@ bool rsa_sign_verify_test()
     {
         if (!rsa_PSS_sign_verify(test_vector))
         {
-            printf("fail at %s case %d\n", __FUNCTION__, index);
+            log_d("fail at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         index++;
@@ -631,17 +648,18 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     uint8_t *signature = NULL;
     uint8_t *tmp = NULL;
     uint32_t sig_len = 0;
-    GET_PARAMETER(Qx);
-    GET_PARAMETER(Qy);
-    GET_PARAMETER(R);
-    GET_PARAMETER(S);
-    GET_PARAMETER(d);
+    BIGNUM *Qx = BN_new();
+    BIGNUM *Qy = BN_new();
+    BIGNUM *R = BN_new();
+    BIGNUM *S = BN_new();
+
     int digestmode = atoi((test_vector["digestmode"]).c_str());
+    int curve = atoi((test_vector["curve"]).c_str());
     GET_PARAMETER(Msg);
     bool ret = false;
     bool result = false;
 
-    ec_key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+    ec_key = EC_KEY_new_by_curve_name(getCurve(curve));
     if (ec_key == NULL)
     {
         goto out;
@@ -651,21 +669,20 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     {
         goto out;
     }
+    BN_hex2bn(&Qx, (test_vector["Qx"]).c_str());
+    BN_hex2bn(&Qy, (test_vector["Qy"]).c_str());
+    BN_hex2bn(&R, (test_vector["R"]).c_str());
+    BN_hex2bn(&S, (test_vector["S"]).c_str());
 
-    if (EC_KEY_set_private_key(ec_key, BN_bin2bn(d, VECTOR_LENGTH("d"), NULL)) != 1)
-    {
-        log_d("EC_KEY_set_private_key failed.\n");
-        goto out;
-    }
     /* TODO : ec sign self test was not done */
-    if (EC_KEY_set_public_key_affine_coordinates(ec_key, BN_bin2bn(Qx, VECTOR_LENGTH("Qx"), NULL), BN_bin2bn(Qy, VECTOR_LENGTH("Qy"), NULL)) != 1)
+    if (EC_KEY_set_public_key_affine_coordinates(ec_key, Qx, Qy) != 1)
     {
         log_d("EC_KEY_set_public_key_affine_coordinates failed.\n");
         goto out;
     }
     ecdsa_signiture_max_size = ECDSA_size(ec_key);
     {
-        if (ecdsa_signiture_max_size != 72)
+        if (ecdsa_signiture_max_size <= 0 )
         {
             log_d("ec key error\n");
             goto out;
@@ -674,7 +691,7 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     signature = (uint8_t *)malloc(ecdsa_signiture_max_size);
 
     // Concatenate R and S into signature in uint8_t*
-    if (ECDSA_SIG_set0(ecdsa_sig, BN_bin2bn(R, VECTOR_LENGTH("R"), NULL), BN_bin2bn(S, VECTOR_LENGTH("S"), NULL)) != 1)
+    if (ECDSA_SIG_set0(ecdsa_sig, R, S) != 1)
     {
         log_d("ECDSA_SIG_set0 failed.\n");
         goto out;
@@ -720,7 +737,7 @@ bool ecc_sign_verify_test()
     {
         if (!ecc_sign_verify(test_vector))
         {
-            printf("fail at %s case %d\n", __FUNCTION__, index);
+            log_d("fail at %s case %d\n", __FUNCTION__, index);
             continue;
         }
         index++;
