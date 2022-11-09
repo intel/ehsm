@@ -18,7 +18,6 @@ extern sgx_enclave_id_t g_enclave_id;
 
 using namespace std;
 using namespace socket_server;
-using namespace ra_getkey;
 
 void ocall_print_string(const char *str)
 {
@@ -157,13 +156,17 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         // process argv
         parse_args(argc, argv);
+        log_i("Serving as backup dkeyserver");
         log_i("DomainKey Server IP:\t\t%s", deploy_ip_addr.c_str());
         log_i("DomainKey Server port:\t%d", deploy_port);
-        ret = Initialize_ra(deploy_ip_addr, deploy_port);
+        ret = ra_getkey(deploy_ip_addr, deploy_port);
         if (ret != 0) {
             sgx_destroy_enclave(g_enclave_id);
             return -1;
         }
+    }
+    else {
+        log_i("Serving as primary dkeyserver");
     }
 
     log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
