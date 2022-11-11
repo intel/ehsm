@@ -23,7 +23,7 @@ const ehsm_keySpec_t = {
   EC_P224: 20,
   EC_P256: 21,
   EC_P384: 22,
-  EC_P512: 23,
+  EC_P521: 23,
   HMAC: 30,
   SM2: 31,
   SM4_CTR: 32,

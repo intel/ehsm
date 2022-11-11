@@ -63,14 +63,13 @@ def test_asymmetricKey_encrypt_decrypt(base_url, headers):
 
     print('====================test_asymmetricKey_encrypt_decrypt end===========================')
 
-def test_Stest_sign_verify(base_url, headers):
-    print('====================test_Stest_sign_verify start===========================')
+def test_RSA_sign_verify(base_url, headers):
+    print('====================test_RSA_sign_verify start===========================')
 
     key_RSA_3072 = createkey.createkey(base_url, "RSA_3072", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1_PSS", "SHA_2_224")
     key_RSA_4096 = createkey.createkey(base_url, "RSA_4096", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1_PSS", "SHA_2_384")
     key_RSA_2048 = createkey.createkey(base_url, "RSA_2048", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1", "SHA_2_512")
-    key_EC_p256 = createkey.createkey(base_url, "EC_P256", "EH_INTERNAL_KEY", None, None, "SHA_2_256")
-    asymmetricKey = [key_RSA_3072, key_RSA_4096, key_RSA_2048, key_EC_p256]
+    asymmetricKey = [key_RSA_3072, key_RSA_4096, key_RSA_2048]
     
     for i in asymmetricKey:
         # test Sign
@@ -79,10 +78,28 @@ def test_Stest_sign_verify(base_url, headers):
         # test Verify
         verify.verify(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature)
 
-    print('====================test_Stest_sign_verify end===========================')
+    print('====================test_RSA_sign_verify end===========================')
 
-def test_Stest_SM2_sign_verify(base_url, headers):
-    print('====================test_Stest_SM2_sign_verify start===========================')
+def test_EC_sign_verify(base_url, headers):
+    print('====================test_EC_sign_verify start===========================')
+    
+    key_EC_p224 = createkey.createkey(base_url, "EC_P224", "EH_INTERNAL_KEY", None, None, "SHA_2_224")
+    key_EC_p256 = createkey.createkey(base_url, "EC_P256", "EH_INTERNAL_KEY", None, None, "SHA_2_256")
+    key_EC_p384 = createkey.createkey(base_url, "EC_P384", "EH_INTERNAL_KEY", None, None, "SHA_2_384")
+    key_EC_p521 = createkey.createkey(base_url, "EC_P521", "EH_INTERNAL_KEY", None, None, "SHA_2_512")
+    asymmetricKey = [key_EC_p256, key_EC_p224, key_EC_p384, key_EC_p521]
+    
+    for i in asymmetricKey:
+        # test Sign
+        signature = sign.sign(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'))
+
+        # test Verify
+        verify.verify(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature)
+
+    print('====================test_EC_sign_verify end===========================')
+
+def test_SM2_sign_verify(base_url, headers):
+    print('====================test_SM2_sign_verify start===========================')
     key_SM2 = createkey.createkey(base_url, "SM2", "EH_INTERNAL_KEY", None, None, "SM3")
     userid = str(base64.b64encode(appid.encode("utf-8")),'utf-8')
 
@@ -92,7 +109,7 @@ def test_Stest_SM2_sign_verify(base_url, headers):
     # test Verify
     verify.verify(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature)
 
-    print('====================test_Stest_SM2_sign_verify end===========================')
+    print('====================test_SM2_sign_verify end===========================')
 
 
 def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
@@ -234,9 +251,11 @@ if __name__ == "__main__":
 
     test_GenerateDataKeyWithoutPlaintext(base_url, headers)
 
-    test_Stest_sign_verify(base_url, headers)
+    test_RSA_sign_verify(base_url, headers)
+    
+    test_EC_sign_verify(base_url, headers)
 
-    test_Stest_SM2_sign_verify(base_url, headers)
+    test_SM2_sign_verify(base_url, headers)
 
     test_asymmetricKey_encrypt_decrypt(base_url, headers)
 

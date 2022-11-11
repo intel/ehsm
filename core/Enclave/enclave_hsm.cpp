@@ -108,6 +108,12 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
         return RSA_OAEP_4096_SIGNATURE_SIZE;
     case EH_EC_P256:
         return EC_P256_SIGNATURE_MAX_SIZE;
+    case EH_EC_P224:
+        return EC_P224_SIGNATURE_MAX_SIZE;
+    case EH_EC_P384:
+        return EC_P384_SIGNATURE_MAX_SIZE;
+    case EH_EC_P521:
+        return EC_P521_SIGNATURE_MAX_SIZE;
     case EH_SM2:
         return EC_SM2_SIGNATURE_MAX_SIZE;
     default:
@@ -431,6 +437,9 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
                             signature);
         break;
     case EH_EC_P256:
+    case EH_EC_P224:
+    case EH_EC_P384:
+    case EH_EC_P521:
         ret = ehsm_ecc_sign(cmk,
                             data,
                             signature);
@@ -510,6 +519,9 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
                               result);
         break;
     case EH_EC_P256:
+    case EH_EC_P224:
+    case EH_EC_P384:
+    case EH_EC_P521:
         // not check ecc & sm2 signateure len because the len will be change after sign
         // refence https://wiki.openssl.org/index.php/EVP_Signing_and_Verifying#Signing
         ret = ehsm_ecc_verify(cmk,
@@ -968,9 +980,12 @@ sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
  *  @return SGX_ERROR_INVALID_PARAMETER paramater is incorrect
  *  @return SGX_ERROR_UNEXPECTED mr_signer or mr_enclave is invalid
  */
-sgx_status_t enclave_verify_quote_policy(uint8_t *quote, uint32_t quote_size,
-                                         const char *mr_signer_good, uint32_t mr_signer_good_size,
-                                         const char *mr_enclave_good, uint32_t mr_enclave_good_size)
+sgx_status_t enclave_verify_quote_policy(uint8_t *quote,
+                                         uint32_t quote_size,
+                                         const char *mr_signer_good,
+                                         uint32_t mr_signer_good_size,
+                                         const char *mr_enclave_good,
+                                         uint32_t mr_enclave_good_size)
 {
     if (quote == NULL || mr_signer_good == NULL || mr_enclave_good == NULL)
     {

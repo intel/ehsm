@@ -386,7 +386,7 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk) // https://github.com/intel
     switch (cmk->metadata.keyspec)
     {
     case EH_EC_P224:
-        nid = NID_secp224k1;
+        nid = NID_secp224r1;
         break;
     case EH_EC_P256:
         nid = NID_secp256k1;
