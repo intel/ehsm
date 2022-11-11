@@ -87,10 +87,13 @@ typedef int errno_t;
 #define RSA_OAEP_3072_SIGNATURE_SIZE      384
 #define RSA_OAEP_2048_SIGNATURE_SIZE      256
 
+/* The maximum length of ec is obtained by ecdsa_size() */
+#define EC_P224_SIGNATURE_MAX_SIZE        66
 #define EC_P256_SIGNATURE_MAX_SIZE        72
+#define EC_P384_SIGNATURE_MAX_SIZE        104
+#define EC_P521_SIGNATURE_MAX_SIZE        141
 #define EC_SM2_SIGNATURE_MAX_SIZE         72
 
-#define RSA_OAEP_4096_DIGEST_SIZE         264
 #define MAX_DIGEST_DATA_SIZE         (6*1024)
 #define MAX_SIGNATURE_SIZE                512
 
