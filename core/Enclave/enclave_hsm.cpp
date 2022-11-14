@@ -200,6 +200,11 @@ sgx_status_t enclave_encrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
+    if (aad == NULL && aad_size != 0)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
     /* only support to directly encrypt data of less than 6 KB */
     if (plaintext == NULL ||
         plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen) ||
@@ -251,6 +256,11 @@ sgx_status_t enclave_decrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
     }
 
     if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    if (aad == NULL && aad_size != 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -581,6 +591,10 @@ sgx_status_t enclave_generate_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
+    if (aad == NULL && aad_size != 0)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
     if (ciphertext == NULL ||
         ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
     {
@@ -669,6 +683,10 @@ sgx_status_t enclave_export_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
         return SGX_ERROR_INVALID_PARAMETER;
     }
     if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (aad == NULL && aad_size != 0)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }

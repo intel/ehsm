@@ -55,20 +55,6 @@ sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
                                   ehsm_data_t *cipherblob,
                                   ehsm_data_t *plaintext);
 
-sgx_status_t aes_gcm_encrypt(uint8_t *key, uint8_t *cipherblob,
-                             const EVP_CIPHER *block_mode,
-                             uint8_t *plaintext, uint32_t plaintext_len,
-                             uint8_t *aad, uint32_t aad_len,
-                             uint8_t *iv, uint32_t iv_len,
-                             uint8_t *tag, uint32_t tag_len);
-
-sgx_status_t aes_gcm_decrypt(uint8_t *key, uint8_t *plaintext,
-                             const EVP_CIPHER *block_mode,
-                             uint8_t *ciphertext, uint32_t ciphertext_len,
-                             uint8_t *aad, uint32_t aad_len,
-                             uint8_t *iv, uint32_t iv_len,
-                             uint8_t *tag, uint32_t tag_len);
-
 sgx_status_t ehsm_sm4_ctr_encrypt(ehsm_keyblob_t *cmk_blob,
                                   ehsm_data_t *plaintext,
                                   ehsm_data_t *cipherblob);
@@ -77,14 +63,6 @@ sgx_status_t ehsm_sm4_ctr_decrypt(ehsm_keyblob_t *cmk_blob,
                                   ehsm_data_t *cipherblob,
                                   ehsm_data_t *plaintext);
 
-sgx_status_t sm4_ctr_encrypt(uint8_t *key, uint8_t *cipherblob,
-                             uint8_t *plaintext, uint32_t plaintext_len,
-                             uint8_t *iv);
-
-sgx_status_t sm4_ctr_decrypt(uint8_t *key, uint8_t *plaintext,
-                             uint8_t *ciphertext, uint32_t ciphertext_len,
-                             uint8_t *iv);
-
 sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
                                   ehsm_data_t *plaintext,
                                   ehsm_data_t *cipherblob);
@@ -92,14 +70,6 @@ sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
 sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
                                   ehsm_data_t *cipherblob,
                                   ehsm_data_t *plaintext);
-
-sgx_status_t sm4_cbc_encrypt(uint8_t *key, uint8_t *cipherblob,
-                             uint8_t *plaintext, uint32_t plaintext_len,
-                             uint8_t *iv);
-
-sgx_status_t sm4_cbc_decrypt(uint8_t *key, uint8_t *plaintext,
-                             uint8_t *ciphertext, uint32_t ciphertext_len,
-                             uint8_t *iv);
 
 sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
                               const ehsm_data_t *plaintext,
@@ -117,79 +87,27 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
                               const ehsm_data_t *ciphertext,
                               ehsm_data_t *plaintext);
 
-sgx_status_t rsa_sign(RSA *rsa_prikey,
-                      const EVP_MD *digestMode,
-                      ehsm_padding_mode_t padding_mode,
-                      const uint8_t *data,
-                      uint32_t data_len,
-                      uint8_t *signature,
-                      uint32_t signature_len);
-
 sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk_blob,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature);
-
-sgx_status_t rsa_verify(RSA *rsa_pubkey,
-                       const EVP_MD *digestMode,
-                       ehsm_padding_mode_t padding_mode,
-                       const uint8_t *data,
-                       uint32_t data_len,
-                       const uint8_t *signature,
-                       uint32_t signature_len,
-                       bool *result,
-                       int saltlen);
 
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result);
 
-sgx_status_t ecc_sign(EC_KEY *ec_key,
-                      const EVP_MD *digestMode,
-                      const uint8_t *data,
-                      uint32_t data_len,
-                      uint8_t *signature,
-                      uint32_t *signature_len);
-
 sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature);
-
-sgx_status_t ecc_verify(EC_KEY *ec_key,
-                        const EVP_MD *digestMode,
-                        const uint8_t *data,
-                        uint32_t data_len,
-                        const uint8_t *signature,
-                        uint32_t signature_len,
-                        bool *result);
 
 sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result);
 
-sgx_status_t sm2_sign(EC_KEY *ec_key,
-                      const EVP_MD *digestMode,
-                      const uint8_t *data,
-                      uint32_t data_len,
-                      uint8_t *signature,
-                      uint32_t *signature_len,
-                      const uint8_t *id,
-                      uint32_t id_len);
-
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature);
-
-sgx_status_t sm2_verify(EC_KEY *ec_key,
-                        const EVP_MD *digestMode,
-                        const uint8_t *data,
-                        uint32_t data_len,
-                        const uint8_t *signature,
-                        uint32_t signature_len,
-                        bool *result,
-                        const uint8_t *id,
-                        uint32_t id_len);
 
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                              const ehsm_data_t *data,

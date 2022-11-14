@@ -5,6 +5,7 @@
 #include "openssl/evp.h"
 
 #include "datatypes.h"
+#include "openssl_operation.h"
 #include "key_operation.h"
 
 #include <vector>

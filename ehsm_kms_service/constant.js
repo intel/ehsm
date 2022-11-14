@@ -24,10 +24,10 @@ const ehsm_keySpec_t = {
   EC_P256: 21,
   EC_P384: 22,
   EC_P521: 23,
-  HMAC: 30,
-  SM2: 31,
-  SM4_CTR: 32,
-  SM4_CBC: 33
+  SM2: 30,
+  SM4_CTR: 31,
+  SM4_CBC: 32,
+  HMAC: 40,
 }
 const ehsm_keyorigin_t = {
   EH_ORIGIN_NONE : 0,

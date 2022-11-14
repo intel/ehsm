@@ -53,6 +53,7 @@
 
 #include "key_factory.h"
 #include "key_operation.h"
+#include "openssl_operation.h"
 
 #define DUMMY_SIZE 128
 
