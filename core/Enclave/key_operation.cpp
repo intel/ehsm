@@ -197,8 +197,17 @@ sgx_status_t ehsm_aes_gcm_encrypt(ehsm_data_t *aad,
         goto out;
     }
 
-    ret = aes_gcm_encrypt(enc_key, cipherblob->data, block_mode, plaintext->data, plaintext->datalen,
-                          aad->data, aad->datalen, iv, SGX_AESGCM_IV_SIZE, mac, EH_AES_GCM_MAC_SIZE);
+    ret = aes_gcm_encrypt(enc_key,
+                          cipherblob->data,
+                          block_mode,
+                          plaintext->data,
+                          plaintext->datalen,
+                          aad->data,
+                          aad->datalen,
+                          iv,
+                          SGX_AESGCM_IV_SIZE,
+                          mac,
+                          EH_AES_GCM_MAC_SIZE);
 
 out:
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
@@ -287,11 +296,17 @@ sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
     memset_s(&l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
     memcpy_s(l_tag, SGX_AESGCM_MAC_SIZE, mac, SGX_AESGCM_MAC_SIZE);
 
-    ret = aes_gcm_decrypt(dec_key, plaintext->data, block_mode,
-                          cipherblob->data, cipherblob->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE,
-                          aad->data, aad->datalen,
-                          iv, SGX_AESGCM_IV_SIZE,
-                          l_tag, SGX_AESGCM_MAC_SIZE);
+    ret = aes_gcm_decrypt(dec_key, 
+                          plaintext->data, 
+                          block_mode, 
+                          cipherblob->data, 
+                          cipherblob->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE,
+                          aad->data, 
+                          aad->datalen, 
+                          iv, 
+                          SGX_AESGCM_IV_SIZE, 
+                          l_tag, 
+                          SGX_AESGCM_MAC_SIZE);
 out:
     if (pctx != NULL)
     {
@@ -369,8 +384,10 @@ sgx_status_t ehsm_sm4_ctr_encrypt(ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    ret = sm4_ctr_encrypt(enc_key, cipherblob->data,
-                          plaintext->data, plaintext->datalen,
+    ret = sm4_ctr_encrypt(enc_key,
+                          cipherblob->data,
+                          plaintext->data,
+                          plaintext->datalen,
                           iv);
 out:
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
@@ -429,7 +446,8 @@ sgx_status_t ehsm_sm4_ctr_decrypt(ehsm_keyblob_t *cmk,
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
-    ret = ehsm_parse_keyblob(dec_key, dec_key_size,
+    ret = ehsm_parse_keyblob(dec_key,
+                             dec_key_size,
                              (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
     {
@@ -526,7 +544,11 @@ sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    ret = sm4_cbc_encrypt(enc_key, cipherblob->data, plaintext->data, plaintext->datalen, iv);
+    ret = sm4_cbc_encrypt(enc_key,
+                          cipherblob->data,
+                          plaintext->data,
+                          plaintext->datalen,
+                          iv);
 
 out:
     memset_s(&enc_key, sizeof(enc_key), 0, sizeof(enc_key));
@@ -597,7 +619,11 @@ sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    ret = sm4_cbc_decrypt(dec_key, plaintext->data, cipherblob->data, cipherblob->datalen, iv);
+    ret = sm4_cbc_decrypt(dec_key,
+                          plaintext->data,
+                          cipherblob->data,
+                          cipherblob->datalen,
+                          iv);
 
 out:
     memset_s(dec_key, sizeof(dec_key), 0, sizeof(dec_key));
@@ -612,7 +638,8 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // verify padding mode
-    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
+    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 
+        && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -628,7 +655,9 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair,
+                                          cmk->keybloblen,
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
     {
         goto out;
     }
@@ -654,7 +683,11 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
         ret = SGX_SUCCESS;
         goto out;
     }
-    if (RSA_public_encrypt(plaintext->datalen, plaintext->data, ciphertext->data, rsa_pubkey, cmk->metadata.padding_mode) != RSA_size(rsa_pubkey))
+    if (RSA_public_encrypt(plaintext->datalen,
+                           plaintext->data,
+                           ciphertext->data,
+                           rsa_pubkey,
+                           cmk->metadata.padding_mode) != RSA_size(rsa_pubkey))
     {
         log_d("failed to make rsa encryption\n");
         goto out;
@@ -691,7 +724,9 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(sm2_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (SGX_SUCCESS != ehsm_parse_keyblob(sm2_keypair,
+                                          cmk->keybloblen, 
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
     {
         goto out;
     }
@@ -741,7 +776,11 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 
     if (plaintext->data != NULL)
     {
-        if (EVP_PKEY_encrypt(ectx, ciphertext->data, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
+        if (EVP_PKEY_encrypt(ectx, 
+                             ciphertext->data, 
+                             &strLen, 
+                             plaintext->data, 
+                             (size_t)plaintext->datalen) <= 0)
         {
             log_d("failed to make sm2 encryption\n");
             goto out;
@@ -775,7 +814,8 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // verify padding mode
-    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
+    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 
+        && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -815,12 +855,20 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
     if (plaintext->datalen == 0)
     {
         uint8_t *temp_plaintext = (uint8_t *)malloc(RSA_size(rsa_prikey));
-        plaintext->datalen = RSA_private_decrypt(ciphertext->datalen, ciphertext->data, temp_plaintext, rsa_prikey, cmk->metadata.padding_mode);
+        plaintext->datalen = RSA_private_decrypt(ciphertext->datalen, 
+                                                 ciphertext->data, 
+                                                 temp_plaintext, 
+                                                 rsa_prikey, 
+                                                 cmk->metadata.padding_mode);
         ret = SGX_SUCCESS;
         goto out;
     }
 
-    if (!RSA_private_decrypt(ciphertext->datalen, ciphertext->data, plaintext->data, rsa_prikey, cmk->metadata.padding_mode))
+    if (!RSA_private_decrypt(ciphertext->datalen, 
+                             ciphertext->data, 
+                             plaintext->data, 
+                             rsa_prikey, 
+                             cmk->metadata.padding_mode))
     {
         log_d("failed to make rsa decrypt\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -895,7 +943,11 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
     if (plaintext->datalen == 0)
     {
         size_t strLen;
-        if (EVP_PKEY_decrypt(dctx, NULL, &strLen, ciphertext->data, (size_t)ciphertext->datalen) != 1)
+        if (EVP_PKEY_decrypt(dctx, 
+                             NULL, 
+                             &strLen, 
+                             ciphertext->data, 
+                             (size_t)ciphertext->datalen) != 1)
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
@@ -908,7 +960,11 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
     if (ciphertext->data != NULL)
     {
         size_t strLen = plaintext->datalen;
-        if (EVP_PKEY_decrypt(dctx, plaintext->data, &strLen, ciphertext->data, (size_t)ciphertext->datalen) != 1)
+        if (EVP_PKEY_decrypt(dctx, 
+                             plaintext->data, 
+                             &strLen, 
+                             ciphertext->data, 
+                             (size_t)ciphertext->datalen) != 1)
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
@@ -950,7 +1006,8 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // verify padding mode
-    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_PSS)
+    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 
+        && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_PSS)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -970,7 +1027,9 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     // load private key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, 
+                                          cmk->keybloblen, 
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
     {
         goto out;
     }
@@ -989,8 +1048,13 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    ret = rsa_sign(rsa_prikey, digestMode, cmk->metadata.padding_mode,
-                   data->data, data->datalen, signature->data, signature->datalen);
+    ret = rsa_sign(rsa_prikey, 
+                   digestMode, 
+                   cmk->metadata.padding_mode,
+                   data->data, 
+                   data->datalen, 
+                   signature->data, 
+                   signature->datalen);
 
 out:
     if (rsa_prikey)
@@ -1022,7 +1086,8 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // verify padding mode
-    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_PSS)
+    if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 
+        && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_PSS)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -1043,7 +1108,9 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, 
+                                          cmk->keybloblen, 
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
     {
         goto out;
     }
@@ -1061,8 +1128,15 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    ret = rsa_verify(rsa_pubkey, digestMode, cmk->metadata.padding_mode,
-                     data->data, data->datalen, signature->data, signature->datalen, result, -1);
+    ret = rsa_verify(rsa_pubkey, 
+                     digestMode, 
+                     cmk->metadata.padding_mode,
+                     data->data, 
+                     data->datalen, 
+                     signature->data, 
+                     signature->datalen, 
+                     result, 
+                     -1);
 out:
     if (rsa_pubkey)
         RSA_free(rsa_pubkey);
@@ -1104,7 +1178,9 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, 
+                                          cmk->keybloblen, 
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
     {
         goto out;
     }
@@ -1123,7 +1199,12 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    ret = ecc_sign(ec_key, digestMode, data->data, data->datalen, signature->data, &signature->datalen);
+    ret = ecc_sign(ec_key, 
+                   digestMode, 
+                   data->data, 
+                   data->datalen, 
+                   signature->data, 
+                   &signature->datalen);
 
 out:
     if (ec_key)
@@ -1168,7 +1249,9 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, 
+                                          cmk->keybloblen, 
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
     {
         goto out;
     }
@@ -1186,7 +1269,13 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    ret = ecc_verify(ec_key, digestMode, data->data, data->datalen, signature->data, signature->datalen, result);
+    ret = ecc_verify(ec_key, 
+                     digestMode, 
+                     data->data, 
+                     data->datalen, 
+                     signature->data, 
+                     signature->datalen, 
+                     result);
 
 out:
     if (ec_key)
@@ -1229,7 +1318,9 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, 
+                                          cmk->keybloblen, 
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
     {
         goto out;
     }
@@ -1248,7 +1339,14 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    ret = sm2_sign(ec_key, digestMode, data->data, data->datalen, signature->data, &signature->datalen, (uint8_t *)SM2_DEFAULT_USERID, strlen(SM2_DEFAULT_USERID));
+    ret = sm2_sign(ec_key, 
+                   digestMode, 
+                   data->data, 
+                   data->datalen, 
+                   signature->data, 
+                   &signature->datalen, 
+                   (uint8_t *)SM2_DEFAULT_USERID, 
+                   strlen(SM2_DEFAULT_USERID));
 
 out:
     if (ec_key)
@@ -1293,7 +1391,9 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, cmk->keybloblen, (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, 
+                                          cmk->keybloblen, 
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
     {
         goto out;
     }
@@ -1311,7 +1411,15 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    ret = sm2_verify(ec_key, digestMode, data->data, data->datalen, signature->data, signature->datalen, result, (uint8_t *)SM2_DEFAULT_USERID, strlen(SM2_DEFAULT_USERID));
+    ret = sm2_verify(ec_key, 
+                     digestMode, 
+                     data->data, 
+                     data->datalen, 
+                     signature->data, 
+                     signature->datalen, 
+                     result, 
+                     (uint8_t *)SM2_DEFAULT_USERID, 
+                     strlen(SM2_DEFAULT_USERID));
 
 out:
     if (ec_key)

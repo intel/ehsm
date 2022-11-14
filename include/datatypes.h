@@ -194,10 +194,10 @@ typedef enum {
 } ehsm_fips_mode_t;
 
 typedef enum {
-    TYPE_NULL = 0,
-    TYPE_DATA,
-    TYPE_CMK,
-    TYPE_METADATA
+    EH_NULL = 0,
+    EH_DATA_T,
+    EH_KEYBLOB_T,
+    EH_METADATA_T
 } ehsm_data_type_t;
 
 #pragma pack(push,1)

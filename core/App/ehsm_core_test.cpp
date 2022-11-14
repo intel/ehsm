@@ -283,23 +283,25 @@ cleanup:
     SAFE_FREE(returnJsonChar);
 }
 
-void test_perf_sign()
+void test_perf_sign_verify()
 {
     ehsm_status_t ret = EH_OK;
     char *returnJsonChar = nullptr;
-    char digest[] = "SIGN";
+    char data2sign[] = "SIGN";
 
     std::chrono::high_resolution_clock::time_point begin;
     std::chrono::high_resolution_clock::time_point end;
     std::chrono::nanoseconds elapsed;
 
     char *cmk_base64 = nullptr;
+    char *signature_base64 = nullptr;
+    bool result = false;
     RetJsonObj retJsonObj;
 
     JsonObj param_json;
     JsonObj payload_json;
 
-    std::string input_digest_base64 = base64_encode((const uint8_t *)digest, sizeof(digest) / sizeof(digest[0]));
+    std::string input_data2sign_base64 = base64_encode((const uint8_t *)data2sign, sizeof(data2sign) / sizeof(data2sign[0]));
 
     payload_json.addData_uint32("keyspec", EH_RSA_4096);
     payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
@@ -326,7 +328,7 @@ void test_perf_sign()
     {
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
-        payload_json.addData_string("digest", input_digest_base64);
+        payload_json.addData_string("digest", input_data2sign_base64);
 
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -337,9 +339,7 @@ void test_perf_sign()
         {
             printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
-        }
-        // printf("NAPI_Encrypt json = %s\n", returnJsonChar);
-        SAFE_FREE(returnJsonChar);
+        }  
     }
 
     // Stop measuring time and calculate the elapsed time
@@ -348,63 +348,6 @@ void test_perf_sign()
 
     printf("Time measured of Sign(RSA_4096) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
 
-cleanup:
-    SAFE_FREE(cmk_base64);
-    SAFE_FREE(returnJsonChar);
-}
-
-void test_perf_verify()
-{
-    ehsm_status_t ret = EH_OK;
-    char *returnJsonChar = nullptr;
-    char digest[] = "SIGN";
-
-    std::chrono::high_resolution_clock::time_point begin;
-    std::chrono::high_resolution_clock::time_point end;
-    std::chrono::nanoseconds elapsed;
-
-    char *cmk_base64 = nullptr;
-    char *signature_base64 = nullptr;
-    bool result = false;
-    RetJsonObj retJsonObj;
-
-    JsonObj param_json;
-    JsonObj payload_json;
-
-    std::string input_digest_base64 = base64_encode((const uint8_t *)digest, sizeof(digest) / sizeof(digest[0]));
-
-    payload_json.addData_uint32("keyspec", EH_RSA_4096);
-    payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
-    payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_PSS);
-    payload_json.addData_uint32("digest_mode", EH_SHA_2_256);
-    param_json.addData_uint32("action", EH_CREATE_KEY);
-    param_json.addData_JsonValue("payload", payload_json.getJson());
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
-    retJsonObj.parse(returnJsonChar);
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
-    // printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
-    // printf("Create CMK with RAS SUCCESSFULLY!\n");
-
-    cmk_base64 = retJsonObj.readData_cstr("cmk");
-
-    payload_json.clear();
-    payload_json.addData_string("cmk", cmk_base64);
-    payload_json.addData_string("digest", input_digest_base64);
-
-    param_json.addData_uint32("action", EH_SIGN);
-    param_json.addData_JsonValue("payload", payload_json.getJson());
-
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
-    retJsonObj.parse(returnJsonChar);
-    if (retJsonObj.getCode() != 200)
-    {
-        printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
-        goto cleanup;
-    }
     // printf("NAPI_Sign Json = %s\n", returnJsonChar);
     signature_base64 = retJsonObj.readData_cstr("signature");
     // printf("Sign data SUCCESSFULLY!\n");
@@ -625,7 +568,7 @@ void *test_createkey(void *threadid)
     pthread_exit(NULL);
 }
 
-void test_multi_createkey()
+void test_parallel_createkey()
 {
     void *status;
     pthread_t threads[NUM_THREADS];
@@ -717,7 +660,7 @@ cleanup:
     pthread_exit(NULL);
 }
 
-void test_multi_encrypt()
+void test_parallel_encrypt()
 {
     void *status;
     pthread_t threads[NUM_THREADS];
@@ -1064,7 +1007,7 @@ void test_RSA_sign_verify()
         printf("============%s start==========\n", plaintext[i].c_str());
         ehsm_status_t ret = EH_OK;
         char *returnJsonChar = nullptr;
-        char digest[] = "SIGN";
+        char data2sign[] = "SIGN";
 
         char *cmk_base64 = nullptr;
         char *signature_base64 = nullptr;
@@ -1074,7 +1017,7 @@ void test_RSA_sign_verify()
         JsonObj param_json;
         JsonObj payload_json;
 
-        std::string input_digest_base64 = base64_encode((const uint8_t *)digest, sizeof(digest) / sizeof(digest[0]));
+        std::string input_data2sign_base64 = base64_encode((const uint8_t *)data2sign, sizeof(data2sign) / sizeof(data2sign[0]));
 
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
@@ -1096,7 +1039,7 @@ void test_RSA_sign_verify()
 
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
-        payload_json.addData_string("digest", input_digest_base64);
+        payload_json.addData_string("digest", input_data2sign_base64);
 
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1163,7 +1106,7 @@ void test_ec_sign_verify()
         printf("============%s start==========\n", plaintext[i].c_str());
         ehsm_status_t ret = EH_OK;
         char *returnJsonChar = nullptr;
-        char digest[] = "SIGN";
+        char data2sign[] = "SIGN";
 
         char *cmk_base64 = nullptr;
         char *signature_base64 = nullptr;
@@ -1173,7 +1116,7 @@ void test_ec_sign_verify()
         JsonObj param_json;
         JsonObj payload_json;
 
-        std::string input_digest_base64 = base64_encode((const uint8_t *)digest, sizeof(digest) / sizeof(digest[0]));
+        std::string input_data2sign_base64 = base64_encode((const uint8_t *)data2sign, sizeof(data2sign) / sizeof(data2sign[0]));
 
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
@@ -1195,7 +1138,7 @@ void test_ec_sign_verify()
 
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
-        payload_json.addData_string("digest", input_digest_base64);
+        payload_json.addData_string("digest", input_data2sign_base64);
 
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1256,7 +1199,7 @@ void test_sm2_sign_verify()
     case_number++;
     ehsm_status_t ret = EH_OK;
     char *returnJsonChar = nullptr;
-    char digest[] = "SIGN";
+    char data2sign[] = "SIGN";
 
     char *cmk_base64 = nullptr;
     char *signature_base64 = nullptr;
@@ -1266,7 +1209,7 @@ void test_sm2_sign_verify()
     JsonObj param_json;
     JsonObj payload_json;
 
-    std::string input_digest_base64 = base64_encode((const uint8_t *)digest, sizeof(digest) / sizeof(digest[0]));
+    std::string input_data2sign_base64 = base64_encode((const uint8_t *)data2sign, sizeof(data2sign) / sizeof(data2sign[0]));
 
     payload_json.addData_uint32("keyspec", EH_SM2);
     payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
@@ -1289,7 +1232,7 @@ void test_sm2_sign_verify()
 
     payload_json.clear();
     payload_json.addData_string("cmk", cmk_base64);
-    payload_json.addData_string("digest", input_digest_base64);
+    payload_json.addData_string("digest", input_data2sign_base64);
 
     param_json.addData_uint32("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -1951,8 +1894,7 @@ void test_performance()
     test_perf_createkey();
     test_perf_encrypt();
     test_perf_decrypt();
-    test_perf_sign();
-    test_perf_verify();
+    test_perf_sign_verify();
     test_perf_asymmetricencrypt();
     test_perf_asymmetricdecrypt();
 }
