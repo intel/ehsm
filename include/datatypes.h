@@ -193,6 +193,13 @@ typedef enum {
     FIPS_NOT_APPROVAL
 } ehsm_fips_mode_t;
 
+typedef enum {
+    TYPE_NULL = 0,
+    TYPE_DATA,
+    TYPE_CMK,
+    TYPE_METADATA
+} ehsm_data_type_t;
+
 #pragma pack(push,1)
 
 typedef struct {

@@ -1161,7 +1161,6 @@ void test_ec_sign_verify()
     for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
     {
         printf("============%s start==========\n", plaintext[i].c_str());
-        case_number++;
         ehsm_status_t ret = EH_OK;
         char *returnJsonChar = nullptr;
         char digest[] = "SIGN";

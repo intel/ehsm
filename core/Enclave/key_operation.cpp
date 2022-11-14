@@ -287,8 +287,11 @@ sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
     memset_s(&l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
     memcpy_s(l_tag, SGX_AESGCM_MAC_SIZE, mac, SGX_AESGCM_MAC_SIZE);
 
-    ret = aes_gcm_decrypt(dec_key, plaintext->data, block_mode, cipherblob->data, cipherblob->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE,
-                          aad->data, aad->datalen, iv, SGX_AESGCM_IV_SIZE, l_tag, SGX_AESGCM_MAC_SIZE);
+    ret = aes_gcm_decrypt(dec_key, plaintext->data, block_mode,
+                          cipherblob->data, cipherblob->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE,
+                          aad->data, aad->datalen,
+                          iv, SGX_AESGCM_IV_SIZE,
+                          l_tag, SGX_AESGCM_MAC_SIZE);
 out:
     if (pctx != NULL)
     {

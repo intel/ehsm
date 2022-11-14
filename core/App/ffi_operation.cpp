@@ -52,47 +52,11 @@ using namespace std;
 
 extern "C"
 {
-    static void *import_struct_from_json(JsonObj payloadJson, string key)
+    static void *import_struct_from_json(JsonObj payloadJson, ehsm_data_type_t type, string key = "")
     {
-        if (!key.compare("metadata"))
+        switch (type)
         {
-            ehsm_keyblob_t *cmk = (ehsm_keyblob_t *)malloc(sizeof(ehsm_keyblob_t));
-            if (cmk == NULL)
-            {
-                return NULL;
-            }
-            cmk->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
-            cmk->metadata.digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
-            cmk->metadata.padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
-            cmk->metadata.origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
-            cmk->metadata.purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
-            cmk->keybloblen = 0;
-            return cmk;
-        }
-        else if (!key.compare("cmk") || !key.compare("ukey"))
-        {
-            ehsm_keyblob_t *cmk;
-            string cmk_str = base64_decode(payloadJson.readData_string(key));
-            size_t cmk_size = cmk_str.size();
-            if (cmk_size == 0)
-            {
-                return NULL;
-            }
-            cmk = (ehsm_keyblob_t *)malloc(cmk_size);
-            if (cmk == NULL)
-            {
-                return NULL;
-            }
-            memcpy_s(cmk, cmk_size, (ehsm_keyblob_t *)cmk_str.data(), cmk_size);
-
-            return cmk;
-        }
-        else if (!key.compare("plaintext") ||
-                 !key.compare("aad") ||
-                 !key.compare("ciphertext") ||
-                 !key.compare("digest") ||
-                 !key.compare("signature") ||
-                 !key.compare("olddatakey"))
+        case TYPE_DATA:
         {
             ehsm_data_t *data;
             string data_str = base64_decode(payloadJson.readData_string(key));
@@ -111,18 +75,54 @@ extern "C"
 
             return data;
         }
+        case TYPE_CMK:
+        {
+            ehsm_keyblob_t *cmk;
+            string cmk_str = base64_decode(payloadJson.readData_string(key));
+            size_t cmk_size = cmk_str.size();
+            if (cmk_size == 0)
+            {
+                return NULL;
+            }
+            cmk = (ehsm_keyblob_t *)malloc(cmk_size);
+            if (cmk == NULL)
+            {
+                return NULL;
+            }
+            memcpy_s(cmk, cmk_size, (ehsm_keyblob_t *)cmk_str.data(), cmk_size);
 
-        return NULL;
+            return cmk;
+        }
+        case TYPE_METADATA:
+        {
+            ehsm_keyblob_t *cmk = (ehsm_keyblob_t *)malloc(sizeof(ehsm_keyblob_t));
+            if (cmk == NULL)
+            {
+                return NULL;
+            }
+            cmk->metadata.keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+            cmk->metadata.digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
+            cmk->metadata.padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+            cmk->metadata.origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
+            cmk->metadata.purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
+            cmk->keybloblen = 0;
+            return cmk;
+        }
+        default:
+            return NULL;
+        }
     }
 
-    static ehsm_status_t export_json_from_struct(void *data, RetJsonObj &retJsonObj, std::string key)
+    static ehsm_status_t export_struct_to_json(void *data, RetJsonObj &retJsonObj, std::string key)
     {
         if (data == NULL)
         {
             return EH_KEYSPEC_INVALID;
         }
+
         std::string data_base64;
         size_t data_size = 0;
+
         if (key == "cmk")
         {
             data_size = APPEND_SIZE_TO_KEYBLOB_T(((ehsm_keyblob_t *)data)->keybloblen);
@@ -133,10 +133,12 @@ extern "C"
             data_size = ((ehsm_data_t *)data)->datalen;
             data_base64 = base64_encode((uint8_t *)((ehsm_data_t *)data)->data, data_size);
         }
+
         if (data_base64.size() > 0)
         {
             retJsonObj.addData_string(key, data_base64);
         }
+        
         return EH_OK;
     }
     /*
@@ -212,7 +214,7 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         string cmk_base64;
 
-        ehsm_keyblob_t *master_key = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "metadata");
+        ehsm_keyblob_t *master_key = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_METADATA);
         if (master_key == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -251,7 +253,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(master_key, retJsonObj, "cmk");
+        ret = export_struct_to_json(master_key, retJsonObj, "cmk");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -294,9 +296,9 @@ extern "C"
         ehsm_data_t *aad_data = NULL;
         ehsm_data_t *cipher_data = NULL;
 
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        plain_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "plaintext");
-        aad_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "aad");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        plain_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "plaintext");
+        aad_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "aad");
         cipher_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (cmk == NULL || plain_data == NULL || aad_data == NULL || cipher_data == NULL)
         {
@@ -337,7 +339,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(cipher_data, retJsonObj, "ciphertext");
+        ret = export_struct_to_json(cipher_data, retJsonObj, "ciphertext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -383,9 +385,9 @@ extern "C"
         ehsm_data_t *aad_data = NULL;
         ehsm_data_t *plain_data = NULL;
 
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        cipher_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "ciphertext");
-        aad_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "aad");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        cipher_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "ciphertext");
+        aad_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "aad");
         plain_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (cmk == NULL || cipher_data == NULL || aad_data == NULL || plain_data == NULL)
         {
@@ -434,7 +436,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(plain_data, retJsonObj, "plaintext");
+        ret = export_struct_to_json(plain_data, retJsonObj, "plaintext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -477,8 +479,8 @@ extern "C"
         ehsm_data_t *plain_data = NULL;
         ehsm_data_t *cipher_data = NULL;
 
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        plain_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "plaintext");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        plain_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "plaintext");
         cipher_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (cmk == NULL || plain_data == NULL || cipher_data == NULL)
         {
@@ -519,7 +521,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(cipher_data, retJsonObj, "ciphertext");
+        ret = export_struct_to_json(cipher_data, retJsonObj, "ciphertext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -561,8 +563,8 @@ extern "C"
         ehsm_data_t *plain_data = NULL;
         ehsm_data_t *cipher_data = NULL;
 
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        cipher_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "ciphertext");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        cipher_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "ciphertext");
         plain_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (cmk == NULL || cipher_data == NULL || plain_data == NULL)
         {
@@ -602,7 +604,7 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        ret = export_json_from_struct(plain_data, retJsonObj, "plaintext");
+        ret = export_struct_to_json(plain_data, retJsonObj, "plaintext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -648,8 +650,8 @@ extern "C"
         uint32_t keylen = payloadJson.readData_uint32("keylen");
         ehsm_data_t *plain_datakey = NULL;
         ehsm_data_t *cipher_datakey = NULL;
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        aad_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "aad");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        aad_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "aad");
         plain_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(keylen));
         cipher_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (cmk == NULL || aad_data == NULL || plain_datakey == NULL || cipher_datakey == NULL)
@@ -700,7 +702,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(plain_datakey, retJsonObj, "plaintext");
+        ret = export_struct_to_json(plain_datakey, retJsonObj, "plaintext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -708,7 +710,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(cipher_datakey, retJsonObj, "ciphertext");
+        ret = export_struct_to_json(cipher_datakey, retJsonObj, "ciphertext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -754,8 +756,8 @@ extern "C"
         ehsm_data_t *aad_data = NULL;
         ehsm_data_t *plain_datakey = NULL;
         ehsm_data_t *cipher_datakey = NULL;
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        aad_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "aad");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        aad_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "aad");
         plain_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(keylen));
         cipher_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (cmk == NULL || aad_data == NULL || plain_datakey == NULL || cipher_datakey == NULL)
@@ -806,7 +808,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(cipher_datakey, retJsonObj, "ciphertext");
+        ret = export_struct_to_json(cipher_datakey, retJsonObj, "ciphertext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -853,10 +855,10 @@ extern "C"
         ehsm_data_t *aad = NULL;
         ehsm_data_t *olddatakey = NULL;
         ehsm_data_t *newdatakey = NULL;
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        ukey = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "ukey");
-        aad = (ehsm_data_t *)import_struct_from_json(payloadJson, "aad");
-        olddatakey = (ehsm_data_t *)import_struct_from_json(payloadJson, "olddatakey");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        ukey = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "ukey");
+        aad = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "aad");
+        olddatakey = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "olddatakey");
         newdatakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (cmk == NULL || ukey == NULL || aad == NULL || olddatakey == NULL || newdatakey == NULL)
         {
@@ -929,7 +931,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(newdatakey, retJsonObj, "newdatakey");
+        ret = export_struct_to_json(newdatakey, retJsonObj, "newdatakey");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -978,8 +980,8 @@ extern "C"
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *digest_data = NULL;
         ehsm_data_t *signature_data = NULL;
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        digest_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "digest");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        digest_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "digest");
         signature_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
         if (cmk == NULL || digest_data == NULL || signature_data == NULL)
         {
@@ -1021,7 +1023,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_json_from_struct(signature_data, retJsonObj, "signature");
+        ret = export_struct_to_json(signature_data, retJsonObj, "signature");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1071,9 +1073,9 @@ extern "C"
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *digest_data = NULL;
         ehsm_data_t *signature_data = NULL;
-        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, "cmk");
-        digest_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "digest");
-        signature_data = (ehsm_data_t *)import_struct_from_json(payloadJson, "signature");
+        cmk = (ehsm_keyblob_t *)import_struct_from_json(payloadJson, TYPE_CMK, "cmk");
+        digest_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "digest");
+        signature_data = (ehsm_data_t *)import_struct_from_json(payloadJson, TYPE_DATA, "signature");
         if (cmk == NULL || digest_data == NULL || signature_data == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
