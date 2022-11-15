@@ -52,6 +52,7 @@
 #include "rand.h"
 #include "CacheController.h"
 #include "log_utils.h"
+#include "datatypes.h"
 
 extern sgx_enclave_id_t g_enclave_id;
 

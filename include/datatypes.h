@@ -81,8 +81,6 @@ typedef int errno_t;
 #define IN_PROGRESS 0x1
 #define ACTIVE 0x2
 
-#define SGX_DOMAIN_KEY_SIZE     16
-
 #define RSA_OAEP_4096_SIGNATURE_SIZE      512
 #define RSA_OAEP_3072_SIGNATURE_SIZE      384
 #define RSA_OAEP_2048_SIGNATURE_SIZE      256

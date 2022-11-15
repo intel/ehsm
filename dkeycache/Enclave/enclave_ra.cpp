@@ -41,8 +41,6 @@
 #include "sgx_tkey_exchange.h"
 #include "sgx_tcrypto.h"
 
-#define SGX_DOMAIN_KEY_SIZE     16
-
 // This is the public EC key of the SP. The corresponding private EC key is
 // used by the SP to sign data used in the remote attestation SIGMA protocol
 // to sign channel binding data in MSG2. A successful verification of the

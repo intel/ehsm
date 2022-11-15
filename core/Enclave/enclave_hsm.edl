@@ -48,6 +48,8 @@ enclave {
     untrusted {
         void ocall_print_string([in, string] const char *str);
 
+        void ocall_rand([in, out] uint32_t *length, int max_length);
+
         uint32_t ocall_session_request([out] sgx_dh_msg1_t *dh_msg1,
                 [out] uint32_t *session_id);
 

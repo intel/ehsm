@@ -27,7 +27,7 @@ using namespace std;
  * @param buf buffer for saving the result
  * @param len str length / 2
  */
-static void Str2Hex(const char *pbSrc, unsigned char *pbDest, int nLen)
+static void Str2Hex(const char *pbSrc, uint8_t *pbDest, int nLen)
 {
     char h1, h2;
     char s1, s2;
@@ -108,7 +108,7 @@ static ehsm_padding_mode_t get_paddingmode(int paddingmode)
     }
 }
 
-static int getCurve(int curve)
+static int get_curve(int curve)
 {
     switch (curve)
     {
@@ -121,7 +121,7 @@ static int getCurve(int curve)
     case 521:
         return NID_secp521r1;
     default:
-        return 0;
+        return NID_undef;
     }
 }
 
@@ -142,7 +142,7 @@ static void RSA_create_key(RSA *key, const char *n, const char *e, const char *d
                  privateExponent);
 }
 
-static bool aes_gcm_encrypt(map<string, string> test_vector)
+static bool aes_gcm_encryption(map<string, string> test_vector)
 {
     GET_PARAMETER(key);
     GET_PARAMETER(plaintext);
@@ -159,7 +159,7 @@ static bool aes_gcm_encrypt(map<string, string> test_vector)
     return (TEST_COMPARE(ciphertext) && TEST_COMPARE(tag));
 }
 
-static bool aes_gcm_decrypt(map<string, string> test_vector)
+static bool aes_gcm_decryption(map<string, string> test_vector)
 {
     GET_PARAMETER(key);
     GET_PARAMETER(plaintext);
@@ -227,7 +227,7 @@ static bool sm4_cbc_decryption(map<string, string> test_vector)
     return TEST_COMPARE(plaintext);
 }
 
-static bool rsa_crypto(map<string, string> test_vector)
+static bool rsa_decryption(map<string, string> test_vector)
 {
     GET_PARAMETER(n);
     GET_PARAMETER(e);
@@ -267,12 +267,12 @@ bool aes_gcm_crypto_test()
     int index = 1;
     for (auto test_vector : aes_gcm_crypto_test_vectors)
     {
-        if (!aes_gcm_encrypt(test_vector))
+        if (!aes_gcm_encryption(test_vector))
         {
             log_d("fail encrypt at %s case %d\n", __FUNCTION__, index);
             continue;
         }
-        if (!aes_gcm_decrypt(test_vector))
+        if (!aes_gcm_decryption(test_vector))
         {
             log_d("fail decrypt at %s case %d\n", __FUNCTION__, index);
             continue;
@@ -282,10 +282,10 @@ bool aes_gcm_crypto_test()
 
     if (index != aes_gcm_crypto_test_vectors.size() + 1)
     {
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 bool sm4_crypto_test()
@@ -323,10 +323,10 @@ bool sm4_crypto_test()
 
     if (index != sm4_ctr_crypto_test_vectors.size() + sm4_cbc_crypto_test_vectors.size() + 1)
     {
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 static EC_GROUP *create_EC_group(const char *p_hex, const char *a_hex,
@@ -505,10 +505,10 @@ bool sm2_sign_verify_test()
     }
     if (index != sm2_sign_verify_test_vectors.size() + 1)
     {
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 bool rsa_crypto_test()
 {
@@ -516,7 +516,7 @@ bool rsa_crypto_test()
 
     for (auto test_vector : rsa_crypto_test_vectors)
     {
-        if (!rsa_crypto(test_vector))
+        if (!rsa_decryption(test_vector))
         {
             log_d("fail decrypt at %s case %d\n", __FUNCTION__, index);
             continue;
@@ -526,10 +526,10 @@ bool rsa_crypto_test()
 
     if (index != rsa_crypto_test_vectors.size() + 1)
     {
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 static bool rsa_sign_verify(map<string, string> test_vector)
@@ -633,10 +633,10 @@ bool rsa_sign_verify_test()
 
     if (index != (rsa_sign_verify_test_vectors.size() + rsa_PSS_sign_verify_test_vectors.size() + 1))
     {
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 static bool ecc_sign_verify(map<string, string> test_vector)
@@ -659,7 +659,7 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     bool ret = false;
     bool result = false;
 
-    ec_key = EC_KEY_new_by_curve_name(getCurve(curve));
+    ec_key = EC_KEY_new_by_curve_name(get_curve(curve));
     if (ec_key == NULL)
     {
         goto out;
@@ -745,10 +745,10 @@ bool ecc_sign_verify_test()
 
     if (index != ecc_sign_verify_test_vectors.size() + 1)
     {
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 bool sm2_crypto_test()
@@ -785,11 +785,11 @@ bool sm2_crypto_test()
         EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(pkey2, NULL);
         EVP_PKEY_decrypt_init(dctx);
         if (EVP_PKEY_decrypt(dctx, _plaintext, &length, ciphertext, cipher_len) <= 0)
-            return 0;
+            return false;
         if (memcmp(plaintext, _plaintext, length) != 0)
-            return 0;
+            return false;
     }
-    return 1;
+    return true;
 }
 
 sgx_status_t ehsm_self_test()

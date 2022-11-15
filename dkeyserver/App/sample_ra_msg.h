@@ -84,8 +84,6 @@ typedef enum {
 #define SAMPLE_SP_TAG_SIZE      16
 #define SAMPLE_SP_IV_SIZE       12
 
-#define SGX_DOMAIN_KEY_SIZE     16
-
 #ifndef SAMPLE_FEBITSIZE
     #define SAMPLE_FEBITSIZE                    256
 #endif
