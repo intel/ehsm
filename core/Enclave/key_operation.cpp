@@ -900,6 +900,10 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
 
     // load private key
     sm2_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (sm2_keypair == NULL)
+    {
+        goto out;
+    }
     ret = ehsm_parse_keyblob(sm2_keypair, cmk->keybloblen,
                              (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (ret != SGX_SUCCESS)
@@ -1026,6 +1030,10 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     }
     // load private key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (rsa_keypair == NULL)
+    {
+        goto out;
+    }
 
     if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, 
                                           cmk->keybloblen, 
@@ -1107,6 +1115,10 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
 
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (rsa_keypair == NULL)
+    {
+        goto out;
+    }
 
     if (SGX_SUCCESS != ehsm_parse_keyblob(rsa_keypair, 
                                           cmk->keybloblen, 
@@ -1177,6 +1189,10 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     }
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (ec_keypair == NULL)
+    {
+        goto out;
+    }
 
     if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, 
                                           cmk->keybloblen, 
@@ -1248,6 +1264,10 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
     }
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (ec_keypair == NULL)
+    {
+        goto out;
+    }
 
     if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, 
                                           cmk->keybloblen, 
@@ -1317,6 +1337,10 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     }
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (ec_keypair == NULL)
+    {
+        goto out;
+    }
 
     if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, 
                                           cmk->keybloblen, 
@@ -1390,6 +1414,10 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     }
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (ec_keypair == NULL)
+    {
+        goto out;
+    }
 
     if (SGX_SUCCESS != ehsm_parse_keyblob(ec_keypair, 
                                           cmk->keybloblen, 
