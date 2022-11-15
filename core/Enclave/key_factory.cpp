@@ -147,10 +147,7 @@ sgx_status_t ehsm_create_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
 sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
                                 sgx_aes_gcm_data_ex_t *keyblob_data)
 {
-    if (NULL == keyblob_data 
-        || NULL == plaintext 
-        || NULL == plaintext_size 
-        || plaintext_size < keyblob_data->ciphertext_size)
+    if (NULL == keyblob_data || NULL == plaintext || NULL == plaintext_size || plaintext_size < keyblob_data->ciphertext_size)
         return SGX_ERROR_INVALID_PARAMETER;
 
     sgx_status_t ret = aes_gcm_decrypt((uint8_t *)g_domain_key,
@@ -300,10 +297,12 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
         goto out;
     }
 
+#ifdef FIPS_MODE
     if (!test_RSA_keypair(rsa_keypair))
     {
         goto out;
     }
+#endif
 
     bio = BIO_new(BIO_s_mem());
     if (bio == NULL)
@@ -448,10 +447,6 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk) // https://github.com/intel
 
     ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
-    if (ret != SGX_SUCCESS)
-    {
-        goto out;
-    }
 out:
     if (pkey_ctx)
         EVP_PKEY_CTX_free(pkey_ctx);

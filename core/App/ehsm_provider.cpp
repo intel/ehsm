@@ -65,11 +65,6 @@ void ocall_print_string(const char *str)
     printf("%s", str);
 }
 
-void ocall_rand(uint32_t *length, int max_length)
-{
-    *length = (rand() % max_length + 1);
-}
-
 errno_t memcpy_s(
     void *dest,
     size_t numberOfElements,

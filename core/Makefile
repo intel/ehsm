@@ -51,13 +51,12 @@ App_Include_Paths := \
 	-I$(TOPDIR)/include
 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DSIGNED_ENCLAVE_PATH=\"$(Signed_Enclave_Path)\" -DSGX_SIGN_PATH=\"$(Sgx_Sign)\"
-
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
 #   Prerelease - Macro NDEBUG and EDEBUG enabled.
 #   Release - Macro NDEBUG enabled.
 ifeq ($(SGX_DEBUG), 1)
-    App_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG
+    App_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG 
 else ifeq ($(SGX_PRERELEASE), 1)
     App_C_Flags += -DNDEBUG -DEDEBUG -UDEBUG
 else
@@ -98,7 +97,11 @@ Enclave_Include_Paths := \
 	-I$(TOPDIR)/include \
 	-I$(OPENSSL_PATH)/include
 
-Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths)
+Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths) 
+ifeq ($(Build_Mode), HW_DEBUG)
+	Enclave_C_Flags += -DFIPS_MODE
+endif
+
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++ -include "tsgxsslio.h"
 
 # To generate a proper enclave, it is recommended to follow below guideline to link the trusted libraries:
