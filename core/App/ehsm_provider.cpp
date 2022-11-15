@@ -58,8 +58,6 @@
 #include "openssl/rsa.h"
 #include "openssl/evp.h"
 
-#include <time.h>
-
 using namespace std;
 
 void ocall_print_string(const char *str)
@@ -69,9 +67,7 @@ void ocall_print_string(const char *str)
 
 void ocall_rand(uint32_t *length, int max_length)
 {
-    srand((unsigned)time(NULL));
     *length = (rand() % max_length + 1);
-    // printf("ll=%d\n", length);
 }
 
 errno_t memcpy_s(

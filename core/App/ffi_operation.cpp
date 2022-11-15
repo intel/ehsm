@@ -113,7 +113,7 @@ extern "C"
         }
     }
 
-    static ehsm_status_t export_struct_to_json(void *data, RetJsonObj &retJsonObj, std::string key)
+    static ehsm_status_t export_struct_to_json(void *data, RetJsonObj &retJsonObj, ehsm_data_type_t type, std::string key)
     {
         if (data == NULL)
         {
@@ -122,23 +122,26 @@ extern "C"
 
         std::string data_base64;
         size_t data_size = 0;
-
-        if (key == "cmk")
+        
+        switch (type)
         {
+        case EH_KEYBLOB_T:
             data_size = APPEND_SIZE_TO_KEYBLOB_T(((ehsm_keyblob_t *)data)->keybloblen);
             data_base64 = base64_encode((uint8_t *)data, data_size);
-        }
-        else
-        {
+            break;
+        case EH_DATA_T:
             data_size = ((ehsm_data_t *)data)->datalen;
             data_base64 = base64_encode((uint8_t *)((ehsm_data_t *)data)->data, data_size);
+            break;
+        default:
+            return EH_KEYSPEC_INVALID;
         }
 
         if (data_base64.size() > 0)
         {
             retJsonObj.addData_string(key, data_base64);
         }
-        
+
         return EH_OK;
     }
     /*
@@ -253,7 +256,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(master_key, retJsonObj, "cmk");
+        ret = export_struct_to_json(master_key, retJsonObj, EH_KEYBLOB_T, "cmk");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -339,7 +342,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(cipher_data, retJsonObj, "ciphertext");
+        ret = export_struct_to_json(cipher_data, retJsonObj, EH_DATA_T, "ciphertext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -436,7 +439,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(plain_data, retJsonObj, "plaintext");
+        ret = export_struct_to_json(plain_data, retJsonObj, EH_DATA_T, "plaintext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -521,7 +524,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(cipher_data, retJsonObj, "ciphertext");
+        ret = export_struct_to_json(cipher_data, retJsonObj, EH_DATA_T, "ciphertext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -604,7 +607,7 @@ extern "C"
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
-        ret = export_struct_to_json(plain_data, retJsonObj, "plaintext");
+        ret = export_struct_to_json(plain_data, retJsonObj, EH_DATA_T, "plaintext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -702,7 +705,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(plain_datakey, retJsonObj, "plaintext");
+        ret = export_struct_to_json(plain_datakey, retJsonObj, EH_DATA_T, "plaintext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -710,7 +713,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(cipher_datakey, retJsonObj, "ciphertext");
+        ret = export_struct_to_json(cipher_datakey, retJsonObj, EH_DATA_T, "ciphertext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -808,7 +811,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(cipher_datakey, retJsonObj, "ciphertext");
+        ret = export_struct_to_json(cipher_datakey, retJsonObj, EH_DATA_T, "ciphertext");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -931,7 +934,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(newdatakey, retJsonObj, "newdatakey");
+        ret = export_struct_to_json(newdatakey, retJsonObj, EH_DATA_T, "newdatakey");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1023,7 +1026,7 @@ extern "C"
             goto out;
         }
 
-        ret = export_struct_to_json(signature_data, retJsonObj, "signature");
+        ret = export_struct_to_json(signature_data, retJsonObj, EH_DATA_T, "signature");
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);

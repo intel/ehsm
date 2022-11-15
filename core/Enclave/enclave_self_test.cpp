@@ -682,7 +682,7 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     }
     ecdsa_signiture_max_size = ECDSA_size(ec_key);
     {
-        if (ecdsa_signiture_max_size <= 0 )
+        if (ecdsa_signiture_max_size <= 0)
         {
             log_d("ec key error\n");
             goto out;
@@ -753,10 +753,13 @@ bool ecc_sign_verify_test()
 
 bool sm2_crypto_test()
 {
-    int index = 1;
-    size_t length = 128;
-    for (int i = 0; i < index; i++)
+    int count = 10;
+
+    for (int i = 0; i < count; i++)
     {
+        uint8_t rand_len[2];
+        sgx_read_rand(rand_len, 2);
+        size_t length = (rand_len[1] < 8 | rand_len[0]) % 1023 + 1;
         // create key
         EC_GROUP *ec_group = EC_GROUP_new_by_curve_name(NID_sm2);
         EC_KEY *ec_key = EC_KEY_new();
@@ -767,7 +770,8 @@ bool sm2_crypto_test()
         PEM_write_bio_ECPrivateKey(bio, ec_key, NULL, NULL, 0, NULL, NULL);
 
         // encryption
-        uint8_t plaintext[length];
+        // uint8_t plaintext[length];
+        uint8_t *plaintext = (uint8_t *)malloc(length);
         sgx_read_rand(plaintext, length);
         EVP_PKEY *pkey1 = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
         EVP_PKEY_set_alias_type(pkey1, EVP_PKEY_SM2);
@@ -775,11 +779,11 @@ bool sm2_crypto_test()
         EVP_PKEY_encrypt_init(ectx);
         size_t cipher_len;
         EVP_PKEY_encrypt(ectx, NULL, &cipher_len, plaintext, length);
-        uint8_t ciphertext[cipher_len] = {0};
+        uint8_t *ciphertext = (uint8_t *)malloc(cipher_len);
         EVP_PKEY_encrypt(ectx, ciphertext, &cipher_len, plaintext, length);
 
         // decryption
-        uint8_t _plaintext[length] = {0};
+        uint8_t *_plaintext = (uint8_t *)malloc(length);
         EVP_PKEY *pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
         EVP_PKEY_set_alias_type(pkey2, EVP_PKEY_SM2);
         EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(pkey2, NULL);
@@ -792,7 +796,7 @@ bool sm2_crypto_test()
     return true;
 }
 
-sgx_status_t ehsm_self_test()
+sgx_status_t enclave_self_test()
 {
     if (aes_gcm_crypto_test() &
         sm4_crypto_test() &

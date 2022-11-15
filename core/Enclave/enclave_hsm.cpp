@@ -33,8 +33,6 @@
 #include "log_utils.h"
 #include "sgx_tseal.h"
 
-#include "enclave_self_test.h"
-
 #include <string>
 #include <stdio.h>
 #include <stdbool.h>
@@ -119,22 +117,6 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
     default:
         return -1;
     }
-}
-
-sgx_status_t enclave_self_test()
-{
-    if (aes_gcm_crypto_test() &
-        sm4_crypto_test() &
-        rsa_crypto_test() &
-        rsa_sign_verify_test() &
-        ecc_sign_verify_test() &
-        sm2_sign_verify_test() &
-        sm2_crypto_test())
-    {
-        return SGX_SUCCESS;
-    }
-
-    return SGX_ERROR_INVALID_FUNCTION;
 }
 
 sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
