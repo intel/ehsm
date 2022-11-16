@@ -135,8 +135,29 @@ def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     # notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
     # you can get mr_signer and mr_enclave through cmd: 
     # "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
-    mr_enclave = '3110bb76d4f73657fce77b148c04b2b59973fa7e8e77f4fbb6e433b58c88deb7';
-    mr_signer = 'c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835';   
+    mr_enclave = '';
+    mr_signer = '';
+    dumpfilename = 'ehsm_enclave_out.log'
+    sofilename = os.path.dirname(os.path.abspath(__file__)) + '/../out/ehsm-core/libenclave-ehsm-core.signed.so'
+    os.system('/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave ' + sofilename + ' -dumpfile ' + dumpfilename)
+    enclave_file = open(dumpfilename,'rb')
+    readEnclaveLineNum = 0;
+    readSignerLineNum = 0;
+    for line in enclave_file.readlines():
+        line = line.strip()
+        if(readEnclaveLineNum > 0):
+            readEnclaveLineNum -= 1;
+            mr_enclave += str(line, 'UTF-8').replace('0x' , '').replace(' ' , '');
+        if(readSignerLineNum > 0):
+            readSignerLineNum -= 1;
+            mr_signer += str(line, 'UTF-8').replace('0x' , '').replace(' ' , '');
+        if(line.endswith("metadata->enclave_css.body.enclave_hash.m:".encode('utf-8'))):
+            if(len(mr_enclave) == 0):
+                readEnclaveLineNum = 2
+        if(line.endswith("mrsigner->value:".encode('utf-8'))):
+            if(len(mr_signer) == 0):
+                readSignerLineNum = 2
+    enclave_file.close()
 
     policyId = uploadQuotePolicy.uploadQuotePolicy(base_url, mr_enclave, mr_signer)
 
@@ -154,6 +175,7 @@ def test_GenerateQuote_and_VerifyQuote(base_url, headers):
 
     verify_quote.verify_quote_with_file(base_url, "a.txt")
     verify_quote.verify_quote_with_file_and_policyId(base_url, "a.txt", policyId)
+    os.remove(dumpfilename)
     os.remove("a.txt")
     print('====================test_GenerateQuote_and_VerifyQuote end===========================')
 
@@ -197,4 +219,3 @@ if __name__ == "__main__":
     test_deleteAllKey(base_url, headers)
 
     test_GenerateQuote_and_VerifyQuote(base_url, headers)
-    
