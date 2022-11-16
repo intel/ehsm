@@ -14,9 +14,12 @@
 #include <netdb.h>
 #include <poll.h>
 #include <stdlib.h>
+#include <getopt.h>
 
 #define ENCLAVE_PATH "libenclave-ehsm-dkeyserver.signed.so"
 #define FILE_NAME "/etc/dkey.bin"
+#define ROLE_WORKER "worker"
+#define ROLE_ROOT "root"
 char s_port[] = "8888";
 
 sgx_enclave_id_t g_enclave_id;
@@ -155,26 +158,151 @@ int ocall_setsockopt(int sockfd,
     return setsockopt(sockfd, level, optname, optval, optlen);
 }
 
-int main()
+int ocall_connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen)
 {
+    int32_t retry_count = 60;
+    do
+    {
+        int ret = connect(sockfd, servaddr, addrlen);
+        if (ret >= 0)
+            return ret;
 
+        log_i("Failed to connect target server, sleep 0.5s and try again...\n");
+        usleep(500000); // 0.5s
+    } while (retry_count-- > 0);
+
+    log_e("Failed to connect target server.\n");
+    return -1;
+}
+
+void print_usage(int code)
+{
+    printf ("Usage: ehsm-dkeyserver "\
+            BLUE "-r" NONE " [ server role ] "\
+            BLUE "-i" NONE " [ target server ip ] "\
+            BLUE "-p" NONE " [target server port]\n");
+    printf (BLUE "-h" NONE"    Print usage information and quit.\n"
+            BLUE "-r" NONE"    Set the role of this machine as root or worker in server cluster.\n"
+            BLUE "-i" NONE"    Set the ip address of target server.\n"
+            BLUE "-p" NONE"    Set the port of target server.\n");
+    exit(code);
+}
+
+static void parse_args(int argc,
+                       char *argv[],
+                       string& server_role,
+                       string& target_ip_addr,
+                       uint16_t *target_port)
+{
+    int opt;
+    int oidx = 0;
+    static const char *_sopts = "r:i:p:h";
+    static const struct option _lopts[] = {{"role", required_argument, NULL, 'r'},
+                                           {"ip", optional_argument, NULL, 'i'},
+                                           {"port", optional_argument, NULL, 'p'},
+                                           {"help", no_argument, NULL, 'h'},
+                                           {0, 0, 0, 0}};
+    while ((opt = getopt_long(argc, argv, _sopts, _lopts, &oidx)) != -1)
+    {
+        switch (opt)
+        {
+        case 'r':
+            server_role = strdup(optarg);
+            if (server_role != ROLE_ROOT && server_role != ROLE_WORKER)
+            {
+                log_e("please set server role with -r by 'worker' or 'root'.\n");
+                print_usage(EXIT_FAILURE);
+            }
+            break;
+        case 'i':
+            target_ip_addr = strdup(optarg);
+            break;
+        case 'p':
+            try
+            {
+                *target_port = std::stoi(strdup(optarg));
+            }
+            catch (...)
+            {
+                log_e("[-p %s] port must be a number.", optarg);
+            }
+            break;
+	case 'h':
+            print_usage(EXIT_SUCCESS);
+            break;
+        default:
+            log_e("unrecognized option (%c):\n", opt);
+	    print_usage(EXIT_FAILURE);
+        }
+    }
+}
+
+int validate_parameter(string server_role,
+                       string target_ip_addr,
+                       uint16_t target_port)
+{
+    if (server_role[0] == '\0')
+    {
+        log_e("please set server role with -r by 'worker' or 'root'.\n");
+        return -1;
+    }
+    if (target_ip_addr[0] == '\0' &&
+        target_port == 0 &&
+        server_role == ROLE_WORKER)
+    {
+        log_e("please set a correct target server for worker node.\n");
+        return -1;
+    }
+    if (target_ip_addr[0] == '\0' && target_port != 0)
+    {
+        log_e("please set correct target server ip and port.\n");
+        return -1;
+    }
+    return 0;
+}
+
+int main(int argc, char *argv[]) 
+{
     log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
+    string server_role;
+    string target_ip_addr;
+    uint16_t target_port = 0;
 
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    parse_args(argc,
+               argv,
+               server_role,
+               target_ip_addr,
+               &target_port);
 
-    int ret = sgx_create_enclave(ENCLAVE_PATH,
-                                 SGX_DEBUG_FLAG,
-                                 NULL, NULL,
-                                 &g_enclave_id, NULL);
+    int ret = validate_parameter(server_role, target_ip_addr, target_port);
+    if (ret != 0)
+    {
+        printf ("Usage: ehsm-dkeyserver "\
+                BLUE "-r" NONE " [server role] "\
+                BLUE "-i" NONE " [target server ip] "\
+                BLUE "-p" NONE " [target server port]\n");
+        return -1;
+    }
+    
+    ret = sgx_create_enclave(ENCLAVE_PATH,
+                             SGX_DEBUG_FLAG,
+                             NULL, NULL,
+                             &g_enclave_id, NULL);
     if (SGX_SUCCESS != ret)
     {
         log_e("failed(%d) to create enclave.\n", ret);
         return -1;
     }
 
-    ret = sgx_set_up_tls_server(g_enclave_id, &ret, s_port);
+    ret = sgx_set_up_tls_server(g_enclave_id,
+                                &ret,
+                                s_port,
+                                server_role.c_str(),
+                                target_ip_addr.c_str(),
+                                target_port);
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
     {
         log_d("Host: setup_tls_server failed\n");

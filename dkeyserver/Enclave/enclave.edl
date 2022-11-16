@@ -58,10 +58,12 @@ enclave {
         int ocall_bind (int fd, [in, size=len] const struct sockaddr *addr, socklen_t len) propagate_errno;
         int ocall_listen (int fd, int n) propagate_errno;
         int ocall_accept (int fd, [out, size=addrlen_in] struct sockaddr *addr, socklen_t addrlen_in, [out] socklen_t *addrlen_out) propagate_errno;
+	int ocall_connect (int fd, [in, size=len] const struct sockaddr *addr, socklen_t len) propagate_errno;
         int ocall_setsockopt (int fd, int level, int optname, [in, size=optlen] const void *optval, socklen_t optlen) propagate_errno;
     };
 
     trusted {
-        public int sgx_set_up_tls_server([in, string] char* port);
+        public int sgx_set_up_tls_server([in, string] char* port, [in, string] const char* server_role, [in, string] const char* server_name,
+                uint16_t server_port);
     };
 };

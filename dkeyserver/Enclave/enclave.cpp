@@ -51,6 +51,8 @@
 #include "datatypes.h"
 
 #define CLIENT_MAX_NUM 20
+#define ROLE_WORKER "worker"
+#define ROLE_ROOT "root"
 
 typedef struct SocketMsgHandlerParam
 {
@@ -96,7 +98,6 @@ uint16_t htons(uint16_t n)
 }
 
 /* support socket APIs inside enclave */
-
 /* for socket APIs, refer to https://en.wikipedia.org/wiki/Berkeley_sockets */
 
 int socket(int domain, int type, int protocol)
@@ -172,57 +173,6 @@ int setsockopt(
         //  errno = EINVAL;
         return -1;
     }
-
-    return ret;
-}
-
-sgx_status_t sgx_get_domainkey(uint8_t *domain_key)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint32_t dk_cipher_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);
-
-    if (dk_cipher_len == UINT32_MAX)
-        return SGX_ERROR_UNEXPECTED;
-
-    int retstatus;
-    uint8_t dk_cipher[dk_cipher_len] = {0};
-    uint8_t tmp[SGX_DOMAIN_KEY_SIZE] = {0};
-
-    ret = ocall_read_domain_key(&retstatus, dk_cipher, dk_cipher_len);
-    if (ret != SGX_SUCCESS)
-        return ret;
-
-    if (retstatus == 0)
-    {
-        uint32_t dk_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)dk_cipher);
-
-        ret = sgx_unseal_data((const sgx_sealed_data_t *)dk_cipher, NULL, 0, tmp, &dk_len);
-        if (ret != SGX_SUCCESS)
-            return ret;
-    }
-    // -2: dk file does not exist.
-    else if (retstatus == -2)
-    {
-        log_d("enclave file does not exist.\n");
-        ret = sgx_read_rand(tmp, SGX_DOMAIN_KEY_SIZE);
-        if (ret != SGX_SUCCESS)
-        {
-            return ret;
-        }
-
-        ret = sgx_seal_data(0, NULL, SGX_DOMAIN_KEY_SIZE, tmp, dk_cipher_len, (sgx_sealed_data_t *)dk_cipher);
-        if (ret != SGX_SUCCESS)
-            return SGX_ERROR_UNEXPECTED;
-
-        ret = ocall_store_domain_key(&retstatus, dk_cipher, dk_cipher_len);
-        if (ret != SGX_SUCCESS || retstatus != 0)
-            return SGX_ERROR_UNEXPECTED;
-    }
-    else
-        return SGX_ERROR_UNEXPECTED;
-
-    memcpy_s(domain_key, SGX_DOMAIN_KEY_SIZE, tmp, SGX_DOMAIN_KEY_SIZE);
-    memset_s(tmp, SGX_DOMAIN_KEY_SIZE, 0, SGX_DOMAIN_KEY_SIZE);
 
     return ret;
 }
@@ -387,7 +337,339 @@ exit:
     return ret;
 }
 
-int sgx_set_up_tls_server(char *server_port)
+static unsigned long inet_addr(const char *str)
+{
+    unsigned long lHost = 0;
+    char *pLong = (char *)&lHost;
+    char *p = (char *)str;
+    while (p)
+    {
+        *pLong++ = atoi(p);
+        p = strchr(p, '.');
+        if (p)
+            ++p;
+    }
+    return lHost;
+}
+
+int connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen)
+{
+    int ret = -1;
+
+    if (ocall_connect(&ret, sockfd, servaddr, addrlen) == SGX_SUCCESS)
+        return ret;
+
+    return -1;
+}
+
+int create_socket(const char *server_name, uint16_t server_port)
+{
+    int sockfd = -1;
+    struct sockaddr_in dest_sock;
+    int ret = -1;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1)
+    {
+        log_d(TLS_SERVER "Error: Cannot create socket %d.\n", errno);
+        goto out;
+    }
+
+    dest_sock.sin_family = AF_INET;
+    dest_sock.sin_port = htons(server_port);
+    dest_sock.sin_addr.s_addr = inet_addr(server_name);
+    bzero(&(dest_sock.sin_zero), sizeof(dest_sock.sin_zero));
+
+    if (connect(
+            sockfd, (sockaddr *)&dest_sock,
+            sizeof(struct sockaddr)) == -1)
+    {
+        log_d(
+            TLS_SERVER "failed to connect to target server %d:%d (errno=%d)\n",
+            server_name,
+            server_port,
+            errno);
+        ocall_close(&ret, sockfd);
+        if (ret != 0)
+            log_d(TLS_SERVER "OCALL: error closing socket\n");
+        sockfd = -1;
+        goto out;
+    }
+    log_d(TLS_SERVER "connected to target server %s:%d\n", server_name, server_port);
+
+out:
+    return sockfd;
+}
+
+sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
+                                       const char *target_server_name,
+                                       uint16_t target_server_port)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (target_server_name[0] == '\0')
+        return ret;
+
+    SSL_CTX *ssl_client_ctx = nullptr;
+    SSL *ssl_session = nullptr;
+
+    X509 *cert = nullptr;
+    EVP_PKEY *pkey = nullptr;
+    SSL_CONF_CTX *ssl_confctx = SSL_CONF_CTX_new();
+
+    int client_socket = -1;
+    int error = 0;
+    unsigned char buf[200];
+    int len = 0;
+    int bytes_written = 0;
+    int bytes_read = 0;
+
+    if ((ssl_client_ctx = SSL_CTX_new(TLS_client_method())) == nullptr)
+    {
+        log_d(TLS_SERVER "Unable to create a new SSL context\n");
+        goto out;
+    }
+
+    if (initalize_ssl_context(ssl_confctx, ssl_client_ctx) != SGX_SUCCESS)
+    {
+        log_d(TLS_SERVER "Unable to create a initialize SSL context\n ");
+        goto out;
+    }
+
+    // specify the verify_callback for verification
+    SSL_CTX_set_verify(ssl_client_ctx, SSL_VERIFY_PEER, &verify_callback);
+    log_d(TLS_SERVER "Load cert and key\n");
+    if (load_tls_certificates_and_keys(ssl_client_ctx, cert, pkey) != 0)
+    {
+        log_d(TLS_SERVER "Unable to load certificate and private key on the client\n");
+        goto out;
+    }
+
+    if ((ssl_session = SSL_new(ssl_client_ctx)) == nullptr)
+    {
+        log_d(TLS_SERVER "Unable to create a new SSL connection state object\n");
+        goto out;
+    }
+
+    log_d(TLS_SERVER "New ssl connection getting created\n");
+    client_socket = create_socket(target_server_name, target_server_port);
+    if (client_socket == -1)
+    {
+        log_d(
+            TLS_SERVER "Create a socket and initiate a TCP connect to target server: %s:%d "
+            "(errno=%d)\n",
+            target_server_name,
+            target_server_port,
+            errno);
+        goto out;
+    }
+
+    // set up ssl socket and initiate TLS connection with TLS target server
+    if (SSL_set_fd(ssl_session, client_socket) != 1)
+    {
+        log_d(TLS_SERVER "Ssl set fd error.\n");
+	goto out;
+    }
+
+    if ((error = SSL_connect(ssl_session)) != 1)
+    {
+        log_d(TLS_SERVER "Error: Could not establish a TLS session ret2=%d "
+                         "SSL_get_error()=%d\n",
+                         error,
+                         SSL_get_error(ssl_session, error));
+        goto out;
+    }
+    log_d(TLS_SERVER "successfully established TLS channel:%s\n",
+        SSL_get_version(ssl_session));
+
+    // start the communication
+    // Write an GET request to the target server
+    log_d(TLS_SERVER "-----> Write to server:\n");
+    len = snprintf((char *)buf, sizeof(buf) - 1, CLIENT_PAYLOAD);
+
+    while ((bytes_written = SSL_write(ssl_session, buf, (size_t)len)) <= 0)
+    {
+        error = SSL_get_error(ssl_session, bytes_written);
+        if (error == SSL_ERROR_WANT_WRITE)
+            continue;
+        log_d(TLS_SERVER "Failed! SSL_write returned %d\n", error);
+        goto out;
+    }
+
+    log_d(TLS_SERVER "%d bytes written\n", bytes_written);
+
+    // Read the HTTP response from target server
+    log_d(TLS_SERVER "<---- Read from server:\n");
+    do
+    {
+        len = sizeof(buf) - 1;
+        memset_s(buf, sizeof(buf), 0, sizeof(buf));
+        bytes_read = SSL_read(ssl_session, buf, (size_t)len);
+
+        if (bytes_read <= 0)
+        {
+            int error = SSL_get_error(ssl_session, bytes_read);
+            if (error == SSL_ERROR_WANT_READ)
+                continue;
+
+            log_d(TLS_SERVER "Failed! SSL_read returned error=%d\n", error);
+            goto out;
+        }
+
+        log_d(TLS_SERVER " %d bytes read\n", bytes_read);
+
+        if (bytes_read != SGX_DOMAIN_KEY_SIZE)
+        {
+            log_d(
+                TLS_SERVER  "ERROR: expected reading %lu bytes but only "
+                           "received %d bytes\n",
+                SGX_DOMAIN_KEY_SIZE,
+                bytes_read);
+            goto out;
+        }
+        else
+        {
+            memcpy_s(domain_key, SGX_DOMAIN_KEY_SIZE, buf, SGX_DOMAIN_KEY_SIZE);
+            memset_s(buf, SGX_DOMAIN_KEY_SIZE, 0, SGX_DOMAIN_KEY_SIZE);
+            log_d(TLS_SERVER "domainkey received succeed:\n");
+            break;
+        }
+    } while (1);
+
+    ret = SGX_SUCCESS;
+    
+out:
+
+    if (client_socket != -1)
+    {
+        int closeRet;
+        ocall_close(&closeRet, client_socket);
+        if (closeRet != 0)
+        {
+            log_d(TLS_CLIENT "OCALL: error close socket\n");
+            ret = SGX_ERROR_UNEXPECTED;
+        }
+    }
+
+    if (ssl_session)
+    {
+        SSL_shutdown(ssl_session);
+        SSL_free(ssl_session);
+    }
+
+    if (cert)
+        X509_free(cert);
+
+    if (pkey)
+        EVP_PKEY_free(pkey);
+
+    if (ssl_client_ctx)
+        SSL_CTX_free(ssl_client_ctx);
+
+    if (ssl_confctx)
+        SSL_CONF_CTX_free(ssl_confctx);
+
+    log_d(TLS_SERVER "get domain key from target server %s\n", (ret == SGX_SUCCESS) ? "success" : "failed");
+    return ret;
+}
+
+sgx_status_t get_domainkey_from_local(uint8_t *domain_key)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    uint32_t dk_cipher_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);
+
+    if (dk_cipher_len == UINT32_MAX)
+        return SGX_ERROR_UNEXPECTED;
+        
+    int retstatus;
+    uint8_t dk_cipher[dk_cipher_len] = {0};
+    uint8_t tmp[SGX_DOMAIN_KEY_SIZE] = {0};
+
+    ret = ocall_read_domain_key(&retstatus, dk_cipher, dk_cipher_len);
+    if (ret != SGX_SUCCESS)
+        return ret;
+
+    if (retstatus == 0)
+    {
+        uint32_t dk_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)dk_cipher);
+
+        ret = sgx_unseal_data((const sgx_sealed_data_t *)dk_cipher, NULL, 0, tmp, &dk_len);
+        if (ret != SGX_SUCCESS)
+            return ret;
+    }
+    // -2: dk file does not exist.
+    else if (retstatus == -2)
+    {
+        log_d("enclave file does not exist.\n");
+        ret = sgx_read_rand(tmp, SGX_DOMAIN_KEY_SIZE);
+        if (ret != SGX_SUCCESS)
+            return ret;
+    }
+    else
+        return SGX_ERROR_UNEXPECTED;
+
+    memcpy_s(domain_key, SGX_DOMAIN_KEY_SIZE, tmp, SGX_DOMAIN_KEY_SIZE);
+    memset_s(tmp, SGX_DOMAIN_KEY_SIZE, 0, SGX_DOMAIN_KEY_SIZE);
+
+    return ret;
+}
+
+sgx_status_t store_domain_key(uint8_t *domain_key)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    uint32_t dk_cipher_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);        
+    uint8_t dk_cipher[dk_cipher_len] = {0};
+    int retstatus;
+    
+    ret = sgx_seal_data(0, NULL, SGX_DOMAIN_KEY_SIZE, domain_key, dk_cipher_len, (sgx_sealed_data_t *)dk_cipher);
+    if (ret != SGX_SUCCESS)
+        return SGX_ERROR_UNEXPECTED;
+
+    ret = ocall_store_domain_key(&retstatus, dk_cipher, dk_cipher_len);
+    if (ret != SGX_SUCCESS || retstatus != 0)
+        return SGX_ERROR_UNEXPECTED;
+
+    return ret;
+}
+
+sgx_status_t sgx_get_domainkey(uint8_t *domain_key,
+                               const char *server_role,
+                               const char *target_server_name,
+                               uint16_t target_server_port)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    if (domain_key == NULL){
+        log_e("domain key is null. \n");
+        return ret;
+    }
+
+    log_i("start get domain key from target server. \n");
+    ret = get_domainkey_from_target(domain_key, target_server_name, target_server_port);
+    if (strncmp(server_role, ROLE_WORKER, strlen(ROLE_ROOT)) == 0 && ret != SGX_SUCCESS)
+    {
+        log_i("worker get domain key from target failed. \n");
+        return ret;
+    }
+
+    if (strncmp(server_role, ROLE_ROOT, strlen(ROLE_ROOT)) == 0 && ret != SGX_SUCCESS)
+    {
+        log_i("start get domain key from disk\n");
+        ret = get_domainkey_from_local(domain_key);
+    }        
+           
+    if (ret == SGX_SUCCESS)
+    {
+        log_i("start store domain key to disk\n");
+        ret = store_domain_key(domain_key);
+    }
+    
+    return ret;
+}
+
+int sgx_set_up_tls_server(char *server_port,
+                          const char *server_role,
+                          const char *target_server_name,
+                          uint16_t target_server_port)
 {
     int ret = -1;
     int server_socket_fd;
@@ -434,7 +716,10 @@ int sgx_set_up_tls_server(char *server_port)
     }
 
     // get domainkey
-    if (sgx_get_domainkey(domain_key) != SGX_SUCCESS)
+    if (sgx_get_domainkey(domain_key,
+                          server_role,
+                          target_server_name,
+                          target_server_port) != SGX_SUCCESS)
     {
         log_d("Failed to get domain key.\n");
         goto exit;
