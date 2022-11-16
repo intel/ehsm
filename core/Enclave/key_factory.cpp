@@ -357,6 +357,83 @@ out:
     return ret;
 }
 
+#ifdef FIPS_MODE
+static bool test_EC_keypair(uint8_t *keypair)
+{
+    EC_KEY *pir_key = NULL;
+    EC_KEY *pub_key = NULL;
+    BIO *pri_bio = NULL;
+    BIO *pub_bio = NULL;
+    uint8_t data2sign[] = "test_ec_keypair";
+    uint32_t signature_size = 0;
+    uint8_t *signature = NULL;
+    uint32_t data2sign_size = sizeof(data2sign) / sizeof(data2sign[0]);
+    bool result = false;
+
+    pri_bio = BIO_new_mem_buf(keypair, -1); // use -1 to auto compute length
+    if (pri_bio == NULL)
+    {
+        log_d("failed to load ecc prikey pem\n");
+        goto out;
+    }
+
+    PEM_read_bio_ECPrivateKey(pri_bio, &pir_key, NULL, NULL);
+    if (pir_key == NULL)
+    {
+        log_d("failed to load ecc prikey\n");
+        goto out;
+    }
+    signature_size = ECDSA_size(pir_key);
+    signature = (uint8_t *)malloc(signature_size);
+    if (signature == NULL)
+    {
+        goto out;
+    }
+    if (ecc_sign(pir_key, 
+                 EVP_sha256(), 
+                 data2sign, 
+                 data2sign_size, 
+                 signature, 
+                 &signature_size) != SGX_SUCCESS)
+    {
+        goto out;
+    }
+
+    pub_bio = BIO_new_mem_buf(keypair, -1); // use -1 to auto compute length
+    if (pub_bio == NULL)
+    {   
+        log_d("failed to load ecc pubkey pem\n");
+        goto out;
+    }
+    PEM_read_bio_EC_PUBKEY(pub_bio, &pub_key, NULL, NULL);
+    if (pub_key == NULL)
+    {
+        log_d("failed to load ecc pubkey\n");
+        goto out;
+    }
+    ecc_verify(pub_key, 
+               EVP_sha256(), 
+               data2sign, 
+               data2sign_size, 
+               signature, 
+               signature_size, 
+               &result);
+out:
+    if(pir_key)
+        EC_KEY_free(pir_key);
+    if(pri_bio)
+        BIO_free(pri_bio);
+    if(pub_bio)
+        BIO_free(pub_bio);
+    if(pub_key)
+        EC_KEY_free(pub_key);
+    
+    memset_s(signature, signature_size, 0, signature_size);
+    SAFE_FREE(signature);
+    return result;
+}
+#endif
+
 sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk) // https://github.com/intel/linux-sgx/blob/master/SampleCode/SampleAttestedTLS/common/utility.cpp
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -448,6 +525,12 @@ sgx_status_t ehsm_create_ec_key(ehsm_keyblob_t *cmk) // https://github.com/intel
         goto out;
     }
 
+#ifdef FIPS_MODE
+    if (!test_EC_keypair(pem_keypair))
+    {
+        goto out;
+    }
+#endif
     ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
 
 out:
@@ -463,6 +546,7 @@ out:
     return ret;
 }
 
+#ifdef FIPS_MODE
 static bool test_SM2_keypair(EC_KEY *ec_key)
 {
     uint8_t data2sign[] = "test_SM2_keypair";
@@ -493,6 +577,7 @@ static bool test_SM2_keypair(EC_KEY *ec_key)
     
     return result;
 }
+#endif
 
 sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
 // https://github.com/intel/intel-sgx-ssl/blob/master/Linux/sgx/test_app/enclave/tests/evp_smx.c
