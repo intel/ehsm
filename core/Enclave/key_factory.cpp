@@ -546,6 +546,7 @@ out:
     return ret;
 }
 
+#ifdef FIPS_MODE
 static bool test_SM2_keypair(EC_KEY *ec_key)
 {
     uint8_t data2sign[] = "test_SM2_keypair";
@@ -576,6 +577,7 @@ static bool test_SM2_keypair(EC_KEY *ec_key)
     
     return result;
 }
+#endif
 
 sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
 // https://github.com/intel/intel-sgx-ssl/blob/master/Linux/sgx/test_app/enclave/tests/evp_smx.c
