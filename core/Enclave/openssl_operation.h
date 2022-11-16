@@ -36,6 +36,14 @@
 #include <stdbool.h>
 #include <mbusafecrt.h>
 
+#include "openssl/evp.h"
+#include "openssl/rsa.h"
+#include "openssl/md5.h"
+#include "openssl/ec.h"
+#include "openssl/pem.h"
+#include "openssl/bio.h"
+#include "openssl/err.h"
+
 #include "sgx_report.h"
 #include "sgx_utils.h"
 #include "sgx_tkey_exchange.h"

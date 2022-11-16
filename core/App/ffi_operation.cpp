@@ -28,27 +28,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <cstring>
 #include <uuid/uuid.h>
+
+#include "auto_version.h"
 
 #include "base64.h"
 #include "ffi_operation.h"
-#include "serialize.h"
-#include "log_utils.h"
-#include "datatypes.h"
 #include "ehsm_marshal.h"
-
-#include "sample_ra_msg.h"
-#include "sgx_dcap_ql_wrapper.h"
-
-#include "ehsm_marshal.h"
-#include "auto_version.h"
-
-#include "openssl/rsa.h"
 #include "ehsm_provider.h"
 
 using namespace std;
-// using namespace EHsmProvider;
 
 extern "C"
 {

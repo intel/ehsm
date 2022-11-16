@@ -30,26 +30,7 @@
  */
 
 #include "enclave_hsm_t.h"
-#include "log_utils.h"
-#include "sgx_tseal.h"
-
-#include <string>
-#include <stdio.h>
-#include <stdbool.h>
-#include <mbusafecrt.h>
-
-#include "sgx_report.h"
-#include "sgx_utils.h"
-#include "sgx_tkey_exchange.h"
-
 #include "datatypes.h"
-#include "openssl/rsa.h"
-#include "openssl/evp.h"
-#include "openssl/ec.h"
-#include "openssl/pem.h"
-#include "openssl/bio.h"
-#include "openssl/err.h"
-
 #include "key_operation.h"
 #include "key_factory.h"
 #include "openssl_operation.h"

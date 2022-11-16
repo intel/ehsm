@@ -1,16 +1,7 @@
-#include "enclave_self_test.h"
-#include <string.h>
-#include <vector>
-#include <map>
 #include "datatypes.h"
 #include "self_test_vector.h"
-#include "openssl/rsa.h"
-#include "openssl/evp.h"
-#include "openssl/ec.h"
-#include "openssl/pem.h"
-#include "openssl/bio.h"
-#include "openssl/bn.h"
-
+#include "openssl_operation.h"
+#include "key_operation.h"
 #include "enclave_hsm_t.h"
 
 using namespace std;
@@ -19,6 +10,7 @@ using namespace std;
     uint8_t *x = (uint8_t *)get_parameter(#x, test_vector);
 
 #define TEST_COMPARE(x) (memcmp(x, _##x, VECTOR_LENGTH(#x)) == 0)
+#define VECTOR_LENGTH(x) (uint32_t)(test_vector[x].length()) / 2
 
 /**
  * @brief make string to hex array, string length needs to be a even number
