@@ -98,7 +98,9 @@ Enclave_Include_Paths := \
 	-I$(OPENSSL_PATH)/include
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths) 
-ifeq ($(Build_Mode), HW_DEBUG)
+
+FIPS_MODE ?= 0
+ifeq ($(FIPS_MODE), 1)
 	Enclave_C_Flags += -DFIPS_MODE
 endif
 

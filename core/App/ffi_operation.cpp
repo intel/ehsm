@@ -1550,7 +1550,6 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        sgx_ql_qv_result_t verifyresult;
         bool result = false;
         ehsm_data_t *quote;
 
@@ -1572,7 +1571,7 @@ extern "C"
         quote->datalen = quote_size;
         memcpy_s(quote->data, quote_size, (uint8_t *)quote_str.data(), quote_size);
 
-        ret = VerifyQuote(quote, mr_signer, mr_enclave, &verifyresult);
+        ret = VerifyQuote(quote, mr_signer, mr_enclave, &result);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1580,9 +1579,6 @@ extern "C"
             goto out;
         }
         log_d("VerifyQuote successfuly\n");
-
-        if (verifyresult == SGX_QL_QV_RESULT_OK)
-            result = true;
 
         retJsonObj.addData_bool("result", result);
         retJsonObj.addData_string("nonce", nonce_base64);
