@@ -545,7 +545,7 @@ static bool rsa_sign_verify(map<string, string> test_vector)
     (void)rsa_sign(key, get_digestmode(digestmode), get_paddingmode(paddingmode), msg, VECTOR_LENGTH("msg"),
                    _S, (uint32_t)RSA_size(key));
 
-    if(TEST_COMPARE(S) == false)
+    if (TEST_COMPARE(S) == false)
     {
         log_d(" Signature error\n");
         return false;
@@ -766,7 +766,6 @@ bool sm2_crypto_test()
         PEM_write_bio_ECPrivateKey(bio, ec_key, NULL, NULL, 0, NULL, NULL);
 
         // encryption
-        // uint8_t plaintext[length];
         uint8_t *plaintext = (uint8_t *)malloc(length);
         sgx_read_rand(plaintext, length);
         EVP_PKEY *pkey1 = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
@@ -784,10 +783,23 @@ bool sm2_crypto_test()
         EVP_PKEY_set_alias_type(pkey2, EVP_PKEY_SM2);
         EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(pkey2, NULL);
         EVP_PKEY_decrypt_init(dctx);
-        if (EVP_PKEY_decrypt(dctx, _plaintext, &length, ciphertext, cipher_len) <= 0)
+        if (EVP_PKEY_decrypt(dctx, _plaintext, &length, ciphertext, cipher_len) > 0)
+        {
+            if (memcmp(plaintext, _plaintext, length) == 0)
+            {
+                free(plaintext);
+                free(_plaintext);
+                free(ciphertext);
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
             return false;
-        if (memcmp(plaintext, _plaintext, length) != 0)
-            return false;
+        }
     }
     return true;
 }

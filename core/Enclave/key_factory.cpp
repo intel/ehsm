@@ -226,6 +226,7 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
     return ret;
 }
 
+#ifdef FIPS_MODE
 static bool test_RSA_keypair(RSA *keypair)
 {
     uint8_t data2sign[] = "test_rsa_keypair";
@@ -253,6 +254,7 @@ static bool test_RSA_keypair(RSA *keypair)
     
     return result;
 }
+#endif
 
 sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
 {
