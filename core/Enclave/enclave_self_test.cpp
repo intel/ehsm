@@ -553,7 +553,11 @@ static bool rsa_sign_verify(map<string, string> test_vector)
     (void)rsa_sign(key, get_digestmode(digestmode), get_paddingmode(paddingmode), msg, VECTOR_LENGTH("msg"),
                    _S, (uint32_t)RSA_size(key));
 
-    TEST_COMPARE(S);
+    if(TEST_COMPARE(S) == false)
+    {
+        log_d(" Signature error\n");
+        return false;
+    }
 
     (void)rsa_verify(key, get_digestmode(digestmode), get_paddingmode(paddingmode), msg, VECTOR_LENGTH("msg"),
                      S, VECTOR_LENGTH("S"), &result, saltlen);

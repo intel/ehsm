@@ -244,13 +244,30 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
 
 static bool test_RSA_keypair(RSA *keypair)
 {
-    uint8_t plaintext[] = "test_rsa_keypair";
-    uint8_t ciphertext[RSA_size(keypair)] = {0};
-    uint8_t _plaintext[sizeof(plaintext) / sizeof(plaintext[0])] = {0};
-    RSA_public_encrypt(sizeof(plaintext) / sizeof(plaintext[0]), (unsigned char *)plaintext, ciphertext, keypair, 4);
-    RSA_private_decrypt(RSA_size(keypair), ciphertext, _plaintext, keypair, 4);
+    uint8_t data2sign[] = "test_rsa_keypair";
+    uint8_t signature[RSA_size(keypair)] = {0};
+    uint32_t data2sign_size = sizeof(data2sign) / sizeof(data2sign[0]);
+    bool result = false;
+    if (rsa_sign(keypair, 
+                 EVP_sha256(), 
+                 EH_PAD_RSA_PKCS1_PSS, 
+                 data2sign, 
+                 data2sign_size, 
+                 signature, 
+                 RSA_size(keypair)) != SGX_SUCCESS)
+        return false;
 
-    return (memcmp(plaintext, _plaintext, sizeof(plaintext) / sizeof(plaintext[0])) == 0);
+    if (rsa_verify(keypair, 
+                   EVP_sha256(), 
+                   EH_PAD_RSA_PKCS1_PSS, 
+                   data2sign, 
+                   data2sign_size, 
+                   signature, 
+                   RSA_size(keypair), 
+                   &result, -1) != SGX_SUCCESS)
+        return false;
+    
+    return result;
 }
 
 sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
@@ -460,6 +477,37 @@ out:
     return ret;
 }
 
+static bool test_SM2_keypair(EC_KEY *ec_key)
+{
+    uint8_t data2sign[] = "test_SM2_keypair";
+    uint32_t signature_size = ECDSA_size(ec_key);
+    uint8_t signature[signature_size] = {0};
+    uint32_t data2sign_size = sizeof(data2sign) / sizeof(data2sign[0]);
+    bool result = false;
+    if (sm2_sign(ec_key, 
+                 EVP_sha256(), 
+                 data2sign, 
+                 data2sign_size, 
+                 signature, 
+                 &signature_size,
+                 (uint8_t *)SM2_DEFAULT_USERID, 
+                 strlen(SM2_DEFAULT_USERID)) != SGX_SUCCESS)
+        return false;
+
+    if (sm2_verify(ec_key, 
+                   EVP_sha256(),  
+                   data2sign, 
+                   data2sign_size, 
+                   signature, 
+                   signature_size, 
+                   &result,
+                   (uint8_t *)SM2_DEFAULT_USERID, 
+                   strlen(SM2_DEFAULT_USERID)) != SGX_SUCCESS)
+        return false;
+    
+    return result;
+}
+
 sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
 // https://github.com/intel/intel-sgx-ssl/blob/master/Linux/sgx/test_app/enclave/tests/evp_smx.c
 {
@@ -506,6 +554,13 @@ sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
         printf("Error: fail to generate key pair based on the curve\n");
         goto out;
     }
+
+#ifdef FIPS_MODE
+    if (!test_SM2_keypair(ec_key))
+    {
+        goto out;
+    }
+#endif
 
     bio = BIO_new(BIO_s_mem());
     if (bio == NULL)
