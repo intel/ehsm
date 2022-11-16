@@ -46,8 +46,6 @@
 #include <pthread.h>
 #include <chrono>
 
-// using namespace EHsmProvider;
-
 #define PERF_NUM 1000
 
 #define NUM_THREADS 100
@@ -152,7 +150,6 @@ void test_perf_encrypt()
         printf("Createkey with aes-gcm-256 failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    // printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     // Start measuring time
@@ -176,7 +173,6 @@ void test_perf_encrypt()
             printf("failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        // printf("NAPI_Encrypt json = %s\n", returnJsonChar);
         SAFE_FREE(returnJsonChar);
     }
 
@@ -223,7 +219,6 @@ void test_perf_decrypt()
         printf("Createkey with aes-gcm-256 failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    // printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
@@ -242,10 +237,6 @@ void test_perf_decrypt()
         printf("failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-
-    // printf("NAPI_Encrypt json = %s\n", returnJsonChar);
-    // printf("Encrypt data SUCCESSFULLY!\n");
-
     ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
 
     // Start measuring time
@@ -266,7 +257,6 @@ void test_perf_decrypt()
             printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        // printf("NAPI_Encrypt json = %s\n", returnJsonChar);
         SAFE_FREE(returnJsonChar);
     }
 
@@ -313,12 +303,9 @@ void test_perf_sign_verify()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    // printf("NAPI_CreateKey Json = %s\n", returnJsonChar);
-    // printf("Create CMK with RAS SUCCESSFULLY!\n");
-
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     // Start measuring time
@@ -337,7 +324,7 @@ void test_perf_sign_verify()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }  
     }
@@ -348,10 +335,7 @@ void test_perf_sign_verify()
 
     printf("Time measured of Sign(RSA_4096) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
 
-    // printf("NAPI_Sign Json = %s\n", returnJsonChar);
     signature_base64 = retJsonObj.readData_cstr("signature");
-    // printf("Sign data SUCCESSFULLY!\n");
-
     // Start measuring time
     begin = std::chrono::high_resolution_clock::now();
 
@@ -366,7 +350,7 @@ void test_perf_sign_verify()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         SAFE_FREE(returnJsonChar);
@@ -408,11 +392,9 @@ void test_perf_asymmetricencrypt()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    // printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
-    // printf("Create CMK with RAS SUCCESSFULLY!\n");
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     // Start measuring time
@@ -431,7 +413,7 @@ void test_perf_asymmetricencrypt()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
         SAFE_FREE(returnJsonChar);
@@ -473,12 +455,9 @@ void test_perf_asymmetricdecrypt()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    // printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
-    // printf("Create CMK with RAS SUCCESSFULLY!\n");
-
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
@@ -492,12 +471,9 @@ void test_perf_asymmetricdecrypt()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_AsymmetricEncrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    // printf("NAPI_AsymmetricEncrypt json : %s\n", returnJsonChar);
-    // printf("NAPI_AsymmetricEncrypt data SUCCESSFULLY!\n");
-
     ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
 
     // Start measuring time
@@ -514,14 +490,9 @@ void test_perf_asymmetricdecrypt()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_AsymmetricDecrypt failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        // printf("NAPI_AsymmetricDecrypt json : %s\n", returnJsonChar);
-        // plaintext_base64 = retJsonObj.readData_cstr("plaintext");
-        // printf("Decrypted plaintext : %s\n", plaintext_base64);
-        // printf("(%d) NAPI_AsymmetricDecrypt data SUCCESSFULLY!\n", i);
-
         SAFE_FREE(returnJsonChar);
     }
 
@@ -625,7 +596,7 @@ void *test_encrypt(void *threadid)
         printf("Thread[%ld], Createkey with aes-gcm-128 failed, error message: %s \n", tid, retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    printf("Thread[%ld], NAPI_CreateKey Json = %s\n", tid, returnJsonChar);
+    printf("Thread[%ld], FFI_CreateKey Json = %s\n", tid, returnJsonChar);
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     for (int i = 0; i < PERF_NUM; i++)
@@ -647,7 +618,7 @@ void *test_encrypt(void *threadid)
             goto cleanup;
         }
 
-        printf("Thread[%ld] with time[%d], NAPI_Encrypt json = %s\n", tid, i, returnJsonChar);
+        printf("Thread[%ld] with time[%d], FFI_Encrypt json = %s\n", tid, i, returnJsonChar);
 
         SAFE_FREE(returnJsonChar);
     }
@@ -756,7 +727,7 @@ void test_symmertric_encrypt_decrypt()
             printf("Failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        printf("FFI_Encrypt json = %s\n", returnJsonChar);
         printf("Encrypt data SUCCESSFULLY!\n");
 
         ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
@@ -773,7 +744,7 @@ void test_symmertric_encrypt_decrypt()
             printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Decrypt json = %s\n", returnJsonChar);
+        printf("FFI_Decrypt json = %s\n", returnJsonChar);
         plaintext_base64 = retJsonObj.readData_cstr("plaintext");
         if (plaintext_base64 == input_plaintext_base64)
         {
@@ -851,7 +822,7 @@ void test_RSA_encrypt_decrypt()
             printf("Failed to Encrypt the plaintext data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        printf("FFI_Encrypt json = %s\n", returnJsonChar);
         printf("Encrypt data SUCCESSFULLY!\n");
 
         ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
@@ -868,7 +839,7 @@ void test_RSA_encrypt_decrypt()
             printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Decrypt json = %s\n", returnJsonChar);
+        printf("FFI_Decrypt json = %s\n", returnJsonChar);
         plaintext_base64 = retJsonObj.readData_cstr("plaintext");
         if (plaintext_base64 == input_plaintext_base64)
         {
@@ -945,7 +916,7 @@ void test_SM2_encrypt_decrypt()
             printf("Failed to Encrypt the plaittext data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Encrypt json = %s\n", returnJsonChar);
+        printf("FFI_Encrypt json = %s\n", returnJsonChar);
         printf("Encrypt data SUCCESSFULLY!\n");
 
         ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
@@ -962,7 +933,7 @@ void test_SM2_encrypt_decrypt()
             printf("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Decrypt json = %s\n", returnJsonChar);
+        printf("FFI_Decrypt json = %s\n", returnJsonChar);
         plaintext_base64 = retJsonObj.readData_cstr("plaintext");
         if (plaintext_base64 == input_plaintext_base64)
         {
@@ -1029,10 +1000,10 @@ void test_RSA_sign_verify()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+        printf("FFI_CreateKey Json : %s\n", returnJsonChar);
         printf("Create CMK with RAS SUCCESSFULLY!\n");
 
         cmk_base64 = retJsonObj.readData_cstr("cmk");
@@ -1048,10 +1019,10 @@ void test_RSA_sign_verify()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Sign Json = %s\n", returnJsonChar);
+        printf("FFI_Sign Json = %s\n", returnJsonChar);
         signature_base64 = retJsonObj.readData_cstr("signature");
         printf("Sign data SUCCESSFULLY!\n");
 
@@ -1064,10 +1035,10 @@ void test_RSA_sign_verify()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Verify Json = %s\n", returnJsonChar);
+        printf("FFI_Verify Json = %s\n", returnJsonChar);
         result = retJsonObj.readData_bool("result");
         printf("Verify result : %s\n", result ? "true" : "false");
         if (result == true)
@@ -1128,10 +1099,10 @@ void test_ec_sign_verify()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+        printf("FFI_CreateKey Json : %s\n", returnJsonChar);
         printf("Create CMK with RAS SUCCESSFULLY!\n");
 
         cmk_base64 = retJsonObj.readData_cstr("cmk");
@@ -1147,10 +1118,10 @@ void test_ec_sign_verify()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Sign Json = %s\n", returnJsonChar);
+        printf("FFI_Sign Json = %s\n", returnJsonChar);
         signature_base64 = retJsonObj.readData_cstr("signature");
         printf("Sign data SUCCESSFULLY!\n");
 
@@ -1163,10 +1134,10 @@ void test_ec_sign_verify()
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
-            printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            printf("FFI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
             goto cleanup;
         }
-        printf("NAPI_Verify Json = %s\n", returnJsonChar);
+        printf("FFI_Verify Json = %s\n", returnJsonChar);
         result = retJsonObj.readData_bool("result");
         printf("Verify result : %s\n", result ? "true" : "false");
         if (result == true)
@@ -1222,10 +1193,10 @@ void test_sm2_sign_verify()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    printf("NAPI_CreateKey Json : %s\n", returnJsonChar);
+    printf("FFI_CreateKey Json : %s\n", returnJsonChar);
     printf("Create CMK with RAS SUCCESSFULLY!\n");
 
     cmk_base64 = retJsonObj.readData_cstr("cmk");
@@ -1241,10 +1212,10 @@ void test_sm2_sign_verify()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    printf("NAPI_Sign Json = %s\n", returnJsonChar);
+    printf("FFI_Sign Json = %s\n", returnJsonChar);
     signature_base64 = retJsonObj.readData_cstr("signature");
     printf("Sign data SUCCESSFULLY!\n");
 
@@ -1257,10 +1228,10 @@ void test_sm2_sign_verify()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    printf("NAPI_Verify Json = %s\n", returnJsonChar);
+    printf("FFI_Verify Json = %s\n", returnJsonChar);
     result = retJsonObj.readData_bool("result");
     printf("Verify result : %s\n", result ? "true" : "false");
     if (result == true)
@@ -1374,7 +1345,7 @@ void test_generate_AES_datakey()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_GenerateDataKeyWithoutPlaintext Failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_GenerateDataKeyWithoutPlaintext Failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
     printf("GenerateDataKeyWithoutPlaintext_Json = %s\n", returnJsonChar);
@@ -1498,7 +1469,7 @@ void test_generate_SM4_datakey()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_GenerateDataKeyWithoutPlaintext Failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_GenerateDataKeyWithoutPlaintext Failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
     printf("GenerateDataKeyWithoutPlaintext_Json = %s\n", returnJsonChar);
@@ -1824,11 +1795,11 @@ void test_GenerateQuote_and_VerifyQuote()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_GenerateQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_GenerateQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    printf("NAPI_GenerateQuote Json : %s\n", returnJsonChar);
-    printf("NAPI_GenerateQuote SUCCESSFULLY!\n");
+    printf("FFI_GenerateQuote Json : %s\n", returnJsonChar);
+    printf("FFI_GenerateQuote SUCCESSFULLY!\n");
 
     quote_base64 = retJsonObj.readData_cstr("quote");
     printf("quote_base64 : %s\n", quote_base64);
@@ -1845,11 +1816,11 @@ void test_GenerateQuote_and_VerifyQuote()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_VerifyQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_VerifyQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    printf("NAPI_VerifyQuote Json : %s\n", returnJsonChar);
-    printf("NAPI_VerifyQuote SUCCESSFULLY!\n");
+    printf("FFI_VerifyQuote Json : %s\n", returnJsonChar);
+    printf("FFI_VerifyQuote SUCCESSFULLY!\n");
 
 cleanup:
     SAFE_FREE(returnJsonChar);
@@ -1873,11 +1844,11 @@ void test_Enroll()
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
-        printf("NAPI_Enroll failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        printf("FFI_Enroll failed, error message: %s \n", retJsonObj.getMessage().c_str());
         goto cleanup;
     }
-    printf("NAPI_Enroll Json : %s\n", returnJsonChar);
-    printf("NAPI_Enroll SUCCESSFULLY!\n");
+    printf("FFI_Enroll Json : %s\n", returnJsonChar);
+    printf("FFI_Enroll SUCCESSFULLY!\n");
 
     appid = retJsonObj.readData_cstr("appid");
     apikey = retJsonObj.readData_cstr("apikey");
