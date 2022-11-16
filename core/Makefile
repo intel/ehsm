@@ -38,8 +38,10 @@ Signed_Enclave_Name := libenclave-$(App_Name).signed.so
 Napi_Name := libehsmnapi.so
 Enclave_Config_File := Enclave/enclave.config.xml
 Enclave_Signing_Key := Enclave/enclave_private_test.pem
+Sgx_Signing_tool := $(SGX_SDK)/bin/x64/sgx_sign
 
 OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
+Signed_Enclave_FileName := $(OUT)/$(Signed_Enclave_Name)
 
 ######## App Settings ########
 App_Cpp_Files := $(wildcard App/*.cpp)
@@ -48,7 +50,7 @@ App_Include_Paths := \
 	-IApp \
 	-I$(TOPDIR)/include
 
-App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DSIGNED_ENCLAVE_FILENAME=\"$(Signed_Enclave_FileName)\" -DSGX_SIGNING_TOOL=\"$(Sgx_Signing_tool)\"
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.

@@ -41,6 +41,9 @@
 #include "dsohandle.h"
 #include "json_utils.h"
 
+#include <iostream>
+#include <fstream>
+
 #include <pthread.h>
 #include <chrono>
 
@@ -956,16 +959,83 @@ void test_GenerateQuote_and_VerifyQuote()
     printf("============test_GenerateQuote_and_VerifyQuote start==========\n");
     char challenge[32] = "challenge123456";
     char nonce[16] = "nonce123456";
-    // the string generated after converting the value of mr_signer and mr_enclave to hexadecimal
-    // notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
-    // you can get mr_signer and mr_enclave through cmd: 
-    // "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
-    char mr_signer[65] = "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835";
-    char mr_enclave[65] = "3110bb76d4f73657fce77b148c04b2b59973fa7e8e77f4fbb6e433b58c88deb7";
+
     RetJsonObj retJsonObj;
     char* returnJsonChar = nullptr;
     char* quote_base64 = nullptr;
     std::string input_nonce_base64 = base64_encode((const uint8_t*)nonce, sizeof(nonce)/sizeof(nonce[0]));
+
+    // the string generated after converting the value of mr_signer and mr_enclave to hexadecimal
+    // notice: these 2 values will be changed if our enclave has been updated. then the case may be failed.
+    // you can get mr_signer and mr_enclave through cmd: 
+    // "/opt/intel/sgxsdk/bin/x64/sgx_sign dump -enclave libenclave-ehsm-core.signed.so -dumpfile out.log"
+    std::string mr_enclave;
+    std::string mr_signer;
+    std::string signedEnclaveFileName = SIGNED_ENCLAVE_FILENAME;
+    std::string sgxSignFileName = SGX_SIGNING_TOOL;
+    printf("NAPI_GenerateQuote signedEnclaveFileName : %s\n", signedEnclaveFileName.c_str());
+    printf("NAPI_GenerateQuote sgxSignFileName : %s\n", sgxSignFileName.c_str());
+    std::string CMD1 = " dump -enclave ";
+    std::string CMD2 = " -dumpfile /tmp/ehsm_enclave_out.log";
+    std::string splicedCMD = sgxSignFileName + CMD1 + signedEnclaveFileName + CMD2;
+    const char *dumpFileCMD = splicedCMD.data();
+    system(dumpFileCMD);
+    std::fstream ifs;
+    std::string line;
+    u_int32_t readEnclaveLineNum = 0;
+    u_int32_t readSignerLineNum = 0;
+    ifs.open("/tmp/ehsm_enclave_out.log", std::ios::in);
+    if (!ifs.is_open())
+    {
+        printf("load mr_signer & mr_enclave faild. \n");
+        goto cleanup;
+    }
+    while (getline(ifs, line))
+    {
+        if (readEnclaveLineNum > 0)
+        {
+            readEnclaveLineNum -= 1;
+            mr_enclave += line;
+        }
+        if (readSignerLineNum > 0)
+        {
+            readSignerLineNum -= 1;
+            mr_signer += line;
+        }
+        if (line.compare("metadata->enclave_css.body.enclave_hash.m:") == 0)
+        {
+            if (mr_enclave.length() == 0)
+            {
+                readEnclaveLineNum = 2;
+            }
+        }
+        if (line.compare("mrsigner->value:") == 0)
+        {
+            if (mr_signer.length() == 0)
+            {
+                readSignerLineNum = 2;
+            }
+        }
+    }
+    while (mr_enclave.find("0x") != -1)
+    {
+        mr_enclave = mr_enclave.replace(mr_enclave.find("0x"), 2, "");
+    }
+    while (mr_enclave.find(" ") != -1)
+    {
+        mr_enclave = mr_enclave.replace(mr_enclave.find(" "), 1, "");
+    }
+    while (mr_signer.find("0x") != -1)
+    {
+        mr_signer = mr_signer.replace(mr_signer.find("0x"), 2, "");
+    }
+    while (mr_signer.find(" ") != -1)
+    {
+        mr_signer = mr_signer.replace(mr_signer.find(" "), 1, "");
+    }
+    printf("NAPI_GenerateQuote mr_signer : %s\n", mr_signer.c_str());
+    printf("NAPI_GenerateQuote mr_enclave : %s\n", mr_enclave.c_str());
+
     returnJsonChar = NAPI_GenerateQuote(challenge);
     retJsonObj.parse(returnJsonChar);
     if(retJsonObj.getCode() != 200){
@@ -978,7 +1048,7 @@ void test_GenerateQuote_and_VerifyQuote()
     quote_base64 = retJsonObj.readData_cstr("quote");
     printf("quote_base64 : %s\n", quote_base64);
 
-    returnJsonChar = NAPI_VerifyQuote(quote_base64, mr_signer, mr_enclave, input_nonce_base64.c_str());
+    returnJsonChar = NAPI_VerifyQuote(quote_base64, mr_signer.c_str(), mr_enclave.c_str(), input_nonce_base64.c_str());
     retJsonObj.parse(returnJsonChar);
     if(retJsonObj.getCode() != 200){
         printf("NAPI_VerifyQuote failed, error message: %s \n", retJsonObj.getMessage().c_str());
