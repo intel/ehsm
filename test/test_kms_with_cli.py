@@ -8,12 +8,11 @@ import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, delete_all_key, deletekey, disablekey, enablekey, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, listkey, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy
+from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy
 import urllib.parse
 import _utils_
 appid= ''
 apikey= ''
-keyid= ''
 
 def get_appid_apikey(base_url):
     global appid
@@ -21,25 +20,6 @@ def get_appid_apikey(base_url):
     appid, apikey = enroll.enroll(base_url)
     _utils_.init_appid_apikey(appid, apikey)
 
-def test_disableKey(base_url, headers):
-    disablekey.disablekey(base_url, keyid)
-
-def test_enableKey(base_url, headers):
-    enablekey.enablekey(base_url, keyid)
-
-def test_deleteKey(base_url, headers):
-    deletekey.deletekey(base_url, keyid)
-
-def test_deleteAllKey(base_url, headers):
-    delete_all_key.delete_all_key(base_url)
-    
-def test_listKey(base_url, headers):
-    keylist = listkey.listkey(base_url)
-
-    global keyid 
-    keyid = keylist[0]['keyid']
-
-    
 def test_export_datakey(base_url, headers):
     print('====================test_export_datakey start===========================')
     key1 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY")
@@ -207,15 +187,5 @@ if __name__ == "__main__":
     test_RSA3072_encrypt_decrypt(base_url, headers)
     
     test_export_datakey(base_url, headers)
-    
-    test_listKey(base_url, headers)
-
-    test_disableKey(base_url, headers)
-
-    test_enableKey(base_url, headers)
-
-    test_deleteKey(base_url, headers)
-
-    test_deleteAllKey(base_url, headers)
 
     test_GenerateQuote_and_VerifyQuote(base_url, headers)
