@@ -1575,16 +1575,13 @@ char* NAPI_VerifyQuote(const char *quote_base64, const char *mr_signer, const ch
         retJsonObj.setMessage("The quote's length is invalid.");
         goto out;
     }
-    ret = VerifyQuote(&quote, mr_signer, mr_enclave, &verifyresult);
+    ret = VerifyQuote(&quote, mr_signer, mr_enclave, &result);
     if (ret != EH_OK) {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
         goto out;
     }
-    log_d("VerifyQuote successfuly\n");
-
-    if (verifyresult == SGX_QL_QV_RESULT_OK)
-        result = true;
+    log_d("VerifyQuote successfuly\n"); 
 
     retJsonObj.addData_bool("result", result);
     retJsonObj.addData_string("nonce", nonce_base64);
