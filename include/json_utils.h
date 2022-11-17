@@ -152,6 +152,11 @@ public:
         return m_json;
     }
 
+    void clear()
+    {
+        m_json.clear();
+    }
+
     char *StringToChar(std::string str)
     {
         char *retChar = NULL;
@@ -188,6 +193,10 @@ public:
     {
         std::string uint64_str = std::to_string(data);
         addData(key, uint64_str);
+    }
+    void addData_JsonValue(std::string key, Json::Value data)
+    {
+        addData(key, data);
     }
 
     void addData_uint8Array(std::string key, uint8_t *data, uint32_t data_len)
@@ -282,6 +291,13 @@ public:
             }
         }
     }
+
+    Json::Value readData_JsonValue(std::string key)
+    {
+        return readData(key);
+    }
+
+    bool hasOwnProperty(std::string key) { return !m_json[key].isNull(); }
 };
 
 class RetJsonObj
