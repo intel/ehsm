@@ -48,7 +48,7 @@ typedef uint32_t ATTESTATION_STATUS;
 #define INVALID_REQUEST_TYPE_ERROR       0xEB
 #define INVALID_PARAMETER_ERROR          0xEC
 #define ENCLAVE_TRUST_ERROR              0xED
-#define ENCRYPT_DECRYPT_ERROR            0xEE
+#define EH_PURPOSE_ENCRYPT_DECRYPT_ERROR            0xEE
 #define DUPLICATE_SESSION                0xEF
 #define ERROR_OUT_OF_MEMORY              0xF0
 #define ERROR_UNEXPECTED		 0xF1

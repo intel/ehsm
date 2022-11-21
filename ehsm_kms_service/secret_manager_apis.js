@@ -215,7 +215,7 @@ const createSecret = async (res, appid, DB, payload) => {
             res.send(_result(400, retCMK.msg))
             return
         }
-        const apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [sm_masterKey, secretData, ''])
+        const apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, { cmk: sm_masterKey, plaintext: secretData, aad: '' })
         // check encrypt status and get ciphertext
         if (!apikey_encrypt_res) {
             return
@@ -372,7 +372,8 @@ const putSecretValue = async (res, appid, DB, payload) => {
             res.send(_result(400, retCMK.msg))
             return
         }
-        const apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [sm_masterKey, secretData, ''])
+        
+        const apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, { cmk: sm_masterKey, plaintext: secretData, aad: '' })
         // check encrypt status and get ciphertext
         if (!apikey_encrypt_res) {
             return
@@ -771,7 +772,7 @@ const getSecretValue = async (res, appid, DB, payload) => {
             }
 
             // decrypt secretData
-            const secretData_decypt_result = napi_result(KMS_ACTION.cryptographic.Decrypt, res, [sm_masterKey, secretData, ''])
+            const secretData_decypt_result = napi_result(KMS_ACTION.cryptographic.Decrypt, res, { cmk: sm_masterKey, ciphertext: secretData, aad: '' })
             // check Decrypt status and get plaintext
             if (!secretData_decypt_result) {
                 return

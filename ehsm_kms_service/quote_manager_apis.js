@@ -23,7 +23,7 @@ const {
 const generateQuote = async (res, payload, action) => {
     try {
         const challenge = payload['challenge']
-        napi_res = napi_result(action, res, [challenge])
+        napi_res = napi_result(action, res, {challenge})
         napi_res && res.send(napi_res)
     } catch (e) {
         logger.error(e)
@@ -73,7 +73,7 @@ const verifyQuote = async (res, appid, payload, DB, action) => {
             mr_enclave = quote_policy_res.docs[0].mr_enclave
             mr_signer = quote_policy_res.docs[0].mr_signer
         }
-        napi_res = napi_result(action, res, [quote, mr_signer, mr_enclave, nonce])
+        napi_res = napi_result(action, res, {quote, mr_signer, mr_enclave, nonce})
         if (napi_res) {
             if (mr_enclave != '') {
                 napi_res.result.mr_enclave = mr_enclave

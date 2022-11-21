@@ -1,34 +1,43 @@
 const crypto = require('crypto')
-const { v4: uuidv4 } = require('uuid')
+const {
+    v4: uuidv4
+} = require('uuid')
 
 const logger = require('./logger')
 const {
-  Definition
+    Definition,
+    ehsm_keySpec_t,
+    ehsm_keyorigin_t,
+    ehsm_action_t
 } = require('./constant')
-const { KMS_ACTION } = require('./apis')
+const {
+    KMS_ACTION
+} = require('./apis')
 const ehsm_napi = require('./ehsm_napi')
 
 const _result = (code, msg, data = {}) => {
-  return {
-    code: code,
-    message: msg,
-    result: {
-      ...data,
-    },
-  }
+    return {
+        code: code,
+        message: msg,
+        result: {
+            ...data,
+        }
+    }
 }
 // base64 encode
-const base64_encode = (str) => new Buffer.from(str).toString('base64')
+const base64_encode = (str) => new Buffer.from(str)
+    .toString('base64')
 
 // base64 decode
-const base64_decode = (base64_str) => new Buffer.from(base64_str, 'base64').toString()
+const base64_decode = (base64_str) => new Buffer.from(base64_str, 'base64')
+    .toString()
 
 const ActionBypassList = [
-  KMS_ACTION.enroll.RA_GET_API_KEY,
-  KMS_ACTION.enroll.RA_HANDSHAKE_MSG0,
-  KMS_ACTION.enroll.RA_HANDSHAKE_MSG2,
-  KMS_ACTION.enroll.Enroll,
-  KMS_ACTION.common.GetVersion,
+    KMS_ACTION.enroll.RA_GET_API_KEY,
+    KMS_ACTION.enroll.RA_HANDSHAKE_MSG0,
+    KMS_ACTION.enroll.RA_HANDSHAKE_MSG2,
+    KMS_ACTION.enroll.Enroll,
+    KMS_ACTION.common.GetVersion,
 ]
 
 /**
@@ -39,34 +48,38 @@ const ActionBypassList = [
  * @returns nonce_cache_timer, nonce_database
  */
 const _nonce_cache_timer = () => {
-  const nonce_database = {}
-  const timer = setInterval(() => {
-    try {
-      for (const appid in nonce_database) {
-        // slice_index  Index of the cache that exceeded the maximum time
-        let slice_index =
-          nonce_database[appid] &&
-          nonce_database[appid].findIndex((nonce_data) => {
-            return (
-              new Date().getTime() - nonce_data.nonce_timestamp >
-              Definition.NONCE_CACHE_TIME
-            )
-          })
-        // keep unexpired data
-        if (slice_index > 0) {
-          nonce_database[appid] = nonce_database[appid].slice(0, slice_index)
+    const nonce_database = {}
+    const timer = setInterval(() => {
+        try {
+            for (const appid in nonce_database) {
+                // slice_index  Index of the cache that exceeded the maximum time
+                let slice_index =
+                    nonce_database[appid] &&
+                    nonce_database[appid].findIndex((nonce_data) => {
+                        return (
+                            new Date()
+                                .getTime() - nonce_data.nonce_timestamp >
+                            Definition.NONCE_CACHE_TIME
+                        )
+                    })
+                // keep unexpired data
+                if (slice_index > 0) {
+                    nonce_database[appid] = nonce_database[appid].slice(0, slice_index)
+                }
+                // All data expired
+                if (slice_index == 0) {
+                    delete nonce_database[appid]
+                }
+            }
+        } catch (error) {
+            logger.error(error)
+            res.send(_result(500, 'Server internal error, please contact the administrator.'))
         }
-        // All data expired
-        if (slice_index == 0) {
-          delete nonce_database[appid]
-        }
-      }
-    } catch (error) {
-      logger.error(error)
-      res.send(_result(500, 'Server internal error, please contact the administrator.'))
+    }, Definition.NONCE_CACHE_TIME / 2)
+    return {
+        timer,
+        nonce_database
     }
-  }, Definition.NONCE_CACHE_TIME / 2)
-  return { timer, nonce_database }
 }
 
 /**
@@ -79,45 +92,54 @@ const _nonce_cache_timer = () => {
  * @returns _cmk_cache_timer
  */
 const _cmk_cache_timer = (DB) => {
-  let nowTime = new Date().getTime()
-  let recent = new Date().setHours(Definition.CMK_LOOP_CLEAR_EXECUTION_TIME) // Time stamp at three o'clock of the day
-  if (recent < nowTime) {
-    recent += 24 * 3600000
-  }
-  const timer = setTimeout(() => {
-    setInterval(() => {
-      try {
-        const current_time = new Date().getTime() + Definition.CMK_EXPIRE_TIME_EXPAND
-        const query = {
-          selector: {
-            //Query criteria
-            expireTime: { $lt: current_time },
-          },
-          fields: ['_id', '_rev'], // Fields returned after query
-          limit: 10000,
-        }
-        DB.partitionedFind('cmk', query) // Query expired cmks
-          .then((cmks_res) => {
-            if (cmks_res.docs.length > 0) {
-              for (const cmk_item of cmks_res.docs) {
-                cmk_item._deleted = true
-              }
-              DB.bulk({ docs: cmks_res.docs }) // Batch delete expired cmks
-                .catch((err) => {
-                  logger.error(err)
-                })
+    let nowTime = new Date()
+        .getTime()
+    let recent = new Date()
+        .setHours(Definition.CMK_LOOP_CLEAR_EXECUTION_TIME) // Time stamp at three o'clock of the day
+    if (recent < nowTime) {
+        recent += 24 * 3600000
+    }
+    const timer = setTimeout(() => {
+        setInterval(() => {
+            try {
+                const current_time = new Date()
+                    .getTime() + Definition.CMK_EXPIRE_TIME_EXPAND
+                const query = {
+                    selector: {
+                        //Query criteria
+                        expireTime: {
+                            $lt: current_time
+                        },
+                    },
+                    fields: ['_id', '_rev'], // Fields returned after query
+                    limit: 10000,
+                }
+                DB.partitionedFind('cmk', query) // Query expired cmks
+                    .then((cmks_res) => {
+                        if (cmks_res.docs.length > 0) {
+                            for (const cmk_item of cmks_res.docs) {
+                                cmk_item._deleted = true
+                            }
+                            DB.bulk({
+                                docs: cmks_res.docs
+                            }) // Batch delete expired cmks
+                                .catch((err) => {
+                                    logger.error(err)
+                                })
+                        }
+                    })
+                    .catch((err) => {
+                        logger.error(err)
+                    })
+            } catch (err) {
+                logger.error(err)
             }
-          })
-          .catch((err) => {
-            logger.error(err)
-          })
-      } catch (err) {
-        logger.error(err)
-      }
-    }, Definition.CMK_LOOP_CLEAR_TIME)
-  }, recent - nowTime)
+        }, Definition.CMK_LOOP_CLEAR_TIME)
+    }, recent - nowTime)
 
-  return { timer }
+    return {
+        timer
+    }
 }
 
 /**
@@ -132,34 +154,38 @@ const _cmk_cache_timer = (DB) => {
  * After storing cmk successfully, return the keyid to the user
  */
 function store_cmk(napi_res, res, appid, payload, DB) {
-  try {
-    const creationDate = new Date().getTime()
-    const keyid = uuidv4()
-    let { keyspec, origin } = payload
+    try {
+        const creationDate = new Date()
+            .getTime()
+        const keyid = uuidv4()
+        let {
+            keyspec,
+            origin
+        } = payload
 
-    DB.insert({
-      _id: `cmk:${keyid}`,
-      keyid,
-      keyBlob: napi_res.result.cmk,
-      creator: appid,
-      creationDate,
-      expireTime: creationDate + Definition.CMK_EFFECTIVE_DURATION,
-      alias: '',
-      keyspec,
-      origin,
-      keyState: 1,
-    })
-      .then((r) => {
-        delete napi_res.result.cmk // Delete cmk in NaPi result
-        napi_res.result.keyid = keyid // The keyID field is added to the result returned to the user
-        res.send(napi_res)
-      })
-      .catch((e) => {
+        DB.insert({
+            _id: `cmk:${keyid}`,
+            keyid,
+            keyBlob: napi_res.result.cmk,
+            creator: appid,
+            creationDate,
+            expireTime: creationDate + Definition.CMK_EFFECTIVE_DURATION,
+            alias: '',
+            keyspec,
+            origin,
+            keyState: 1,
+        })
+            .then((r) => {
+                delete napi_res.result.cmk // Delete cmk in NaPi result
+                napi_res.result.keyid = keyid // The keyID field is added to the result returned to the user
+                res.send(napi_res)
+            })
+            .catch((e) => {
+                res.send(_result(400, 'create cmk failed', e))
+            })
+    } catch (e) {
         res.send(_result(400, 'create cmk failed', e))
-      })
-  } catch (e) {
-    res.send(_result(400, 'create cmk failed', e))
-  }
+    }
 }
 
 /**
@@ -167,24 +193,32 @@ function store_cmk(napi_res, res, appid, payload, DB) {
  * If the value of the result is not equal to 200, the result is directly returned to the user
  * @param {function name} action
  * @param {object} res
- * @param {NAPI_* function params} params
+ * @param {EHSM_FFI_CALL function params} params
  * @returns napi result | false
  */
-function napi_result(action, res, params) {
-  try {
-    const napi_res = ehsm_napi[`NAPI_${action}`](...params)
-    if (JSON.parse(napi_res).code != 200) {
-      res.send(napi_res)
-      return false
-    } else {
-      return JSON.parse(napi_res)
+function napi_result(action, res, payload) {
+    try {
+        let jsonParam = {
+            action: ehsm_action_t[action],
+            payload
+        }
+        const napi_res = ehsm_napi[`EHSM_FFI_CALL`](JSON.stringify(jsonParam))
+        if (JSON.parse(napi_res)
+            .code != 200) {
+            if (res != undefined) {
+                res.send(napi_res)
+            }
+            return false
+        } else {
+            return JSON.parse(napi_res)
+        }
+    } catch (e) {
+        logger.error(e)
+        if (res != undefined) {
+            res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        }
+        return false
     }
-    // })
-  } catch (e) {
-    logger.error(e)
-    res.send(_result(500, 'Server internal error, please contact the administrator.'))
-    return false
-  }
 }
 
 /**
@@ -195,39 +229,55 @@ function napi_result(action, res, params) {
  * _id | appid | apikey | cmk
  */
 const create_user_info = (action, DB, res, req) => {
-  const json_str_params = JSON.stringify({ ...req.body })
-  let napi_res = napi_result(action, res, [json_str_params])
+    const json_str_params = JSON.stringify({
+        ...req.body
+    })
+    let napi_res = napi_result(action, res, {
+        json_str_params
+    })
 
-  if (napi_res) {
-    const { appid, apikey } = napi_res.result
-    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
-    if (cmk_res) {
-      const { cmk } = cmk_res.result
-      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [
-        cmk,
-        apikey,
-        '',
-      ])
-      if (apikey_encrypt_res) {
-        const { ciphertext } = apikey_encrypt_res.result
-        DB.insert({
-          _id: `user_info:${appid}`,
-          appid,
-          apikey: ciphertext,
-          cmk: cmk,
+    if (napi_res) {
+        const {
+            appid,
+            apikey
+        } = napi_res.result
+        let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
+            keyspec: ehsm_keySpec_t.AES_GCM_128,
+            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
         })
-          .then((r) => {
-            if (napi_res.result.apikey) {
-              delete napi_res.result.apikey
+        if (cmk_res) {
+            const {
+                cmk
+            } = cmk_res.result
+            let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, {
+                cmk,
+                plaintext: apikey,
+                aad: '',
+            })
+            if (apikey_encrypt_res) {
+                const {
+                    ciphertext
+                } = apikey_encrypt_res.result
+                DB.insert({
+                    _id: `user_info:${appid}`,
+                    appid,
+                    apikey: ciphertext,
+                    cmk: cmk,
+                })
+                    .then((r) => {
+                        if (napi_res.result.apikey) {
+                            delete napi_res.result.apikey
+                        }
+                        res.send(_result(200, 'successful', {
+                            ...napi_res.result
+                        }))
+                    })
+                    .catch((e) => {
+                        res.send(_result(400, 'create app info faild', e))
+                    })
             }
-            res.send(_result(200, 'successful', { ...napi_res.result }))
-          })
-          .catch((e) => {
-            res.send(_result(400, 'create app info faild', e))
-          })
-      }
+        }
     }
-  }
 }
 
 /**
@@ -238,41 +288,56 @@ const create_user_info = (action, DB, res, req) => {
  * _id | appid | apikey | cmk
  */
 const enroll_user_info = (action, DB, res, req) => {
-  let napi_res = napi_result(action, res, [])
+    let napi_res = napi_result(action, res, {})
 
-  if (napi_res) {
-    const { appid, apikey } = napi_res.result
-    let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
-    let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, [0, 0])
-    if (cmk_res && sm_default_cmk_res) {
-      const { cmk } = cmk_res.result
-      // create a default secret manager CMK for current appids
-      const sm_default_cmk = sm_default_cmk_res.result.cmk
-      let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, [
-        cmk,
-        apikey,
-        '',
-      ])
-      if (apikey_encrypt_res) {
-        const { ciphertext } = apikey_encrypt_res.result
-        DB.insert({
-          _id: `user_info:${appid}`,
-          appid,
-          apikey: ciphertext,
-          cmk: cmk,
-          sm_default_cmk,
+    if (napi_res) {
+        const {
+            appid,
+            apikey
+        } = napi_res.result
+        let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, undefined, {
+            keyspec: ehsm_keySpec_t.AES_GCM_128,
+            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
         })
-          .then((r) => {
-            res.send(_result(200, 'successful', { ...napi_res.result }))
-          })
-          .catch((e) => {
-            res.send(_result(400, 'enroll user info faild', e))
-          })
-      }
-    } else {
-      res.send(_result(400, 'enroll user info faild'))
+        let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, undefined, {
+            keyspec: ehsm_keySpec_t.AES_GCM_128,
+            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
+        })
+        if (cmk_res && sm_default_cmk_res) {
+            const {
+                cmk
+            } = cmk_res.result
+            // create a default secret manager CMK for current appids
+            const sm_default_cmk = sm_default_cmk_res.result.cmk
+            let apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, undefined, {
+                cmk,
+                plaintext: base64_encode(apikey),
+                aad: ''
+            })
+            if (apikey_encrypt_res) {
+                const {
+                    ciphertext
+                } = apikey_encrypt_res.result
+                DB.insert({
+                    _id: `user_info:${appid}`,
+                    appid,
+                    apikey: ciphertext,
+                    cmk: cmk,
+                    sm_default_cmk,
+                })
+                    .then((r) => {
+                        res.send(_result(200, 'successful', {
+                            ...napi_res.result
+                        }))
+                    })
+                    .catch((e) => {
+                        res.send(_result(400, 'enroll user info faild', e))
+                    })
+            }
+        } else {
+            res.send(_result(400, 'enroll user info faild'))
+        }
     }
-  }
 }
 /**
  * The parameters of non empty parameter values in set sign_params are sorted from small
@@ -283,30 +348,31 @@ const enroll_user_info = (action, DB, res, req) => {
  * @returns string
  */
 const params_sort_str = (sign_params) => {
-  let str = ''
-  try {
-    const sort_params_key_arr = Object.keys(sign_params).sort()
-    for (var k of sort_params_key_arr) {
-      if (
-        sign_params[k] != '' &&
-        sign_params[k] != undefined &&
-        sign_params[k] != null
-      ) {
-        str +=
-          (str && '&' + '') +
-          k +
-          '=' +
-          (typeof sign_params[k] == 'object'
-            ? params_sort_str(sign_params[k])
-            : sign_params[k])
-      }
+    let str = ''
+    try {
+        const sort_params_key_arr = Object.keys(sign_params)
+            .sort()
+        for (var k of sort_params_key_arr) {
+            if (
+                sign_params[k] != '' &&
+                sign_params[k] != undefined &&
+                sign_params[k] != null
+            ) {
+                str +=
+                    (str && '&' + '') +
+                    k +
+                    '=' +
+                    (typeof sign_params[k] == 'object' ?
+                        params_sort_str(sign_params[k]) :
+                        sign_params[k])
+            }
+        }
+        return str
+    } catch (error) {
+        logger.error(error)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
+        return str
     }
-    return str
-  } catch (error) {
-    logger.error(error)
-    res.send(_result(500, 'Server internal error, please contact the administrator.'))
-    return str
-  }
 }
 
 /**
@@ -315,199 +381,205 @@ const params_sort_str = (sign_params) => {
  * @returns true | false
  */
 const _checkTimestamp = (timestamp) => {
-  return Math.abs(new Date().getTime() - timestamp) < Definition.MAX_TIME_STAMP_DIFF
+    return Math.abs(new Date()
+        .getTime() - timestamp) < Definition.MAX_TIME_STAMP_DIFF
 }
 
 const getIPAdress = () => {
-  try {
-    var interfaces = require('os').networkInterfaces()
-    for (var devName in interfaces) {
-      var iface = interfaces[devName]
-      for (var i = 0; i < iface.length; i++) {
-        var alias = iface[i]
-        if (
-          alias.family === 'IPv4' &&
-          alias.address !== '127.0.0.1' &&
-          !alias.internal
-        ) {
-          return alias.address
+    try {
+        var interfaces = require('os')
+            .networkInterfaces()
+        for (var devName in interfaces) {
+            var iface = interfaces[devName]
+            for (var i = 0; i < iface.length; i++) {
+                var alias = iface[i]
+                if (
+                    alias.family === 'IPv4' &&
+                    alias.address !== '127.0.0.1' &&
+                    !alias.internal
+                ) {
+                    return alias.address
+                }
+            }
         }
-      }
+    } catch (error) {
+        logger.error(error)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
     }
-  } catch (error) {
-    logger.error(error)
-    res.send(_result(500, 'Server internal error, please contact the administrator.'))
-  }
 }
 
 /**
  * check params
  */
 const _checkParams = function (req, res, next, nonce_database, DB) {
-  try {
-    const ACTION = req.query.Action
+    try {
+        const ACTION = req.query.Action
 
-    let ip = req.ip
-    if (ip.substr(0, 7) == '::ffff:') {
-      ip = ip.substr(7)
-    }
-    const _logData = {
-      body: req.body,
-      query: req.query,
-      ip,
-    }
-    logger.info(JSON.stringify(_logData))
-    if (ActionBypassList.includes(ACTION)) {
-      next()
-      return
-    }
-    const { appid, timestamp: nonce, timestamp, sign, payload } = req.body
-    if (!appid || !timestamp || !sign) {
-      res.send(_result(400, 'Missing required parameters'))
-      return
-    }
-    // cryptographic must be has payload
-    if (ACTION === KMS_ACTION.cryptographic[ACTION] && !payload) {
-      res.send(_result(400, 'Missing required parameters'))
-      return
-    }
-    if (
-      typeof appid != 'string' ||
-      typeof timestamp != 'string' ||
-      (payload && typeof payload != 'object') ||
-      typeof sign != 'string'
-    ) {
-      res.send(_result(400, 'param type error'))
-      return
-    }
-    if (timestamp.length != Definition.TIMESTAMP_LEN) {
-      res.send(_result(400, 'Timestamp length error'))
-      return
-    }
-    if (!_checkTimestamp(timestamp)) {
-      res.send(_result(400, 'Timestamp error'))
-      return
-    }
-    /**
-     * Cache nonce locally after receiving the request
-     * nonce_database - object
-     *  {
-     *    <appid>: [nonce_data，nonce_data]
-     *  }
-     * nonce_data - object
-     *  {
-     *    nonce: ****
-     *    nonce_timestamp: new Date().getTime()
-     *  }
-     */
-    const nonce_data = { nonce, nonce_timestamp: new Date().getTime() }
-    if (!nonce_database[appid]) {
-      nonce_database[appid] = [nonce_data]
-    } else if (
-      !!nonce_database[appid] &&
-      nonce_database[appid].findIndex(
-        (nonce_data) => nonce_data.nonce == nonce
-      ) > -1
-    ) {
-      res.send(_result(400, "Timestamp can't be repeated in 20 minutes"))
-      return
-    } else {
-      nonce_database[appid].unshift(nonce_data)
-    }
-
-    // check payload
-    const checkPayload = require('./payload_checker').checkPayload
-    if (!checkPayload(req, res)) {
-      return
-    }
-
-    // check sign
-    let sign_params = { appid, timestamp, payload }
-
-    gen_hmac(DB, appid, sign_params)
-      .then(result => {
-        if (result.hmac.length == 0) {
-          res.send(_result(400, result.error))
-          return
+        let ip = req.ip
+        if (ip.substr(0, 7) == '::ffff:') {
+            ip = ip.substr(7)
         }
-        if (sign != result.hmac) {
-          res.send(_result(400, 'sign error'))
-          return
+        const _logData = {
+            body: req.body,
+            query: req.query,
+            ip,
+        }
+        logger.info(JSON.stringify(_logData))
+        if (ActionBypassList.includes(ACTION)) {
+            next()
+            return
+        }
+        const {
+            appid,
+            timestamp: nonce,
+            timestamp,
+            sign,
+            payload
+        } = req.body
+        if (!appid || !timestamp || !sign) {
+            res.send(_result(400, 'Missing required parameters'))
+            return
+        }
+        // cryptographic must be has payload
+        if (ACTION === KMS_ACTION.cryptographic[ACTION] && !payload) {
+            res.send(_result(400, 'Missing required parameters'))
+            return
+        }
+        if (
+            typeof appid != 'string' ||
+            typeof timestamp != 'string' ||
+            (payload && typeof payload != 'object') ||
+            typeof sign != 'string'
+        ) {
+            res.send(_result(400, 'param type error'))
+            return
+        }
+        if (timestamp.length != Definition.TIMESTAMP_LEN) {
+            res.send(_result(400, 'Timestamp length error'))
+            return
+        }
+        if (!_checkTimestamp(timestamp)) {
+            res.send(_result(400, 'Timestamp error'))
+            return
+        }
+        /**
+         * Cache nonce locally after receiving the request
+         * nonce_database - object
+         *  {
+         *    <appid>: [nonce_data，nonce_data]
+         *  }
+         * nonce_data - object
+         *  {
+         *    nonce: ****
+         *    nonce_timestamp: new Date().getTime()
+         *  }
+         */
+        const nonce_data = {
+            nonce,
+            nonce_timestamp: new Date()
+                .getTime()
+        }
+        if (!nonce_database[appid]) {
+            nonce_database[appid] = [nonce_data]
+        } else if (
+            !!nonce_database[appid] &&
+            nonce_database[appid].findIndex(
+                (nonce_data) => nonce_data.nonce == nonce
+            ) > -1
+        ) {
+            res.send(_result(400, "Timestamp can't be repeated in 20 minutes"))
+            return
         } else {
-          next()
+            nonce_database[appid].unshift(nonce_data)
         }
-      })
-      .catch((e) => {
-        res.send(_result(400, 'database error'))
-      })
-  } catch (error) {
-    logger.error(error)
-    res.send(_result(500, 'Server internal error, please contact the administrator.'))
-  }
-}
 
-/**
- * ehsm napi result
- * If the value of the result is not equal to 200, the result is directly returned to the user
- * @param {function name} action
- * @param {NAPI_* function params} params
- * @returns napi result | false
- */
-function napi_result_local(action, params) {
-  try {
-    const napi_res = ehsm_napi[`NAPI_${action}`](...params)
-    let res = JSON.parse(napi_res)
-    if (res && res.code == 200) {
-      return res
+        // check payload
+        const checkPayload = require('./payload_checker')
+            .checkPayload
+        if (!checkPayload(req, res)) {
+            return
+        }
+
+        // check sign
+        let sign_params = {
+            appid,
+            timestamp,
+            payload
+        }
+
+        gen_hmac(DB, appid, sign_params)
+            .then(result => {
+                if (result.hmac.length == 0) {
+                    res.send(_result(400, result.error))
+                    return
+                }
+                if (sign != result.hmac) {
+                    res.send(_result(400, 'sign error'))
+                    return
+                } else {
+                    next()
+                }
+            })
+            .catch((e) => {
+                res.send(_result(400, 'database error'))
+            })
+    } catch (error) {
+        logger.error(error)
+        res.send(_result(500, 'Server internal error, please contact the administrator.'))
     }
-    return false
-  } catch (e) {
-    return false
-  }
 }
 
 /**
  * Query ApiKey
  */
 const _query_api_key = async (DB, appid) => {
-  try {
-    const db_query = {
-      selector: {
-        _id: `user_info:${appid}`,
-      },
-      fields: ['appid', 'apikey', 'cmk'],
-      limit: 1,
+    try {
+        const db_query = {
+            selector: {
+                _id: `user_info:${appid}`,
+            },
+            fields: ['appid', 'apikey', 'cmk'],
+            limit: 1,
+        }
+        let query_result = await DB.partitionedFind('user_info', db_query);
+        if (!(query_result && query_result.docs[0])) {
+            return {
+                msg: 'keyid not found',
+                api_key: ''
+            }
+        }
+
+        let {
+            cmk,
+            apikey
+        } = query_result.docs[0]
+        let decypt_result = napi_result(
+            KMS_ACTION.cryptographic.Decrypt,
+            undefined, {
+            cmk,
+            ciphertext: apikey,
+            aad: ''
+        }
+        )
+
+        if (decypt_result) {
+            return {
+                msg: '',
+                api_key: base64_decode(decypt_result.result.plaintext)
+            }
+        } else {
+            return {
+                msg: 'Decrypt key error',
+                api_key: ''
+            }
+        }
+    } catch (error) {
+        logger.error(error)
     }
-    let query_result = await DB.partitionedFind('user_info', db_query);
-    if (!(query_result && query_result.docs[0])) {
-      return {
-        msg: 'keyid not found',
+    return {
+        msg: 'Unexcept error',
         api_key: ''
-      }
     }
-    let { cmk, apikey } = query_result.docs[0]
-    let decypt_result = napi_result_local(
-      KMS_ACTION.cryptographic.Decrypt,
-      [cmk, apikey, '']
-    )
-    if (decypt_result) {
-      return {
-        msg: '',
-        api_key: decypt_result.result.plaintext
-      }
-    } else {
-      return {
-        msg: 'Decrypt key error',
-        api_key: ''
-      }
-    }
-  } catch (error) {
-    logger.error(error)
-  }
-  return {
-    msg: 'Unexcept error',
-    api_key: ''
-  }
 }
 
 /**
@@ -518,43 +590,46 @@ const _query_api_key = async (DB, appid) => {
  * @returns {object} (error, hmac) // One object contain "error" and "hmac" attributes
  */
 const gen_hmac = async (DB, appid, sign_params) => {
-  try {
-    let { msg, api_key } = await _query_api_key(DB, appid)
-    if (api_key && api_key.length == 0) {
-      logger.error(msg)
-      return {
-        error: msg,
-        hmac: ''
-      }
+    try {
+        let {
+            msg,
+            api_key
+        } = await _query_api_key(DB, appid)
+        if (api_key && api_key.length == 0) {
+            logger.error(msg)
+            return {
+                error: msg,
+                hmac: ''
+            }
+        }
+        let sign_string = params_sort_str(sign_params)
+        let sign_result = crypto.createHmac('sha256', api_key)
+            .update(sign_string, 'utf8')
+            .digest('base64')
+        return {
+            error: '',
+            hmac: sign_result
+        }
+    } catch (error) {
+        logger.error(error)
+        return {
+            error: error,
+            hmac: ''
+        }
     }
-    let sign_string = params_sort_str(sign_params)
-    let sign_result = crypto.createHmac('sha256', api_key)
-      .update(sign_string, 'utf8')
-      .digest('base64')
-    return {
-      error: '',
-      hmac: sign_result
-    }
-  } catch (error) {
-    logger.error(error)
-    return {
-      error: error,
-      hmac: ''
-    }
-  }
 }
 
 module.exports = {
-  getIPAdress,
-  base64_encode,
-  base64_decode,
-  _checkParams,
-  _result,
-  napi_result,
-  create_user_info,
-  enroll_user_info,
-  _nonce_cache_timer,
-  store_cmk,
-  _cmk_cache_timer,
-  gen_hmac,
+    getIPAdress,
+    base64_encode,
+    base64_decode,
+    _checkParams,
+    _result,
+    napi_result,
+    create_user_info,
+    enroll_user_info,
+    _nonce_cache_timer,
+    store_cmk,
+    _cmk_cache_timer,
+    gen_hmac,
 }

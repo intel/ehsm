@@ -23,7 +23,7 @@ def get_args():
     return base_url, args.keyid, args.data, args.aad
 
 def decrypt(base_url, keyid, data, aad):
-    print('encrypt data with a symmetric cmk')
+    print('decrypt data with a symmetric cmk')
 
     payload = OrderedDict()
     if aad is not None:

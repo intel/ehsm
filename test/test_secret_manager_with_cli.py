@@ -24,7 +24,7 @@ def get_appid_apikey(base_url):
 def test_secret_manager(base_url, headers):
     
     print('====================test_secret_manager start===========================')
-    key1 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY")
+    key1 = createkey.createkey(base_url, "AES_GCM_128", "EH_INTERNAL_KEY", None, None, None)
 
     # if two createSecret are success, listSecrets will be return totalCount_all == 2
     secretData1 = "secret Data1"

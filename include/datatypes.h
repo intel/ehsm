@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2020 Intel Corporation. All rights reserved.
+ * Copyright (C) 2011-2023 Intel Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,64 +35,32 @@
 #include "sgx_dh.h"
 #include "sgx_tseal.h"
 
+#include "log_utils.h"
+#include "sgx_tseal.h"
+
+#include <stdio.h>
+#include <stdbool.h>
+
+#include "sgx_report.h"
+#include "sgx_utils.h"
+#include "sgx_tkey_exchange.h"
+
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
-#define DH_KEY_SIZE        20
-#define NONCE_SIZE         16
-#define MAC_SIZE           16
-#define MAC_KEY_SIZE       16
-#define PADDING_SIZE       16
-
-#define EH_API_KEY_SIZE     32
-#define UUID_STR_LEN	   37
-
-#define TAG_SIZE        16
-#define IV_SIZE            12
-
-#define DERIVE_MAC_KEY      0x0
-#define DERIVE_SESSION_KEY  0x1
-#define DERIVE_VK1_KEY      0x3
-#define DERIVE_VK2_KEY      0x4
-
-#define CLOSED 0x0
-#define IN_PROGRESS 0x1
-#define ACTIVE 0x2
-
-#define SGX_DOMAIN_KEY_SIZE     16
-
-#define MESSAGE_EXCHANGE 0x0
-
-#define MESSAGE_EXCHANGE_CMD_DK 0x1
-
-#define ENCLAVE_TO_ENCLAVE_CALL 0x1
-
-#define INVALID_ARGUMENT                   -2   ///< Invalid function argument
-#define LOGIC_ERROR                        -3   ///< Functional logic error
-#define FILE_NOT_FOUND                     -4   ///< File not found
-
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
-
-#define VMC_ATTRIBUTE_MASK  0xFFFFFFFFFFFFFFCB
+#define SAFE_MEMSET(ptr, length1, value, length2)     {if (NULL != (ptr)) {memset_s(ptr, length1, 0, length2);}}
+#define APPEND_SIZE_TO_KEYBLOB_T(x)    (sizeof(ehsm_keyblob_t) + x*sizeof(uint8_t))
+#define APPEND_SIZE_TO_DATA_T(x)    (sizeof(ehsm_data_t) + x*sizeof(uint8_t))
+#define SM2_DEFAULT_USERID      "1234567812345678" 
+#define SM2_DEFAULT_USERID_LEN      sizeof(SM2_DEFAULT_USERID) - 1
 
 #define _T(x) x
 
 #define UNUSED(val) (void)(val)
 
-#define TCHAR   char
-
-#define _TCHAR  char
-
-#define scanf_s scanf
-
-#define _tmain  main
-
 #ifndef INT_MAX
 #define INT_MAX     0x7fffffff
-#endif
-
-#ifndef SAFE_FREE
-#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}}
 #endif
 
 #ifndef _ERRNO_T_DEFINED
@@ -100,11 +68,158 @@
 typedef int errno_t;
 #endif
 
+#define NONCE_SIZE         16
+#define MAC_SIZE           16
+#define MAC_KEY_SIZE       16
+
+#define EH_API_KEY_SIZE    32
+#define UUID_STR_LEN	   37
+
+#define TAG_SIZE           16
+#define IV_SIZE            12
+
+#define CLOSED 0x0
+#define IN_PROGRESS 0x1
+#define ACTIVE 0x2
+
+#define RSA_OAEP_4096_SIGNATURE_SIZE      512
+#define RSA_OAEP_3072_SIGNATURE_SIZE      384
+#define RSA_OAEP_2048_SIGNATURE_SIZE      256
+
+/* The maximum length of ec is obtained by ecdsa_size() */
+#define EC_P224_SIGNATURE_MAX_SIZE        66
+#define EC_P256_SIGNATURE_MAX_SIZE        72
+#define EC_P384_SIGNATURE_MAX_SIZE        104
+#define EC_P521_SIGNATURE_MAX_SIZE        141
+#define EC_SM2_SIGNATURE_MAX_SIZE         72
+
+#define MAX_DIGEST_DATA_SIZE         (6*1024)
+#define MAX_SIGNATURE_SIZE                512
+
+#define EH_AES_GCM_IV_SIZE  12
+#define EH_AES_GCM_MAC_SIZE 16
+#define SGX_SM4_IV_SIZE     16
+
+#define SM2PKE_MAX_ENCRYPTION_SIZE              6047
+#define EH_ENCRYPT_MAX_SIZE                    (6*1024)
+#define EH_DATA_KEY_MAX_SIZE                    (6*1024)
+
+#define MESSAGE_EXCHANGE 0x0
+
+#define MESSAGE_EXCHANGE_CMD_DK 0x1
+
+#define ENCLAVE_TO_ENCLAVE_CALL 0x1
+
+#define EH_CMK_MAX_SIZE (8*1024)
+#define EH_AAD_MAX_SIZE (8*1024)
+#define EH_PLAINTEXT_MAX_SIZE (6*1024)
+#define EH_CIPHERTEXT_MAX_SIZE (6*1024)
+#define EH_PAYLOAD_MAX_SIZE (12*1024)
+#define EH_QUOTE_MAX_SIZE (8*1024)
+
+#define SGX_DOMAIN_KEY_SIZE     16
+
+#define RSA_2048_KEY_BITS   2048
+#define RSA_3072_KEY_BITS   3072
+#define RSA_4096_KEY_BITS   4096
 
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
 
-#pragma pack(push, 1)
+typedef enum {
+    EH_OK                           = 0,
+    EH_KEYSPEC_INVALID              = -1,
+    EH_DEVICE_MEMORY                = -2,
+    EH_DEVICE_ERROR                 = -3,
+    EH_GENERAL_ERROR                = -4,
+    EH_FUNCTION_FAILED              = -5,
+    EH_ARGUMENTS_BAD                = -6,
+    EH_LA_SETUP_ERROR               = -7,
+    EH_LA_EXCHANGE_MSG_ERROR        = -8,
+    EH_LA_CLOSE_ERROR               = -9,
+} ehsm_status_t;
+
+//sgx-ssl framework
+typedef enum  {
+    EH_ORIGIN_NONE = 0,
+    EH_INTERNAL_KEY,
+    EH_EXTERNAL_KEY,
+} ehsm_keyorigin_t;
+
+typedef enum {
+    EH_PURPOSE_NONE = 0,
+    EH_PURPOSE_ENCRYPT_DECRYPT,
+    EH_PURPOSE_SIGN_VERIFY,
+} ehsm_keypurpose_t;
+
+typedef enum {
+    EH_KEYSPEC_NONE = 0,
+    EH_AES_GCM_128 = 1,
+    EH_AES_GCM_192 = 2,
+    EH_AES_GCM_256 = 3,
+    EH_RSA_2048 = 10,
+    EH_RSA_3072 = 11,
+    EH_RSA_4096 = 12,
+    EH_EC_P224 = 20,
+    EH_EC_P256 = 21,
+    EH_EC_P384 = 22,
+    EH_EC_P521 = 23,
+    EH_SM2 = 30,
+    EH_SM4_CTR = 31,
+    EH_SM4_CBC= 32,
+    EH_HMAC = 40
+} ehsm_keyspec_t;
+
+typedef enum {
+    EH_DIGEST_NONE = 0,
+    EH_SHA_2_224,
+    EH_SHA_2_256,
+    EH_SHA_2_384,
+    EH_SHA_2_512,
+    EH_SM3
+} ehsm_digest_mode_t;
+
+typedef enum {
+    EH_PADDING_NONE = 0,
+    EH_PAD_RSA_PKCS1 = 1,
+    EH_PAD_RSA_NO = 3,        
+    EH_PAD_RSA_PKCS1_OAEP = 4,
+    EH_PAD_RSA_PKCS1_PSS = 6      
+} ehsm_padding_mode_t;
+
+
+typedef enum {
+    EH_NULL = 0,
+    EH_DATA_T,
+    EH_KEYBLOB_T,
+    EH_METADATA_T
+} ehsm_data_type_t;
+
+#pragma pack(push,1)
+
+typedef struct {
+    uint32_t    datalen;
+    uint8_t     data[0];
+} ehsm_data_t;
+
+typedef struct {
+    ehsm_keyspec_t        keyspec;
+    ehsm_digest_mode_t    digest_mode;
+    ehsm_padding_mode_t   padding_mode;
+    ehsm_keyorigin_t      origin;
+    ehsm_keypurpose_t     purpose;
+
+    uint32_t              apiversion;
+    uint8_t               descrption[16];
+    uint8_t               createdate[8];
+} ehsm_keymetadata_t;
+
+typedef struct {
+    ehsm_keymetadata_t  metadata;
+    uint32_t            keybloblen;
+    uint8_t             keyblob[0];
+} ehsm_keyblob_t;
+
 
 //Format of the AES-GCM message being exchanged between the source and the destination enclaves
 typedef struct _secure_message_t
@@ -135,6 +250,5 @@ typedef struct _session_id_tracker_t
 } session_id_tracker_t;
 
 #pragma pack(pop)
-
 
 #endif

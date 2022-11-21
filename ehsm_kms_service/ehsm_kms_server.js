@@ -1,5 +1,5 @@
 const express = require('express')
-
+const { ehsm_action_t } = require('./constant')
 const https = require('https')
 const fs = require('fs')
 const openssl = require('openssl-nodejs')
@@ -27,9 +27,9 @@ const HTTPS_PORT = process.argv.slice(2)[0] || 9000
 
 const server = (DB) => {
     /**
-     * NAPI init
+     *  init ehsm-core
      */
-    const NAPI_Initialize = ehsm_napi.NAPI_Initialize()
+    const NAPI_Initialize = ehsm_napi.EHSM_FFI_CALL(JSON.stringify({ action: ehsm_action_t.EH_INITIALIZE, payload: {} }))
     if (JSON.parse(NAPI_Initialize)['code'] != 200) {
         console.log('service Initialize exception!')
         process.exit(0)
@@ -67,7 +67,7 @@ const server = (DB) => {
      */
     process.on('SIGINT', function () {
         console.log('ehsm kms service exit')
-        ehsm_napi.NAPI_Finalize()
+        ehsm_napi.EHSM_FFI_CALL(JSON.stringify({ action: ehsm_action_t.EH_FINALIZE, payload: {} }))
         clearInterval(nonce_cache_timer)
         clearInterval(cmk_cache_timer)
         clearInterval(secret_delete_timer)
@@ -150,7 +150,7 @@ const build_openssl_conf_buffer = () => {
     if (EHSM_CONFIG_OPENSSL_EMAILADDRESS) {
         conf.emailAddress = EHSM_CONFIG_OPENSSL_EMAILADDRESS
     }
-    
+
     // create buffer by csr.conf
     const conf_buffer = fs.readFileSync('./openssl/csr.conf', 'utf8')
     let conf_custom_buffer = conf_buffer.replace('${countryName}', conf.countryName).replace('${localityName}', conf.localityName)

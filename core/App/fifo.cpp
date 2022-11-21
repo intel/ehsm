@@ -63,9 +63,9 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
     int ret = 0;
     long byte_num;
     char recv_msg[BUFFER_SIZE + 1] = {0};
-    FIFO_MSG * response = NULL;
-  
-    struct sockaddr_un server_addr;  
+    FIFO_MSG *response = NULL;
+
+    struct sockaddr_un server_addr;
     int server_sock_fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (server_sock_fd == -1)
     {
@@ -76,14 +76,17 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
     server_addr.sun_family = AF_UNIX;
     strcpy(server_addr.sun_path, UNIX_DOMAIN);
 
-    do {
-        if(connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) >= 0)
+    do
+    {
+        if (connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) >= 0)
             break;
-        else if (retry_count > 0) {
+        else if (retry_count > 0)
+        {
             log_w("failed to connect, sleep 0.5s and try again...");
             usleep(500000); // 0.5 s
         }
-        else {
+        else
+        {
             log_e("connection error, %s, line %d.", strerror(errno), __LINE__);
             goto CLEAN;
         }
@@ -93,9 +96,9 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
     {
         log_e("connection error, %s, line %d..", strerror(errno), __LINE__);
         ret = -1;
-        goto CLEAN; 
+        goto CLEAN;
     }
-    
+
     byte_num = recv(server_sock_fd, reinterpret_cast<char *>(recv_msg), BUFFER_SIZE, 0);
     if (byte_num > 0)
     {
@@ -103,7 +106,7 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
         {
             byte_num = BUFFER_SIZE;
         }
-    
+
         recv_msg[byte_num] = '\0';
 
         response = (FIFO_MSG *)malloc((size_t)byte_num);
@@ -122,7 +125,7 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
 
         ret = 0;
     }
-    else if(byte_num < 0)
+    else if (byte_num < 0)
     {
         printf("server error, error message is %s!\n", strerror(errno));
         ret = -1;
@@ -132,11 +135,9 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
         printf("server exit!\n");
         ret = -1;
     }
-      
 
 CLEAN:
     close(server_sock_fd);
 
     return ret;
 }
-

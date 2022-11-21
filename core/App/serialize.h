@@ -43,10 +43,6 @@ uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val);
 uint8_t *append_sized_buf_to_buf(uint8_t *buf, const uint8_t *data,
                                  uint32_t data_len);
 
-ehsm_status_t ehsm_serialize_cmk(const ehsm_keyblob_t *params, uint8_t** out,
-                             uint32_t *out_size);
 
-ehsm_status_t ehsm_deserialize_cmk(ehsm_keyblob_t *params, const uint8_t* out,
-                             uint32_t out_size);
 
 #endif

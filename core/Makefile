@@ -35,7 +35,7 @@ App_Name := ehsm-core
 App_Test_Name := ehsm_core_test
 Enclave_Name := libenclave-$(App_Name).so
 Signed_Enclave_Name := libenclave-$(App_Name).signed.so
-Napi_Name := libehsmnapi.so
+Provider_Name := libehsmprovider.so
 Enclave_Config_File := Enclave/enclave.config.xml
 Enclave_Signing_Key := Enclave/enclave_private_test.pem
 Sgx_Signing_tool := $(SGX_SDK)/bin/x64/sgx_sign
@@ -51,13 +51,12 @@ App_Include_Paths := \
 	-I$(TOPDIR)/include
 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DSIGNED_ENCLAVE_FILENAME=\"$(Signed_Enclave_FileName)\" -DSGX_SIGNING_TOOL=\"$(Sgx_Signing_tool)\"
-
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
 #   Prerelease - Macro NDEBUG and EDEBUG enabled.
 #   Release - Macro NDEBUG enabled.
 ifeq ($(SGX_DEBUG), 1)
-    App_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG
+    App_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG 
 else ifeq ($(SGX_PRERELEASE), 1)
     App_C_Flags += -DNDEBUG -DEDEBUG -UDEBUG
 else
@@ -69,7 +68,7 @@ ifeq (true, $(EHSM_DEFAULT_DOMAIN_KEY_FALLBACK))
 	App_C_Flags += -DEHSM_DEFAULT_DOMAIN_KEY_FALLBACK=1
 endif
 
-ENABLE_PERFORMANCE_TEST ?= false
+ENABLE_PERFORMANCE_TEST ?= true
 ifeq (true, $(ENABLE_PERFORMANCE_TEST))
 	App_C_Flags += -DENABLE_PERFORMANCE_TEST=1
 endif
@@ -98,7 +97,8 @@ Enclave_Include_Paths := \
 	-I$(TOPDIR)/include \
 	-I$(OPENSSL_PATH)/include
 
-Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths)
+Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths) 
+
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++ -include "tsgxsslio.h"
 
 # To generate a proper enclave, it is recommended to follow below guideline to link the trusted libraries:
@@ -120,25 +120,25 @@ Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefau
 Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 
 Enclave_Config_File := Enclave/enclave_config/enclave_hsm.config.xml
-######## NAPI Settings ########
-Napi_Cpp_Files := App/ehsm_napi.cpp
-Napi_Include_Paths := \
+######## Provider Settings ########
+Provider_Cpp_Files := App/ehsm_provider.cpp
+Provider_Include_Paths := \
 	-I$(SGX_SDK)/include \
 	-IInclude \
 	-IApp \
 	-I$(TOPDIR)/include
 
-Napi_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
-Napi_Cpp_Flags := $(Napi_C_Flags) -std=c++11
-Napi_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -nostartfiles -Wl,--export-dynamic -shared
+Provider_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+Provider_Cpp_Flags := $(Provider_C_Flags) -std=c++11
+Provider_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -nostartfiles -Wl,--export-dynamic -shared
 
 ifneq ($(SGX_MODE), HW)
-	Napi_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
+	Provider_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
 else
-	Napi_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -lsgx_dcap_quoteverify -ldl
+	Provider_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -lsgx_dcap_quoteverify -ldl
 endif
 
-Napi_Cpp_Objects := $(Napi_Cpp_Files:.cpp=.o)
+Provider_Cpp_Objects := $(Provider_Cpp_Files:.cpp=.o)
 
 
 ######## Build Settings ########
@@ -146,16 +146,16 @@ Napi_Cpp_Objects := $(Napi_Cpp_Files:.cpp=.o)
 all: target
 	@$(MAKE) target
 	@mkdir -p $(OUT)
-	@mv $(App_Test_Name) $(Napi_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
+	@mv $(App_Test_Name) $(Provider_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
 
 ifeq ($(Build_Mode), HW_RELEASE)
-target: $(App_Test_Name) $(Napi_Name) $(Enclave_Name)
+target: $(App_Test_Name) $(Provider_Name) $(Enclave_Name)
 else
-target: $(App_Test_Name) $(Napi_Name) $(Signed_Enclave_Name)
+target: $(App_Test_Name) $(Provider_Name) $(Signed_Enclave_Name)
 endif
 
 clean:
-	@rm -f $(App_Cpp_Objects) $(Napi_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
+	@rm -f $(App_Cpp_Objects) $(Provider_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
 	@rm -rf $(OUT)
 
 
@@ -208,11 +208,11 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key Enclave/enclave_config/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 
-######## NAPI Objects ########
-App/ehsm_napi.o: App/ehsm_napi.cpp
-	@$(CXX) $(Napi_Cpp_Flags) -c $< -o $@
+######## FFI Objects ########
+App/ehsm_provider.o: App/ehsm_provider.cpp
+	@$(CXX) $(Provider_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(Napi_Name): $(Napi_Cpp_Objects) $(App_Cpp_Objects) App/enclave_hsm_u.o
-	$(CXX) $^ -o $@ $(Napi_Link_Flags)
+$(Provider_Name): $(Provider_Cpp_Objects) $(App_Cpp_Objects) App/enclave_hsm_u.o
+	$(CXX) $^ -o $@ $(Provider_Link_Flags)
 	@echo "LINK =>  $@"
