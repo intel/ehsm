@@ -22,7 +22,7 @@ def get_args():
     return base_url, args.keyid, args.data
 
 def asymmetric_decrypt(base_url, keyid, data):
-    print('encrypt data with an asymmetric cmk')
+    print('decrypt data with an asymmetric cmk')
 
     payload = OrderedDict()
     payload["ciphertext"] = data

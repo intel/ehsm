@@ -16,7 +16,7 @@ RUN wget https://nodejs.org/dist/v16.13.0/node-v16.13.0-linux-x64.tar.xz \
 
 # Install ehsm-service dependence packages
 WORKDIR /home/ehsm/ehsm_kms_service
-RUN cp /home/ehsm/out/ehsm-core/libehsmnapi.so . \
+RUN cp /home/ehsm/out/ehsm-core/libehsmprovider.so . \
     && cp /home/ehsm/out/ehsm-core/libenclave-ehsm-core.signed.so .
 RUN npm install
 

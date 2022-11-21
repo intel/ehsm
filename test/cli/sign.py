@@ -22,7 +22,7 @@ def get_args():
     return base_url, args.keyid, args.digest
 
 def sign(base_url, keyid, digest):
-    print('encrypt data with an asymmetric cmk')
+    print('sign data with an asymmetric cmk')
 
     payload = OrderedDict()
     payload["digest"] = digest

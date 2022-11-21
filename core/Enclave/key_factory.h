@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,29 +28,56 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+
+#include "log_utils.h"
+#include "sgx_tseal.h"
+
+#include <string>
 #include <stdio.h>
-#include <stdlib.h>
-#include <cstdlib>
-#include <cstring>
-#include "serialize.h"
+#include <stdbool.h>
+#include <mbusafecrt.h>
 
+#include "sgx_report.h"
+#include "sgx_utils.h"
+#include "sgx_tkey_exchange.h"
 
-uint8_t *append_to_buf(uint8_t *buf, const void *data, size_t data_len)
+#ifndef _KEY_FACTORY_H_
+#define _KEY_FACTORY_H_
+
+typedef struct _aes_gcm_data_ex_t
 {
-    if (data && data_len) {
-        memcpy(buf, (void *)data, data_len);
-    }
-    return buf + data_len;
-}
+    uint32_t ciphertext_size;
+    uint32_t aad_size;
+    uint8_t reserve1[8];
+    uint8_t iv[SGX_AESGCM_IV_SIZE];
+    uint8_t reserve2[4];
+    uint8_t mac[SGX_AESGCM_MAC_SIZE];
+    uint8_t payload[]; /* ciphertext + aad */
+} sgx_aes_gcm_data_ex_t;
 
-uint8_t *append_uint32_to_buf(uint8_t *buf, uint32_t val)
-{
-    return append_to_buf(buf, &val, sizeof(val));
-}
+// use the g_domain_key to encrypt the cmk and get it ciphertext
+sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext,
+                                sgx_aes_gcm_data_ex_t *keyblob_data);
 
-uint8_t *append_sized_buf_to_buf(uint8_t *buf, const uint8_t *data,
-                                 uint32_t data_len)
-{
-    return append_to_buf(buf, data, data_len);
-}
+// use the g_domain_key to decrypt the cmk and get it plaintext
+sgx_status_t ehsm_create_keyblob(uint8_t *plaintext, uint32_t plaintext_size,
+                                 sgx_aes_gcm_data_ex_t *keyblob_data);
 
+// calculate the keyblob size based on the key metadata infomations.
+sgx_status_t ehsm_calc_keyblob_size(const uint32_t keyspec, uint32_t &key_size);
+
+bool ehsm_get_symmetric_key_size(ehsm_keyspec_t key_spec, uint32_t &key_size);
+
+uint32_t ehsm_get_gcm_ciphertext_size(const sgx_aes_gcm_data_ex_t *gcm_data);
+
+sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_create_ecc_key(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk);
+
+sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk);
+
+#endif
