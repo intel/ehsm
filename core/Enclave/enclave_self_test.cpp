@@ -753,9 +753,10 @@ bool sm2_crypto_test()
 
     for (int i = 0; i < count; i++)
     {
-        uint8_t rand_len[2];
-        sgx_read_rand(rand_len, 2);
-        size_t length = (rand_len[1] < 8 | rand_len[0]) % 1023 + 1;
+        uint16_t rand_len = 0;
+        sgx_read_rand((uint8_t*)&rand_len, sizeof(rand_len));
+        size_t length = rand_len % 1024 + 1;
+        log_i("sm2_crypto_test length = %d\n", length);
         // create key
         EC_GROUP *ec_group = EC_GROUP_new_by_curve_name(NID_sm2);
         EC_KEY *ec_key = EC_KEY_new();
