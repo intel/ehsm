@@ -61,7 +61,7 @@ static const EVP_CIPHER *get_block_mode(uint32_t key_length)
     case 32:
         return EVP_aes_256_gcm();
     default:
-        return EVP_aes_256_gcm(); // return 256 block mode for unexpected key length
+        return NULL;
     }
 }
 
@@ -766,7 +766,7 @@ bool sm2_crypto_test()
         PEM_write_bio_ECPrivateKey(bio, ec_key, NULL, NULL, 0, NULL, NULL);
 
         // encryption
-        uint8_t *plaintext = (uint8_t *)malloc(length);
+        uint8_t plaintext[length] = {0};
         sgx_read_rand(plaintext, length);
         EVP_PKEY *pkey1 = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
         EVP_PKEY_set_alias_type(pkey1, EVP_PKEY_SM2);
@@ -774,29 +774,21 @@ bool sm2_crypto_test()
         EVP_PKEY_encrypt_init(ectx);
         size_t cipher_len;
         EVP_PKEY_encrypt(ectx, NULL, &cipher_len, plaintext, length);
-        uint8_t *ciphertext = (uint8_t *)malloc(cipher_len);
+        uint8_t ciphertext[cipher_len] = {0};
         EVP_PKEY_encrypt(ectx, ciphertext, &cipher_len, plaintext, length);
 
         // decryption
-        uint8_t *_plaintext = (uint8_t *)malloc(length);
+        uint8_t _plaintext[length] = {0};
         EVP_PKEY *pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
         EVP_PKEY_set_alias_type(pkey2, EVP_PKEY_SM2);
         EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(pkey2, NULL);
         EVP_PKEY_decrypt_init(dctx);
-        if (EVP_PKEY_decrypt(dctx, _plaintext, &length, ciphertext, cipher_len) > 0)
+        if (EVP_PKEY_decrypt(dctx, _plaintext, &length, ciphertext, cipher_len) <= 0)
         {
-            if (memcmp(plaintext, _plaintext, length) == 0)
-            {
-                free(plaintext);
-                free(_plaintext);
-                free(ciphertext);
-            }
-            else
-            {
-                return false;
-            }
+            return false;
         }
-        else
+
+        if (memcmp(plaintext, _plaintext, length) != 0)
         {
             return false;
         }

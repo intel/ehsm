@@ -304,6 +304,7 @@ ehsm_status_t Initialize()
         sgx_destroy_enclave(g_enclave_id);
     }
 
+#ifdef FIPS_MODE
     ret = enclave_self_test(g_enclave_id, &sgxStatus);
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
@@ -312,7 +313,7 @@ ehsm_status_t Initialize()
     }
 
     printf("self test pass\n");
-
+#endif
     return rc;
 }
 
