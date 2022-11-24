@@ -304,6 +304,17 @@ ehsm_status_t Initialize()
         sgx_destroy_enclave(g_enclave_id);
     }
 
+#ifdef ENABLE_SELF_TEST
+    ret = enclave_self_test(g_enclave_id, &sgxStatus);
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    {
+        return EH_FUNCTION_FAILED;
+    }
+
+    printf("self test pass\n");
+#endif
+
     return rc;
 }
 

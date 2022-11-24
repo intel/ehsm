@@ -88,16 +88,23 @@ App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := $(wildcard Enclave/*.cpp)
+Enclave_Cpp_Files += $(wildcard Enclave/self_test/*.cpp)
 Enclave_Include_Paths := \
 	-I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc \
 	-I$(SGX_SDK)/include/libcxx \
 	-IInclude \
 	-IEnclave \
+	-IEnclave/self_test \
 	-I$(TOPDIR)/include \
 	-I$(OPENSSL_PATH)/include
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths) 
+
+ENABLE_SELF_TEST ?= 0
+ifeq ($(ENABLE_SELF_TEST), 1)
+	Enclave_C_Flags += -DENABLE_SELF_TEST
+endif
 
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++ -include "tsgxsslio.h"
 
@@ -171,7 +178,7 @@ App/auto_version.h:
 	@echo "  ==>  touch App/auto_version.h"
 
 App/enclave_hsm_u.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
-	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include
+	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path ../Enclave/self_test --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include
 	@echo "GEN  =>  $@"
 
 App/enclave_hsm_u.o: App/enclave_hsm_u.c
@@ -189,7 +196,7 @@ $(App_Test_Name): App/enclave_hsm_u.o $(App_Cpp_Objects) App/auto_version.h
 ######## Enclave Objects ########
 
 Enclave/enclave_hsm_t.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
-	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include
+	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path ../Enclave/self_test --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include
 	@echo "GEN  =>  $@"
 
 Enclave/enclave_hsm_t.o: Enclave/enclave_hsm_t.c

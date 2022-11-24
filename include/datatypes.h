@@ -187,14 +187,6 @@ typedef enum {
     EH_PAD_RSA_PKCS1_PSS = 6      
 } ehsm_padding_mode_t;
 
-
-typedef enum {
-    EH_NULL = 0,
-    EH_DATA_T,
-    EH_KEYBLOB_T,
-    EH_METADATA_T
-} ehsm_data_type_t;
-
 #pragma pack(push,1)
 
 typedef struct {
