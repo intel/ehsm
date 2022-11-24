@@ -37,6 +37,8 @@ enclave {
     from "sgx_tstdc.edl" import *;
     from "sgx_dcap_tvl.edl" import *;
 
+    from "enclave_self_test.edl" import *;
+
     include "sgx_report.h"
     include "sgx_key_exchange.h"
     include "sgx_quote.h"
@@ -66,8 +68,7 @@ enclave {
     };
 
     trusted {
-        /* Interfaces for eHSM core crypto functions */
-        
+        /* Interfaces for eHSM core crypto functions */       
         public sgx_status_t enclave_create_key([in, out, size=cmk_size] ehsm_keyblob_t *cmk, size_t cmk_size);
 
         public sgx_status_t enclave_encrypt([in, size=cmk_size] ehsm_keyblob_t* cmk, size_t cmk_size,
