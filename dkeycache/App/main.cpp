@@ -59,7 +59,19 @@ int ocall_socket(int domain, int type, int protocol)
 
 int ocall_connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen)
 {
-    return connect(sockfd, servaddr, addrlen);
+    int32_t retry_count = 60;
+    do
+    {
+        int ret = connect(sockfd, servaddr, addrlen);
+        if (ret >= 0)
+            return ret;
+
+        log_i("Failed to Connect dkeyserver, sleep 0.5s and try again...\n");
+        usleep(500000); // 0.5s
+    } while (retry_count-- > 0);
+
+    log_e("Failed to connect dkeyserver.\n");
+    return -1;
 }
 
 int ocall_set_dkeycache_done()
