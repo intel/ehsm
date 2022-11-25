@@ -45,6 +45,7 @@ Signed_Enclave_FileName := $(OUT)/$(Signed_Enclave_Name)
 
 ######## App Settings ########
 App_Cpp_Files := $(wildcard App/*.cpp)
+App_Cpp_Files += $(wildcard Test/*.cpp)
 App_Include_Paths := \
 	-I$(SGX_SDK)/include \
 	-IApp \
@@ -179,6 +180,10 @@ App/enclave_hsm_u.o: App/enclave_hsm_u.c
 	@echo "CC   <=  $<"
 
 App/%.o: App/%.cpp App/auto_version.h
+	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+Test/%.o: Test/%.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
