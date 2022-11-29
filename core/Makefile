@@ -107,6 +107,11 @@ ifeq ($(ENABLE_SELF_TEST), 1)
 	Enclave_C_Flags += -DENABLE_SELF_TEST
 endif
 
+ENABLE_PAIR_WISE_TEST ?= 0
+ifeq ($(ENABLE_PAIR_WISE_TEST), 1)
+	Enclave_C_Flags += -ENABLE_PAIR_WISE_TEST
+endif
+
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++ -include "tsgxsslio.h"
 
 # To generate a proper enclave, it is recommended to follow below guideline to link the trusted libraries:
