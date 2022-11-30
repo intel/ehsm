@@ -117,7 +117,7 @@ typedef int errno_t;
 #define EH_PAYLOAD_MAX_SIZE (12*1024)
 #define EH_QUOTE_MAX_SIZE (8*1024)
 
-#define SGX_DOMAIN_KEY_SIZE     16
+#define SGX_DOMAIN_KEY_SIZE     32
 
 #define RSA_2048_KEY_BITS   2048
 #define RSA_3072_KEY_BITS   3072
@@ -125,6 +125,8 @@ typedef int errno_t;
 
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
+
+typedef uint8_t sgx_aes_gcm_256bit_key_t[SGX_DOMAIN_KEY_SIZE];
 
 typedef enum {
     EH_OK                           = 0,

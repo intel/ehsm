@@ -44,8 +44,7 @@
 #include "openssl_utility.h"
 #include "enclave_t.h"
 #include "log_utils.h"
-
-#define SGX_DOMAIN_KEY_SIZE 16
+#include "datatypes.h"
 
 uint8_t g_domain_key[SGX_DOMAIN_KEY_SIZE] = {0};
 

@@ -48,8 +48,8 @@
 #include "netinet/in.h"
 #include "byteswap.h"
 #include "openssl_utility.h"
+#include "datatypes.h"
 
-#define SGX_DOMAIN_KEY_SIZE 16
 #define CLIENT_MAX_NUM 20
 
 typedef struct SocketMsgHandlerParam
