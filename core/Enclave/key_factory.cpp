@@ -39,9 +39,7 @@
 #include "key_operation.h"
 #include "openssl_operation.h"
 
-#define DUMMY_SIZE 128
-
-sgx_aes_gcm_128bit_key_t g_domain_key = {0};
+sgx_aes_gcm_256bit_key_t g_domain_key = {0};
 
 using namespace std;
 
@@ -108,7 +106,7 @@ sgx_status_t ehsm_create_keyblob(uint8_t *plaintext,
     }
 
     ret = aes_gcm_encrypt((uint8_t *)g_domain_key,
-                          keyblob_data->payload, EVP_aes_128_gcm(),
+                          keyblob_data->payload, EVP_aes_256_gcm(),
                           plaintext, plaintext_size,
                           NULL, 0,
                           keyblob_data->iv, SGX_AESGCM_IV_SIZE,
@@ -132,7 +130,7 @@ sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext, sgx_aes_gcm_data_ex_t *keybl
         return SGX_ERROR_INVALID_PARAMETER;
 
     sgx_status_t ret = aes_gcm_decrypt((uint8_t *)g_domain_key,
-                                       plaintext, EVP_aes_128_gcm(),
+                                       plaintext, EVP_aes_256_gcm(),
                                        keyblob_data->payload,
                                        keyblob_data->ciphertext_size,
                                        NULL,

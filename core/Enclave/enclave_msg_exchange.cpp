@@ -48,7 +48,7 @@
 
 extern void printf(const char *fmt, ...);
 
-extern sgx_aes_gcm_128bit_key_t g_domain_key;
+extern sgx_aes_gcm_256bit_key_t g_domain_key;
 
 #define MAX_SESSION_COUNT  16
 
