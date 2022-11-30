@@ -13,6 +13,7 @@ core/Enclave/enclave_hsm_t.*
 core/App/*.o
 core/Enclave/*.o
 core/Test/*.o
+core/Enclave/self_test/*.o
 
 utils/tkey_exchange/*.o
 utils/tkey_exchange/sgx_tkey_exchange_t.*

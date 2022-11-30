@@ -40,6 +40,14 @@ Enclave_Config_File := Enclave/enclave.config.xml
 Enclave_Signing_Key := Enclave/enclave_private_test.pem
 Sgx_Signing_tool := $(SGX_SDK)/bin/x64/sgx_sign
 
+EHSM_DEFAULT_DOMAIN_KEY_FALLBACK ?= 0
+
+ENABLE_PERFORMANCE_TEST ?= 0
+
+ENABLE_SELF_TEST ?= 0
+
+ENABLE_PAIR_WISE_TEST ?= 0
+
 OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 Signed_Enclave_FileName := $(OUT)/$(Signed_Enclave_Name)
 
@@ -64,14 +72,12 @@ else
     App_C_Flags += -DNDEBUG -UEDEBUG -UDEBUG
 endif
 
-EHSM_DEFAULT_DOMAIN_KEY_FALLBACK ?= true
-ifeq (true, $(EHSM_DEFAULT_DOMAIN_KEY_FALLBACK))
-	App_C_Flags += -DEHSM_DEFAULT_DOMAIN_KEY_FALLBACK=1
+ifeq (1, $(EHSM_DEFAULT_DOMAIN_KEY_FALLBACK))
+	App_C_Flags += -DEHSM_DEFAULT_DOMAIN_KEY_FALLBACK
 endif
 
-ENABLE_PERFORMANCE_TEST ?= true
-ifeq (true, $(ENABLE_PERFORMANCE_TEST))
-	App_C_Flags += -DENABLE_PERFORMANCE_TEST=1
+ifeq (1, $(ENABLE_PERFORMANCE_TEST))
+	App_C_Flags += -DENABLE_PERFORMANCE_TEST
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
@@ -102,9 +108,12 @@ Enclave_Include_Paths := \
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths) 
 
-ENABLE_SELF_TEST ?= 0
 ifeq ($(ENABLE_SELF_TEST), 1)
 	Enclave_C_Flags += -DENABLE_SELF_TEST
+endif
+
+ifeq ($(ENABLE_PAIR_WISE_TEST), 1)
+	Enclave_C_Flags += -DENABLE_PAIR_WISE_TEST
 endif
 
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++ -include "tsgxsslio.h"
