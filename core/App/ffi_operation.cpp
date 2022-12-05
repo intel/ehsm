@@ -1432,7 +1432,7 @@ extern "C"
         }
         appid->datalen = UUID_STR_LEN;
 
-        apikey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_API_KEY_SIZE + 1));
+        apikey = (ehsm_data_t *)calloc(APPEND_SIZE_TO_DATA_T(EH_API_KEY_SIZE + 1), sizeof(uint8_t));
         if (apikey == NULL)
         {
             ret = EH_DEVICE_MEMORY;
