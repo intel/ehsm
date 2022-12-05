@@ -738,7 +738,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
 
     if (plaintext->datalen == 0)
     {
-        uint8_t *temp_plaintext = (uint8_t *)malloc(RSA_size(rsa_prikey));
+        uint8_t temp_plaintext[RSA_size(rsa_prikey)] = {0};
         plaintext->datalen = RSA_private_decrypt(ciphertext->datalen,
                                                  ciphertext->data,
                                                  temp_plaintext,
