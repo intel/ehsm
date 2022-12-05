@@ -44,6 +44,70 @@
 
 #define PERF_NUM 1000
 
+#define AESGCM_CREATEKEY_PERFNUM PERF_NUM*100
+#define SM4_CREATEKEY_PERFNUM PERF_NUM*100
+
+#define RSA_CREATEKEY_PERFNUM 10
+#define EC_CREATEKEY_PERFNUM PERF_NUM
+#define SM2_CREATEKEY_PERFNUM PERF_NUM
+#define SM4_CREATEKEY_PERFNUM PERF_NUM*100
+
+#define AESGCM_ENCRYPT_DECRYPT_PERFNUM PERF_NUM*100
+#define SM4_ENCRYPT_DECRYPT_PERFNUM PERF_NUM*100
+
+#define RSA_ENCRYPT_DECRYPT_PERFNUM PERF_NUM*100
+#define SM2_ENCRYPT_DECRYPT_PERFNUM PERF_NUM
+
+#define RSA_SIGN_VERIFY_PERFNUM PERF_NUM
+#define EC_SIGN_VERIFY_PERFNUM PERF_NUM/10
+#define SM2_SIGN_VERIFY_PERFNUM PERF_NUM
+
+
 #define NUM_THREADS 100
 
 void performance_test();
+
+/**
+ * create symmetric key supported
+ * aesgcm128, aesgcm192, aesgcm256;
+ * sm4_cbc, sm4_ctr;
+ */
+void test_perf_create_symmetric_key();
+
+/**
+ * create asymmetric key supported
+ * rsa2048, rsa3072, rsa4096 with padding mode pkcs1_oaep, pkcs1_pss;
+ * ecc_p224, ecc_p256, ecc_p384, ecc_p521;
+ * sm2;
+ */
+void test_perf_create_asymmetric_key();
+
+/**
+ * symmetric_encryption supported
+ * aesgcm128, aesgcm192, aesgcm256;
+ * sm4_cbc, sm4_ctr;
+ *
+ * symmetric_decryption supported
+ * aesgcm128, aesgcm192, aesgcm256;
+ * sm4_cbc, sm4_ctr;
+ */
+void test_perf_symmetric_encryption_decryption();
+
+/**
+ * asymmetric_encryption supported
+ * rsa2048, rsa3072, rsa4096 with padding mode pkcs1_oaep;
+ * sm2;
+ *
+ * asymmetric_decryption supported
+ * rsa2048, rsa3072, rsa4096 with padding mode pkcs1_oaep;
+ * sm2;
+ */
+void test_perf_asymmetric_encryption_decryption();
+
+/**
+ * sign_verify supported
+ * rsa2048, rsa3072, rsa4096 with padding mode pkcs1_pss;
+ * ecc_p224, ecc_p256, ecc_p384, ecc_p521;
+ * sm2;
+ */
+void test_perf_sign_verify();
