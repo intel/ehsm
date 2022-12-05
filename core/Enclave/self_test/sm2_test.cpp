@@ -318,6 +318,14 @@ bool sm2_crypto_test()
 
             return false;
         }
+
+        EC_GROUP_free(ec_group);
+        EC_KEY_free(ec_key);
+        BIO_free_all(bio);
+        EVP_PKEY_free(pkey1);
+        EVP_PKEY_CTX_free(ectx);
+        EVP_PKEY_free(pkey2);
+        EVP_PKEY_CTX_free(dctx);
     }
     return true;
 }
