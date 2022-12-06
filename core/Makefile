@@ -178,7 +178,7 @@ Provider_Cpp_Objects := $(Provider_Cpp_Files:.cpp=.o)
 ######## Build Settings ########
 .PHONY: all target clean
 all: target
-	@$(MAKE) target
+	@make target
 	@mkdir -p $(OUT)
 	@mv $(App_Test_Name) $(Provider_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
 

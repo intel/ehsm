@@ -58,11 +58,10 @@ int main(int argc, char *argv[])
 
 #else
 
-    uint8_t *buf = (uint8_t *)malloc(1024);
-    size_t size = read(0, buf, 1024);
+    uint8_t plaintext[512]  ={0};
+    uint8_t aad[512]  ={0};
 
-    test_demo(buf, size);
-    free(buf);
+    test_demo(plaintext, 512, aad, 512);
 
 #endif
 
