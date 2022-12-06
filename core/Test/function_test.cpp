@@ -58,7 +58,7 @@ void test_symmertric_encrypt_decrypt()
 
     for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
     {
-        char *returnJsonChar = nullptr;
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
         char aad[] = "challenge";
         printf("============%s start==========\n", plaintext[i].c_str());
 
@@ -76,7 +76,7 @@ void test_symmertric_encrypt_decrypt()
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -96,7 +96,8 @@ void test_symmertric_encrypt_decrypt()
         param_json.addData_uint32("action", EH_ENCRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -113,7 +114,8 @@ void test_symmertric_encrypt_decrypt()
         param_json.addData_uint32("action", EH_DECRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -156,7 +158,7 @@ void test_symmertric_encrypt_decrypt_without_aad()
 
     for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
     {
-        char *returnJsonChar = nullptr;
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
         char aad[] = "";
         printf("============%s start==========\n", plaintext[i].c_str());
 
@@ -174,7 +176,7 @@ void test_symmertric_encrypt_decrypt_without_aad()
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -194,7 +196,8 @@ void test_symmertric_encrypt_decrypt_without_aad()
         param_json.addData_uint32("action", EH_ENCRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -211,7 +214,8 @@ void test_symmertric_encrypt_decrypt_without_aad()
         param_json.addData_uint32("action", EH_DECRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -253,7 +257,7 @@ void test_RSA_encrypt_decrypt()
 
     for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
     {
-        char *returnJsonChar = nullptr;
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
         printf("============%s start==========\n", plaintext[i].c_str());
 
         char *cmk_base64 = nullptr;
@@ -270,7 +274,7 @@ void test_RSA_encrypt_decrypt()
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -289,7 +293,8 @@ void test_RSA_encrypt_decrypt()
         param_json.addData_uint32("action", EH_ASYMMETRIC_ENCRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -306,7 +311,8 @@ void test_RSA_encrypt_decrypt()
         param_json.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -348,7 +354,7 @@ void test_SM2_encrypt_decrypt()
 
     for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
     {
-        char *returnJsonChar = nullptr;
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
         printf("============%s start==========\n", plaintext[i].c_str());
 
         char *cmk_base64 = nullptr;
@@ -364,7 +370,7 @@ void test_SM2_encrypt_decrypt()
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -383,7 +389,8 @@ void test_SM2_encrypt_decrypt()
         param_json.addData_uint32("action", EH_ASYMMETRIC_ENCRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -400,7 +407,8 @@ void test_SM2_encrypt_decrypt()
         param_json.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
 
         if (retJsonObj.getCode() != 200)
@@ -452,7 +460,7 @@ void test_RSA_sign_verify()
     {
         printf("============%s start==========\n", plaintext[i].c_str());
         ehsm_status_t ret = EH_OK;
-        char *returnJsonChar = nullptr;
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
         char data2sign[] = "SIGN";
 
         char *cmk_base64 = nullptr;
@@ -471,7 +479,8 @@ void test_RSA_sign_verify()
         payload_json.addData_uint32("digest_mode", EH_SHA_2_256);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -490,7 +499,8 @@ void test_RSA_sign_verify()
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -506,7 +516,8 @@ void test_RSA_sign_verify()
         param_json.addData_uint32("action", EH_VERIFY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -551,7 +562,7 @@ void test_ec_sign_verify()
     {
         printf("============%s start==========\n", plaintext[i].c_str());
         ehsm_status_t ret = EH_OK;
-        char *returnJsonChar = nullptr;
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
         char data2sign[] = "SIGN";
 
         char *cmk_base64 = nullptr;
@@ -570,7 +581,8 @@ void test_ec_sign_verify()
         payload_json.addData_uint32("digest_mode", EH_SHA_2_256);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -589,7 +601,8 @@ void test_ec_sign_verify()
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -605,7 +618,8 @@ void test_ec_sign_verify()
         param_json.addData_uint32("action", EH_VERIFY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -644,7 +658,7 @@ void test_sm2_sign_verify()
 {
     case_number++;
     ehsm_status_t ret = EH_OK;
-    char *returnJsonChar = nullptr;
+    char *returnJsonChar = (char *)calloc(10000, sizeof(char));
     char data2sign[] = "SIGN";
 
     char *cmk_base64 = nullptr;
@@ -664,7 +678,8 @@ void test_sm2_sign_verify()
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
     printf("============test_SM2_sign_verify start==========\n");
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -683,7 +698,8 @@ void test_sm2_sign_verify()
     param_json.addData_uint32("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -699,7 +715,8 @@ void test_sm2_sign_verify()
     param_json.addData_uint32("action", EH_VERIFY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -740,7 +757,7 @@ void test_generate_AES_datakey()
 {
     case_number++;
     printf("============test_generate_AES_datakey start==========\n");
-    char *returnJsonChar = nullptr;
+    char *returnJsonChar = (char *)calloc(10000, sizeof(char));
     char aad[] = "challenge";
     char *cmk_base64 = nullptr;
     char *ciphertext_base64 = nullptr;
@@ -758,7 +775,7 @@ void test_generate_AES_datakey()
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
 
     if (retJsonObj.getCode() != 200)
@@ -780,7 +797,8 @@ void test_generate_AES_datakey()
     param_json.addData_uint32("action", EH_GENERATE_DATAKEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
 
     if (retJsonObj.getCode() != 200)
@@ -797,7 +815,8 @@ void test_generate_AES_datakey()
     param_json.addData_uint32("action", EH_DECRYPT);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -816,7 +835,8 @@ void test_generate_AES_datakey()
     param_json.addData_uint32("action", EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -833,7 +853,8 @@ void test_generate_AES_datakey()
     param_json.addData_uint32("action", EH_DECRYPT);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -869,7 +890,7 @@ void test_generate_SM4_datakey()
 {
     case_number++;
     printf("============test_generate_SM4_datakey start==========\n");
-    char *returnJsonChar = nullptr;
+    char *returnJsonChar = (char *)calloc(10000, sizeof(char));
     char *cmk_base64 = nullptr;
     char *ciphertext_base64 = nullptr;
     char *ciphertext_without_base64 = nullptr;
@@ -884,7 +905,7 @@ void test_generate_SM4_datakey()
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
 
     if (retJsonObj.getCode() != 200)
@@ -905,7 +926,8 @@ void test_generate_SM4_datakey()
     param_json.addData_uint32("action", EH_GENERATE_DATAKEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
 
     if (retJsonObj.getCode() != 200)
@@ -922,7 +944,8 @@ void test_generate_SM4_datakey()
     param_json.addData_uint32("action", EH_DECRYPT);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -940,7 +963,8 @@ void test_generate_SM4_datakey()
     param_json.addData_uint32("action", EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -957,7 +981,8 @@ void test_generate_SM4_datakey()
     param_json.addData_uint32("action", EH_DECRYPT);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -1001,7 +1026,7 @@ void test_export_datakey()
     ehsm_keyspec_t ukey_keyspec_test[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096, EH_SM2};
     int ukey_keyspec_test_num = sizeof(ukey_keyspec_test) / sizeof(ukey_keyspec_test[0]);
 
-    char *returnJsonChar = nullptr;
+    char *returnJsonChar = (char *)calloc(10000, sizeof(char));
     char *cmk_base64 = nullptr;
     char *ukey_base64 = nullptr;
     char aad[] = "";
@@ -1028,7 +1053,8 @@ void test_export_datakey()
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -1047,7 +1073,8 @@ void test_export_datakey()
         payload_json.addData_uint32("keylen", keylen);
         param_json.addData_uint32("action", EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -1066,7 +1093,8 @@ void test_export_datakey()
         payload_json.addData_string("ciphertext", olddatakey_base64);
         param_json.addData_uint32("action", EH_DECRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
-        returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
         {
@@ -1097,7 +1125,8 @@ void test_export_datakey()
             payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
             param_json.addData_uint32("action", EH_CREATE_KEY);
             param_json.addData_JsonValue("payload", payload_json.getJson());
-            returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+            memset(returnJsonChar, 0, 10000);
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
@@ -1117,7 +1146,8 @@ void test_export_datakey()
             payload_json.addData_string("olddatakey", olddatakey_base64);
             param_json.addData_uint32("action", EH_EXPORT_DATAKEY);
             param_json.addData_JsonValue("payload", payload_json.getJson());
-            returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+            memset(returnJsonChar, 0, 10000);
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
@@ -1133,7 +1163,8 @@ void test_export_datakey()
             payload_json.addData_string("ciphertext", newdatakey_base64);
             param_json.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
             param_json.addData_JsonValue("payload", payload_json.getJson());
-            returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+            memset(returnJsonChar, 0, 10000);
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
             retJsonObj.parse(returnJsonChar);
             if (retJsonObj.getCode() != 200)
             {
@@ -1156,7 +1187,6 @@ void test_export_datakey()
             SAFE_FREE(newdatakey_base64);
             SAFE_FREE(newdatakeyplaintext_base64)
         }
-        SAFE_FREE(returnJsonChar);
         SAFE_FREE(cmk_base64);
         SAFE_FREE(ukey_base64);
         SAFE_FREE(olddatakey_base64);
@@ -1186,7 +1216,7 @@ void test_GenerateQuote_and_VerifyQuote()
     JsonObj payload_json;
 
     RetJsonObj retJsonObj;
-    char *returnJsonChar = nullptr;
+    char *returnJsonChar = (char *)calloc(10000, sizeof(char));
     char *quote_base64 = nullptr;
 
     char challenge[32] = "challenge123456";
@@ -1271,7 +1301,7 @@ void test_GenerateQuote_and_VerifyQuote()
     param_json.addData_uint32("action", EH_GENERATE_QUOTE);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -1292,7 +1322,8 @@ void test_GenerateQuote_and_VerifyQuote()
     payload_json.addData_string("nonce", input_nonce_base64);
     param_json.addData_uint32("action", EH_VERIFY_QUOTE);
     param_json.addData_JsonValue("payload", payload_json.getJson());
-    returnJsonChar = EHSM_FFI_CALL((param_json.toString()).c_str());
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {
@@ -1311,7 +1342,7 @@ void test_Enroll()
 {
     printf("============test_Enroll start==========\n");
     RetJsonObj retJsonObj;
-    char *returnJsonChar = nullptr;
+    char *returnJsonChar = (char *)calloc(10000, sizeof(char));
     char *appid = nullptr;
     char *apikey = nullptr;
 
@@ -1320,7 +1351,7 @@ void test_Enroll()
     param_json.addData_uint32("action", EH_ENROLL);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
-    returnJsonChar = EHSM_FFI_CALL(param_json.toString().c_str());
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
     if (retJsonObj.getCode() != 200)
     {

@@ -159,7 +159,7 @@ extern "C"
             result: {}
         }
     */
-    char *ffi_initialize()
+    uint32_t ffi_initialize(char *respJson)
     {
         log_i("Service name:\t\teHSM-KMS service %s", EHSM_VERSION);
         log_i("Service built:\t\t%s", EHSM_DATE);
@@ -174,13 +174,14 @@ extern "C"
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
         }
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /*
     destory the enclave
     */
-    char *ffi_finalize()
+    uint32_t ffi_finalize(char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -191,7 +192,8 @@ extern "C"
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
         }
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -216,7 +218,7 @@ extern "C"
             }
         }
      */
-    char *ffi_createKey(JsonObj payloadJson)
+    uint32_t ffi_createKey(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -279,7 +281,8 @@ extern "C"
     out:
         SAFE_FREE(key_metadata); 
         SAFE_FREE(master_key);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -303,7 +306,7 @@ extern "C"
             }
         }
      */
-    char *ffi_encrypt(JsonObj payloadJson)
+    uint32_t ffi_encrypt(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -371,7 +374,8 @@ extern "C"
         SAFE_FREE(aad);
         SAFE_FREE(plaintext);
         SAFE_FREE(ciphertext);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -395,7 +399,7 @@ extern "C"
             }
         }
      */
-    char *ffi_decrypt(JsonObj payloadJson)
+    uint32_t ffi_decrypt(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -470,7 +474,8 @@ extern "C"
         SAFE_FREE(aad);
         SAFE_FREE(plaintext);
         SAFE_FREE(ciphertext);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -493,7 +498,7 @@ extern "C"
             }
         }
      */
-    char *ffi_asymmetricEncrypt(JsonObj payloadJson)
+    uint32_t ffi_asymmetricEncrypt(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -557,7 +562,8 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(plaintext);
         SAFE_FREE(ciphertext);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -580,7 +586,7 @@ extern "C"
             }
         }
      */
-    char *ffi_asymmetricDecrypt(JsonObj payloadJson)
+    uint32_t ffi_asymmetricDecrypt(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -643,7 +649,8 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(plaintext);
         SAFE_FREE(ciphertext);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -668,7 +675,7 @@ extern "C"
             }
         }
      */
-    char *ffi_generateDataKey(JsonObj payloadJson)
+    uint32_t ffi_generateDataKey(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -746,7 +753,8 @@ extern "C"
         SAFE_FREE(aad);
         SAFE_FREE(plain_datakey);
         SAFE_FREE(cipher_datakey);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -770,7 +778,7 @@ extern "C"
             }
         }
      */
-    char *ffi_generateDataKeyWithoutPlaintext(JsonObj payloadJson)
+    uint32_t ffi_generateDataKeyWithoutPlaintext(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -847,7 +855,8 @@ extern "C"
         SAFE_FREE(aad);
         SAFE_FREE(plain_datakey);
         SAFE_FREE(cipher_datakey);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -872,7 +881,7 @@ extern "C"
             }
         }
      */
-    char *ffi_exportDataKey(JsonObj payloadJson)
+    uint32_t ffi_exportDataKey(JsonObj payloadJson, char *respJson)
     {
         ehsm_status_t ret = EH_OK;
         RetJsonObj retJsonObj;
@@ -974,7 +983,8 @@ extern "C"
         SAFE_FREE(aad);
         SAFE_FREE(olddatakey);
         SAFE_FREE(newdatakey);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -1003,7 +1013,7 @@ extern "C"
             }
         }
     */
-    char *ffi_sign(JsonObj payloadJson)
+    uint32_t ffi_sign(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -1068,7 +1078,8 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
         SAFE_FREE(digest);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -1098,7 +1109,7 @@ extern "C"
             }
         }
     */
-    char *ffi_verify(JsonObj payloadJson)
+    uint32_t ffi_verify(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
@@ -1131,7 +1142,8 @@ extern "C"
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
         SAFE_FREE(digest);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /*
@@ -1214,7 +1226,8 @@ extern "C"
         //     SAFE_FREE(p_msg1);
         //     log_d("msg1: \n%s", retJsonObj.toChar());
         //     log_d("***ffi_RA_HANDSHAKE_MSG0 end.");
-        return retJsonObj.toChar();
+        // return retJsonObj.toChar();
+        return NULL;
     }
 
     /*
@@ -1289,7 +1302,8 @@ extern "C"
         //     SAFE_FREE(p_msg3);
         //     log_d("msg3: \n%s", retJsonObj.toChar());
         //     log_d("***ffi_RA_HANDSHAKE_MSG2 end.");
-        return retJsonObj.toChar();
+        // return retJsonObj.toChar();
+        return NULL;
     }
 
     /*
@@ -1399,7 +1413,8 @@ extern "C"
         //     explicit_bzero(p_apikey.data, p_apikey.datalen);
         //     SAFE_FREE(pt_att_result_msg);
         //     SAFE_FREE(cipherapikey.data);
-        return retJsonObj.toChar();
+        // return retJsonObj.toChar();
+        return NULL;
     }
 
     /*
@@ -1414,7 +1429,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_enroll()
+    uint32_t ffi_enroll(char *respJson)
     {
         RetJsonObj retJsonObj;
         log_d("%s start.", __func__);
@@ -1432,7 +1447,7 @@ extern "C"
         }
         appid->datalen = UUID_STR_LEN;
 
-        apikey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_API_KEY_SIZE + 1));
+        apikey = (ehsm_data_t *)calloc(APPEND_SIZE_TO_DATA_T(EH_API_KEY_SIZE + 1), sizeof(uint8_t));
         if (apikey == NULL)
         {
             ret = EH_DEVICE_MEMORY;
@@ -1456,7 +1471,8 @@ extern "C"
     OUT:
         SAFE_FREE(apikey);
         SAFE_FREE(appid);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -1478,7 +1494,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_generateQuote(JsonObj payloadJson)
+    uint32_t ffi_generateQuote(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
 
@@ -1488,7 +1504,8 @@ extern "C"
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("paramter invalid.");
-            return retJsonObj.toChar();
+            retJsonObj.toChar(respJson);
+            return EH_ARGUMENTS_BAD;
         }
         log_d("challenge: \n %s", challenge_base64);
 
@@ -1551,7 +1568,8 @@ extern "C"
 
     out:
         SAFE_FREE(quote);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /**
@@ -1576,7 +1594,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_verifyQuote(JsonObj payloadJson)
+    uint32_t ffi_verifyQuote(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
 
@@ -1589,7 +1607,8 @@ extern "C"
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("paramter invalid.");
-            return retJsonObj.toChar();
+            retJsonObj.toChar(respJson);
+            return EH_ARGUMENTS_BAD;
         }
 
         ehsm_status_t ret = EH_OK;
@@ -1627,7 +1646,8 @@ extern "C"
         retJsonObj.addData_string("nonce", nonce_base64);
 
     out:
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return ret;
     }
 
     /*
@@ -1642,12 +1662,13 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_getVersion()
+    uint32_t ffi_getVersion(char *respJson)
     {
         RetJsonObj retJsonObj;
         retJsonObj.addData_string("version", EHSM_VERSION);
         retJsonObj.addData_string("git_sha", EHSM_GIT_SHA);
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return EH_OK;
     }
 
 } // extern "C"

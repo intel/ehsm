@@ -811,6 +811,7 @@ sgx_status_t enclave_get_apikey(uint8_t *apikey, uint32_t keylen)
     {
         return ret;
     }
+    memset_s(apikey, keylen, 0, keylen);
     for (int i = 0; i < keylen; i++)
     {
         apikey[i] = psw_chars[temp[i] % psw_chars.length()];
