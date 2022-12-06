@@ -370,9 +370,17 @@ public:
         return writer.write(m_json);
     }
 
-    char *toChar()
-    {
-        return m_result_json.StringToChar(toString());
+    void toChar(char *out){
+        std::string str = toString();
+        if (str.size() > 0)
+        {
+            int len = str.size() + 1;
+            if (out != nullptr)
+            {
+                memset(out, 0, len);
+                memcpy(out, str.c_str(), len);
+            }
+        }
     }
 
     void parse(std::string jsonStr)

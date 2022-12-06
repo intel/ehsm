@@ -202,15 +202,14 @@ function napi_result(action, res, payload) {
             action: ehsm_action_t[action],
             payload
         }
-        const napi_res = ehsm_napi[`EHSM_FFI_CALL`](JSON.stringify(jsonParam))
-        if (JSON.parse(napi_res)
-            .code != 200) {
+        let ret_json = ehsm_napi(JSON.stringify(jsonParam))
+        if (ret_json.code != 200) {
             if (res != undefined) {
-                res.send(napi_res)
+                res.send(ret_json)
             }
             return false
         } else {
-            return JSON.parse(napi_res)
+            return ret_json
         }
     } catch (e) {
         logger.error(e)

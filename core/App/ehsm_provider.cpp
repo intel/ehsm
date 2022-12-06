@@ -173,7 +173,7 @@ static bool validate_params(const char *data, size_t max_size, bool required = t
 /**
  * @brief The unique ffi entry for the ehsm provider libaray.
  *
- * @param paramJson the request parameters in the form of JSON string
+ * @param reqJson the request parameters in the form of JSON string
  * [string] json string
     {
         action: int
@@ -182,7 +182,7 @@ static bool validate_params(const char *data, size_t max_size, bool required = t
         }
     }
  *
- * @return char* response in json string
+ * @param respJson response in json string
     {
         code: int,
         message: string,
@@ -191,89 +191,96 @@ static bool validate_params(const char *data, size_t max_size, bool required = t
         }
     }
  */
-char *EHSM_FFI_CALL(const char *paramJson)
+uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
 {
-    log_d("paramJson = %s", paramJson);
-    char *resp = nullptr;
+    log_d("reqJson = %s", reqJson);
     ehsm_status_t ret = EH_OK;
     RetJsonObj retJsonObj;
     uint32_t action = -1;
     JsonObj payloadJson;
-    if (!validate_params(paramJson, EH_PAYLOAD_MAX_SIZE))
+    if(respJson == NULL){
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("Argument bad.");
+        retJsonObj.toChar(respJson);
+        return EH_ARGUMENTS_BAD;
+    }
+    if (!validate_params(reqJson, EH_PAYLOAD_MAX_SIZE))
     {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Argument bad.");
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return EH_ARGUMENTS_BAD;
     }
-    // parse paramJson into paramJsonObj
-    JsonObj paramJsonObj;
-    if (!paramJsonObj.parse(paramJson))
+    // parse reqJson into reqJsonObj
+    JsonObj reqJsonObj;
+    if (!reqJsonObj.parse(reqJson))
     {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Server exception.");
-        return retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
+        return EH_ARGUMENTS_BAD;
     }
 
-    action = paramJsonObj.readData_uint32("action");
-    payloadJson.setJson(paramJsonObj.readData_JsonValue("payload"));
+    action = reqJsonObj.readData_uint32("action");
+    payloadJson.setJson(reqJsonObj.readData_JsonValue("payload"));
     switch (action)
     {
     case EH_INITIALIZE:
-        resp = ffi_initialize();
+        ffi_initialize(respJson);
         break;
     case EH_FINALIZE:
-        resp = ffi_finalize();
+        ffi_finalize(respJson);
         break;
     case EH_CREATE_KEY:
-        resp = ffi_createKey(payloadJson);
+        ffi_createKey(payloadJson, respJson);
         break;
     case EH_ENCRYPT:
-        resp = ffi_encrypt(payloadJson);
+        ffi_encrypt(payloadJson, respJson);
         break;
     case EH_DECRYPT:
-        resp = ffi_decrypt(payloadJson);
+        ffi_decrypt(payloadJson, respJson);
         break;
     case EH_ASYMMETRIC_ENCRYPT:
-        resp = ffi_asymmetricEncrypt(payloadJson);
+        ffi_asymmetricEncrypt(payloadJson, respJson);
         break;
     case EH_ASYMMETRIC_DECRYPT:
-        resp = ffi_asymmetricDecrypt(payloadJson);
+        ffi_asymmetricDecrypt(payloadJson, respJson);
         break;
     case EH_SIGN:
-        resp = ffi_sign(payloadJson);
+        ffi_sign(payloadJson, respJson);
         break;
     case EH_VERIFY:
-        resp = ffi_verify(payloadJson);
+        ffi_verify(payloadJson, respJson);
         break;
     case EH_GENERATE_DATAKEY:
-        resp = ffi_generateDataKey(payloadJson);
+        ffi_generateDataKey(payloadJson, respJson);
         break;
     case EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT:
-        resp = ffi_generateDataKeyWithoutPlaintext(payloadJson);
+        ffi_generateDataKeyWithoutPlaintext(payloadJson, respJson);
         break;
     case EH_EXPORT_DATAKEY:
-        resp = ffi_exportDataKey(payloadJson);
+        ffi_exportDataKey(payloadJson, respJson);
         break;
     case EH_GET_VERSION:
-        resp = ffi_getVersion();
+        ffi_getVersion(respJson);
         break;
     case EH_ENROLL:
-        resp = ffi_enroll();
+        ffi_enroll(respJson);
         break;
     case EH_GENERATE_QUOTE:
-        resp = ffi_generateQuote(payloadJson);
+        ffi_generateQuote(payloadJson, respJson);
         break;
     case EH_VERIFY_QUOTE:
-        resp = ffi_verifyQuote(payloadJson);
+        ffi_verifyQuote(payloadJson, respJson);
         break;
     default:
         RetJsonObj retJsonObj;
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("action not find.");
-        resp = retJsonObj.toChar();
+        retJsonObj.toChar(respJson);
         break;
     }
-    return resp;
+    return ret;
 }
 
 ehsm_status_t Initialize()

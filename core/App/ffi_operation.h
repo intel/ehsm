@@ -46,12 +46,12 @@ extern "C"
             result: {}
         }
     */
-    char *ffi_initialize();
+    uint32_t ffi_initialize(char *respJson);
 
     /*
     destory the enclave
     */
-    char *ffi_finalize();
+    uint32_t ffi_finalize(char *respJson);
 
     /**
      * @brief Create key and save the parameters when using the key for encrypt, decrypt, sign and verify
@@ -75,7 +75,7 @@ extern "C"
             }
         }
      */
-    char *ffi_createKey(JsonObj payloadJson);
+    uint32_t ffi_createKey(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief encrypt plaintext with specicied key
@@ -98,7 +98,7 @@ extern "C"
             }
         }
      */
-    char *ffi_encrypt(JsonObj payloadJson);
+    uint32_t ffi_encrypt(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief decrypt ciphertext with specicied key
@@ -121,7 +121,7 @@ extern "C"
             }
         }
      */
-    char *ffi_decrypt(JsonObj payloadJson);
+    uint32_t ffi_decrypt(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief encrypt plaintext with specicied key
@@ -143,7 +143,7 @@ extern "C"
             }
         }
      */
-    char *ffi_asymmetricEncrypt(JsonObj payloadJson);
+    uint32_t ffi_asymmetricEncrypt(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief decrypt ciphertext with specicied key
@@ -165,7 +165,7 @@ extern "C"
             }
         }
      */
-    char *ffi_asymmetricDecrypt(JsonObj payloadJson);
+    uint32_t ffi_asymmetricDecrypt(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief generate key and encrypt with specicied function
@@ -189,7 +189,7 @@ extern "C"
             }
         }
      */
-    char *ffi_generateDataKey(JsonObj payloadJson);
+    uint32_t ffi_generateDataKey(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief generate key and encrypt with specicied function
@@ -212,7 +212,7 @@ extern "C"
             }
         }
      */
-    char *ffi_generateDataKeyWithoutPlaintext(JsonObj payloadJson);
+    uint32_t ffi_generateDataKeyWithoutPlaintext(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief pass in a key to decrypt the data key
@@ -236,7 +236,7 @@ extern "C"
             }
         }
      */
-    char *ffi_exportDataKey(JsonObj payloadJson);
+    uint32_t ffi_exportDataKey(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief create key sign with rsa/ec/sm2
@@ -257,7 +257,7 @@ extern "C"
             }
         }
      */
-    char *ffi_sign(JsonObj payloadJson);
+    uint32_t ffi_sign(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief verify key sign
@@ -279,7 +279,7 @@ extern "C"
             }
         }
      */
-    char *ffi_verify(JsonObj payloadJson);
+    uint32_t ffi_verify(JsonObj payloadJson, char *respJson);
 
     /*
      *  @param p_msg0 : msg0 json string
@@ -341,7 +341,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_enroll();
+    uint32_t ffi_enroll(char *respJson);
 
     /**
      * @brief Generate a quote of the eHSM-KMS core enclave for user used to do the SGX DCAP Remote Attestation.
@@ -362,7 +362,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_generateQuote(JsonObj payloadJson);
+    uint32_t ffi_generateQuote(JsonObj payloadJson, char *respJson);
 
     /**
      * @brief Users are expected already got a valid DCAP format QUOTE.
@@ -386,7 +386,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_verifyQuote(JsonObj payloadJson);
+    uint32_t ffi_verifyQuote(JsonObj payloadJson, char *respJson);
 
     /*
      *  @return
@@ -400,7 +400,7 @@ extern "C"
      *          }
      *      }
      */
-    char *ffi_getVersion();
+    uint32_t ffi_getVersion(char *respJson);
 
 } // extern "C"
 
