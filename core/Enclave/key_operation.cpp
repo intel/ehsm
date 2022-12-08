@@ -183,7 +183,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(ehsm_data_t *aad,
                           EH_AES_GCM_MAC_SIZE);
 
 out:
-    SAFE_MEMSET(&key, sizeof(key), 0, sizeof(key));
+    SAFE_MEMSET(key, keysize, 0, keysize);
     SAFE_FREE(key);
     return ret;
 }
@@ -253,7 +253,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
         goto out;
 
     // Autenthication Tag returned by Decrypt to be compared with Tag created during seal
-    SAFE_MEMSET(&l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
+    SAFE_MEMSET(l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
     memcpy_s(l_tag, SGX_AESGCM_MAC_SIZE, mac, SGX_AESGCM_MAC_SIZE);
 
     ret = aes_gcm_decrypt(key,
@@ -268,8 +268,8 @@ sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
                           l_tag,
                           SGX_AESGCM_MAC_SIZE);
 out:
-    SAFE_MEMSET(&l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
-    SAFE_MEMSET(key, sizeof(key), 0, sizeof(key));
+    SAFE_MEMSET(l_tag, SGX_AESGCM_MAC_SIZE, 0, SGX_AESGCM_MAC_SIZE);
+    SAFE_MEMSET(key, keysize, 0, keysize);
     SAFE_FREE(key);
     return ret;
 }
@@ -340,7 +340,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(ehsm_keyblob_t *cmk,
                           plaintext->datalen,
                           iv);
 out:
-    SAFE_MEMSET(&key, sizeof(key), 0, sizeof(key));
+    SAFE_MEMSET(key, keysize, 0, keysize);
     SAFE_FREE(key);
     return ret;
 }
@@ -395,7 +395,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(ehsm_keyblob_t *cmk,
     ret = sm4_ctr_decrypt(key, plaintext->data, cipherblob->data, plaintext->datalen, iv);
 
 out:
-    SAFE_MEMSET(key, sizeof(key), 0, sizeof(key));
+    SAFE_MEMSET(key, keysize, 0, keysize);
     SAFE_FREE(key);
     return ret;
 }
@@ -478,7 +478,7 @@ sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
                           iv);
 
 out:
-    SAFE_MEMSET(&key, sizeof(key), 0, sizeof(key));
+    SAFE_MEMSET(key, keysize, 0, keysize);
     SAFE_FREE(key);
     return ret;
 }
@@ -541,7 +541,7 @@ sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
                           iv);
 
 out:
-    SAFE_MEMSET(key, sizeof(key), 0, sizeof(key));
+    SAFE_MEMSET(key, keysize, 0, keysize);
     SAFE_FREE(key);
     return ret;
 }

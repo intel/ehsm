@@ -328,6 +328,8 @@ out:
         RSA_free(rsa_keypair);
     if (bio)
         BIO_free(bio);
+    if (e)
+       BN_free(e);
 
     SAFE_MEMSET(pem_keypair, key_size, 0, key_size);
     SAFE_FREE(pem_keypair);
