@@ -29,8 +29,8 @@ const server = (DB) => {
     /**
      *  init ehsm-core
      */
-    const NAPI_Initialize = ehsm_napi.EHSM_FFI_CALL(JSON.stringify({ action: ehsm_action_t.EH_INITIALIZE, payload: {} }))
-    if (JSON.parse(NAPI_Initialize)['code'] != 200) {
+    let ret_json = ehsm_napi(JSON.stringify({ action: ehsm_action_t.EH_INITIALIZE, payload: {} }))
+    if (ret_json.code != 200) {
         console.log('service Initialize exception!')
         process.exit(0)
     }
@@ -67,7 +67,7 @@ const server = (DB) => {
      */
     process.on('SIGINT', function () {
         console.log('ehsm kms service exit')
-        ehsm_napi.EHSM_FFI_CALL(JSON.stringify({ action: ehsm_action_t.EH_FINALIZE, payload: {} }))
+        ehsm_napi(JSON.stringify({ action: ehsm_action_t.EH_FINALIZE, payload: {} }))
         clearInterval(nonce_cache_timer)
         clearInterval(cmk_cache_timer)
         clearInterval(secret_delete_timer)

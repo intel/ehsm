@@ -75,7 +75,7 @@ extern "C"
     /**
      * @brief The unique ffi entry for the ehsm provider libaray.
      *
-     * @param paramJson the request parameters in the form of JSON string
+     * @param reqJson the request parameters in the form of JSON string
      * [string] json string
         {
             Action: string [CreateKey, Encrypt, Decrypt, Sign, Verify...]
@@ -84,7 +84,7 @@ extern "C"
             }
         }
      *
-     * @return char* response in json string
+     * @param respJson response in json string
         {
             code: int,
             message: string,
@@ -93,7 +93,7 @@ extern "C"
             }
         }
      */
-    char *EHSM_FFI_CALL(const char *paramJson);
+    uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson);
 } // extern "C"
 
 ehsm_status_t Initialize();
