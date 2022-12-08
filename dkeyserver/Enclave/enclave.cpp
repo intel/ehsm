@@ -645,13 +645,13 @@ sgx_status_t sgx_get_domainkey(uint8_t *domain_key,
 
     log_i("start get domain key from target server. \n");
     ret = get_domainkey_from_target(domain_key, target_server_name, target_server_port);
-    if (strncmp(server_role, ROLE_WORKER, strlen(ROLE_ROOT)) == 0 && ret != SGX_SUCCESS)
+    if (strncmp(server_role, ROLE_WORKER, strlen(server_role)) == 0 && ret != SGX_SUCCESS)
     {
         log_i("worker get domain key from target failed. \n");
         return ret;
     }
 
-    if (strncmp(server_role, ROLE_ROOT, strlen(ROLE_ROOT)) == 0 && ret != SGX_SUCCESS)
+    if (strncmp(server_role, ROLE_ROOT, strlen(server_role)) == 0 && ret != SGX_SUCCESS)
     {
         log_i("start get domain key from disk\n");
         ret = get_domainkey_from_local(domain_key);
