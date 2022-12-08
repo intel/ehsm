@@ -33,6 +33,9 @@
 #include "function_test.h"
 #include "json_utils.h"
 #include "../App/ehsm_provider.h"
+#include "fuzz_test.h"
+
+#define ENABLE_FUZZ_TEST
 
 int main(int argc, char *argv[])
 {
@@ -46,11 +49,21 @@ int main(int argc, char *argv[])
     }
     printf("Initialize done\n");
 
+#ifndef ENABLE_FUZZ_TEST
+
 #if ENABLE_PERFORMANCE_TEST
     performance_test();
 #endif
-
     function_test();
+
+#else
+
+    uint8_t plaintext[512]  ={0};
+    uint8_t aad[512]  ={0};
+
+    test_demo(plaintext, 512, aad, 512);
+
+#endif
 
     Finalize();
 

@@ -56,6 +56,8 @@ else ifeq ($(Build_Mode), SIM_PRERELEAESE)
 	@echo "The project has been built in simulation pre-release mode."
 endif
 
+	-cp out/ehsm-core/ehsm_core_test core/Test/fuzz/fuzz_test
+
 ssl:
 ifeq ("$(wildcard $(SSL_DIR/Linux))", "")
 	@git submodule update --init --recursive
