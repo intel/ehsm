@@ -80,6 +80,10 @@ ifeq (1, $(ENABLE_PERFORMANCE_TEST))
 	App_C_Flags += -DENABLE_PERFORMANCE_TEST
 endif
 
+ifeq ($(ENABLE_SELF_TEST), 1)
+	App_C_Flags += -DENABLE_SELF_TEST
+endif
+
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
 App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name)
 
@@ -107,10 +111,6 @@ Enclave_Include_Paths := \
 	-I$(OPENSSL_PATH)/include
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths) 
-
-ifeq ($(ENABLE_SELF_TEST), 1)
-	Enclave_C_Flags += -DENABLE_SELF_TEST
-endif
 
 ifeq ($(ENABLE_PAIR_WISE_TEST), 1)
 	Enclave_C_Flags += -DENABLE_PAIR_WISE_TEST
