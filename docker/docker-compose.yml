@@ -42,6 +42,7 @@ services:
       - no_proxy=${no_proxy}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
+      - DKEYSERVER_ROLE=${DKEYSERVER_ROLE}
     devices:
       - /dev/sgx/enclave
       - /dev/sgx/provision
