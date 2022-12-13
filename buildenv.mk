@@ -31,8 +31,8 @@
 
 ######## version ########
 vsn_major=0
-vsn_minor=2
-vsn_patch=1
+vsn_minor=3
+vsn_patch=0
 
 ######## auto_version Settings ########
 VERSION_STRING := $(vsn_major).$(vsn_minor).$(vsn_patch)
