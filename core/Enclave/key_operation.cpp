@@ -704,6 +704,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
                               ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int retval = 0;
 
     // verify padding mode
     if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
@@ -741,26 +742,22 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
 
     if (plaintext->datalen == 0)
     {
-        uint8_t temp_plaintext[RSA_size(rsa_prikey)] = {0};
-        plaintext->datalen = RSA_private_decrypt(ciphertext->datalen,
-                                                 ciphertext->data,
-                                                 temp_plaintext,
-                                                 rsa_prikey,
-                                                 cmk->metadata.padding_mode);
+        plaintext->datalen = RSA_size(rsa_prikey);
         ret = SGX_SUCCESS;
         goto out;
     }
-
-    if (!RSA_private_decrypt(ciphertext->datalen,
-                             ciphertext->data,
-                             plaintext->data,
-                             rsa_prikey,
-                             cmk->metadata.padding_mode))
+    retval = RSA_private_decrypt(ciphertext->datalen,
+                                     ciphertext->data,
+                                     plaintext->data,
+                                     rsa_prikey,
+                                     cmk->metadata.padding_mode);
+    if (retval <= 0)
     {
         log_d("failed to make rsa decrypt\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
+    plaintext->datalen = retval;
 
 out:
     BIO_free(bio);
