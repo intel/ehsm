@@ -1612,7 +1612,7 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        bool result = false;
+        int result = SGX_QL_QV_RESULT_UNSPECIFIED;
         ehsm_data_t *quote;
 
         string quote_str = base64_decode(quote_base64);
@@ -1642,7 +1642,7 @@ extern "C"
         }
         log_d("VerifyQuote successfuly\n");
 
-        retJsonObj.addData_bool("result", result);
+        retJsonObj.addData_uint32("result", result);
         retJsonObj.addData_string("nonce", nonce_base64);
 
     out:

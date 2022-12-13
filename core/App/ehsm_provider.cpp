@@ -791,7 +791,7 @@ ehsm_status_t GenerateQuote(ehsm_data_t *quote)
 ehsm_status_t VerifyQuote(ehsm_data_t *quote,
                           const char *mr_signer,
                           const char *mr_enclave,
-                          bool *result)
+                          int *result)
 {
     ehsm_status_t rc = EH_OK;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -952,11 +952,7 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
     }
 
 out:
-    if (quote_verification_result == SGX_QL_QV_RESULT_OK)
-        *result = true;
-    else
-        *result = false;
-
+    *result = quote_verification_result;
     SAFE_FREE(p_supplemental_data);
     return rc;
 }

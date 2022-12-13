@@ -58,7 +58,7 @@ def verify_quote_with_file(base_url, quote_file):
         return
     print('verify_quote resp:\n%s\n' %(resp.text))
 
-    VerifyQuote_Result = json.loads(resp.text, object_pairs_hook=_utils_.no_bool_convert)['result']
+    VerifyQuote_Result = json.loads(resp.text)['result']
     hmac_sign = VerifyQuote_Result['sign']
 
     VerifyQuote_Result.pop('sign')
@@ -66,6 +66,7 @@ def verify_quote_with_file(base_url, quote_file):
     sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(ord_VerifyQuote_Result))
     sign = str(base64.b64encode(hmac.new(_utils_.apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))
+    print('VerifyQuote_Result:\n%s\n' %(VerifyQuote_Result['result'])) 
 
 
 def verify_quote_with_policyId(base_url, quote, policyId):
@@ -83,7 +84,7 @@ def verify_quote_with_policyId(base_url, quote, policyId):
         return
     print('verify_quote resp:\n%s\n' %(resp.text))
 
-    VerifyQuote_Result = json.loads(resp.text, object_pairs_hook=_utils_.no_bool_convert)['result']
+    VerifyQuote_Result = json.loads(resp.text)['result']
     hmac_sign = VerifyQuote_Result['sign']
 
     VerifyQuote_Result.pop('sign')
@@ -91,6 +92,7 @@ def verify_quote_with_policyId(base_url, quote, policyId):
     sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(ord_VerifyQuote_Result))
     sign = str(base64.b64encode(hmac.new(_utils_.apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
     print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))
+    print('VerifyQuote_Result:\n%s\n' %(VerifyQuote_Result['result'])) 
 
 def verify_quote_with_file_and_policyId(base_url, quote_file, policyId):
     payload = OrderedDict()
@@ -107,15 +109,15 @@ def verify_quote_with_file_and_policyId(base_url, quote_file, policyId):
         return
     print('verify_quote resp:\n%s\n' %(resp.text))
 
-    VerifyQuote_Result = json.loads(resp.text, object_pairs_hook=_utils_.no_bool_convert)['result']
+    VerifyQuote_Result = json.loads(resp.text)['result']
     hmac_sign = VerifyQuote_Result['sign']
 
     VerifyQuote_Result.pop('sign')
     ord_VerifyQuote_Result = OrderedDict(sorted(VerifyQuote_Result.items(), key=lambda k: k[0]))
     sign_string = urllib.parse.unquote_plus(urllib.parse.urlencode(ord_VerifyQuote_Result))
     sign = str(base64.b64encode(hmac.new(_utils_.apikey.encode('utf-8'), sign_string.encode('utf-8'), digestmod=sha256).digest()),'utf-8')
-    print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))    
-
+    print('check HMAC sign result with %s: %s\n' %(sign, hmac_sign == sign))
+    print('VerifyQuote_Result:\n%s\n' %(VerifyQuote_Result['result'])) 
 
 if __name__ == "__main__":
     headers = _utils_.headers
