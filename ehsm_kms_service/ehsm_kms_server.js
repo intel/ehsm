@@ -9,7 +9,8 @@ const {
     _checkParams,
     _nonce_cache_timer,
     _cmk_cache_timer,
-    base64_decode
+    base64_decode,
+    _result
 } = require('./function')
 const connectDB = require('./couchdb')
 const {
@@ -21,8 +22,20 @@ const {
 } = require('./delete_secret_thread')
 
 const app = express()
-app.use(express.json())
-
+app.use(express.json({
+    /**
+     * The verify option, if supplied, is called as verify(req, res, buf, encoding),
+     * where buf is a Buffer of the raw request body and encoding is the encoding of the request.
+     */
+    verify: function (req, res, buf, encoding) {
+        try {
+            JSON.parse(buf);
+        } catch (e) {
+            res.send(_result(400, 'Invalid JSON'))
+            throw Error('Invalid JSON');
+        }
+    }
+}))
 const HTTPS_PORT = process.argv.slice(2)[0] || 9000
 
 const server = (DB) => {
