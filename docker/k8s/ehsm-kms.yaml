@@ -156,6 +156,15 @@ spec:
         name: dkeycache
     spec:
       volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
       - name: dev-dkeyprovision
         hostPath:
           path: /var/run/ehsm
@@ -166,6 +175,12 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
         - mountPath: /var/run/ehsm
           name: dev-dkeyprovision
         env:
@@ -203,6 +218,15 @@ spec:
         app: ehsm-kms
     spec:
       volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
       - name: dev-dkeyprovision
         hostPath:
           path: /var/run/ehsm
@@ -230,6 +254,12 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
         - mountPath: /var/run/ehsm
           name: dev-dkeyprovision
         env:
