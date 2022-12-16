@@ -46,6 +46,16 @@ spec:
       labels:
         app: main
     spec:
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
       containers:
       - name: main
         image: intel/dkeyserver:latest
@@ -62,6 +72,15 @@ spec:
         #     path: /isLive
         #   initialDelaySeconds: 5
         #   periodSeconds: 10
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
         env:
         - name: PCCS_URL 
           valueFrom:
@@ -106,6 +125,16 @@ spec:
       #       configMapKeyRef:
       #         name: dkeyserver-configmap
       #         key: main_service_url
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
       containers:
       - name: worker
         # You need to tag the worker container image with this name on each worker node or change it to point to a docker hub to get the container image.
@@ -125,6 +154,13 @@ spec:
         #   periodSeconds: 10
         securityContext:
           privileged: true
+        volumeMounts:
+        - mountPath: /dev/sgx/enclave
+          name: dev-enclave
+        - mountPath: /dev/sgx/provision
+          name: dev-provision
+        - mountPath: /var/run/aesmd
+          name: dev-aesmd
         env:
         - name: PCCS_URL 
           valueFrom:
