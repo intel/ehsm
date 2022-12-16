@@ -340,7 +340,7 @@
 //     end = std::chrono::high_resolution_clock::now();
 //     elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 
-//     printf("Time measured of Sign(RSA_4096) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+//     printf("Time measured of Sign(EH_RSA_4096) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
 
 //     signature_base64 = retJsonObj.readData_cstr("signature");
 //     // Start measuring time
@@ -367,7 +367,7 @@
 //     end = std::chrono::high_resolution_clock::now();
 //     elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 
-//     printf("Time measured of Verify(RSA_4096) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+//     printf("Time measured of Verify(EH_RSA_4096) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
 
 // cleanup:
 //     SAFE_FREE(signature_base64);
@@ -429,7 +429,7 @@
 //     // Stop measuring time and calculate the elapsed time
 //     end = std::chrono::high_resolution_clock::now();
 //     elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-//     printf("Time measured of AsymmetricEncrypt(RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+//     printf("Time measured of AsymmetricEncrypt(EH_RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
 
 // cleanup:
 //     SAFE_FREE(cmk_base64);
@@ -506,7 +506,7 @@
 //     // Stop measuring time and calculate the elapsed time
 //     end = std::chrono::high_resolution_clock::now();
 //     elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-//     printf("Time measured of AsymmetricDecrypt(RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
+//     printf("Time measured of AsymmetricDecrypt(EH_RSA_3072) with Repeat NUM(%d): %.6f seconds.\n", PERF_NUM, elapsed.count() * 1e-9);
 
 // cleanup:
 //     SAFE_FREE(cmk_base64);

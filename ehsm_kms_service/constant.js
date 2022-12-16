@@ -14,33 +14,34 @@ const Definition = {
 }
 
 const ehsm_keySpec_t = {
-  KEYSPEC_NONE : 0,
-  AES_GCM_128: 1,
-  AES_GCM_192: 2,
-  AES_GCM_256: 3,
-  RSA_2048: 10,
-  RSA_3072: 11,
-  RSA_4096: 12,
-  EC_P224: 20,
-  EC_P256: 21,
-  EC_P384: 22,
-  EC_P521: 23,
-  SM2: 30,
-  SM4_CTR: 31,
-  SM4_CBC: 32,
-  HMAC: 40,
+  EH_KEYSPEC_NONE: 0,
+  EH_AES_GCM_128: 1,
+  EH_AES_GCM_192: 2,
+  EH_AES_GCM_256: 3,
+  EH_RSA_2048: 10,
+  EH_RSA_3072: 11,
+  EH_RSA_4096: 12,
+  EH_EC_P224: 20,
+  EH_EC_P256: 21,
+  EH_EC_P384: 22,
+  EH_EC_P521: 23,
+  EH_SM2: 30,
+  EH_SM4_CTR: 31,
+  EH_SM4_CBC: 32,
+  EH_HMAC: 40
 }
+
 const ehsm_keyorigin_t = {
-  EH_ORIGIN_NONE : 0,
-  EH_INTERNAL_KEY : 1,
-  EH_EXTERNAL_KEY : 2
+  EH_ORIGIN_NONE: 0,
+  EH_INTERNAL_KEY: 1,
+  EH_EXTERNAL_KEY: 2
 }
 
 const ehsm_paddingMode_t = {
   NO_PADDING: 0,
   PAD_RSA_PKCS1: 1,
   PAD_RSA_NO: 3,
-  PAD_RSA_PKCS1_OAEP: 4,  
+  PAD_RSA_PKCS1_OAEP: 4,
   PAD_RSA_PKCS1_PSS: 6
 }
 
