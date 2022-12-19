@@ -17,10 +17,10 @@
 #include <getopt.h>
 
 #define ENCLAVE_PATH "libenclave-ehsm-dkeyserver.signed.so"
-#define FILE_NAME "/etc/dkey.bin"
 #define ROLE_WORKER "worker"
 #define ROLE_ROOT "root"
 char s_port[] = "8888";
+#define FILE_NAME (std::string(RUNTIME_FOLDER) + "dkey.bin").c_str()
 
 sgx_enclave_id_t g_enclave_id;
 
@@ -286,6 +286,15 @@ int main(int argc, char *argv[])
                 BLUE "-p" NONE " [target server port]\n");
         return -1;
     }
+
+    if (access(RUNTIME_FOLDER, F_OK) != 0) {
+        log_i("Initializing runtime folder [path: %s].", RUNTIME_FOLDER);
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
+            log_e("Create runtime folder failed!");
+            return -1;
+        }
+    }
+    log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
     
     ret = sgx_create_enclave(ENCLAVE_PATH,
                              SGX_DEBUG_FLAG,

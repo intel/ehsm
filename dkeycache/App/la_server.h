@@ -33,6 +33,9 @@
 #define _LA_SERVER_H_
 
 #include "la_task.h"
+#include <string>
+
+#define UNIX_DOMAIN (std::string(RUNTIME_FOLDER) + "dkeyprovision.sock").c_str()
 
 class LaServer
 {
