@@ -655,12 +655,14 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
     if (EVP_PKEY_encrypt_init(ectx) != 1)
         goto out;
 
-    size_t strLen;
-    if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
-        goto out;
-
     if (ciphertext->datalen == 0)
     {
+        size_t strLen;
+        if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
+        {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
         ciphertext->datalen = strLen;
         ret = SGX_SUCCESS;
         goto out;
@@ -668,6 +670,7 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 
     if (plaintext->data != NULL)
     {
+        size_t strLen = ciphertext->datalen;
         if (EVP_PKEY_encrypt(ectx,
                              ciphertext->data,
                              &strLen,
