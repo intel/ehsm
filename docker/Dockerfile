@@ -42,7 +42,9 @@ RUN apt-get update && apt-get install -y \
     reprepro \
     unzip \
     libjsoncpp-dev \
-    uuid-dev
+    uuid-dev\
+    liblog4cplus-1.1-9\
+    liblog4cplus-dev
 
 # Install the SDK
 WORKDIR /opt/intel

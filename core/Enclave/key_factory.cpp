@@ -113,7 +113,9 @@ sgx_status_t ehsm_create_keyblob(uint8_t *plaintext,
                           keyblob_data->mac, SGX_AESGCM_MAC_SIZE);
 
     if (SGX_SUCCESS != ret)
-        printf("gcm encrypting failed.\n");
+    {
+        log_e("gcm encrypting failed.\n");
+    }   
     else
     {
         keyblob_data->ciphertext_size = plaintext_size;
@@ -141,7 +143,7 @@ sgx_status_t ehsm_parse_keyblob(uint8_t *plaintext, sgx_aes_gcm_data_ex_t *keybl
                                        SGX_AESGCM_MAC_SIZE);
 
     if (SGX_SUCCESS != ret)
-        printf("gcm decrypting failed.\n");
+        log_e("gcm decrypting failed.\n");
 
     return ret;
 }
@@ -558,26 +560,26 @@ sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
     ec_group = EC_GROUP_new_by_curve_name(NID_sm2);
     if (ec_group == NULL)
     {
-        printf("Error: fail to create an EC_GROUP object for SM2\n");
+        log_e("Error: fail to create an EC_GROUP object for SM2\n");
         goto out;
     }
 
     ec_key = EC_KEY_new();
     if (ec_key == NULL)
     {
-        printf("Error: fail to create a new EC key\n");
+        log_e("Error: fail to create a new EC key\n");
         goto out;
     }
 
     if (EC_KEY_set_group(ec_key, ec_group) != 1)
     {
-        printf("Error: fail to set the new EC key's curve\n");
+        log_e("Error: fail to set the new EC key's curve\n");
         goto out;
     }
 
     if (!EC_KEY_generate_key(ec_key))
     {
-        printf("Error: fail to generate key pair based on the curve\n");
+        log_e("Error: fail to generate key pair based on the curve\n");
         goto out;
     }
 

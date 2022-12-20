@@ -43,21 +43,21 @@
 #include "sgx_trts.h"
 #include "openssl_utility.h"
 #include "enclave_t.h"
-#include "log_utils.h"
+#include "elog_utils.h"
 #include "datatypes.h"
 
 uint8_t g_domain_key[SGX_DOMAIN_KEY_SIZE] = {0};
 
 int verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
 
-void printf(const char *fmt, ...)
+void log_printf(uint32_t log_level, const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    ocall_print_string(buf);
+    ocall_print_string(log_level, buf);
 }
 
 void t_time(time_t *current_t)

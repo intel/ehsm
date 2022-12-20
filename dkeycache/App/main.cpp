@@ -7,7 +7,7 @@
 
 #include <enclave_u.h>
 #include <getopt.h>
-#include "log_utils.h"
+#include "ulog_utils.h"
 
 // Need to create enclave and do ecall.
 #include "sgx_urts.h"
@@ -22,7 +22,6 @@
 
 #include "la_task.h"
 #include "la_server.h"
-#include "log_utils.h"
 #include "auto_version.h"
 
 #define __STDC_FORMAT_MACROS
@@ -31,9 +30,33 @@
 
 sgx_enclave_id_t g_enclave_id;
 
-void ocall_print_string(const char *str)
+typedef enum {
+    LOG_INFO = 1,
+    LOG_DEBUG = 2,
+    LOG_WARN = 3,
+    LOG_ERROR = 4
+} log_type;
+
+void ocall_print_string(uint32_t log_level, const char *str)
 {
-    printf("Enclave: %s", str);
+    switch (log_level) 
+    {
+        case LOG_INFO:
+            log_i(str);
+            break;
+        case LOG_DEBUG:
+            log_d(str);
+            break;
+        case LOG_ERROR:
+            log_e(str);
+            break;
+        case LOG_WARN:
+            log_w(str);
+            break;
+        default:
+            log_e("log system error in ocall print.\n");
+            break;
+    }
 }
 
 int ocall_close(int fd)
@@ -156,6 +179,8 @@ static void parse_args(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    if (initLogger("dkeycache.log") < 0)
+        return -1;
     log_i("Service name:\t\tDomainKey Caching Service %s", EHSM_VERSION);
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
@@ -223,6 +248,8 @@ int main(int argc, char *argv[])
         // printf("Press Ctrl+C to exit...\n");
         g_la_server->doWork();
     }
+    
+    logger_shutDown();
 
     sgx_destroy_enclave(g_enclave_id);
 
