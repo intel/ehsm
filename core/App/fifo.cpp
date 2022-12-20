@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -48,7 +49,7 @@
 
 #define BUFFER_SIZE 1024
 
-#define UNIX_DOMAIN "/var/run/ehsm/dkeyprovision.sock"
+#define UNIX_DOMAIN (std::string(RUNTIME_FOLDER) + "dkeyprovision.sock").c_str()
 
 /* Function Description: this is for client to send request message and receive response message
  * Parameter Description:

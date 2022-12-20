@@ -56,6 +56,9 @@ spec:
       - name: dev-aesmd
         hostPath:
           path: /var/run/aesmd
+      - name: runtime-folder
+        hostPath:
+          path: /var/run/ehsm
       containers:
       - name: main
         image: intel/dkeyserver:latest
@@ -72,15 +75,6 @@ spec:
         #     path: /isLive
         #   initialDelaySeconds: 5
         #   periodSeconds: 10
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /dev/sgx/enclave
-          name: dev-enclave
-        - mountPath: /dev/sgx/provision
-          name: dev-provision
-        - mountPath: /var/run/aesmd
-          name: dev-aesmd
         env:
         - name: PCCS_URL 
           valueFrom:
@@ -113,6 +107,19 @@ spec:
       labels:
         app: worker
     spec:
+      volumes:
+      - name: dev-enclave
+        hostPath:
+          path: /dev/sgx/enclave
+      - name: dev-provision
+        hostPath:
+          path: /dev/sgx/provision
+      - name: dev-aesmd
+        hostPath:
+          path: /var/run/aesmd
+      - name: runtime-folder
+        hostPath:
+          path: /var/run/ehsm
       # initContainers:
       # - name: init-worker
       #   # this images same the container's image.
@@ -154,13 +161,6 @@ spec:
         #   periodSeconds: 10
         securityContext:
           privileged: true
-        volumeMounts:
-        - mountPath: /dev/sgx/enclave
-          name: dev-enclave
-        - mountPath: /dev/sgx/provision
-          name: dev-provision
-        - mountPath: /var/run/aesmd
-          name: dev-aesmd
         env:
         - name: PCCS_URL 
           valueFrom:
@@ -196,4 +196,3 @@ spec:
   externalIPs:
   # This IP is ehsm-kms worker dkeyserver access IP, You need to adjust 1.2.3.4 to the service IP you want to expose
   - 1.2.3.4
-

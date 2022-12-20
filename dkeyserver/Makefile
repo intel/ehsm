@@ -49,7 +49,7 @@ App_Include_Paths := \
 	-I$(TOPDIR)/include \
 	-I$(SGX_SDK)/include \
 
-App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DRUNTIME_FOLDER=\"$(RUNTIME_FOLDER)\"
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
