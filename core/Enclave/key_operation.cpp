@@ -37,14 +37,14 @@
 
 using namespace std;
 
-void printf(const char *fmt, ...)
+void log_printf(uint32_t log_level, const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    ocall_print_string(buf);
+    ocall_print_string(log_level, buf);
 }
 
 /**

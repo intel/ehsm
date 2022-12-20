@@ -34,8 +34,6 @@
 #include "sgx_ecp_types.h"
 #include "sgx_dh.h"
 #include "sgx_tseal.h"
-
-#include "log_utils.h"
 #include "sgx_tseal.h"
 
 #include <stdio.h>

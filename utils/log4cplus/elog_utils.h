@@ -28,69 +28,40 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include "Thread.h"
+
+#ifndef _ELOG_UTILS_H
+#define _ELOG_UTILS_H
+
 #include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <new>
-#include <sched.h>
-#include <sys/sysinfo.h>
-#include "ulog_utils.h"
-/*--------------------------------------------------------------------------------------------------*/
+#include <stdarg.h>
 
-Thread::Thread()
-        : m_shutDown(false), m_thread(0) 
-{
-}
+#define IS_DEBUG false
 
-Thread::~Thread()
-{
-}
+#define BLUE  "\033[0;32;34m"
+#define NONE  "\033[m"
 
-void Thread::start()
-{
-    int rc = pthread_create(&m_thread, NULL, Thread::doWork, (void*)this);
-    assert(rc == 0);
-    (void)rc;
-}
+typedef enum {
+    LOG_INFO = 1,
+    LOG_DEBUG = 2,
+    LOG_WARN = 3,
+    LOG_ERROR = 4
+} log_type;
 
-void Thread::stop()
-{
-    m_shutDown = true;
-}
+/*
+    print info
+*/
+#define log_i(...)  log_printf(LOG_INFO, ##__VA_ARGS__)
+/*
+    print debug
+*/
+#define log_d(...)  log_printf(LOG_DEBUG, ##__VA_ARGS__)
+/*
+    print warn
+*/
+#define log_w(...)  log_printf(LOG_WARN, ##__VA_ARGS__)
+/*
+    print error
+*/
+#define log_e(...)  log_printf(LOG_ERROR, ##__VA_ARGS__)
 
-bool Thread::isStopped()
-{
-    return m_shutDown;
-}
-
-/*virtual*/
-void  Thread::run()
-{
-}
-
-void* Thread::doWork(void* param)
-{
-    try
-    {
-        Thread* thread = static_cast<Thread*>(param);
-        thread->run();
-    }
-    catch(std::bad_alloc& allocationException)
-    {
-        log_e("Unable to allocate memory\n");
-		(void)allocationException;
-        throw;
-    }
-
-    return NULL;
-};
-
-
-void Thread::join()
-{
-    void* res;
-    pthread_join(m_thread, &res);
-}
-
-/*--------------------------------------------------------------------------------------------------*/
+#endif

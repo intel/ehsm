@@ -32,7 +32,7 @@
 #define CLIENT_PAYLOAD_SIZE strlen(CLIENT_PAYLOAD)
 
 #include "sgx_ttls.h"
-#include "log_utils.h"
+#include "elog_utils.h"
 
 
 #define GETCURRTIME t_time

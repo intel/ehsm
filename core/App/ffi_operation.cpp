@@ -38,6 +38,7 @@
 #include "ffi_operation.h"
 #include "ehsm_marshal.h"
 #include "ehsm_provider.h"
+#include "ulog_utils.h"
 
 using namespace std;
 

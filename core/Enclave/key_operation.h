@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include "log_utils.h"
+#include "elog_utils.h"
 #include "sgx_tseal.h"
 
 #include <string>
@@ -43,7 +43,7 @@
 #ifndef _KEY_OPERATION_H_
 #define _KEY_OPERATION_H_
 
-void printf(const char *fmt, ...);
+void log_printf(uint32_t log_level, const char *fmt, ...);
 
 sgx_status_t ehsm_aes_gcm_encrypt(ehsm_data_t *aad,
                                   ehsm_keyblob_t *cmk,

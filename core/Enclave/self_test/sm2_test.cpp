@@ -313,8 +313,8 @@ bool sm2_crypto_test()
             log_e("self test failed");
             log_e("[plaintext(%d)]:", length);
             for (auto item : plaintext)
-                printf("%02x", item);
-            printf("\n");
+                log_i("%02x", item);
+            log_i("\n");
 
             return false;
         }
