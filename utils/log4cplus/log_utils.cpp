@@ -31,7 +31,7 @@ int initLogger(const char* logs_filename)
             }
         }
 
-        printf("Logs folder:\t%s", LOGS_FOLDER);
+        printf("Logs folder:\t%s\n", LOGS_FOLDER);
         int path_len = strlen(LOGS_FOLDER) +
                        strlen(logs_filename) +
                        strlen("/");
