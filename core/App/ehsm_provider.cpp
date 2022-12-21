@@ -51,6 +51,7 @@
 #include "sgx_ql_quote.h"
 #include "sgx_dcap_quoteverify.h"
 
+#include "auto_version.h"
 #include "ulog_utils.h"
 #include "json_utils.h"
 #include "ffi_operation.h"
@@ -217,7 +218,6 @@ static bool validate_params(const char *data, size_t max_size, bool required = t
  */
 uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
 {
-    log_d("reqJson = %s", reqJson);
     ehsm_status_t ret = EH_OK;
     RetJsonObj retJsonObj;
     uint32_t action = -1;
@@ -311,6 +311,11 @@ ehsm_status_t Initialize()
 {
     if (initLogger("core.log") < 0)
         return EH_FUNCTION_FAILED;
+
+    log_i("Service name:\t\teHSM-KMS service %s", EHSM_VERSION);
+    log_i("Service built:\t\t%s", EHSM_DATE);
+    log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
+
     ehsm_status_t rc = EH_OK;
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
