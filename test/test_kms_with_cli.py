@@ -31,7 +31,7 @@ def test_export_datakey(base_url, headers):
     key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1_OAEP", None)
     key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1_OAEP", None)
     key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1", None)
-    key_SM2 = createkey.createkey(base_url, "SM2", "EH_INTERNAL_KEY", None, None, None)
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, None)
     symmetricKey = [key_GCM_128, key_GCM_192, key_GCM_256, key_SM4_ctr, key_SM4_cbc]
     asymmetricKey = [key_RSA_3072, key_RSA_4096, key_RSA_2048, key_SM2]
     aad = str(base64.b64encode("test".encode("utf-8")),'utf-8')
@@ -49,7 +49,7 @@ def test_asymmetricKey_encrypt_decrypt(base_url, headers):
     key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1_OAEP", None)
     key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1_OAEP", None)
     key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1", None)
-    key_SM2 = createkey.createkey(base_url, "SM2", "EH_INTERNAL_KEY", None, None, None)
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, None)
     asymmetricKey = [key_RSA_2048, key_RSA_3072, key_RSA_4096, key_SM2]
 
     for i in asymmetricKey:
@@ -99,7 +99,7 @@ def test_EC_sign_verify(base_url, headers):
 
 def test_SM2_sign_verify(base_url, headers):
     print('====================test_SM2_sign_verify start===========================')
-    key_SM2 = createkey.createkey(base_url, "SM2", "EH_INTERNAL_KEY", None, None, "SM3")
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, "SM3")
     userid = str(base64.b64encode(appid.encode("utf-8")),'utf-8')
 
     # test Sign
