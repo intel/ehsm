@@ -29,7 +29,7 @@
  *
  */
 
-#include "log_utils.h"
+#include "elog_utils.h"
 #include "sgx_tseal.h"
 
 #include <string>

@@ -38,6 +38,7 @@
 #include "datatypes.h"
 #include "sgx_urts.h"
 #include "sgx_dh.h"
+#include "ulog_utils.h"
 
 #include "fifo_def.h"
 
@@ -61,7 +62,7 @@ extern "C" ATTESTATION_STATUS ocall_session_request(sgx_dh_msg1_t* dh_msg1, uint
 	if ((client_send_receive(&msg1_request, sizeof(FIFO_MSG), &msg1_response, &msg1_resp_size) != 0)
 		|| (msg1_response == NULL))
 	{
-		printf("fail to send and receive message.\n");
+		log_e("fail to send and receive message.\n");
 		return INVALID_SESSION;
 	}
 
@@ -107,7 +108,7 @@ extern "C" ATTESTATION_STATUS ocall_exchange_report(sgx_dh_msg2_t *dh_msg2, sgx_
 	if (client_send_receive(msg2, msg2size, &msg3, &msg3size) != 0)
 	{
 		free(msg2);
-		printf("failed to send and receive message.\n");
+		log_e("failed to send and receive message.\n");
 		return INVALID_SESSION;
 	}
 
@@ -158,7 +159,7 @@ extern "C" ATTESTATION_STATUS ocall_send_request(uint32_t session_id, secure_mes
 	if (client_send_receive(msgreq, reqsize, &msgresp, &respsize) != 0)
 	{
 		free(msgreq);
-		printf("fail to send and receive message.\n");
+		log_e("fail to send and receive message.\n");
 		return INVALID_SESSION;
 	}
 
@@ -200,7 +201,7 @@ extern "C" ATTESTATION_STATUS ocall_end_session(uint32_t session_id)
 	if (client_send_receive(closemsg, reqsize, &msgresp, &respsize) != 0)
 	{
 		free(closemsg);
-		printf("fail to send and receive message.\n");
+		log_e("fail to send and receive message.\n");
 		return INVALID_SESSION;
 	}
 

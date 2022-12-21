@@ -42,7 +42,7 @@
 #include <errno.h>
 
 #include "fifo_def.h"
-#include "log_utils.h"
+#include "ulog_utils.h"
 
 #define SERVER_ADDR "127.0.0.1"
 #define SERVER_PORT 8888
@@ -113,7 +113,7 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
         response = (FIFO_MSG *)malloc((size_t)byte_num);
         if (!response)
         {
-            printf("memory allocation failure.\n");
+            log_e("memory allocation failure.\n");
             ret = -1;
             goto CLEAN;
         }
@@ -128,12 +128,12 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
     }
     else if (byte_num < 0)
     {
-        printf("server error, error message is %s!\n", strerror(errno));
+        log_e("server error, error message is %s!\n", strerror(errno));
         ret = -1;
     }
     else
     {
-        printf("server exit!\n");
+        log_i("server exit!\n");
         ret = -1;
     }
 

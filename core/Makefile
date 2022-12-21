@@ -54,9 +54,11 @@ Signed_Enclave_FileName := $(OUT)/$(Signed_Enclave_Name)
 ######## App Settings ########
 App_Cpp_Files := $(wildcard App/*.cpp)
 App_Cpp_Files += $(wildcard Test/*.cpp)
+App_Cpp_Files += $(wildcard $(LOG_DIR)/*.cpp)
 App_Include_Paths := \
 	-I$(SGX_SDK)/include \
 	-IApp \
+	-I$(LOG_DIR) \
 	-I$(TOPDIR)/include
 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DRUNTIME_FOLDER=\"$(RUNTIME_FOLDER)\" -DSIGNED_ENCLAVE_FILENAME=\"$(Signed_Enclave_FileName)\" -DSGX_SIGNING_TOOL=\"$(Sgx_Signing_tool)\"
@@ -81,7 +83,7 @@ ifeq (1, $(ENABLE_PERFORMANCE_TEST))
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name)
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -llog4cplus 
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -90,7 +92,6 @@ else
 endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
-
 ######## Enclave Settings ########
 Crypto_Library_Name := sgx_tcrypto
 
@@ -103,6 +104,7 @@ Enclave_Include_Paths := \
 	-IInclude \
 	-IEnclave \
 	-IEnclave/self_test \
+	-I$(LOG_DIR) \
 	-I$(TOPDIR)/include \
 	-I$(OPENSSL_PATH)/include
 
@@ -139,15 +141,17 @@ Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 Enclave_Config_File := Enclave/enclave_config/enclave_hsm.config.xml
 ######## Provider Settings ########
 Provider_Cpp_Files := App/ehsm_provider.cpp
+Provider_Cpp_Files += $(wildcard $(LOG_DIR)/*.cpp)
 Provider_Include_Paths := \
 	-I$(SGX_SDK)/include \
 	-IInclude \
+	-I$(LOG_DIR) \
 	-IApp \
 	-I$(TOPDIR)/include
 
-Provider_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+Provider_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DRUNTIME_FOLDER=\"$(RUNTIME_FOLDER)\"
 Provider_Cpp_Flags := $(Provider_C_Flags) -std=c++11
-Provider_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -nostartfiles -Wl,--export-dynamic -shared
+Provider_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -nostartfiles -Wl,--export-dynamic -shared -llog4cplus
 
 ifneq ($(SGX_MODE), HW)
 	Provider_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -188,12 +192,12 @@ App/auto_version.h:
 	@echo "  ==>  touch App/auto_version.h"
 
 App/enclave_hsm_u.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
-	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path ../Enclave/self_test --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include
+	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path ../Enclave/self_test --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include --search-path $(LOG_DIR)
 	@echo "GEN  =>  $@"
 
 App/enclave_hsm_u.o: App/enclave_hsm_u.c
-	@$(CC) $(App_C_Flags) -c $< -o $@
-	@echo "CC   <=  $<"
+	@$(CXX) $(App_C_Flags) -c $< -o $@
+	@echo "CXX   <=  $<"
 
 App/%.o: App/%.cpp App/auto_version.h
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
@@ -214,8 +218,8 @@ Enclave/enclave_hsm_t.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
 	@echo "GEN  =>  $@"
 
 Enclave/enclave_hsm_t.o: Enclave/enclave_hsm_t.c
-	@$(CC) $(Enclave_C_Flags) -c $< -o $@
-	@echo "CC   <=  $<"
+	@$(CXX) $(Enclave_C_Flags) -c $< -o $@
+	@echo "CXX   <=  $<"
 
 Enclave/%.o: Enclave/%.cpp
 	@$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
@@ -230,6 +234,10 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 	@echo "SIGN =>  $@"
 
 ######## FFI Objects ########
+$(LOG_DIR)/%.o: $(LOG_DIR)/%.cpp
+	@$(CXX) $(Provider_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
 App/ehsm_provider.o: App/ehsm_provider.cpp
 	@$(CXX) $(Provider_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"

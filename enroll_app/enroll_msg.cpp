@@ -33,7 +33,7 @@
 
 #include <sys/time.h>
 
-#include "log_utils.h"
+#include "ulog_utils.h"
 #include "ecp.h"
 #include "sample_ra_msg.h"
 #include "sample_libcrypto.h"
@@ -407,7 +407,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         p_auth_data = (sgx_ql_auth_data_t *)p_sig_data->auth_certification_data;
         p_cert_data = (sgx_ql_certification_data_t *)((uint8_t *)p_auth_data + sizeof(*p_auth_data) + p_auth_data->size);
 
-        // printf("cert_key_type = 0x%x\n", p_cert_data->cert_key_type);
+        // log_i("cert_key_type = 0x%x\n", p_cert_data->cert_key_type);
 
         // Check the quote version if needed. Only check the Quote.version field if the enclave
         // identity fields have changed or the size of the quote has changed.  The version may
@@ -479,12 +479,12 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
         if (dcap_ret == SGX_QL_SUCCESS && supplemental_data_size == sizeof(sgx_ql_qv_supplemental_t))
         {
-            // printf("\tInfo: sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
+            // log_i("\tInfo: sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
             p_supplemental_data = (uint8_t *)malloc(supplemental_data_size);
         }
         else
         {
-            printf("\tError: sgx_qv_get_quote_supplemental_data_size failed: 0x%04x\n", dcap_ret);
+            log_e("\tError: sgx_qv_get_quote_supplemental_data_size failed: 0x%04x\n", dcap_ret);
             supplemental_data_size = 0;
         }
 
@@ -511,26 +511,26 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             //
             sgx_ret = sgx_create_enclave(SAMPLE_ISV_ENCLAVE, SGX_DEBUG_FLAG, &token, &updated, &eid, NULL);
             if (sgx_ret != SGX_SUCCESS) {
-                printf("\tError: Can't load SampleISVEnclave. 0x%04x\n", sgx_ret);
+                log_e("\tError: Can't load SampleISVEnclave. 0x%04x\n", sgx_ret);
                 return -1;
             }
             sgx_status_t get_target_info_ret;
             sgx_ret = ecall_get_target_info(eid, &get_target_info_ret, &qve_report_info.app_enclave_target_info);
             if (sgx_ret != SGX_SUCCESS || get_target_info_ret != SGX_SUCCESS) {
-                printf("\tError in sgx_get_target_info. 0x%04x\n", get_target_info_ret);
+                log_e("\tError in sgx_get_target_info. 0x%04x\n", get_target_info_ret);
             }
             else {
-                printf("\tInfo: get target info successfully returned.\n");
+                log_i("\tInfo: get target info successfully returned.\n");
             }
 
             //call DCAP quote verify library to set QvE loading policy
             //
             dcap_ret = sgx_qv_set_enclave_load_policy(SGX_QL_DEFAULT);
             if (dcap_ret == SGX_QL_SUCCESS) {
-                printf("\tInfo: sgx_qv_set_enclave_load_policy successfully returned.\n");
+                log_i("\tInfo: sgx_qv_set_enclave_load_policy successfully returned.\n");
             }
             else {
-                printf("\tError: sgx_qv_set_enclave_load_policy failed: 0x%04x\n", dcap_ret);
+                log_e("\tError: sgx_qv_set_enclave_load_policy failed: 0x%04x\n", dcap_ret);
             }
 
 
@@ -538,11 +538,11 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             //
             dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
             if (dcap_ret == SGX_QL_SUCCESS) {
-                printf("\tInfo: sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
+                log_i("\tInfo: sgx_qv_get_quote_supplemental_data_size successfully returned.\n");
                 p_supplemental_data = (uint8_t*)malloc(supplemental_data_size);
             }
             else {
-                printf("\tError: sgx_qv_get_quote_supplemental_data_size failed: 0x%04x\n", dcap_ret);
+                log_e("\tError: sgx_qv_get_quote_supplemental_data_size failed: 0x%04x\n", dcap_ret);
                 supplemental_data_size = 0;
             }
 
@@ -565,10 +565,10 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
                 supplemental_data_size,
                 p_supplemental_data);
             if (dcap_ret == SGX_QL_SUCCESS) {
-                printf("\tInfo: App: sgx_qv_verify_quote successfully returned.\n");
+                log_i("\tInfo: App: sgx_qv_verify_quote successfully returned.\n");
             }
             else {
-                printf("\tError: App: sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
+                log_e("\tError: App: sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
             }
 
 
@@ -594,10 +594,10 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
                 qve_isvsvn_threshold);
 
             if (sgx_ret != SGX_SUCCESS || verify_qveid_ret != SGX_QL_SUCCESS) {
-                printf("\tError: Ecall: Verify QvE report and identity failed. 0x%04x\n", verify_qveid_ret);
+                log_e("\tError: Ecall: Verify QvE report and identity failed. 0x%04x\n", verify_qveid_ret);
             }
             else {
-                printf("\tInfo: Ecall: Verify QvE report and identity successfully returned.\n");
+                log_i("\tInfo: Ecall: Verify QvE report and identity successfully returned.\n");
             }
 
             //check verification result
@@ -605,7 +605,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             switch (quote_verification_result)
             {
             case SGX_QL_QV_RESULT_OK:
-                printf("\tInfo: App: Verification completed successfully.\n");
+                log_i("\tInfo: App: Verification completed successfully.\n");
                 ret = 0;
                 break;
             case SGX_QL_QV_RESULT_CONFIG_NEEDED:
@@ -613,14 +613,14 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             case SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED:
             case SGX_QL_QV_RESULT_SW_HARDENING_NEEDED:
             case SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED:
-                printf("\tWarning: App: Verification completed with Non-terminal result: %x\n", quote_verification_result);
+                log_w("\tWarning: App: Verification completed with Non-terminal result: %x\n", quote_verification_result);
                 ret = 1;
                 break;
             case SGX_QL_QV_RESULT_INVALID_SIGNATURE:
             case SGX_QL_QV_RESULT_REVOKED:
             case SGX_QL_QV_RESULT_UNSPECIFIED:
             default:
-                printf("\tError: App: Verification completed with Terminal result: %x\n", quote_verification_result);
+                log_e("\tError: App: Verification completed with Terminal result: %x\n", quote_verification_result);
                 ret = -1;
                 break;
             }
@@ -641,22 +641,22 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             p_supplemental_data);
         if (dcap_ret == SGX_QL_SUCCESS)
         {
-            // printf("\tInfo: App: sgx_qv_verify_quote successfully returned.\n");
+            // log_i("\tInfo: App: sgx_qv_verify_quote successfully returned.\n");
         }
         else
         {
-            printf("\tError: App: sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
+            log_e("\tError: App: sgx_qv_verify_quote failed: 0x%04x\n", dcap_ret);
             ret = -1;
             break;
         }
 
-        // printf("\tInfo: App: Verification quote_verification_result=%#x\n", quote_verification_result);
+        // log_i("\tInfo: App: Verification quote_verification_result=%#x\n", quote_verification_result);
 
         // check verification result
         if ((quote_verification_result != SGX_QL_QV_RESULT_OK) &&
             (quote_verification_result != SGX_QL_QV_RESULT_OUT_OF_DATE))
         {
-            printf("verify result is not expected (%#x)\n", quote_verification_result);
+            log_i("verify result is not expected (%#x)\n", quote_verification_result);
             ret = -1;
             break;
         }

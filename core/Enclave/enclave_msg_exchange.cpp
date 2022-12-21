@@ -33,6 +33,7 @@
 #include "sgx_trts.h"
 #include "sgx_utils.h"
 
+#include "elog_utils.h"
 #include "sgx_eid.h"
 #include "error_codes.h"
 #include "sgx_ecp_types.h"
@@ -46,7 +47,7 @@
 #include "marshal.h"
 #include "enclave_msg_exchange.h"
 
-extern void printf(const char *fmt, ...);
+extern void log_printf(uint32_t log_level, const char *fmt, ...);
 
 extern sgx_aes_gcm_256bit_key_t g_domain_key;
 
@@ -448,7 +449,7 @@ uint32_t enclave_la_message_exchange()
                                                 marshalled_inp_buff_len, max_out_buff_size, &out_buff, &out_buff_len);
     if(ke_status != SUCCESS)
     {
-        printf("failed to send req or recv resp\n");
+        log_e("failed to send req or recv resp\n");
         goto out;
     }
 
@@ -456,12 +457,12 @@ uint32_t enclave_la_message_exchange()
     ke_status = umarshal_message_exchange_response(out_buff, &secret, &secret_len);
     if(ke_status != SUCCESS)
     {
-        printf("failed to unmarshal the resp\n");
+        log_e("failed to unmarshal the resp\n");
         goto out;
     }
 
     if(secret_len != sizeof(g_domain_key)) {
-        printf("the received buffer not matched with domainkey's size\n");
+        log_e("the received buffer not matched with domainkey's size\n");
         ke_status = OUT_BUFFER_LENGTH_ERROR;
         goto out;
     }
