@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <getopt.h>
 
+#include <arpa/inet.h>
+
 #define ENCLAVE_PATH "libenclave-ehsm-dkeyserver.signed.so"
 #define ROLE_WORKER "worker"
 #define ROLE_ROOT "root"
@@ -158,6 +160,8 @@ int ocall_accept(int fd,
         if (addrlen_out)
             *addrlen_out = addrlen_in;
     }
+    struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
+    log_d("New Client(%d) connected! IP=%s", fd, inet_ntoa(addr_in->sin_addr));
     return ret;
 }
 
@@ -172,7 +176,7 @@ int ocall_setsockopt(int sockfd,
 
 int ocall_connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen)
 {
-    int32_t retry_count = 60;
+    int32_t retry_count = 10;
     do
     {
         int ret = connect(sockfd, servaddr, addrlen);
@@ -189,28 +193,33 @@ int ocall_connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen
 
 void print_usage(int code)
 {
-    log_i ("Usage: ehsm-dkeyserver "\
-            "-r [ server role ] "\
-            "-i [ target server ip ] "\
-            "-p [target server port]\n");
-    log_i ("-h    Print usage information and quit.\n"
-            "-r    Set the role of this machine as root or worker in server cluster.\n"
-            "-i    Set the ip address of target server.\n"
-            "-p    Set the port of target server.\n");
+    log_i("Usage: ehsm-dkeyserver "
+          "-r [ server role ] "
+          "-i [ target server ip ] "
+          "-u [ target server url ] "
+          "-p [target server port]\n");
+    log_i("-h    Print usage information and quit.\n"
+          "-r    Set the role of this machine as root or worker in server cluster.\n"
+          "-i    Set the ip address of target server.\n"
+          "-u    Set the url of target server.\n"
+          "-p    Set the port of target server.\n");
     exit(code);
 }
 
 static void parse_args(int argc,
                        char *argv[],
-                       string& server_role,
-                       string& target_ip_addr,
+                       string &server_role,
+                       string &target_ip_addr,
                        uint16_t *target_port)
 {
     int opt;
     int oidx = 0;
-    static const char *_sopts = "r:i:p:h";
+    string host;
+    struct hostent *hptr;
+    static const char *_sopts = "r:i:u:p:h";
     static const struct option _lopts[] = {{"role", required_argument, NULL, 'r'},
                                            {"ip", optional_argument, NULL, 'i'},
+                                           {"url", optional_argument, NULL, 'u'},
                                            {"port", optional_argument, NULL, 'p'},
                                            {"help", no_argument, NULL, 'h'},
                                            {0, 0, 0, 0}};
@@ -229,6 +238,19 @@ static void parse_args(int argc,
         case 'i':
             target_ip_addr = strdup(optarg);
             break;
+        case 'u':
+            host = strdup(optarg);
+            hptr = gethostbyname(host.c_str());
+            if (hptr == NULL || hptr->h_addr == NULL)
+            {
+                log_e("can't parse hostname [%s].", host.c_str());
+            }
+            else
+            {
+                char *ip = NULL;
+                target_ip_addr = inet_ntoa(*(struct in_addr *)hptr->h_addr_list[0]);
+            }
+            break;
         case 'p':
             try
             {
@@ -239,12 +261,12 @@ static void parse_args(int argc,
                 log_e("[-p %s] port must be a number.", optarg);
             }
             break;
-	case 'h':
+        case 'h':
             print_usage(EXIT_SUCCESS);
             break;
         default:
             log_e("unrecognized option (%c):\n", opt);
-	    print_usage(EXIT_FAILURE);
+            print_usage(EXIT_FAILURE);
         }
     }
 }
@@ -273,7 +295,7 @@ int validate_parameter(string server_role,
     return 0;
 }
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
     if (initLogger("dkeyserver.log") < 0)
         return -1;
@@ -294,16 +316,19 @@ int main(int argc, char *argv[])
     int ret = validate_parameter(server_role, target_ip_addr, target_port);
     if (ret != 0)
     {
-        log_i ("Usage: ehsm-dkeyserver "\
-                "-r [server role] "\
-                "-i [target server ip] "\
-                "-p [target server port]\n");
+        log_i("Usage: ehsm-dkeyserver "
+              "-r [server role] "
+              "-i [target server ip] "
+              "-u [target server url] "
+              "-p [target server port]\n");
         return -1;
     }
 
-    if (access(RUNTIME_FOLDER, F_OK) != 0) {
+    if (access(RUNTIME_FOLDER, F_OK) != 0)
+    {
         log_i("Initializing runtime folder [path: %s].", RUNTIME_FOLDER);
-        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0)
+        {
             log_e("Create runtime folder failed!");
             return -1;
         }
@@ -315,7 +340,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        log_i("Target Server:\t%s:%d", target_ip_addr.c_str(),target_port);
+        log_i("Target Server:\t%s:%d", target_ip_addr.c_str(), target_port);
     }
 
     ret = sgx_create_enclave(ENCLAVE_PATH,
@@ -340,7 +365,7 @@ int main(int argc, char *argv[])
     }
 
     logger_shutDown();
-    
+
     sgx_destroy_enclave(g_enclave_id);
 
     return 0;

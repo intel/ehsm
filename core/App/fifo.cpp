@@ -60,7 +60,7 @@
  * */
 int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG **fiforesponse, size_t *fiforesponse_size)
 {
-    int retry_count = 100;
+    int retry_count = 10;
     int ret = 0;
     long byte_num;
     char recv_msg[BUFFER_SIZE + 1] = {0};

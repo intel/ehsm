@@ -1,4 +1,4 @@
-# ehsm-kms ConfigMap
+# dkeyserver ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,44 +7,41 @@ metadata:
 data:
   # you need adjust https://1.2.3.4:8081 to your pccs_url.
   pccs_url: "https://1.2.3.4:8081"
-  # you need adjust main-0.main:8888 to your root dkeyserver service url.
-  main_service_url: "main-0.main:8888"
-  # you need adjust 1.2.3.4:8888 to your dkey provisioning service url.
-  dkey_provisioning_service_url: "1.2.3.4:8888"
 
 ---
 # ehsm-kms main dkeyserver
 apiVersion: v1
 kind: Service
 metadata:
-  name: main
+  name: dkey-main-service
   namespace: dkeyserver
   labels:
-    app: main
+    app: dkey-main
 spec:
   ports:
-    - name: main
+    - name: dkey-main-svc-port
       port: 8888
       targetPort: 8888
   selector:
-    app: main
+    app: dkey-main
   clusterIP: None 
+
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: main
+  name: dkey-main
   namespace: dkeyserver
 spec:
   selector:
     matchLabels:
-      app: main
-  serviceName: "main"
+      app: dkey-main
+  serviceName: "dkey-main-service"
   replicas: 1
   template:
     metadata:
       labels:
-        app: main
+        app: dkey-main
     spec:
       volumes:
       - name: dev-enclave
@@ -60,21 +57,11 @@ spec:
         hostPath:
           path: /var/run/ehsm
       containers:
-      - name: main
+      - name: dkey-main
         image: intel/dkeyserver:latest
         imagePullPolicy: IfNotPresent
-        # readinessProbe:
-        #   httpGet:
-        #     port: main-port
-        #     path: /isReady
-        #   initialDelaySeconds: 5
-        #   periodSeconds: 10
-        # livenessProbe:
-        #   httpGet:
-        #     port: main-port
-        #     path: /isLive
-        #   initialDelaySeconds: 5
-        #   periodSeconds: 10
+        securityContext:
+          privileged: true
         volumeMounts:
         - mountPath: /dev/sgx/enclave
           name: dev-enclave
@@ -84,20 +71,33 @@ spec:
           name: dev-aesmd
         - mountPath: /var/run/ehsm
           name: runtime-folder
+        readinessProbe:
+          tcpSocket:
+            port: dkey-main-port
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: dkey-main-port
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        ports: 
+        - containerPort: 8888
+          name: dkey-main-port
         env:
         - name: PCCS_URL 
           valueFrom:
             configMapKeyRef:
               name: dkeyserver-configmap
               key: pccs_url
-        - name: DKEY_TARGET_SERVICE_URL 
-          valueFrom:
-            configMapKeyRef:
-              name: dkeyserver-configmap
-              key: dkey_provisioning_service_url
-        ports: 
-        - containerPort: 8888
-          name: main-port
+        - name: DKEYSERVER_ROLE
+          value: "root"
+        # you need change TARGET_IP to dkey-provisioning-service's externalIPs.
+        - name: TARGET_IP 
+          value: "1.2.3.4"
+        # you need change TARGET_PORT to dkey-provisioning-service's port.
+        - name: TARGET_PORT 
+          value: "8888"
 
 ---
 # ehsm-kms worker dkeyserver
@@ -129,35 +129,27 @@ spec:
       - name: runtime-folder
         hostPath:
           path: /var/run/ehsm
-      # initContainers:
-      # - name: init-worker
-      #   # this images same the container's image.
-      #   image: intel/dkeyserver:latest
-      #   imagePullPolicy: IfNotPresent
-      #   command: ['sh' , '-c','until curl http://${DKEY_TARGET_SERVICE_URL}/isReady; do echo waiting for main servier; sleep 5; done;']
-      #   env:
-      #   - name: DKEY_TARGET_SERVICE_URL
-      #     valueFrom:
-      #       configMapKeyRef:
-      #         name: dkeyserver-configmap
-      #         key: main_service_url
+      initContainers:
+      - name: init-worker
+        # this images same the container's image.
+        image: intel/dkeyserver:latest
+        imagePullPolicy: IfNotPresent
+        command: ['sh' , '-c','until nslookup dkey-main-service; do echo waiting for main servier; sleep 5; done;']
       containers:
       - name: worker
         # You need to tag the worker container image with this name on each worker node or change it to point to a docker hub to get the container image.
         image: intel/dkeyserver:latest
         imagePullPolicy: IfNotPresent
-        # readinessProbe:
-        #   httpGet:
-        #     port: worker-port
-        #     path: /isReady
-        #   initialDelaySeconds: 5
-        #   periodSeconds: 10
-        # livenessProbe:
-        #   httpGet:
-        #     port: worker-port
-        #     path: /isLive
-        #   initialDelaySeconds: 5
-        #   periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: worker-port
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: worker-port
+          initialDelaySeconds: 60
+          periodSeconds: 10
         securityContext:
           privileged: true
         volumeMounts:
@@ -175,14 +167,18 @@ spec:
             configMapKeyRef:
               name: dkeyserver-configmap
               key: pccs_url
-        - name: DKEY_TARGET_SERVICE_URL 
-          valueFrom:
-            configMapKeyRef:
-              name: dkeyserver-configmap
-              key: main_service_url
+        - name: DKEYSERVER_ROLE
+          value: "worker"
+        # The TARGET_URL is dkey-main-service's url.
+        - name: TARGET_URL 
+          value: "dkey-main-0.dkey-main-service"
+        # The TARGET_PORT is dkey-main-service's port.
+        - name: TARGET_PORT
+          value: "8888"
         ports:
         - containerPort: 8888
           name: worker-port
+
 ---
 apiVersion: v1
 kind: Service

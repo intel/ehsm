@@ -70,7 +70,7 @@ int ocall_socket(int domain, int type, int protocol)
 
 int ocall_connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen)
 {
-    int32_t retry_count = 60;
+    int32_t retry_count = 10;
     do
     {
         int ret = connect(sockfd, servaddr, addrlen);
