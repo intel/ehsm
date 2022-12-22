@@ -87,6 +87,10 @@ const server = (DB) => {
         process.exit(0)
     })
 
+    process.on('uncaughtException', function (err) {
+        console.log(err)
+    });
+
     // process open ssl
     try {
         const {
