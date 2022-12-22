@@ -34,6 +34,7 @@
 #include "base64.h"
 #include "dsohandle.h"
 #include "json_utils.h"
+#include "ulog_utils.h"
 
 ehsm_keyspec_t supported_symmetric_keyspec_aesgcm[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256};
 
