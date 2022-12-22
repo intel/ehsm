@@ -226,7 +226,7 @@ static void *SocketMsgHandler(void *arg)
 
     for (unsigned long int i = 0; i < SGX_DOMAIN_KEY_SIZE; i++)
     {
-        log_d("domain_key[%u]=%2u\n", i, handler_ctx.domainkey[i]);
+        log_d("domain_key[%u]=%2u", i, handler_ctx.domainkey[i]);
     }
 
     log_d(TLS_SERVER "<---- Write to client:\n");
@@ -371,9 +371,10 @@ int create_socket(const char *server_name, uint16_t server_port)
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1)
     {
-        log_d(TLS_SERVER "Error: Cannot create socket %d.\n", errno);
+        log_e(TLS_SERVER "Error: Cannot create socket %d.\n", errno);
         goto out;
     }
+
 
     dest_sock.sin_family = AF_INET;
     dest_sock.sin_port = htons(server_port);
@@ -384,14 +385,14 @@ int create_socket(const char *server_name, uint16_t server_port)
             sockfd, (sockaddr *)&dest_sock,
             sizeof(struct sockaddr)) == -1)
     {
-        log_d(
+        log_e(
             TLS_SERVER "failed to connect to target server %d:%d (errno=%d)\n",
             server_name,
             server_port,
             errno);
         ocall_close(&ret, sockfd);
         if (ret != 0)
-            log_d(TLS_SERVER "OCALL: error closing socket\n");
+            log_e(TLS_SERVER "OCALL: error closing socket\n");
         sockfd = -1;
         goto out;
     }
@@ -426,13 +427,13 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
 
     if ((ssl_client_ctx = SSL_CTX_new(TLS_client_method())) == nullptr)
     {
-        log_d(TLS_SERVER "Unable to create a new SSL context\n");
+        log_e(TLS_SERVER "Unable to create a new SSL context\n");
         goto out;
     }
 
     if (initalize_ssl_context(ssl_confctx, ssl_client_ctx) != SGX_SUCCESS)
     {
-        log_d(TLS_SERVER "Unable to create a initialize SSL context\n ");
+        log_e(TLS_SERVER "Unable to create a initialize SSL context\n ");
         goto out;
     }
 
@@ -441,13 +442,13 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
     log_d(TLS_SERVER "Load cert and key\n");
     if (load_tls_certificates_and_keys(ssl_client_ctx, cert, pkey) != 0)
     {
-        log_d(TLS_SERVER "Unable to load certificate and private key on the client\n");
+        log_e(TLS_SERVER "Unable to load certificate and private key on the client\n");
         goto out;
     }
 
     if ((ssl_session = SSL_new(ssl_client_ctx)) == nullptr)
     {
-        log_d(TLS_SERVER "Unable to create a new SSL connection state object\n");
+        log_e(TLS_SERVER "Unable to create a new SSL connection state object\n");
         goto out;
     }
 
@@ -455,9 +456,9 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
     client_socket = create_socket(target_server_name, target_server_port);
     if (client_socket == -1)
     {
-        log_d(
+        log_e(
             TLS_SERVER "Create a socket and initiate a TCP connect to target server: %s:%d "
-            "(errno=%d)\n",
+                       "(errno=%d)\n",
             target_server_name,
             target_server_port,
             errno);
@@ -467,20 +468,20 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
     // set up ssl socket and initiate TLS connection with TLS target server
     if (SSL_set_fd(ssl_session, client_socket) != 1)
     {
-        log_d(TLS_SERVER "Ssl set fd error.\n");
-	goto out;
+        log_e(TLS_SERVER "Ssl set fd error.\n");
+        goto out;
     }
 
     if ((error = SSL_connect(ssl_session)) != 1)
     {
-        log_d(TLS_SERVER "Error: Could not establish a TLS session ret2=%d "
+        log_e(TLS_SERVER "Error: Could not establish a TLS session ret2=%d "
                          "SSL_get_error()=%d\n",
-                         error,
-                         SSL_get_error(ssl_session, error));
+              error,
+              SSL_get_error(ssl_session, error));
         goto out;
     }
     log_d(TLS_SERVER "successfully established TLS channel:%s\n",
-        SSL_get_version(ssl_session));
+          SSL_get_version(ssl_session));
 
     // start the communication
     // Write an GET request to the target server
@@ -492,7 +493,7 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
         error = SSL_get_error(ssl_session, bytes_written);
         if (error == SSL_ERROR_WANT_WRITE)
             continue;
-        log_d(TLS_SERVER "Failed! SSL_write returned %d\n", error);
+        log_e(TLS_SERVER "Failed! SSL_write returned %d\n", error);
         goto out;
     }
 
@@ -512,7 +513,7 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
             if (error == SSL_ERROR_WANT_READ)
                 continue;
 
-            log_d(TLS_SERVER "Failed! SSL_read returned error=%d\n", error);
+            log_e(TLS_SERVER "Failed! SSL_read returned error=%d\n", error);
             goto out;
         }
 
@@ -520,8 +521,8 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
 
         if (bytes_read != SGX_DOMAIN_KEY_SIZE)
         {
-            log_d(
-                TLS_SERVER  "ERROR: expected reading %lu bytes but only "
+            log_e(
+                TLS_SERVER "ERROR: expected reading %lu bytes but only "
                            "received %d bytes\n",
                 SGX_DOMAIN_KEY_SIZE,
                 bytes_read);
@@ -531,13 +532,18 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
         {
             memcpy_s(domain_key, SGX_DOMAIN_KEY_SIZE, buf, SGX_DOMAIN_KEY_SIZE);
             memset_s(buf, SGX_DOMAIN_KEY_SIZE, 0, SGX_DOMAIN_KEY_SIZE);
-            log_d(TLS_SERVER "domainkey received succeed:\n");
+            log_i(TLS_SERVER "domainkey received succeed:\n");
             break;
         }
     } while (1);
 
+    for (unsigned long int i = 0; i < SGX_DOMAIN_KEY_SIZE; i++)
+    {
+        log_d("domain_key[%u]=%2u", i, domain_key[i]);
+    }
+
     ret = SGX_SUCCESS;
-    
+
 out:
 
     if (client_socket != -1)
@@ -546,7 +552,7 @@ out:
         ocall_close(&closeRet, client_socket);
         if (closeRet != 0)
         {
-            log_d(TLS_CLIENT "OCALL: error close socket\n");
+            log_e(TLS_CLIENT "OCALL: error close socket\n");
             ret = SGX_ERROR_UNEXPECTED;
         }
     }
@@ -569,7 +575,7 @@ out:
     if (ssl_confctx)
         SSL_CONF_CTX_free(ssl_confctx);
 
-    log_d(TLS_SERVER "get domain key from target server %s\n", (ret == SGX_SUCCESS) ? "success" : "failed");
+    log_i(TLS_SERVER "get domain key from target server %s\n", (ret == SGX_SUCCESS) ? "success" : "failed");
     return ret;
 }
 
@@ -580,7 +586,7 @@ sgx_status_t get_domainkey_from_local(uint8_t *domain_key)
 
     if (dk_cipher_len == UINT32_MAX)
         return SGX_ERROR_UNEXPECTED;
-        
+
     int retstatus;
     uint8_t dk_cipher[dk_cipher_len] = {0};
     uint8_t tmp[SGX_DOMAIN_KEY_SIZE] = {0};
@@ -617,10 +623,10 @@ sgx_status_t get_domainkey_from_local(uint8_t *domain_key)
 sgx_status_t store_domain_key(uint8_t *domain_key)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    uint32_t dk_cipher_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);        
+    uint32_t dk_cipher_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);
     uint8_t dk_cipher[dk_cipher_len] = {0};
     int retstatus;
-    
+
     ret = sgx_seal_data(0, NULL, SGX_DOMAIN_KEY_SIZE, domain_key, dk_cipher_len, (sgx_sealed_data_t *)dk_cipher);
     if (ret != SGX_SUCCESS)
         return SGX_ERROR_UNEXPECTED;
@@ -638,7 +644,8 @@ sgx_status_t sgx_get_domainkey(uint8_t *domain_key,
                                uint16_t target_server_port)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    if (domain_key == NULL){
+    if (domain_key == NULL)
+    {
         log_e("domain key is null. \n");
         return ret;
     }
@@ -655,14 +662,14 @@ sgx_status_t sgx_get_domainkey(uint8_t *domain_key,
     {
         log_i("start get domain key from disk\n");
         ret = get_domainkey_from_local(domain_key);
-    }        
-           
+    }
+
     if (ret == SGX_SUCCESS)
     {
         log_i("start store domain key to disk\n");
         ret = store_domain_key(domain_key);
     }
-    
+
     return ret;
 }
 
@@ -685,32 +692,32 @@ int sgx_set_up_tls_server(char *server_port,
 
     if (server_port == NULL)
     {
-        log_d(TLS_SERVER "Failed to get server_port\n");
+        log_e(TLS_SERVER "Failed to get server_port\n");
         goto exit;
     }
 
     if ((ssl_server_ctx = SSL_CTX_new(TLS_server_method())) == nullptr)
     {
-        log_d(TLS_SERVER "unable to create a new SSL context\n");
+        log_e(TLS_SERVER "unable to create a new SSL context\n");
         goto exit;
     }
 
     if (SSL_CTX_set_cipher_list(ssl_server_ctx, "TLS_AES_256_GCM_SHA384") != SGX_SUCCESS)
     {
-        log_d(TLS_SERVER "unable to create SSL_CTX_set_cipher_list\n ");
+        log_e(TLS_SERVER "unable to create SSL_CTX_set_cipher_list\n ");
         goto exit;
     }
 
     if (initalize_ssl_context(ssl_confctx, ssl_server_ctx) != SGX_SUCCESS)
     {
-        log_d(TLS_SERVER "unable to create a initialize SSL context\n ");
+        log_e(TLS_SERVER "unable to create a initialize SSL context\n ");
         goto exit;
     }
     SSL_CTX_set_verify(ssl_server_ctx, SSL_VERIFY_PEER, &verify_callback);
 
     if (load_tls_certificates_and_keys(ssl_server_ctx, certificate, pkey) != 0)
     {
-        log_d(TLS_SERVER
+        log_e(TLS_SERVER
               " unable to load certificate and private key on the server\n ");
         goto exit;
     }
@@ -721,7 +728,7 @@ int sgx_set_up_tls_server(char *server_port,
                           target_server_name,
                           target_server_port) != SGX_SUCCESS)
     {
-        log_d("Failed to get domain key.\n");
+        log_e("Failed to get domain key.\n");
         goto exit;
     }
     // update dkeyserver status
@@ -739,7 +746,7 @@ int sgx_set_up_tls_server(char *server_port,
     server_port_number = (unsigned int)atoi(server_port); // convert to char* to int
     if (create_listener_socket(server_port_number, server_socket_fd) != 0)
     {
-        log_d(TLS_SERVER " unable to create listener socket on the server\n ");
+        log_e(TLS_SERVER " unable to create listener socket on the server\n ");
         goto exit;
     }
 
@@ -751,7 +758,7 @@ int sgx_set_up_tls_server(char *server_port,
         domain_key);
     if (ret != 0)
     {
-        log_d(TLS_SERVER "server communication error %d\n", ret);
+        log_e(TLS_SERVER "server communication error %d\n", ret);
         goto exit;
     }
 
@@ -760,13 +767,13 @@ exit:
     ocall_close(&closeRet, client_socket_fd); // close the socket connections
     if (closeRet != 0)
     {
-        log_d(TLS_SERVER "OCALL: error closing client socket\n");
+        log_e(TLS_SERVER "OCALL: error closing client socket\n");
         ret = -1;
     }
     ocall_close(&closeRet, server_socket_fd);
     if (closeRet != 0)
     {
-        log_d(TLS_SERVER "OCALL: error closing server socket\n");
+        log_e(TLS_SERVER "OCALL: error closing server socket\n");
         ret = -1;
     }
     if (ssl_server_ctx)

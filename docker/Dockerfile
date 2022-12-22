@@ -44,7 +44,8 @@ RUN apt-get update && apt-get install -y \
     libjsoncpp-dev \
     uuid-dev\
     liblog4cplus-1.1-9\
-    liblog4cplus-dev
+    liblog4cplus-dev\
+    dnsutils
 
 # Install the SDK
 WORKDIR /opt/intel
