@@ -222,7 +222,8 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
     RetJsonObj retJsonObj;
     uint32_t action = -1;
     JsonObj payloadJson;
-    if(respJson == NULL){
+    if (respJson == NULL)
+    {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Argument bad.");
         retJsonObj.toChar(respJson);
@@ -431,7 +432,7 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
         !validate_params(aad, EH_AAD_MAX_SIZE, false) ||
         !validate_params(ciphertext, EH_PLAINTEXT_MAX_SIZE + EH_AAD_MAX_SIZE))
         return EH_ARGUMENTS_BAD;
-        
+
     if (plaintext == NULL)
         return EH_ARGUMENTS_BAD;
 
@@ -462,7 +463,7 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
     if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
         !validate_params(plaintext, EH_PLAINTEXT_MAX_SIZE))
         return EH_ARGUMENTS_BAD;
-        
+
     if (ciphertext == NULL)
         return EH_ARGUMENTS_BAD;
 

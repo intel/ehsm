@@ -34,6 +34,7 @@ include ../buildenv.mk
 App_Name := ehsm-core
 App_Test_Name := ehsm_core_test
 Enclave_Name := libenclave-$(App_Name).so
+Fuzz_Test_Name := fuzz_encrypt
 Signed_Enclave_Name := libenclave-$(App_Name).signed.so
 Provider_Name := libehsmprovider.so
 Enclave_Config_File := Enclave/enclave.config.xml
@@ -45,6 +46,8 @@ EHSM_DEFAULT_DOMAIN_KEY_FALLBACK ?= 0
 ENABLE_PERFORMANCE_TEST ?= 0
 
 ENABLE_SELF_TEST ?= 0
+
+ENABLE_FUZZ_TEST ?= 0
 
 ENABLE_PAIR_WISE_TEST ?= 0
 
@@ -84,6 +87,14 @@ endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
 App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -llog4cplus 
+
+ifeq (1, $(ENABLE_FUZZ_TEST))
+	MAKE = afl-g++
+	App_Test_Name = $(Fuzz_Test_Name)
+	App_Cpp_Flags += -g -DENABLE_FUZZ_TEST -fsanitize=address
+else
+	MAKE = g++
+endif
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -153,6 +164,10 @@ Provider_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Pat
 Provider_Cpp_Flags := $(Provider_C_Flags) -std=c++11
 Provider_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -nostartfiles -Wl,--export-dynamic -shared -llog4cplus
 
+ifeq (1, $(ENABLE_FUZZ_TEST))
+	Provider_C_Flags += -g
+endif
+
 ifneq ($(SGX_MODE), HW)
 	Provider_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
 else
@@ -165,9 +180,9 @@ Provider_Cpp_Objects := $(Provider_Cpp_Files:.cpp=.o)
 ######## Build Settings ########
 .PHONY: all target clean
 all: target
-	@$(MAKE) target
+	@make target
 	@mkdir -p $(OUT)
-	@mv $(App_Test_Name) $(Provider_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
+	-mv $(App_Test_Name) $(Provider_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
 
 ifeq ($(Build_Mode), HW_RELEASE)
 target: $(App_Test_Name) $(Provider_Name) $(Enclave_Name)
@@ -176,8 +191,9 @@ target: $(App_Test_Name) $(Provider_Name) $(Signed_Enclave_Name)
 endif
 
 clean:
-	@rm -f $(App_Cpp_Objects) $(Provider_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
+	@rm -f $(App_Cpp_Objects) $(Provider_Cpp_Objects) Test/fuzz/$(Fuzz_Test_Name) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.* Test/fuzz/*.o
 	@rm -rf $(OUT)
+	@rm -rf Test/fuzz/fuzz_out/*
 
 
 ######## App Objects ########
@@ -200,16 +216,31 @@ App/enclave_hsm_u.o: App/enclave_hsm_u.c
 	@echo "CXX   <=  $<"
 
 App/%.o: App/%.cpp App/auto_version.h
-	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
+	@$(MAKE) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 Test/%.o: Test/%.cpp
-	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
+	@$(MAKE) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
+
+ifeq (1, $(ENABLE_FUZZ_TEST))
+
+Test/fuzz/$(App_Test_Name).o: Test/fuzz/$(App_Test_Name).cpp
+	@$(MAKE) $(App_Cpp_Flags) -c $< -o $@
+	@echo "AFL-CXX  <=  $<"
+
+$(App_Test_Name): App/enclave_hsm_u.o $(App_Cpp_Objects) Test/fuzz/$(App_Test_Name).o
+	@$(MAKE) $^ -o $@ $(App_Link_Flags) -g
+	@echo "LINK =>  $@"
+	@-mv -f $(App_Test_Name) Test/fuzz/$(App_Test_Name)
+
+else
 
 $(App_Test_Name): App/enclave_hsm_u.o $(App_Cpp_Objects) App/auto_version.h
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
+
+endif
 
 ######## Enclave Objects ########
 
@@ -239,9 +270,9 @@ $(LOG_DIR)/%.o: $(LOG_DIR)/%.cpp
 	@echo "CXX  <=  $<"
 
 App/ehsm_provider.o: App/ehsm_provider.cpp
-	@$(CXX) $(Provider_Cpp_Flags) -c $< -o $@
+	@$(MAKE) $(Provider_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 $(Provider_Name): $(Provider_Cpp_Objects) $(App_Cpp_Objects) App/enclave_hsm_u.o
-	$(CXX) $^ -o $@ $(Provider_Link_Flags)
+	@$(MAKE) $^ -o $@ $(Provider_Link_Flags)
 	@echo "LINK =>  $@"

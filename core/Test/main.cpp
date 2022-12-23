@@ -31,12 +31,23 @@
 
 #include "performance_test.h"
 #include "function_test.h"
-#include "json_utils.h"
 #include "../App/ehsm_provider.h"
+#include "fuzz/fuzz.h"
 
 int main(int argc, char *argv[])
 {
     ehsm_status_t ret = EH_OK;
+
+#if ENABLE_FUZZ_TEST
+
+    uint8_t *buf = (uint8_t *)malloc(1024);
+    size_t size = read(0, buf, 1024);
+    fuzz_one_input(buf);
+    free(buf);
+
+    return ret;
+
+#else
 
     ret = Initialize();
     if (ret != EH_OK)
@@ -51,6 +62,8 @@ int main(int argc, char *argv[])
 #endif
 
     function_test();
+
+#endif
 
     Finalize();
 
