@@ -40,14 +40,13 @@
 #include <sys/un.h>
 
 #include "la_server.h"
-#include "log_utils.h"
+#include "ulog_utils.h"
 
 #define BACKLOG 5     
 #define CONCURRENT_MAX 32   
 #define SERVER_PORT 8888
 #define BUFFER_SIZE 1024
 
-#define UNIX_DOMAIN "/var/run/ehsm/dkeyprovision.sock"
 
 /* Function Description:
  * This is server initialization routine, it creates TCP sockets and listen on a port.

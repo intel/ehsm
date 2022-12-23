@@ -292,12 +292,12 @@ Performs quote verification and return the result.
 Input:
 quote -- the quote need to be verified.
 Output:
-result -- verification result with type bool.
+result -- result with type sgx_ql_qv_result_t.
 */
 ehsm_status_t VerifyQuote(ehsm_data_t *quote,
                           const char *mr_signer,
                           const char *mr_enclave,
-                          bool *result);
+                          int *result);
 
 /*
 Description:

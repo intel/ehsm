@@ -37,14 +37,14 @@
 
 using namespace std;
 
-void printf(const char *fmt, ...)
+void log_printf(uint32_t log_level, const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    ocall_print_string(buf);
+    ocall_print_string(log_level, buf);
 }
 
 /**
@@ -655,12 +655,14 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
     if (EVP_PKEY_encrypt_init(ectx) != 1)
         goto out;
 
-    size_t strLen;
-    if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
-        goto out;
-
     if (ciphertext->datalen == 0)
     {
+        size_t strLen;
+        if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
+        {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto out;
+        }
         ciphertext->datalen = strLen;
         ret = SGX_SUCCESS;
         goto out;
@@ -668,6 +670,7 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 
     if (plaintext->data != NULL)
     {
+        size_t strLen = ciphertext->datalen;
         if (EVP_PKEY_encrypt(ectx,
                              ciphertext->data,
                              &strLen,
@@ -701,6 +704,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
                               ehsm_data_t *plaintext)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    int retval = 0;
 
     // verify padding mode
     if (cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1 && cmk->metadata.padding_mode != EH_PAD_RSA_PKCS1_OAEP)
@@ -738,26 +742,22 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
 
     if (plaintext->datalen == 0)
     {
-        uint8_t temp_plaintext[RSA_size(rsa_prikey)] = {0};
-        plaintext->datalen = RSA_private_decrypt(ciphertext->datalen,
-                                                 ciphertext->data,
-                                                 temp_plaintext,
-                                                 rsa_prikey,
-                                                 cmk->metadata.padding_mode);
+        plaintext->datalen = RSA_size(rsa_prikey);
         ret = SGX_SUCCESS;
         goto out;
     }
-
-    if (!RSA_private_decrypt(ciphertext->datalen,
-                             ciphertext->data,
-                             plaintext->data,
-                             rsa_prikey,
-                             cmk->metadata.padding_mode))
+    retval = RSA_private_decrypt(ciphertext->datalen,
+                                     ciphertext->data,
+                                     plaintext->data,
+                                     rsa_prikey,
+                                     cmk->metadata.padding_mode);
+    if (retval <= 0)
     {
         log_d("failed to make rsa decrypt\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
+    plaintext->datalen = retval;
 
 out:
     BIO_free(bio);

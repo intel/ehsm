@@ -37,7 +37,7 @@
 #include "error_codes.h"
 #include "sgx_ecp_types.h"
 #include "sgx_thread.h"
-#include "log_utils.h"
+#include "elog_utils.h"
 #include <map>
 
 #include "sgx_dh.h"
@@ -47,7 +47,7 @@
 
 #include "sgx_tcrypto.h"
 
-extern void printf(const char *fmt, ...);
+void log_printf(uint32_t log_level, const char *fmt, ...);
 
 #define MAX_SESSION_COUNT  16
 

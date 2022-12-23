@@ -51,7 +51,8 @@
 #include "sgx_ql_quote.h"
 #include "sgx_dcap_quoteverify.h"
 
-#include "log_utils.h"
+#include "auto_version.h"
+#include "ulog_utils.h"
 #include "json_utils.h"
 #include "ffi_operation.h"
 
@@ -60,9 +61,33 @@
 
 using namespace std;
 
-void ocall_print_string(const char *str)
+typedef enum {
+    LOG_INFO = 1,
+    LOG_DEBUG = 2,
+    LOG_WARN = 3,
+    LOG_ERROR = 4
+} log_type;
+
+void ocall_print_string(uint32_t log_level, const char *str)
 {
-    printf("%s", str);
+    switch (log_level) 
+    {
+        case LOG_INFO:
+            log_i(str);
+            break;
+        case LOG_DEBUG:
+            log_d(str);
+            break;
+        case LOG_ERROR:
+            log_e(str);
+            break;
+        case LOG_WARN:
+            log_w(str);
+            break;
+        default:
+            log_e("log system error in ocall print.\n");
+            break;
+    }
 }
 
 errno_t memcpy_s(
@@ -90,28 +115,28 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
     ret = enclave_la_create_session(eid, &sgxStatus);
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
     {
-        printf("failed to establish secure channel: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
+        log_e("failed to establish secure channel: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
         return EH_LA_SETUP_ERROR;
     }
-    printf("succeed to establish secure channel.\n");
+    log_i("succeed to establish secure channel.\n");
 
     // Test message exchange between initiator enclave and responder enclave running in another process
     ret = enclave_la_message_exchange(eid, &sgxStatus);
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
     {
-        printf("test_message_exchange Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
+        log_e("test_message_exchange Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
         return EH_LA_EXCHANGE_MSG_ERROR;
     }
-    printf("Succeed to exchange secure message...\n");
+    log_i("Succeed to exchange secure message...\n");
 
     // close ECDH session
     ret = enclave_la_close_session(eid, &sgxStatus);
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
     {
-        printf("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
+        log_e("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
         return EH_LA_CLOSE_ERROR;
     }
-    printf("Succeed to close Session...\n");
+    log_i("Succeed to close Session...\n");
 
     return EH_OK;
 }
@@ -193,7 +218,6 @@ static bool validate_params(const char *data, size_t max_size, bool required = t
  */
 uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
 {
-    log_d("reqJson = %s", reqJson);
     ehsm_status_t ret = EH_OK;
     RetJsonObj retJsonObj;
     uint32_t action = -1;
@@ -286,6 +310,13 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
 
 ehsm_status_t Initialize()
 {
+    if (initLogger("core.log") < 0)
+        return EH_FUNCTION_FAILED;
+
+    log_i("Service name:\t\teHSM-KMS service %s", EHSM_VERSION);
+    log_i("Service built:\t\t%s", EHSM_DATE);
+    log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
+
     ehsm_status_t rc = EH_OK;
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -297,7 +328,7 @@ ehsm_status_t Initialize()
                              &g_enclave_id, NULL);
     if (ret != SGX_SUCCESS)
     {
-        printf("failed(%d) to create enclave.\n", ret);
+        log_e("failed(%d) to create enclave.\n", ret);
         return EH_DEVICE_ERROR;
     }
 
@@ -305,10 +336,10 @@ ehsm_status_t Initialize()
     if (rc != EH_OK)
     {
 #if EHSM_DEFAULT_DOMAIN_KEY_FALLBACK
-        printf("failed(%d) to setup secure channel, but continue to use the default domainkey...\n", rc);
+        log_e("failed(%d) to setup secure channel, but continue to use the default domainkey...\n", rc);
         return EH_OK;
 #endif
-        printf("failed(%d) to setup secure channel\n", rc);
+        log_e("failed(%d) to setup secure channel\n", rc);
         sgx_destroy_enclave(g_enclave_id);
     }
 
@@ -320,7 +351,7 @@ ehsm_status_t Initialize()
         return EH_FUNCTION_FAILED;
     }
 
-    printf("self test pass\n");
+    log_i("self test pass\n");
 #endif
 
     return rc;
@@ -329,6 +360,7 @@ ehsm_status_t Initialize()
 ehsm_status_t Finalize()
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    logger_shutDown();
 
     sgxStatus = sgx_destroy_enclave(g_enclave_id);
 
@@ -792,7 +824,7 @@ ehsm_status_t GenerateQuote(ehsm_data_t *quote)
 ehsm_status_t VerifyQuote(ehsm_data_t *quote,
                           const char *mr_signer,
                           const char *mr_enclave,
-                          bool *result)
+                          int *result)
 {
     ehsm_status_t rc = EH_OK;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -932,9 +964,9 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
         // check verification collateral expiration status
         // this value should be considered in your own attestation/verification policy
         if (collateral_expiration_status == 0)
-            printf("\tInfo: App: Verification completed successfully.\n");
+            log_i("\tInfo: App: Verification completed successfully.\n");
         else
-            printf("\tWarning: App: Verification completed, but collateral is out of date based on 'expiration_check_date' you provided.\n");
+            log_w("\tWarning: App: Verification completed, but collateral is out of date based on 'expiration_check_date' you provided.\n");
 
         break;
     case SGX_QL_QV_RESULT_CONFIG_NEEDED:
@@ -942,22 +974,18 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
     case SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED:
     case SGX_QL_QV_RESULT_SW_HARDENING_NEEDED:
     case SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED:
-        printf("\tWarning: App: Verification completed with Non-terminal result: %x\n", quote_verification_result);
+        log_w("\tWarning: App: Verification completed with Non-terminal result: %x\n", quote_verification_result);
         break;
     case SGX_QL_QV_RESULT_INVALID_SIGNATURE:
     case SGX_QL_QV_RESULT_REVOKED:
     case SGX_QL_QV_RESULT_UNSPECIFIED:
     default:
-        printf("\tError: App: Verification completed with Terminal result: %x\n", quote_verification_result);
+        log_e("\tError: App: Verification completed with Terminal result: %x\n", quote_verification_result);
         break;
     }
 
 out:
-    if (quote_verification_result == SGX_QL_QV_RESULT_OK)
-        *result = true;
-    else
-        *result = false;
-
+    *result = quote_verification_result;
     SAFE_FREE(p_supplemental_data);
     return rc;
 }
@@ -980,7 +1008,7 @@ ehsm_status_t ra_get_msg1(sgx_ra_msg1_t *msg1)
 
     if (SGX_SUCCESS != ret || sgxStatus)
     {
-        printf("Error, call enclave_init_ra fail [%s].\n", __FUNCTION__);
+        log_e("Error, call enclave_init_ra fail [%s].\n", __FUNCTION__);
         return EH_FUNCTION_FAILED;
     }
 
@@ -989,7 +1017,7 @@ ehsm_status_t ra_get_msg1(sgx_ra_msg1_t *msg1)
     ret = sgx_ra_get_msg1_ex(&selected_key_id, g_context, g_enclave_id, sgx_ra_get_ga, msg1);
     if (SGX_SUCCESS != ret)
     {
-        printf("Error, call sgx_ra_get_msg1_ex failed(%#x)\n", ret);
+        log_e("Error, call sgx_ra_get_msg1_ex failed(%#x)\n", ret);
         return EH_FUNCTION_FAILED;
     }
     return EH_OK;
@@ -1029,12 +1057,12 @@ ehsm_status_t ra_get_msg3(sgx_ra_msg2_t *p_msg2, uint32_t msg2_size, sgx_ra_msg3
 
     if (!p_msg3)
     {
-        printf("Error, call sgx_ra_proc_msg2_ex failed(0x%#x) p_msg3 = 0x%p\n", ret, p_msg3);
+        log_e("Error, call sgx_ra_proc_msg2_ex failed(0x%#x) p_msg3 = 0x%p\n", ret, p_msg3);
         return EH_FUNCTION_FAILED;
     }
     if (SGX_SUCCESS != (sgx_status_t)ret)
     {
-        printf("Error, call sgx_ra_proc_msg2_ex failed(0x%#x)\n", ret);
+        log_e("Error, call sgx_ra_proc_msg2_ex failed(0x%#x)\n", ret);
         return EH_FUNCTION_FAILED;
     }
 
@@ -1063,7 +1091,7 @@ ehsm_status_t verify_att_result_msg(sample_ra_att_result_msg_t *p_att_result_msg
                                         sizeof(sgx_mac_t));
     if ((SGX_SUCCESS != ret) || (SGX_SUCCESS != sgxStatus))
     {
-        printf("Error: Attestation result MSG's MK based cmac check failed\n");
+        log_e("Error: Attestation result MSG's MK based cmac check failed\n");
         return EH_FUNCTION_FAILED;
     }
     return EH_OK;

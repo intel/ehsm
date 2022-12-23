@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include "log_utils.h"
+#include "elog_utils.h"
 #include "sgx_tseal.h"
 
 #include <string>

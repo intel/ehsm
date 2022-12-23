@@ -3,7 +3,7 @@
 #include "sgx_urts.h"
 
 #include "auto_version.h"
-#include "log_utils.h"
+#include "ulog_utils.h"
 #include "enclave_u.h"
 #include <iostream>
 #include <fstream>
@@ -17,18 +17,41 @@
 #include <getopt.h>
 
 #define ENCLAVE_PATH "libenclave-ehsm-dkeyserver.signed.so"
-#define FILE_NAME "/etc/dkey.bin"
 #define ROLE_WORKER "worker"
 #define ROLE_ROOT "root"
 char s_port[] = "8888";
+#define FILE_NAME (std::string(RUNTIME_FOLDER) + "dkey.bin").c_str()
 
 sgx_enclave_id_t g_enclave_id;
 
 using namespace std;
+typedef enum {
+    LOG_INFO = 1,
+    LOG_DEBUG = 2,
+    LOG_WARN = 3,
+    LOG_ERROR = 4
+} log_type;
 
-void ocall_print_string(const char *str)
+void ocall_print_string(uint32_t log_level, const char *str)
 {
-    printf("%s", str);
+    switch (log_level) 
+    {
+        case LOG_INFO:
+            log_i(str);
+            break;
+        case LOG_DEBUG:
+            log_d(str);
+            break;
+        case LOG_ERROR:
+            log_e(str);
+            break;
+        case LOG_WARN:
+            log_w(str);
+            break;
+        default:
+            log_e("log system error in ocall print.\n");
+            break;
+    }
 }
 
 int ocall_close(int fd)
@@ -61,7 +84,7 @@ int ocall_read_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
 {
     if (!file_exists(FILE_NAME))
     {
-        printf("ocall_read_domain_key file does not exist.\n");
+        log_e("ocall_read_domain_key file does not exist.\n");
         return -2;
     }
 
@@ -69,7 +92,7 @@ int ocall_read_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
     file.open(FILE_NAME, ios::in | ios::binary);
     if (!file)
     {
-        printf("Failed to open file...\n");
+        log_e("Failed to open file...\n");
         return -1;
     }
 
@@ -78,7 +101,7 @@ int ocall_read_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
     file.seekg(0);
     if (size != cipher_dk_len)
     {
-        printf("mismatched length: %ld:%d.\n", size, cipher_dk_len);
+        log_e("mismatched length: %ld:%d.\n", size, cipher_dk_len);
         return -1;
     }
 
@@ -89,7 +112,7 @@ int ocall_read_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
     }
     else
     {
-        printf("Failed to read data from file...\n");
+        log_e("Failed to read data from file...\n");
         return -1;
     }
 
@@ -107,7 +130,7 @@ int ocall_store_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
     file.open(FILE_NAME, ios::out | ios::binary | ios::trunc);
     if (!file)
     {
-        printf("Failed to create file...\n");
+        log_e("Failed to create file...\n");
         return -1;
     }
 
@@ -167,7 +190,7 @@ int ocall_connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen
         if (ret >= 0)
             return ret;
 
-        log_i("Failed to connect target server, sleep 0.5s and try again...\n");
+        log_e("Failed to connect target server, sleep 0.5s and try again...\n");
         usleep(500000); // 0.5s
     } while (retry_count-- > 0);
 
@@ -177,14 +200,14 @@ int ocall_connect(int sockfd, const struct sockaddr *servaddr, socklen_t addrlen
 
 void print_usage(int code)
 {
-    printf ("Usage: ehsm-dkeyserver "\
-            BLUE "-r" NONE " [ server role ] "\
-            BLUE "-i" NONE " [ target server ip ] "\
-            BLUE "-p" NONE " [target server port]\n");
-    printf (BLUE "-h" NONE"    Print usage information and quit.\n"
-            BLUE "-r" NONE"    Set the role of this machine as root or worker in server cluster.\n"
-            BLUE "-i" NONE"    Set the ip address of target server.\n"
-            BLUE "-p" NONE"    Set the port of target server.\n");
+    log_i ("Usage: ehsm-dkeyserver "\
+            "-r [ server role ] "\
+            "-i [ target server ip ] "\
+            "-p [target server port]\n");
+    log_i ("-h    Print usage information and quit.\n"
+            "-r    Set the role of this machine as root or worker in server cluster.\n"
+            "-i    Set the ip address of target server.\n"
+            "-p    Set the port of target server.\n");
     exit(code);
 }
 
@@ -263,6 +286,8 @@ int validate_parameter(string server_role,
 
 int main(int argc, char *argv[]) 
 {
+    if (initLogger("dkeyserver.log") < 0)
+        return -1;
     log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
@@ -280,13 +305,30 @@ int main(int argc, char *argv[])
     int ret = validate_parameter(server_role, target_ip_addr, target_port);
     if (ret != 0)
     {
-        printf ("Usage: ehsm-dkeyserver "\
-                BLUE "-r" NONE " [server role] "\
-                BLUE "-i" NONE " [target server ip] "\
-                BLUE "-p" NONE " [target server port]\n");
+        log_i ("Usage: ehsm-dkeyserver "\
+                "-r [server role] "\
+                "-i [target server ip] "\
+                "-p [target server port]\n");
         return -1;
     }
-    
+
+    if (access(RUNTIME_FOLDER, F_OK) != 0) {
+        log_i("Initializing runtime folder [path: %s].", RUNTIME_FOLDER);
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
+            log_e("Create runtime folder failed!");
+            return -1;
+        }
+    }
+    log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
+    if (target_ip_addr[0] == '\0')
+    {
+        log_i("Target Server:\tNULL");
+    }
+    else
+    {
+        log_i("Target Server:\t%s:%d", target_ip_addr.c_str(),target_port);
+    }
+
     ret = sgx_create_enclave(ENCLAVE_PATH,
                              SGX_DEBUG_FLAG,
                              NULL, NULL,
@@ -308,6 +350,8 @@ int main(int argc, char *argv[])
         log_d("Host: setup_tls_server failed\n");
     }
 
+    logger_shutDown();
+    
     sgx_destroy_enclave(g_enclave_id);
 
     return 0;

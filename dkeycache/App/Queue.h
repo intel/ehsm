@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <queue>
 #include <pthread.h>
+#include "ulog_utils.h"
 
 template <typename T>
 class Queue  {
@@ -69,14 +70,14 @@ Queue<T>::Queue() :
     rc = pthread_mutex_init(&m_queueMutex, NULL);
     if (rc != 0)
     {
-	printf("failed to call pthread_mutex_init");
+	log_e("failed to call pthread_mutex_init");
         exit(-1); 
     }
 
     rc = pthread_cond_init(&m_queueCond, NULL);
     if (rc != 0)
     {
-	printf("failed to call pthread_cond_init.\n");
+	log_e("failed to call pthread_cond_init.\n");
         exit(-1);
     }
     m_events = 0;
@@ -89,11 +90,11 @@ Queue<T>::~Queue()
 
     rc = pthread_mutex_destroy(&m_queueMutex);
     if (rc != 0)
-        printf("Failed to destroy mutex");
+        log_e("Failed to destroy mutex");
 
     rc = pthread_cond_destroy(&m_queueCond);
     if (rc != 0)
-        printf("Failed to destory a condition variable");
+        log_e("Failed to destory a condition variable");
 }
 
 template<typename T>
@@ -104,7 +105,7 @@ void Queue<T>::push(T* value)
     rc = pthread_mutex_lock(&m_queueMutex);
     if (rc != 0)
     {
-        printf("Failed to acquire mutex");
+        log_e("Failed to acquire mutex");
         exit(-1);
     }
     m_queue.push(value);
@@ -112,14 +113,14 @@ void Queue<T>::push(T* value)
     rc = pthread_cond_signal(&m_queueCond);
     if (rc != 0)
     {
-        printf("Failed to signal condition");
+        log_e("Failed to signal condition");
         exit(-1);
     }
 
     rc = pthread_mutex_unlock(&m_queueMutex);
     if (rc != 0)
     {
-        printf("Failed to unlock mutex");
+        log_e("Failed to unlock mutex");
         exit(-1);
     }
 }
@@ -134,7 +135,7 @@ T* Queue<T>::blockingPop()
     rc = pthread_mutex_lock(&m_queueMutex);
     if (rc != 0)
     {
-        printf("Failed to acquire mutex");
+        log_e("Failed to acquire mutex");
         exit(-1);
     }
 
@@ -161,7 +162,7 @@ T* Queue<T>::blockingPop()
 
             if (rc != 0)
             {
-                printf("Failed wait on a condition");
+                log_e("Failed wait on a condition");
                 exit(-1);
             }
         }
@@ -170,7 +171,7 @@ T* Queue<T>::blockingPop()
     rc = pthread_mutex_unlock(&m_queueMutex);
     if (rc != 0)
     {
-        printf("Failed to unlock mutex");
+        log_e("Failed to unlock mutex");
         exit(-1);
     }
 
@@ -184,7 +185,7 @@ void Queue<T>::close()
     rc = pthread_mutex_lock(&m_queueMutex);
     if (rc != 0)
     {
-        printf("Failed to acquire mutex");
+        log_e("Failed to acquire mutex");
         exit(-1);
     }
 
@@ -193,14 +194,14 @@ void Queue<T>::close()
     rc = pthread_cond_signal(&m_queueCond);
     if (rc != 0)
     {
-        printf("Failed to signal a condition");
+        log_e("Failed to signal a condition");
         exit(-1);
     }
 
     rc = pthread_mutex_unlock(&m_queueMutex);
     if (rc != 0)
     {
-        printf("Failed to unlock mutex");
+        log_e("Failed to unlock mutex");
         exit(-1);
     }
 }

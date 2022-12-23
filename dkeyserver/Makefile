@@ -43,13 +43,15 @@ OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 ######## App Settings ########
 
 App_Cpp_Files := $(wildcard App/*.cpp)
+App_Cpp_Files += $(wildcard $(LOG_DIR)/*.cpp)
 
 App_Include_Paths := \
 	-IApp \
+	-I$(LOG_DIR) \
 	-I$(TOPDIR)/include \
 	-I$(SGX_SDK)/include \
 
-App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DRUNTIME_FOLDER=\"$(RUNTIME_FOLDER)\"
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
@@ -68,6 +70,7 @@ App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
 	-lpthread \
 	-lsgx_dcap_quoteverify \
 	-ldl \
+	-llog4cplus \
 	-lsgx_utls -lsgx_dcap_ql -lsgx_dcap_quoteverify -lcrypto\
 	-lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) \
 	-L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name)
@@ -86,7 +89,7 @@ Enclave_Include_Paths := \
 	-I$(SGX_SDK)/include/libcxx \
 	-I$(TOPDIR)/include \
 	-I$(OPENSSL_PATH)/include \
-	-I$(SOCKET_DIR) \
+	-I$(LOG_DIR) \
 	-I$(SOCKET_DIR)/tls
 
 Enclave_C_Flags := \
@@ -157,17 +160,21 @@ App/auto_version.h:
 	@echo "  ==>  touch App/auto_version.h"
 
 App/enclave_u.h: $(SGX_EDGER8R) Enclave/enclave.edl
-	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include --search-path $(SOCKET_DIR)
+	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include --search-path $(SOCKET_DIR) --search-path $(LOG_DIR)
 	@echo "GEN  =>  $@"
 
 App/enclave_u.c: App/enclave_u.h
 
 App/enclave_u.o: App/enclave_u.c
-	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
-	@echo "CC   <=  $<"
+	@$(CXX) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
+	@echo "CXX   <=  $<"
 
 App/%.o: App/%.cpp App/auto_version.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+$(LOG_DIR)/%.o: $(LOG_DIR)/%.cpp
+	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 $(App_Name): App/enclave_u.o $(App_Cpp_Objects) App/auto_version.h
@@ -182,8 +189,8 @@ Enclave/enclave_t.h: $(SGX_EDGER8R) Enclave/enclave.edl
 Enclave/enclave_t.c: Enclave/enclave_t.h
 
 Enclave/enclave_t.o: Enclave/enclave_t.c
-	@$(CC) $(SGX_COMMON_CFLAGS) $(Enclave_C_Flags) -c $< -o $@
-	@echo "CC   <=  $<"
+	@$(CXX) $(SGX_COMMON_CFLAGS) $(Enclave_C_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
 
 Enclave/%.o: Enclave/%.cpp Enclave/enclave_t.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Enclave_Cpp_Flags) -c $< -o $@

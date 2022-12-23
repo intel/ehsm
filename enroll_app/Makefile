@@ -37,9 +37,11 @@ OUT = $(TOPDIR)/$(OUTDIR)/$(App_Name)
 
 ######## App Settings ########
 App_Cpp_Files := $(wildcard ./*.cpp)
+App_Cpp_Files += $(wildcard $(LOG_DIR)/*.cpp)
 App_Include_Paths := \
 	-I$(SGX_SDK)/include \
 	-I$(TOPDIR)/include \
+	-I$(LOG_DIR) \
 	-Isample_libcrypto
 
 App_Cpp_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -std=c++14
@@ -50,10 +52,10 @@ App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
 		-ldl \
 		-ljsoncpp \
 		-lcurl \
+		-llog4cplus \
 		-lsample_libcrypto -Lsample_libcrypto -Wl,-rpath=$(CURDIR)/sample_libcrypto
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
-
 
 ######## Build Settings ########
 .PHONY: all target clean
@@ -72,7 +74,11 @@ clean:
 %.o: %.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
-	
+
+$(LOG_DIR)/%.o: $(LOG_DIR)/%.cpp
+	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
 $(App_Name): $(App_Cpp_Objects)
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo :"Link =>  $@"

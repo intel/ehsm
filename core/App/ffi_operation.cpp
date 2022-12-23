@@ -38,6 +38,7 @@
 #include "ffi_operation.h"
 #include "ehsm_marshal.h"
 #include "ehsm_provider.h"
+#include "ulog_utils.h"
 
 using namespace std;
 
@@ -161,10 +162,6 @@ extern "C"
     */
     uint32_t ffi_initialize(char *respJson)
     {
-        log_i("Service name:\t\teHSM-KMS service %s", EHSM_VERSION);
-        log_i("Service built:\t\t%s", EHSM_DATE);
-        log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
-
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
 
@@ -1612,7 +1609,7 @@ extern "C"
         }
 
         ehsm_status_t ret = EH_OK;
-        bool result = false;
+        int result = SGX_QL_QV_RESULT_UNSPECIFIED;
         ehsm_data_t *quote;
 
         string quote_str = base64_decode(quote_base64);
@@ -1642,7 +1639,7 @@ extern "C"
         }
         log_d("VerifyQuote successfuly\n");
 
-        retJsonObj.addData_bool("result", result);
+        retJsonObj.addData_uint32("result", result);
         retJsonObj.addData_string("nonce", nonce_base64);
 
     out:

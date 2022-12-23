@@ -4,4 +4,4 @@ echo 'PCCS_URL='${PCCS_URL}'/sgx/certification/v3/' >> /etc/sgx_default_qcnl.con
 echo '# To accept insecure HTTPS certificate, set this option to FALSE' >> /etc/sgx_default_qcnl.conf
 echo 'USE_SECURE_CERT=FALSE' >> /etc/sgx_default_qcnl.conf
 
-sh -c /home/ehsm/out/ehsm-dkeyserver/ehsm-dkeyserver
+sh -c "/home/ehsm/out/ehsm-dkeyserver/ehsm-dkeyserver -r ${DKEYSERVER_ROLE}"

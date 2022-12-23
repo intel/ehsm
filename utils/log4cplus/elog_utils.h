@@ -29,36 +29,39 @@
  *
  */
 
-#ifndef _LA_SERVER_H_
-#define _LA_SERVER_H_
+#ifndef _ELOG_UTILS_H
+#define _ELOG_UTILS_H
 
-#include "la_task.h"
-#include <string>
+#include <stdio.h>
+#include <stdarg.h>
 
-#define UNIX_DOMAIN (std::string(RUNTIME_FOLDER) + "dkeyprovision.sock").c_str()
+#define IS_DEBUG false
 
-class LaServer
-{
-	public:
-		LaServer(LaTask* task) : m_cptask(task)
-					, m_server_sock_fd(-1)
-					, m_shutdown(0)
-                {}
-		~LaServer(){};
+#define BLUE  "\033[0;32;34m"
+#define NONE  "\033[m"
 
-	public:
-		int init();
-		void doWork();
-		void shutDown();
+typedef enum {
+    LOG_INFO = 1,
+    LOG_DEBUG = 2,
+    LOG_WARN = 3,
+    LOG_ERROR = 4
+} log_type;
 
-	private:
-		LaTask *m_cptask; // this is task queue which process received request message
-		int m_server_sock_fd;
-		int m_shutdown;
+/*
+    print info
+*/
+#define log_i(...)  log_printf(LOG_INFO, ##__VA_ARGS__)
+/*
+    print debug
+*/
+#define log_d(...)  log_printf(LOG_DEBUG, ##__VA_ARGS__)
+/*
+    print warn
+*/
+#define log_w(...)  log_printf(LOG_WARN, ##__VA_ARGS__)
+/*
+    print error
+*/
+#define log_e(...)  log_printf(LOG_ERROR, ##__VA_ARGS__)
 
-	private:
-		LaServer(const LaServer&);
-		LaServer& operator=(const LaServer&);
-};
 #endif
-

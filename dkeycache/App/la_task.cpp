@@ -49,7 +49,7 @@
 
 #include "la_task.h"
 #include "la_server.h"
-#include "log_utils.h"
+#include "ulog_utils.h"
 
 extern sgx_enclave_id_t g_enclave_id;
 

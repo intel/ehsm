@@ -32,7 +32,7 @@
 #include "enclave_t.h"
 #include "sgx_tseal.h"
 #include "sgx_trts.h"
-#include "log_utils.h"
+#include "elog_utils.h"
 
 #include <string>
 #include <stdio.h>
@@ -62,14 +62,14 @@ typedef struct SocketMsgHandlerParam
     uint8_t *domainkey;
 } SocketMsgHandlerParam;
 
-void printf(const char *fmt, ...)
+void log_printf(uint32_t log_level, const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    ocall_print_string(buf);
+    ocall_print_string(log_level, buf);
 }
 
 void t_time(time_t *current_t)
@@ -645,13 +645,13 @@ sgx_status_t sgx_get_domainkey(uint8_t *domain_key,
 
     log_i("start get domain key from target server. \n");
     ret = get_domainkey_from_target(domain_key, target_server_name, target_server_port);
-    if (strncmp(server_role, ROLE_WORKER, strlen(ROLE_ROOT)) == 0 && ret != SGX_SUCCESS)
+    if (strncmp(server_role, ROLE_WORKER, strlen(server_role)) == 0 && ret != SGX_SUCCESS)
     {
         log_i("worker get domain key from target failed. \n");
         return ret;
     }
 
-    if (strncmp(server_role, ROLE_ROOT, strlen(ROLE_ROOT)) == 0 && ret != SGX_SUCCESS)
+    if (strncmp(server_role, ROLE_ROOT, strlen(server_role)) == 0 && ret != SGX_SUCCESS)
     {
         log_i("start get domain key from disk\n");
         ret = get_domainkey_from_local(domain_key);

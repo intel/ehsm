@@ -37,15 +37,21 @@ using namespace std;
 #include <string>
 #include <getopt.h>
 
-#include "log_utils.h"
+#include "ulog_utils.h"
 #include "rest_utils.h"
 #include "enroll_msg.h"
 
 int main(int argc, char *argv[])
 {
-    log_i("ehsm-kms enroll app start.");
     enroll_status_t ret = ENL_OK;
     RetJsonObj retJsonObj;
+
+    if (initLogger(NULL) < 0)
+    {
+        ret = ENL_CONFIG_INVALID;
+        return ret;
+    }
+    log_i("ehsm-kms enroll app start.");
 
     std::string msg0_str;
     std::string msg2_str;
@@ -73,8 +79,8 @@ int main(int argc, char *argv[])
                 break;
             default:
 		if (ehsm_kms_url.empty()) {
-                    printf("\nusage: ehsm-kms_enroll_app -a https://1.2.3.4:9000/ehsm/ [-n]");
-                    printf("\n -n Optional only for informal certificates.\n\n");
+                    log_i("\nusage: ehsm-kms_enroll_app -a https://1.2.3.4:9000/ehsm/ [-n]");
+                    log_i("\n -n Optional only for informal certificates.\n\n");
                     ret = ENL_CONFIG_INVALID;
                     goto OUT;
                 }
@@ -149,14 +155,15 @@ int main(int argc, char *argv[])
         goto OUT;
     }
 
-    printf("\nappid: %s\n", retJsonObj.readData_cstr("appid"));
-    printf("\napikey: %s\n\n", apikey);
+    log_i("\nappid: %s\n", retJsonObj.readData_cstr("appid"));
+    log_i("\napikey: %s\n\n", apikey);
 
     log_i("decrypt APP ID and API Key success.");
     log_i("Third handle success.");
 
 OUT:
     log_i("ehsm-kms enroll app end.");
+    logger_shutDown();
     if (apikey)
         explicit_bzero(apikey, EH_API_KEY_SIZE+1);
     return ret;

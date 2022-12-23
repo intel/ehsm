@@ -48,7 +48,7 @@ enclave {
     include "dh_session_protocol.h"
 
     untrusted {
-        void ocall_print_string([in, string] const char *str);
+        void ocall_print_string(uint32_t log_level, [in, string] const char *str);
 
         uint32_t ocall_session_request([out] sgx_dh_msg1_t *dh_msg1,
                 [out] uint32_t *session_id);
