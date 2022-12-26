@@ -212,6 +212,12 @@ typedef struct {
     uint8_t             keyblob[0];
 } ehsm_keyblob_t;
 
+typedef enum {
+    LOG_DEBUG = 10000,
+    LOG_INFO = 20000,
+    LOG_WARN = 30000,
+    LOG_ERROR = 40000
+} log_type;
 
 //Format of the AES-GCM message being exchanged between the source and the destination enclaves
 typedef struct _secure_message_t

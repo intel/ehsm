@@ -37,14 +37,14 @@
 
 using namespace std;
 
-void log_printf(uint32_t log_level, const char *fmt, ...)
+void log_printf(uint32_t log_level, const char *filename, uint32_t line, const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    ocall_print_string(log_level, buf);
+    ocall_print_string(log_level, buf, filename, line);
 }
 
 /**
@@ -747,10 +747,10 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
         goto out;
     }
     retval = RSA_private_decrypt(ciphertext->datalen,
-                                     ciphertext->data,
-                                     plaintext->data,
-                                     rsa_prikey,
-                                     cmk->metadata.padding_mode);
+                                 ciphertext->data,
+                                 plaintext->data,
+                                 rsa_prikey,
+                                 cmk->metadata.padding_mode);
     if (retval <= 0)
     {
         log_d("failed to make rsa decrypt\n");

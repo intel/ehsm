@@ -42,38 +42,44 @@ using namespace log4cplus::helpers;
 
 extern Logger logger;
 extern void do_logger(LogLevel logLevel,
-                    const char *filename,
-                    int line,
-                    int bufSize,
-                    const char* pFormat, ...);
+                      const char *filename,
+                      int line,
+                      int bufSize,
+                      const char *pFormat, ...);
 
-#define log_d(pFormat,  ...) do_logger(log4cplus::DEBUG_LOG_LEVEL, \
-                                        __FILE__,    \
-                                        __LINE__,    \
-                                        MAX_LOG_BUF, \
-                                        pFormat,     \
-                                        ##__VA_ARGS__)
-#define log_i(pFormat,  ...) do_logger(log4cplus::INFO_LOG_LEVEL,  \
-                                        __FILE__,    \
-                                        __LINE__,    \
-                                        MAX_LOG_BUF, \
-                                        pFormat,     \
-                                        ##__VA_ARGS__)
-#define log_e(pFormat,  ...) do_logger(log4cplus::ERROR_LOG_LEVEL, \
-                                        __FILE__,    \
-                                        __LINE__,    \
-                                        MAX_LOG_BUF, \
-                                        pFormat,     \
-                                        ##__VA_ARGS__)
-#define log_w(pFormat,  ...) do_logger(log4cplus::WARN_LOG_LEVEL,  \
-                                        __FILE__,    \
-                                        __LINE__,    \
-                                        MAX_LOG_BUF, \
-                                        pFormat,     \
-                                        ##__VA_ARGS__)
+#define log_d(pFormat, ...) do_logger(log4cplus::DEBUG_LOG_LEVEL, \
+                                      __FILE__,                   \
+                                      __LINE__,                   \
+                                      MAX_LOG_BUF,                \
+                                      pFormat,                    \
+                                      ##__VA_ARGS__)
+#define log_i(pFormat, ...) do_logger(log4cplus::INFO_LOG_LEVEL, \
+                                      __FILE__,                  \
+                                      __LINE__,                  \
+                                      MAX_LOG_BUF,               \
+                                      pFormat,                   \
+                                      ##__VA_ARGS__)
+#define log_e(pFormat, ...) do_logger(log4cplus::ERROR_LOG_LEVEL, \
+                                      __FILE__,                   \
+                                      __LINE__,                   \
+                                      MAX_LOG_BUF,                \
+                                      pFormat,                    \
+                                      ##__VA_ARGS__)
+#define log_w(pFormat, ...) do_logger(log4cplus::WARN_LOG_LEVEL, \
+                                      __FILE__,                  \
+                                      __LINE__,                  \
+                                      MAX_LOG_BUF,               \
+                                      pFormat,                   \
+                                      ##__VA_ARGS__)
+#define log_c(log_level, pFormat, filename, line, ...) do_logger(log_level,   \
+                                                                 filename,    \
+                                                                 line,        \
+                                                                 MAX_LOG_BUF, \
+                                                                 pFormat,     \
+                                                                 ##__VA_ARGS__)
 
-int initLogger(const char* logs_filename);
- 
+int initLogger(const char *logs_filename);
+
 void logger_shutDown();
 
 #endif

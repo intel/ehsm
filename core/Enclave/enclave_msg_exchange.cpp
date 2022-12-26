@@ -47,7 +47,7 @@
 #include "marshal.h"
 #include "enclave_msg_exchange.h"
 
-extern void log_printf(uint32_t log_level, const char *fmt, ...);
+extern void log_printf(uint32_t log_level, const char* filename, uint32_t line, const char *fmt, ...);
 
 extern sgx_aes_gcm_256bit_key_t g_domain_key;
 

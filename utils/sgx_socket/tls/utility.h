@@ -49,7 +49,7 @@ const unsigned char certificate_subject_name[] =
 
 void t_time(time_t *c_time);
 
-void log_printf(uint32_t log_level, const char *fmt, ...);
+void log_printf(uint32_t log_level, const char* filename, uint32_t line, const char *fmt, ...);
 
 sgx_status_t generate_key_pair(
     int type,
