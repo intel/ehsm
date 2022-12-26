@@ -46,7 +46,7 @@ enclave {
     include "poll.h"
 
     untrusted {
-        void ocall_print_string(uint32_t log_level, [in, string] const char *str);
+        void ocall_print_string(uint32_t log_level, [in, string] const char *str, [in, string] const char *filename, uint32_t line);
         int ocall_close(int fd);
         void ocall_get_current_time([out] uint64_t *p_current_time);
         int ocall_set_dkeyserver_done();

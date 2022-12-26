@@ -34,34 +34,28 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include "datatypes.h"
 
 #define IS_DEBUG false
 
-#define BLUE  "\033[0;32;34m"
-#define NONE  "\033[m"
-
-typedef enum {
-    LOG_INFO = 1,
-    LOG_DEBUG = 2,
-    LOG_WARN = 3,
-    LOG_ERROR = 4
-} log_type;
+#define BLUE "\033[0;32;34m"
+#define NONE "\033[m"
 
 /*
     print info
 */
-#define log_i(...)  log_printf(LOG_INFO, ##__VA_ARGS__)
+#define log_i(...) log_printf(LOG_INFO, __FILE__, __LINE__, ##__VA_ARGS__)
 /*
     print debug
 */
-#define log_d(...)  log_printf(LOG_DEBUG, ##__VA_ARGS__)
+#define log_d(...) log_printf(LOG_DEBUG, __FILE__, __LINE__, ##__VA_ARGS__)
 /*
     print warn
 */
-#define log_w(...)  log_printf(LOG_WARN, ##__VA_ARGS__)
+#define log_w(...) log_printf(LOG_WARN, __FILE__, __LINE__, ##__VA_ARGS__)
 /*
     print error
 */
-#define log_e(...)  log_printf(LOG_ERROR, ##__VA_ARGS__)
+#define log_e(...) log_printf(LOG_ERROR, __FILE__, __LINE__, ##__VA_ARGS__)
 
 #endif

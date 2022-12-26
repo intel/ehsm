@@ -47,7 +47,7 @@
 
 #include "sgx_tcrypto.h"
 
-void log_printf(uint32_t log_level, const char *fmt, ...);
+void log_printf(uint32_t log_level, const char* filename, uint32_t line, const char *fmt, ...);
 
 #define MAX_SESSION_COUNT  16
 

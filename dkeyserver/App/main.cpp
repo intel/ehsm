@@ -5,6 +5,7 @@
 #include "auto_version.h"
 #include "ulog_utils.h"
 #include "enclave_u.h"
+#include "datatypes.h"
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
@@ -25,31 +26,19 @@ char s_port[] = "8888";
 sgx_enclave_id_t g_enclave_id;
 
 using namespace std;
-typedef enum {
-    LOG_INFO = 1,
-    LOG_DEBUG = 2,
-    LOG_WARN = 3,
-    LOG_ERROR = 4
-} log_type;
 
-void ocall_print_string(uint32_t log_level, const char *str)
+void ocall_print_string(uint32_t log_level, const char *str, const char *filename, uint32_t line)
 {
     switch (log_level) 
     {
         case LOG_INFO:
-            log_i(str);
-            break;
         case LOG_DEBUG:
-            log_d(str);
-            break;
         case LOG_ERROR:
-            log_e(str);
-            break;
         case LOG_WARN:
-            log_w(str);
+            log_c(log_level, str, filename, line);
             break;
         default:
-            log_e("log system error in ocall print.\n");
+            log_c(LOG_ERROR, "log system error in ocall print.\n", filename, line);
             break;
     }
 }
