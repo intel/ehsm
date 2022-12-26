@@ -297,11 +297,21 @@ int validate_parameter(string server_role,
 
 int main(int argc, char *argv[])
 {
+    if (access(RUNTIME_FOLDER, F_OK) != 0)
+    {
+        printf("Initializing runtime folder [path: %s].\n", RUNTIME_FOLDER);
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0)
+        {
+            printf("Create runtime folder failed!\n");
+            return -1;
+        }
+    }
     if (initLogger("dkeyserver.log") < 0)
         return -1;
     log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
+    log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
     string server_role;
     string target_ip_addr;
     uint16_t target_port = 0;
@@ -324,16 +334,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (access(RUNTIME_FOLDER, F_OK) != 0)
-    {
-        log_i("Initializing runtime folder [path: %s].", RUNTIME_FOLDER);
-        if (mkdir(RUNTIME_FOLDER, 0755) != 0)
-        {
-            log_e("Create runtime folder failed!");
-            return -1;
-        }
-    }
-    log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
     if (target_ip_addr[0] == '\0')
     {
         log_i("Target Server:\tNULL");

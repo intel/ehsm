@@ -166,6 +166,14 @@ static void parse_args(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    // mkdir RUNTIME_FOLDER
+    if (access(RUNTIME_FOLDER, F_OK) != 0) {
+        printf("Initializing runtime folder [path: %s].\n", RUNTIME_FOLDER);
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
+            printf("Create runtime folder failed!\n");
+            return -1;
+        }
+    }
     if (initLogger("dkeycache.log") < 0)
         return -1;
     log_i("Service name:\t\tDomainKey Caching Service %s", EHSM_VERSION);
@@ -174,15 +182,6 @@ int main(int argc, char *argv[])
 
     // process argv
     parse_args(argc, argv);
-
-    // mkdir RUNTIME_FOLDER
-    if (access(RUNTIME_FOLDER, F_OK) != 0) {
-        log_i("Initializing runtime folder [path: %s].", RUNTIME_FOLDER);
-        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
-            log_e("Create runtime folder failed!");
-            return -1;
-        }
-    }
 
     log_i("Runtime folder:\t\t%s", RUNTIME_FOLDER);
     log_i("DomainKey Server IP:\t\t%s", deploy_ip_addr.c_str());
