@@ -183,6 +183,11 @@ spec:
           name: dev-aesmd
         - mountPath: /var/run/ehsm
           name: dev-dkeyprovision
+        livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "pgrep ehsm-dkeycache && echo 0"]
+            initialDelaySeconds: 60
+            periodSeconds: 10
         env:
         - name: PCCS_URL 
           valueFrom:
@@ -262,6 +267,20 @@ spec:
           name: dev-aesmd
         - mountPath: /var/run/ehsm
           name: dev-dkeyprovision
+        readinessProbe:
+          httpGet:
+            path: /
+            port: ehsm-kms-port
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: ehsm-kms-port
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
         env:
         - name: PCCS_URL 
           valueFrom:
