@@ -1,24 +1,34 @@
 const log4js = require('log4js')
 
+// %h: host, %z: pid, %d: date, %p: level, %f: file, %l: line, %m: log data
+var log_pattern = '%h %z %d %p [%f{1}: line %l] - %m'
+
 log4js.configure({
   replaceConsole: true,
   appenders: {
-    cheese: {
-      type: 'dateFile',
-      filename: `./logs/${new Date().getTime()}/info.log`,
+    stdout: {
+      type: 'console',
       encoding: 'utf-8',
       layout: {
         type: 'pattern',
-        pattern:
-          '{"date":"%d","level":"%p","category":"%c","host":"%h","pid":"%z","data":\'%m\'}',
+        pattern: log_pattern
+      }
+    },
+    cheese: {
+      type: 'dateFile',
+      filename: `/var/run/ehsm/logs/kms-service`,
+      encoding: 'utf-8',
+      layout: {
+        type: 'pattern',
+        pattern: log_pattern
       },
-      pattern: '-yyyy-MM-dd',
+      pattern: 'yyyy-MM-dd.log',
       keepFileExt: true,
-      alwaysIncludePattern: true,
+      alwaysIncludePattern: true
     },
   },
   categories: {
-    default: { appenders: ['cheese'], level: 'debug' },
+    default: { appenders: ['stdout', 'cheese'], level: 'info', enableCallStack: true },
   },
 })
 
