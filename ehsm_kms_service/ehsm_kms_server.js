@@ -1,5 +1,6 @@
 const express = require('express')
-const { ehsm_action_t } = require('./constant')
+const { load_kms_config, kms_config, ehsm_action_t } = require('./constant')
+const logger = require('./logger')
 const https = require('https')
 const fs = require('fs')
 const openssl = require('openssl-nodejs')
@@ -10,6 +11,7 @@ const {
     _nonce_cache_timer,
     _cmk_cache_timer,
     base64_decode,
+    base64_encode,
     _result
 } = require('./function')
 const connectDB = require('./couchdb')
@@ -36,15 +38,17 @@ app.use(express.json({
         }
     }
 }))
-const HTTPS_PORT = process.argv.slice(2)[0] || 9000
+
+// To start KMS server, need to load the kms config first.
+load_kms_config()
 
 const server = (DB) => {
     /**
      *  init ehsm-core
      */
-    let ret_json = ehsm_napi(JSON.stringify({ action: ehsm_action_t.EH_INITIALIZE, payload: {} }))
+    let ret_json = ehsm_napi(JSON.stringify({ action: ehsm_action_t.EH_INITIALIZE, payload: { "run_mode": base64_encode(kms_config.service.run_mode) } }))
     if (ret_json.code != 200) {
-        console.log('service Initialize exception!')
+        logger.error(ret_json.message)
         process.exit(0)
     }
 
@@ -79,7 +83,7 @@ const server = (DB) => {
      * NAPI finalize when service exit
      */
     process.on('SIGINT', function () {
-        console.log('ehsm kms service exit')
+        logger.info('ehsm kms service exit')
         ehsm_napi(JSON.stringify({ action: ehsm_action_t.EH_FINALIZE, payload: {} }))
         clearInterval(nonce_cache_timer)
         clearInterval(cmk_cache_timer)
@@ -88,18 +92,14 @@ const server = (DB) => {
     })
 
     process.on('uncaughtException', function (err) {
-        console.log(err)
+        logger.error(err)
     });
 
     // process open ssl
     try {
-        const {
-            EHSM_CONFIG_OPENSSL_KEY, // The datas of privatekey's content which in base64 encoding.
-            EHSM_CONFIG_OPENSSL_CRT // The datas of certificate's content which in base64 encoding.
-        } = process.env
-        if (EHSM_CONFIG_OPENSSL_KEY != undefined && EHSM_CONFIG_OPENSSL_CRT.length > 0 && EHSM_CONFIG_OPENSSL_CRT != undefined && EHSM_CONFIG_OPENSSL_CRT.length > 0) {
+        if (kms_config.openssl.exist.key.length > 0 && kms_config.openssl.exist.crt.length > 0) {
             // load pem&crt from env
-            createHttpsServer(base64_decode(EHSM_CONFIG_OPENSSL_KEY), base64_decode(EHSM_CONFIG_OPENSSL_CRT))
+            createHttpsServer(base64_decode(kms_config.openssl.exist.key), base64_decode(kms_config.openssl.exist.crt))
         } else if (fs.existsSync('./openssl/privatekey.pem') && fs.existsSync('./openssl/certificate.crt')) {
             // load pem&crt from file
             createHttpsServer()
@@ -115,7 +115,7 @@ const server = (DB) => {
                 })
         }
     } catch (e) {
-        console.log('Exception :: service Initialize exception!', e)
+        logger.error('Exception :: service Initialize exception!', e)
         process.exit(0)
     }
 
@@ -126,54 +126,20 @@ const createHttpsServer = (key, cert) => {
         key = fs.readFileSync('./openssl/privatekey.pem', 'utf8')
         cert = fs.readFileSync('./openssl/certificate.crt', 'utf8')
     }
-    https.createServer({ key, cert }, app).listen(HTTPS_PORT)
-    console.log(`ehsm_ksm_service application listening at ${getIPAdress()} with https port: ${HTTPS_PORT}`)
+    https.createServer({ key, cert }, app).listen(kms_config.service.port)
+    logger.info(`ehsm_ksm_service application start on ${kms_config.service.run_mode} mode.`)
+    logger.info(`ehsm_ksm_service application listening at ${getIPAdress()} with https port: ${kms_config.service.port}`)
 }
 
 const build_openssl_conf_buffer = () => {
-    // default setting
-    let conf = {
-        countryName: "CN",
-        localityName: "SH",
-        organizationName: "Intel",
-        organizationalUnitName: "Dev",
-        commonName: "ehsm",
-        emailAddress: "ehsm@intel.com"
-    }
-    // load custom setting 
-    const {
-        EHSM_CONFIG_OPENSSL_COUNTRYNAME,
-        EHSM_CONFIG_OPENSSL_LOCALITYNAME,
-        EHSM_CONFIG_OPENSSL_ORGANIZATIONNAME,
-        EHSM_CONFIG_OPENSSL_ORGANIZATIONALUNITNAME,
-        EHSM_CONFIG_OPENSSL_COMMONNAME,
-        EHSM_CONFIG_OPENSSL_EMAILADDRESS
-    } = process.env
-    if (EHSM_CONFIG_OPENSSL_COUNTRYNAME) {
-        conf.countryName = EHSM_CONFIG_OPENSSL_COUNTRYNAME
-    }
-    if (EHSM_CONFIG_OPENSSL_LOCALITYNAME) {
-        conf.localityName = EHSM_CONFIG_OPENSSL_LOCALITYNAME
-    }
-    if (EHSM_CONFIG_OPENSSL_ORGANIZATIONNAME) {
-        conf.organizationName = EHSM_CONFIG_OPENSSL_ORGANIZATIONNAME
-    }
-    if (EHSM_CONFIG_OPENSSL_ORGANIZATIONALUNITNAME) {
-        conf.organizationalUnitName = EHSM_CONFIG_OPENSSL_ORGANIZATIONALUNITNAME
-    }
-    if (EHSM_CONFIG_OPENSSL_COMMONNAME) {
-        conf.commonName = EHSM_CONFIG_OPENSSL_COMMONNAME
-    }
-    if (EHSM_CONFIG_OPENSSL_EMAILADDRESS) {
-        conf.emailAddress = EHSM_CONFIG_OPENSSL_EMAILADDRESS
-    }
-
     // create buffer by csr.conf
     const conf_buffer = fs.readFileSync('./openssl/csr.conf', 'utf8')
-    let conf_custom_buffer = conf_buffer.replace('${countryName}', conf.countryName).replace('${localityName}', conf.localityName)
-        .replace('${organizationName}', conf.organizationName).replace('${organizationalUnitName}', conf.organizationalUnitName)
-        .replace('${commonName}', conf.commonName).replace('${emailAddress}', conf.emailAddress)
-
+    let conf_custom_buffer = conf_buffer.replace('${countryName}', kms_config.openssl.create_conf.countryName)
+        .replace('${localityName}', kms_config.openssl.create_conf.localityName)
+        .replace('${organizationName}', kms_config.openssl.create_conf.organizationName)
+        .replace('${organizationalUnitName}', kms_config.openssl.create_conf.organizationalUnitName)
+        .replace('${commonName}', kms_config.openssl.create_conf.commonName)
+        .replace('${emailAddress}', kms_config.openssl.create_conf.emailAddress)
     return Buffer.from(conf_custom_buffer)
 }
 

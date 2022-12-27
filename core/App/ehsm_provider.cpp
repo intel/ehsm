@@ -42,6 +42,9 @@
 #include <sgx_error.h>
 #include <sgx_eid.h>
 #include <sgx_urts.h>
+#include <iostream>
+#include <fstream>
+#include <sys/stat.h>
 
 #include "enclave_hsm_u.h"
 #include "ehsm_provider.h"
@@ -60,6 +63,8 @@
 #include "openssl/evp.h"
 
 using namespace std;
+
+#define DKEY_FILE_NAME (std::string(RUNTIME_FOLDER) + "single_test_dkey.bin").c_str()
 
 void ocall_print_string(uint32_t log_level, const char *str, const char *filename, uint32_t line)
 {
@@ -209,7 +214,8 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
     RetJsonObj retJsonObj;
     uint32_t action = -1;
     JsonObj payloadJson;
-    if(respJson == NULL){
+    if (respJson == NULL)
+    {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Argument bad.");
         retJsonObj.toChar(respJson);
@@ -237,7 +243,7 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
     switch (action)
     {
     case EH_INITIALIZE:
-        ffi_initialize(respJson);
+        ffi_initialize(payloadJson, respJson);
         break;
     case EH_FINALIZE:
         ffi_finalize(respJson);
@@ -294,14 +300,86 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
     return ret;
 }
 
-ehsm_status_t Initialize()
+static inline bool file_exists(const std::string &name)
 {
+    struct stat buffer;
+    return (stat(name.c_str(), &buffer) == 0);
+}
+
+int ocall_read_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
+{
+    if (!file_exists(DKEY_FILE_NAME))
+    {
+        log_d("ocall_read_domain_key file does not exist.\n");
+        return -2;
+    }
+
+    fstream file;
+    file.open(DKEY_FILE_NAME, ios::in | ios::binary);
+    if (!file)
+    {
+        log_d("Failed to open file...\n");
+        return -1;
+    }
+
+    file.seekg(0, std::ios::end);
+    size_t size = file.tellg();
+    file.seekg(0);
+    if (size != cipher_dk_len)
+    {
+        log_d("mismatched length: %ld:%d.\n", size, cipher_dk_len);
+        return -1;
+    }
+
+    uint8_t tmp[size] = {0};
+    if (file.read((char *)&tmp, size))
+    {
+        memcpy(cipher_dk, tmp, cipher_dk_len);
+    }
+    else
+    {
+        log_d("Failed to read data from file...\n");
+        return -1;
+    }
+
+    file.close();
+
+    return 0;
+}
+
+int ocall_store_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
+{
+    uint8_t tmp[cipher_dk_len];
+    memcpy(tmp, cipher_dk, cipher_dk_len);
+
+    fstream file;
+    file.open(DKEY_FILE_NAME, ios::out | ios::binary | ios::trunc);
+    if (!file)
+    {
+        log_d("Failed to create file...\n");
+        return -1;
+    }
+
+    file.write((char *)&tmp, cipher_dk_len);
+    file.close();
+
+    return 0;
+}
+
+ehsm_status_t Initialize(bool run_on_cluter)
+{
+    if (access(RUNTIME_FOLDER, F_OK) != 0) {
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
+            return EH_FUNCTION_FAILED;
+        }
+    }
     if (initLogger("core.log") < 0)
         return EH_FUNCTION_FAILED;
 
     log_i("Service name:\t\teHSM-KMS service %s", EHSM_VERSION);
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
+    log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
 
     ehsm_status_t rc = EH_OK;
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
@@ -318,15 +396,25 @@ ehsm_status_t Initialize()
         return EH_DEVICE_ERROR;
     }
 
-    rc = SetupSecureChannel(g_enclave_id);
-    if (rc != EH_OK)
+    if (run_on_cluter)
     {
-#if EHSM_DEFAULT_DOMAIN_KEY_FALLBACK
-        log_e("failed(%d) to setup secure channel, but continue to use the default domainkey...\n", rc);
-        return EH_OK;
-#endif
-        log_e("failed(%d) to setup secure channel\n", rc);
-        sgx_destroy_enclave(g_enclave_id);
+        rc = SetupSecureChannel(g_enclave_id);
+        if (rc != EH_OK)
+        {
+            log_e("failed(%d) to setup secure channel\n", rc);
+            sgx_destroy_enclave(g_enclave_id);
+            return EH_DEVICE_ERROR;
+        }
+    }
+    else
+    {
+        uint8_t domain_key[SGX_DOMAIN_KEY_SIZE];
+        ret = enclave_get_domain_key_from_local(g_enclave_id, &sgxStatus);
+        if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        {
+            log_e("failed(%d) to get domain key.\n", ret);
+            return EH_DEVICE_ERROR;
+        }
     }
 
 #ifdef ENABLE_SELF_TEST

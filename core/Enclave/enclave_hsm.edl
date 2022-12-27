@@ -49,6 +49,8 @@ enclave {
 
     untrusted {
         void ocall_print_string(uint32_t log_level, [in, string] const char *str, [in, string] const char *filename, uint32_t line);
+	int ocall_read_domain_key([out, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len);
+        int ocall_store_domain_key([in, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len);
 
         uint32_t ocall_session_request([out] sgx_dh_msg1_t *dh_msg1,
                 [out] uint32_t *session_id);
@@ -68,7 +70,9 @@ enclave {
     };
 
     trusted {
-        /* Interfaces for eHSM core crypto functions */       
+        /* Interfaces for eHSM core crypto functions */
+        public sgx_status_t enclave_get_domain_key_from_local();
+
         public sgx_status_t enclave_create_key([in, out, size=cmk_size] ehsm_keyblob_t *cmk, size_t cmk_size);
 
         public sgx_status_t enclave_encrypt([in, size=cmk_size] ehsm_keyblob_t* cmk, size_t cmk_size,

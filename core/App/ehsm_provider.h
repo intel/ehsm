@@ -96,7 +96,7 @@ extern "C"
     uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson);
 } // extern "C"
 
-ehsm_status_t Initialize();
+ehsm_status_t Initialize(bool run_on_cluter);
 
 ehsm_status_t Finalize();
 

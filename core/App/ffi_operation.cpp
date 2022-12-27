@@ -44,6 +44,8 @@ using namespace std;
 
 #define JSON2STRUCT(x, y) import_struct_from_json(x, &y, #y)
 #define STRUCT2JSON(x, y) export_json_from_struct(x, y, #y)
+#define RUN_MODE_SINGLE "single"
+#define RUN_MODE_CLUSTER "cluster"
 
 template <typename T>
 void import_struct_from_json(JsonObj payloadJson, T **out, string key)
@@ -151,21 +153,50 @@ void export_json_from_struct(RetJsonObj &retJsonObj, T *in, string key)
 extern "C"
 {
     /*
-    create the enclave
-    @return
-    [string] json string
+     * create the enclave
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    run_mode : string
+                }
+     * @return
+     * [string] json string
         {
             code: int,
             message: string,
             result: {}
         }
     */
-    uint32_t ffi_initialize(char *respJson)
+    uint32_t ffi_initialize(JsonObj payloadJson, char *respJson)
     {
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
+        bool run_on_cluter = true;
 
-        ret = Initialize();
+        ehsm_data_t *run_mode = NULL;
+        JSON2STRUCT(payloadJson, run_mode);
+
+        if (run_mode != NULL)
+        {
+            // std::string run_mode_str;
+            // memcpy_s(&run_mode_str, run_mode->datalen, run_mode->data, run_mode->datalen);
+            if (strncmp((char *)run_mode->data, RUN_MODE_SINGLE, run_mode->datalen) == 0)
+            {
+                run_on_cluter = false;
+            }
+            else if (strncmp((char *)run_mode->data, RUN_MODE_CLUSTER, run_mode->datalen) == 0)
+            {
+                run_on_cluter = true;
+            }
+            else
+            {
+                retJsonObj.setCode(retJsonObj.CODE_FAILED);
+                retJsonObj.setMessage("The run mode error, it must be single or cluster.");
+                retJsonObj.toChar(respJson);
+                return ret;
+            }
+        }
+
+        ret = Initialize(run_on_cluter);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);

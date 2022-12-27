@@ -35,6 +35,8 @@
 #include "key_factory.h"
 #include "key_operation.h"
 
+sgx_aes_gcm_256bit_key_t g_domain_key = {0};
+
 using namespace std;
 
 // Used to store the secret passed by the SP in the sample code.
@@ -107,6 +109,66 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
     default:
         return -1;
     }
+}
+
+sgx_status_t enclave_get_domain_key_from_local()
+{
+    log_i("start get domain key from local.");
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    uint32_t dk_cipher_len = sgx_calc_sealed_data_size(0, SGX_DOMAIN_KEY_SIZE);
+
+    if (dk_cipher_len == UINT32_MAX)
+        return SGX_ERROR_UNEXPECTED;
+
+    int retstatus;
+    uint8_t dk_cipher[dk_cipher_len] = {0};
+    uint8_t tmp[SGX_DOMAIN_KEY_SIZE] = {0};
+
+    ret = ocall_read_domain_key(&retstatus, dk_cipher, dk_cipher_len);
+    if (ret != SGX_SUCCESS)
+    {
+        log_e("failed read domain key\n");
+        return ret;
+    }
+
+    if (retstatus == 0)
+    {
+        uint32_t dk_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)dk_cipher);
+
+        ret = sgx_unseal_data((const sgx_sealed_data_t *)dk_cipher, NULL, 0, tmp, &dk_len);
+        if (ret != SGX_SUCCESS)
+        {
+            log_e("failed in sgx_unseal_data\n");
+            return ret;
+        }
+        log_i("get domain key from disk.");
+    }
+    // -2: dk file does not exist.
+    else if (retstatus == -2)
+    {
+        log_i("domain key file does not exist.\n");
+        ret = sgx_read_rand(tmp, SGX_DOMAIN_KEY_SIZE);
+        if (ret != SGX_SUCCESS)
+        {
+            return ret;
+        }
+
+        ret = sgx_seal_data(0, NULL, SGX_DOMAIN_KEY_SIZE, tmp, dk_cipher_len, (sgx_sealed_data_t *)dk_cipher);
+        if (ret != SGX_SUCCESS)
+            return SGX_ERROR_UNEXPECTED;
+
+        ret = ocall_store_domain_key(&retstatus, dk_cipher, dk_cipher_len);
+        if (ret != SGX_SUCCESS || retstatus != 0)
+            return SGX_ERROR_UNEXPECTED;
+        log_i("create a new domain key and store it to disk.\n");
+    }
+    else
+        return SGX_ERROR_UNEXPECTED;
+
+    memcpy_s(g_domain_key, SGX_DOMAIN_KEY_SIZE, tmp, SGX_DOMAIN_KEY_SIZE);
+    memset_s(tmp, SGX_DOMAIN_KEY_SIZE, 0, SGX_DOMAIN_KEY_SIZE);
+
+    return ret;
 }
 
 sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
