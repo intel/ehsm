@@ -32,17 +32,17 @@ sgx_enclave_id_t g_enclave_id;
 
 void ocall_print_string(uint32_t log_level, const char *str, const char *filename, uint32_t line)
 {
-    switch (log_level) 
+    switch (log_level)
     {
-        case LOG_INFO:
-        case LOG_DEBUG:
-        case LOG_ERROR:
-        case LOG_WARN:
-            log_c(log_level, str, filename, line);
-            break;
-        default:
-            log_c(LOG_ERROR, "log system error in ocall print.\n", filename, line);
-            break;
+    case LOG_INFO:
+    case LOG_DEBUG:
+    case LOG_ERROR:
+    case LOG_WARN:
+        log_c(log_level, str, filename, line);
+        break;
+    default:
+        log_c(LOG_ERROR, "log system error in ocall print.\n", filename, line);
+        break;
     }
 }
 
@@ -167,9 +167,11 @@ static void parse_args(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     // mkdir RUNTIME_FOLDER
-    if (access(RUNTIME_FOLDER, F_OK) != 0) {
+    if (access(RUNTIME_FOLDER, F_OK) != 0)
+    {
         printf("Initializing runtime folder [path: %s].\n", RUNTIME_FOLDER);
-        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0)
+        {
             printf("Create runtime folder failed!\n");
             return -1;
         }
@@ -188,6 +190,7 @@ int main(int argc, char *argv[])
     log_i("DomainKey Server port:\t%d", deploy_port);
 
     int ret = 0;
+    int retval = -1;
 
     ret = sgx_create_enclave(_T(ENCLAVE_PATH),
                              SGX_DEBUG_FLAG,
@@ -202,11 +205,11 @@ int main(int argc, char *argv[])
 
     // Connect to the dkeyserver and retrieve the domain key via the remote secure channel
     log_i("Host: launch TLS client to initiate TLS connection\n");
-    ret = enclave_launch_tls_client(g_enclave_id, &ret, deploy_ip_addr.c_str(), deploy_port);
-    if (ret != 0)
+    ret = enclave_launch_tls_client(g_enclave_id, &retval, deploy_ip_addr.c_str(), deploy_port);
+    if (SGX_SUCCESS != ret || retval != 0)
     {
         log_e("failed to initialize the dkeycache service.\n");
-        sgx_destroy_enclave(g_enclave_id);
+        goto out;
     }
 
     // create server instance, it would listen on sockets and proceeds client's requests
@@ -214,7 +217,7 @@ int main(int argc, char *argv[])
     g_la_server = new (std::nothrow) LaServer(g_la_task);
 
     if (!g_la_task || !g_la_server)
-        return -1;
+        goto out;
 
     atexit(cleanup);
 
@@ -234,7 +237,7 @@ int main(int argc, char *argv[])
         // printf("Press Ctrl+C to exit...\n");
         g_la_server->doWork();
     }
-    
+out:
     logger_shutDown();
 
     sgx_destroy_enclave(g_enclave_id);
