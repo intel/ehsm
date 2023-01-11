@@ -304,7 +304,7 @@ Description:
 Obtain a valid appid and apikey
 Output:
 appid -- an uuid
-apikey -- 32bit random number
+apikey -- 32byte random number
 */
 ehsm_status_t Enroll(ehsm_data_t *appid, ehsm_data_t *apikey);
 
