@@ -105,6 +105,7 @@ void LaServer::doWork()
     
     while (!m_shutdown)
     {
+        sleep(1); // it is to fix dkeycache will use 100%cpu core in docker
         // set 20s timeout for select() 
         tv.tv_sec = 20;
         tv.tv_usec = 0;
