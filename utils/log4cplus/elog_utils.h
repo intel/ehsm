@@ -36,7 +36,7 @@
 #include <stdarg.h>
 #include "datatypes.h"
 
-#define IS_DEBUG false
+#define IS_DEBUG true
 
 #define BLUE "\033[0;32;34m"
 #define NONE "\033[m"

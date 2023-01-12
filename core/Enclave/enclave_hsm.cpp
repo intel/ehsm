@@ -31,9 +31,12 @@
 
 #include "enclave_hsm_t.h"
 #include "openssl/rand.h"
+#include "openssl/sha.h"
 #include "datatypes.h"
 #include "key_factory.h"
 #include "key_operation.h"
+
+extern sgx_aes_gcm_256bit_key_t g_domain_key;
 
 using namespace std;
 
@@ -109,6 +112,17 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
     }
 }
 
+void compute_dk_hash(ehsm_keyblob_t *cmk)
+{
+    SHA256_CTX ctx;
+    SHA256_Init(&ctx);
+    unsigned int len = SGX_DOMAIN_KEY_SIZE;
+    unsigned char result[SHA256_DIGEST_LENGTH] = {0};
+    SHA256_Update(&ctx, g_domain_key, len);
+    SHA256_Final(result, &ctx);
+    memcpy(cmk->metadata.dk_hashcode, result, SHA256_DIGEST_LENGTH);
+}
+
 sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -119,6 +133,8 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
+
+    compute_dk_hash(cmk);
 
     switch (cmk->metadata.keyspec)
     {

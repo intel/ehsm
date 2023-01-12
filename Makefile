@@ -31,7 +31,7 @@
 
 include buildenv.mk
 
-SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver enroll_app
+SUB_DIR := utils/tkey_exchange utils/ukey_exchange core dkeycache dkeyserver dkeyserver/dkeyrotation enroll_app
 SSL_DIR := third_party/intel-sgx-ssl
 export DESTDIR = ${OPENSSL_PATH}
 

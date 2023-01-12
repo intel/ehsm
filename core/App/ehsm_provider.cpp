@@ -42,6 +42,8 @@
 #include <sgx_error.h>
 #include <sgx_eid.h>
 #include <sgx_urts.h>
+#include <thread>
+#include <sys/un.h>
 
 #include "enclave_hsm_u.h"
 #include "ehsm_provider.h"
@@ -93,6 +95,48 @@ sgx_ra_context_t g_context = INT_MAX;
 
 sgx_enclave_id_t g_enclave_id;
 
+#define UNIX_DOMAIN (std::string(RUNTIME_FOLDER) + "dkeyprovision.sock").c_str()
+
+bool g_ready_flag = true;
+
+int server_sock_fd;
+
+void recv_msg()
+{
+    int byte_num;
+    _response_header_t *res_msg = (_response_header_t*)malloc(sizeof(_response_header_t));
+
+    do
+    {
+        uint32_t sgxStatus;
+        sgx_status_t ret;
+
+        byte_num = recv(server_sock_fd, reinterpret_cast<char *>(res_msg), sizeof(_response_header_t), 0);
+        if (byte_num > 0)
+        {
+            if (res_msg->type == MSG_ROTATE_END)
+            {
+                ret = enclave_la_message_exchange(g_enclave_id, &sgxStatus);
+                if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+                {
+                    log_e("test_message_exchange Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
+                    return;
+                }
+                log_i("update dk\n");
+
+                g_ready_flag = true;
+                log_i("ready flag change to %s\n", g_ready_flag == true ? "true" : "false");
+            }
+            else if (res_msg->type == MSG_ROTATE_START)
+            {
+                g_ready_flag = false;
+                log_i("ready flag change to %s\n", g_ready_flag == true ? "true" : "false");
+            }
+        }
+
+    } while (1);
+}
+
 static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
 {
     uint32_t sgxStatus;
@@ -117,13 +161,30 @@ static ehsm_status_t SetupSecureChannel(sgx_enclave_id_t eid)
     log_i("Succeed to exchange secure message...\n");
 
     // close ECDH session
-    ret = enclave_la_close_session(eid, &sgxStatus);
-    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    // ret = enclave_la_close_session(eid, &sgxStatus);
+    // if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+    // {
+    //     log_e("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
+    //     return EH_LA_CLOSE_ERROR;
+    // }
+    // log_i("Succeed to close Session...\n");
+
+    server_sock_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    if (server_sock_fd == -1)
     {
-        log_e("test_close_session Ecall failed: ECALL return 0x%x, error code is 0x%x.\n", ret, sgxStatus);
-        return EH_LA_CLOSE_ERROR;
+        log_e("socket error");
+        return EH_FUNCTION_FAILED;
     }
-    log_i("Succeed to close Session...\n");
+
+    struct sockaddr_un server_addr;
+    server_addr.sun_family = AF_UNIX;
+    strcpy(server_addr.sun_path, UNIX_DOMAIN);
+
+    if (connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) >= 0)
+        log_w("socket connect ok");
+
+    std::thread thread(recv_msg);
+    thread.detach();
 
     return EH_OK;
 }
@@ -209,7 +270,17 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
     RetJsonObj retJsonObj;
     uint32_t action = -1;
     JsonObj payloadJson;
-    if(respJson == NULL){
+
+    if (g_ready_flag == false)
+    {
+        retJsonObj.setCode(retJsonObj.CODE_FAILED);
+        retJsonObj.setMessage("rotating.");
+        retJsonObj.toChar(respJson);
+        return EH_GENERAL_ERROR;
+    }
+
+    if (respJson == NULL)
+    {
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
         retJsonObj.setMessage("Argument bad.");
         retJsonObj.toChar(respJson);
