@@ -53,7 +53,6 @@ Signed_Enclave_FileName := $(OUT)/$(Signed_Enclave_Name)
 
 ######## App Settings ########
 App_Cpp_Files := $(wildcard App/*.cpp)
-App_Cpp_Files += $(wildcard Test/*.cpp)
 App_Cpp_Files += $(wildcard $(LOG_DIR)/*.cpp)
 App_Include_Paths := \
 	-I$(SGX_SDK)/include \
@@ -83,7 +82,7 @@ ifeq (1, $(ENABLE_PERFORMANCE_TEST))
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -llog4cplus 
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -llog4cplus
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -92,6 +91,11 @@ else
 endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
+
+######## App Test Settings ########
+App_Test_Cpp_Files := $(wildcard Test/*.cpp)
+App_Test_Cpp_Objects := $(App_Test_Cpp_Files:.cpp=.o)
+
 ######## Enclave Settings ########
 Crypto_Library_Name := sgx_tcrypto
 
@@ -139,44 +143,24 @@ Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefau
 Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 
 Enclave_Config_File := Enclave/enclave_config/enclave_hsm.config.xml
-######## Provider Settings ########
-Provider_Cpp_Files := App/ehsm_provider.cpp
-Provider_Cpp_Files += $(wildcard $(LOG_DIR)/*.cpp)
-Provider_Include_Paths := \
-	-I$(SGX_SDK)/include \
-	-IInclude \
-	-I$(LOG_DIR) \
-	-IApp \
-	-I$(TOPDIR)/include
-
-Provider_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DRUNTIME_FOLDER=\"$(RUNTIME_FOLDER)\"
-Provider_Cpp_Flags := $(Provider_C_Flags) -std=c++11
-Provider_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -ljsoncpp -luuid -L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name) -nostartfiles -Wl,--export-dynamic -shared -llog4cplus
-
-ifneq ($(SGX_MODE), HW)
-	Provider_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
-else
-	Provider_Link_Flags += -lsgx_quote_ex -lsgx_uae_service -lsgx_dcap_ql -lsgx_dcap_quoteverify -ldl
-endif
-
-Provider_Cpp_Objects := $(Provider_Cpp_Files:.cpp=.o)
 
 
 ######## Build Settings ########
 .PHONY: all target clean
 all: target
 	@$(MAKE) target
+	@echo $(EHSM_DEFAULT_DOMAIN_KEY_FALLBACK)
 	@mkdir -p $(OUT)
-	@mv $(App_Test_Name) $(Provider_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(OUT)
+	@mv $(Provider_Name) $(Signed_Enclave_Name) $(Enclave_Name) $(App_Test_Name) $(OUT)
 
 ifeq ($(Build_Mode), HW_RELEASE)
-target: $(App_Test_Name) $(Provider_Name) $(Enclave_Name)
+target: $(Provider_Name) $(Enclave_Name) $(App_Test_Name)
 else
-target: $(App_Test_Name) $(Provider_Name) $(Signed_Enclave_Name)
+target: $(Provider_Name) $(Signed_Enclave_Name) $(App_Test_Name)
 endif
 
 clean:
-	@rm -f $(App_Cpp_Objects) $(Provider_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
+	@rm -f $(App_Cpp_Objects) $(App_Test_Cpp_Objects) $(Enclave_Cpp_Objects) App/auto_version.h App/enclave_hsm_u.* Enclave/enclave_hsm_t.*
 	@rm -rf $(OUT)
 
 
@@ -199,7 +183,11 @@ App/enclave_hsm_u.o: App/enclave_hsm_u.c
 	@$(CXX) $(App_C_Flags) -c $< -o $@
 	@echo "CXX   <=  $<"
 
-App/%.o: App/%.cpp App/auto_version.h
+App/%.o: App/%.cpp App/auto_version.h App/enclave_hsm_u.c
+	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+$(LOG_DIR)/%.o: $(LOG_DIR)/%.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
@@ -207,7 +195,11 @@ Test/%.o: Test/%.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Test_Name): App/enclave_hsm_u.o $(App_Cpp_Objects) App/auto_version.h
+$(Provider_Name): $(App_Cpp_Objects) App/enclave_hsm_u.o App/auto_version.h
+	@$(CXX) $^ -o $@ $(App_Link_Flags) -shared
+	@echo "LINK =>  $@"
+
+$(App_Test_Name): $(App_Cpp_Objects) $(App_Test_Cpp_Objects) App/enclave_hsm_u.o App/auto_version.h
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -232,16 +224,3 @@ $(Enclave_Name): Enclave/enclave_hsm_t.o $(Enclave_Cpp_Objects)
 $(Signed_Enclave_Name): $(Enclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key Enclave/enclave_config/enclave_hsm_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
-
-######## FFI Objects ########
-$(LOG_DIR)/%.o: $(LOG_DIR)/%.cpp
-	@$(CXX) $(Provider_Cpp_Flags) -c $< -o $@
-	@echo "CXX  <=  $<"
-
-App/ehsm_provider.o: App/ehsm_provider.cpp
-	@$(CXX) $(Provider_Cpp_Flags) -c $< -o $@
-	@echo "CXX  <=  $<"
-
-$(Provider_Name): $(Provider_Cpp_Objects) $(App_Cpp_Objects) App/enclave_hsm_u.o
-	$(CXX) $^ -o $@ $(Provider_Link_Flags)
-	@echo "LINK =>  $@"

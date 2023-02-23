@@ -321,7 +321,7 @@ ehsm_status_t Initialize()
     rc = SetupSecureChannel(g_enclave_id);
     if (rc != EH_OK)
     {
-#if EHSM_DEFAULT_DOMAIN_KEY_FALLBACK
+#ifdef EHSM_DEFAULT_DOMAIN_KEY_FALLBACK
         log_e("failed(%d) to setup secure channel, but continue to use the default domainkey...\n", rc);
         return EH_OK;
 #endif
