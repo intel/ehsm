@@ -34,8 +34,8 @@
 
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
-#define IS_DEBUG false
-#define MAX_LOG_BUF 1024
+#define IS_DEBUG true
+#define MAX_LOG_BUF 4096
 
 using namespace log4cplus;
 using namespace log4cplus::helpers;

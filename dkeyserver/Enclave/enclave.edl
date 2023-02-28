@@ -34,6 +34,8 @@ enclave {
     from "sgx_tsgxssl.edl" import *;
     from "sgx_pthread.edl" import *;
     from "sgx_ttls.edl" import *;
+    from "sgx_tstdc.edl" import *;
+    from "sgx_tswitchless.edl" import *;
 
     include "sgx_key_exchange.h"
     include "sgx_quote.h"
@@ -44,26 +46,42 @@ enclave {
     include "sys/select.h"
     include "netdb.h"
     include "poll.h"
+    include "datatypes.h"
 
-    untrusted {
+   untrusted {
         void ocall_print_string(uint32_t log_level, [in, string] const char *str, [in, string] const char *filename, uint32_t line);
         int ocall_close(int fd);
         void ocall_get_current_time([out] uint64_t *p_current_time);
+        void ocall_sleep(int second);
+
+        int ocall_select(int fd);
+        int ocall_send(int fd, [in, size = msg_size]const char* msg, uint32_t msg_size, int flag);
+
         int ocall_set_dkeyserver_done();
+        int ocall_update_CMK([out, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len,
+                             [in, size=dk_hash_size] uint8_t* dk_hash, uint32_t dk_hash_size,
+                             int key_type) transition_using_threads;
 
-        int ocall_read_domain_key([out, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len);
-        int ocall_store_domain_key([in, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len);
-
+        int ocall_load_couchdb(int db_type);
+ 
+        int ocall_read_domain_key([out, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len, 
+                                  [out]uint64_t* create_time, 
+                                  [out, size=dk_hash_size] uint8_t* dk_hash, uint32_t dk_hash_size);
+        int ocall_store_domain_key([in, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len, 
+                                   [in, size=dk_hash_size] uint8_t* dk_hash, uint32_t dk_hash_size);
+ 
         int ocall_socket (int domain, int type, int protocol) propagate_errno;
         int ocall_bind (int fd, [in, size=len] const struct sockaddr *addr, socklen_t len) propagate_errno;
         int ocall_listen (int fd, int n) propagate_errno;
         int ocall_accept (int fd, [out, size=addrlen_in] struct sockaddr *addr, socklen_t addrlen_in, [out] socklen_t *addrlen_out) propagate_errno;
-	int ocall_connect (int fd, [in, size=len] const struct sockaddr *addr, socklen_t len) propagate_errno;
+        int ocall_connect (int fd, [in, size=len] const struct sockaddr *addr, socklen_t len) propagate_errno;
         int ocall_setsockopt (int fd, int level, int optname, [in, size=optlen] const void *optval, socklen_t optlen) propagate_errno;
     };
-
+ 
     trusted {
         public int sgx_set_up_tls_server([in, string] char* port, [in, string] const char* server_role, [in, string] const char* server_name,
-                uint16_t server_port);
+                uint16_t server_port, size_t root_password, int root_period);
+        public int ecall_reencrypt_cmk([in, size=cipher_dk_len] uint8_t* cipher_dk, uint32_t cipher_dk_len,
+                                       [in, out, size=cmk_size] ehsm_keyblob_t* cmk, size_t cmk_size) transition_using_threads;
     };
 };

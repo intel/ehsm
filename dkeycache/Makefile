@@ -49,7 +49,8 @@ App_Include_Paths := \
 	-IApp \
 	-I$(LOG_DIR) \
 	-I$(SGX_SDK)/include \
-	-I$(TOPDIR)/include
+	-I$(TOPDIR)/include \
+	-I$(TOPDIR)/utils/sgx_socket/tls
 
 App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DRUNTIME_FOLDER=\"$(RUNTIME_FOLDER)\"
 

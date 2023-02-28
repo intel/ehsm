@@ -115,7 +115,8 @@ typedef int errno_t;
 #define EH_PAYLOAD_MAX_SIZE (12*1024)
 #define EH_QUOTE_MAX_SIZE (8*1024)
 
-#define SGX_DOMAIN_KEY_SIZE     32
+#define SGX_DOMAIN_KEY_SIZE 32
+#define DOMAINKEY_HASH_SIZE 32
 
 #define RSA_2048_KEY_BITS   2048
 #define RSA_3072_KEY_BITS   3072
@@ -187,7 +188,48 @@ typedef enum {
     EH_PAD_RSA_PKCS1_PSS = 6      
 } ehsm_padding_mode_t;
 
-#pragma pack(push,1)
+typedef enum
+{
+    UNKNOWN_CMD = 0,
+    GET_DOMAINKEY = 1,
+    START_ROTATION = 2,
+    STOP_AUTO_ROTATION = 3,
+    SET_PERIOD = 4,
+    GET_PERIOD = 5,
+    GET_NEXT_ROTATION_DATETIME = 6,
+    UPDATE_CMK = 7
+} dkeyserver_command;
+
+typedef enum
+{
+    MSG_HEARTBEAT = 0,
+    MSG_ROTATE_START = -1,
+    MSG_ROTATE_END = -2,
+    MSG_DOMAINKEY = -3
+} ehsm_tls_msg_type_t;
+
+typedef struct dkey_server_domainkey
+{
+    uint64_t createTime;
+    uint8_t dk_hash[DOMAINKEY_HASH_SIZE]; 
+    uint8_t domainkey[SGX_DOMAIN_KEY_SIZE];
+} dkey_server_domainkey;
+
+typedef struct _request_header_t
+{
+    uint32_t cmd;
+    size_t period;
+    size_t password;
+} _request_header_t;
+
+typedef struct _response_header_t
+{
+    uint32_t type;
+    uint8_t domainKey[32];
+    size_t period;
+} _response_header_t;
+
+#pragma pack(push, 1)
 
 typedef struct {
     uint32_t    datalen;
@@ -201,9 +243,10 @@ typedef struct {
     ehsm_keyorigin_t      origin;
     ehsm_keypurpose_t     purpose;
 
-    uint32_t              apiversion;
-    uint8_t               descrption[16];
-    uint8_t               createdate[8];
+    uint32_t apiversion;
+    uint8_t descrption[16];
+    uint8_t createdate[8];
+    uint8_t dk_hashcode[32];
 } ehsm_keymetadata_t;
 
 typedef struct {
@@ -218,6 +261,11 @@ typedef enum {
     LOG_WARN = 30000,
     LOG_ERROR = 40000
 } log_type;
+typedef struct FdPoolStruct
+{
+    int fd;
+    int errorCnt;
+} FdPool;
 
 //Format of the AES-GCM message being exchanged between the source and the destination enclaves
 typedef struct _secure_message_t

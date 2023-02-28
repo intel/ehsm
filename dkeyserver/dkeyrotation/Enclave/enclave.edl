@@ -49,39 +49,19 @@ enclave {
     include "poll.h"
 
     untrusted {
-        void ocall_print_string(uint32_t log_level, [in, string] const char *str, [in, string] const char *filename, uint32_t line);
+        void ocall_printf([in, string] const char *str);
         int ocall_close(int fd);
-        int ocall_set_dkeycache_done();
+        void ocall_sleep(int sec);
         void ocall_get_current_time([out] uint64_t *p_current_time);
         int ocall_socket (int domain, int type, int protocol) propagate_errno;
         int ocall_connect (int fd, [in, size=len] const struct sockaddr *addr, socklen_t len) propagate_errno;
-        void ocall_sleep(int second);
-        void ocall_update_rotate_flag([in] const bool *rotate_flag);
-        void ocall_update_is_ready([in] const bool *is_ready);
     };
 
     trusted {       
         public int enclave_launch_tls_client(
             [in, string] const char* server_name,
-            uint16_t server_port);
-
-        /* Interfaces for local attestation */
-		public uint32_t enclave_la_session_request([out] sgx_dh_msg1_t *dh_msg1,
-            [out] uint32_t *session_id);
-
-        public uint32_t enclave_la_exchange_report([in] sgx_dh_msg2_t *dh_msg2,
-            [out] sgx_dh_msg3_t *dh_msg3,
-            uint32_t session_id);
-
-        public uint32_t enclave_la_generate_response(
-            [in, size = req_message_size] secure_message_t* req_message,
-            size_t req_message_size,
-            size_t max_payload_size,
-            [out, size=resp_message_size] secure_message_t* resp_message,
-            size_t resp_message_size,
-            uint32_t session_id);
-
-        public uint32_t enclave_la_end_session(uint32_t session_id);
-
+            uint16_t server_port,
+            uint32_t key,
+            [in, string] const char* action);
     };
 };

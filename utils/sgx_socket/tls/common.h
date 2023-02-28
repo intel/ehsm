@@ -24,16 +24,34 @@
 *
 */
 
+#define CONCURRENT_MAX 50
+#define MAX_RECONNECT 3
+#define CLIENT_MAX_NUM 20
 #define TLS_CLIENT "TLS client: "
 #define TLS_SERVER "TLS server: "
 
-#define CLIENT_PAYLOAD "GET / HTTP/1.0\r\n\r\n"
+#define CLIENT_PAYLOAD           "GET / HTTP/1.0\r\n\r\n"
+#define PASSWORD_WRONG           "The password is wrong!"
+#define START_ROTATION_MSG       "Domian key rotation start!"
+#define SET_PERIOD_SUCCESS_MSG   "Update period success!"
+#define SET_PERIOD_FAILED_MSG    "Update period failed, the period must greater than 30 days and less than 365 days!"
+#define STOP_AUTO_ROTATION_MSG   "Stop auto rotation success!"
 
-#define CLIENT_PAYLOAD_SIZE strlen(CLIENT_PAYLOAD)
+#define CLIENT_PAYLOAD_SIZE          sizeof(CLIENT_PAYLOAD)
+#define PASSWORD_WRONG_SIZE          sizeof(PASSWORD_WRONG)
+#define START_ROTATION_MSG_SIZE      sizeof(START_ROTATION_MSG)
+#define SET_PERIOD_SUCCESS_MSG_SIZE  sizeof(SET_PERIOD_SUCCESS_MSG)
+#define SET_PERIOD_FAILED_MSG_SIZE   sizeof(SET_PERIOD_FAILED_MSG)
+#define STOP_AUTO_ROTATION_MSG_SIZE  sizeof(STOP_AUTO_ROTATION_MSG)
+
+#define CMK_INFO 0
+#define USER_INFO 1
+#define KEYBLOB 0
+#define CMK 1
+#define SM_DEFAULT_CMK 2
 
 #include "sgx_ttls.h"
 #include "elog_utils.h"
-
 
 #define GETCURRTIME t_time
 #define VERIFY_CALLBACK tee_verify_certificate_with_evidence

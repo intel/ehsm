@@ -297,7 +297,7 @@ public:
         return readData(key);
     }
 
-    bool hasOwnProperty(std::string key) { return !m_json[key].isNull(); }
+    bool hasOwnProperty(std::string key) { return m_json.isMember(key); }
 };
 
 class RetJsonObj
