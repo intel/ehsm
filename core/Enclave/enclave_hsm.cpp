@@ -37,20 +37,6 @@
 
 using namespace std;
 
-// Used to store the secret passed by the SP in the sample code.
-
-static const sgx_ec256_public_t g_sp_pub_key = {
-    {0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
-     0x85, 0xd0, 0x3a, 0x62, 0x37, 0x30, 0xae, 0xad,
-     0x3e, 0x3d, 0xaa, 0xee, 0x9c, 0x60, 0x73, 0x1d,
-     0xb0, 0x5b, 0xe8, 0x62, 0x1c, 0x4b, 0xeb, 0x38},
-    {0xd4, 0x81, 0x40, 0xd9, 0x50, 0xe2, 0x57, 0x7b,
-     0x26, 0xee, 0xb7, 0x41, 0xe7, 0xc6, 0x14, 0xe2,
-     0x24, 0xb7, 0xbd, 0xc9, 0x03, 0xf2, 0x9a, 0x28,
-     0xa8, 0x3c, 0xc8, 0x10, 0x11, 0x14, 0x5e, 0x06}
-
-};
-
 static uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec, ehsm_padding_mode_t padding)
 {
     uint32_t padding_size;
@@ -738,63 +724,6 @@ sgx_status_t enclave_get_rand(uint8_t *data, uint32_t datalen)
     return sgx_read_rand(data, datalen);
 }
 
-sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
-                                     uint8_t *p_apikey, uint32_t apikey_size,
-                                     uint8_t *cipherapikey, uint32_t cipherapikey_size)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (p_apikey == NULL || apikey_size > EH_API_KEY_SIZE)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-    if (cipherapikey == NULL ||
-        cipherapikey_size < EH_API_KEY_SIZE + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    // generate apikey
-    std::string psw_chars = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
-    uint8_t temp[apikey_size];
-    ret = sgx_read_rand(temp, apikey_size);
-    if (ret != SGX_SUCCESS)
-    {
-        return ret;
-    }
-    for (int i = 0; i < apikey_size; i++)
-    {
-        p_apikey[i] = psw_chars[temp[i] % psw_chars.length()];
-    }
-
-    // struct cipherapikey{
-    //     uint8_t apikey[32]
-    //     uint8_t iv[12]
-    //     uint8_t mac[16]
-    // }
-    uint8_t *iv = (uint8_t *)(cipherapikey + apikey_size);
-    uint8_t *mac = (uint8_t *)(cipherapikey + apikey_size + EH_AES_GCM_IV_SIZE);
-    // get sk and encrypt apikey
-    sgx_ec_key_128bit_t sk_key;
-    ret = sgx_ra_get_keys(context, SGX_RA_KEY_SK, &sk_key);
-    if (ret != SGX_SUCCESS)
-    {
-        return ret;
-    }
-    ret = sgx_rijndael128GCM_encrypt(&sk_key,
-                                     p_apikey, apikey_size,
-                                     cipherapikey,
-                                     iv, EH_AES_GCM_IV_SIZE,
-                                     NULL, 0,
-                                     reinterpret_cast<uint8_t(*)[EH_AES_GCM_MAC_SIZE]>(mac));
-    if (ret != SGX_SUCCESS)
-    {
-        log_d("error encrypting plain text\n");
-    }
-    memset_s(sk_key, sizeof(sgx_ec_key_128bit_t), 0, sizeof(sgx_ec_key_128bit_t));
-    memset_s(temp, apikey_size, 0, apikey_size);
-    return ret;
-}
-
 sgx_status_t enclave_get_apikey(uint8_t *apikey, uint32_t keylen)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -818,92 +747,6 @@ sgx_status_t enclave_get_apikey(uint8_t *apikey, uint32_t keylen)
     }
 
     memset_s(temp, keylen, 0, keylen);
-    return ret;
-}
-// This ecall is a wrapper of sgx_ra_init to create the trusted
-// KE exchange key context needed for the remote attestation
-// SIGMA API's. Input pointers aren't checked since the trusted stubs
-// copy them into EPC memory.
-//
-// @param b_pse Indicates whether the ISV app is using the
-//              platform services.
-// @param p_context Pointer to the location where the returned
-//                  key context is to be copied.
-//
-// @return Any error returned from the trusted key exchange API
-//         for creating a key context.
-
-sgx_status_t enclave_init_ra(
-    int b_pse,
-    sgx_ra_context_t *p_context)
-{
-    // isv enclave call to trusted key exchange library.
-    sgx_status_t ret;
-#ifdef SUPPLIED_KEY_DERIVATION
-    ret = sgx_ra_init_ex(&g_sp_pub_key, b_pse, key_derivation, p_context);
-#else
-    ret = sgx_ra_init(&g_sp_pub_key, b_pse, p_context);
-#endif
-    return ret;
-}
-
-// Verify the mac sent in att_result_msg from the SP using the
-// MK key. Input pointers aren't checked since the trusted stubs
-// copy them into EPC memory.
-//
-//
-// @param context The trusted KE library key context.
-// @param p_message Pointer to the message used to produce MAC
-// @param message_size Size in bytes of the message.
-// @param p_mac Pointer to the MAC to compare to.
-// @param mac_size Size in bytes of the MAC
-//
-// @return SGX_ERROR_INVALID_PARAMETER - MAC size is incorrect.
-// @return Any error produced by tKE  API to get SK key.
-// @return Any error produced by the AESCMAC function.
-// @return SGX_ERROR_MAC_MISMATCH - MAC compare fails.
-
-sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
-                                           uint8_t *p_message, size_t message_size,
-                                           uint8_t *p_mac, size_t mac_size)
-{
-    sgx_status_t ret;
-    sgx_ec_key_128bit_t mk_key;
-
-    if (mac_size != sizeof(sgx_mac_t))
-    {
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        return ret;
-    }
-    if (message_size > UINT32_MAX)
-    {
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        return ret;
-    }
-
-    do
-    {
-        uint8_t mac[SGX_CMAC_MAC_SIZE] = {0};
-
-        ret = sgx_ra_get_keys(context, SGX_RA_KEY_MK, &mk_key);
-        if (SGX_SUCCESS != ret)
-            break;
-
-        ret = sgx_rijndael128_cmac_msg(&mk_key,
-                                       p_message,
-                                       (uint32_t)message_size,
-                                       &mac);
-        if (SGX_SUCCESS != ret)
-            break;
-
-        if (0 == consttime_memequal(p_mac, mac, sizeof(mac)))
-        {
-            ret = SGX_ERROR_MAC_MISMATCH;
-            break;
-        }
-
-    } while (0);
-
     return ret;
 }
 

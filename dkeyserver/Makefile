@@ -72,7 +72,6 @@ App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) \
 	-ldl \
 	-llog4cplus \
 	-lsgx_utls -lsgx_dcap_ql -lsgx_dcap_quoteverify -lcrypto\
-	-lra_ukey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) \
 	-L$(OPENSSL_LIBRARY_PATH) -l$(SGXSSL_Untrusted_Library_Name)
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
@@ -122,7 +121,7 @@ Enclave_Link_Flags := $(MITIGATION_LDFLAGS) $(Enclave_Security_Link_Flags) \
 	$(SgxSSL_Link_Libraries) \
     -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_TRUSTED_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tcrypto -lsgx_dcap_tvl -lsgx_ttls -l$(Service_Library_Name) -lra_tkey_exchange -L$(TOPDIR)/$(OUTLIB_DIR) -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tcrypto -lsgx_dcap_tvl -lsgx_ttls -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \

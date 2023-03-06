@@ -92,24 +92,10 @@ Welcome to see the build instructions for the ehsm-kms project.
     ![image](diagrams/docker-compose-result.PNG)
 
 * Enrollment of the APPID and APIKey
-    * Option-1: use the RESTFUL GET command of Enroll
     ``` shell
     curl [--insecure] https://1.2.3.4:9000/ehsm?Action=Enroll
     ```
     ![image](diagrams/enroll.PNG)
-
-    * Option-2: use the enroll_app which will remote attest the eHSM-KMS
-    ``` shell
-    # build the enroll application
-    cd enroll_app
-    make
-
-    # use the enroll app to retrieve the valide appid and apikey from ehsm-kms
-    cd ../out/ehsm-kms_enroll_app
-    ./ehsm-kms_enroll_app -a https://1.2.3.4:9000/ehsm/ [-n] (change to your ip and port, optional -n used for tested web certificate)
-    ```
-    You will get below results:<br>
-    ![image](diagrams/enroll_result.PNG)
 
 * Run the unittest cases (you can do it in another remote device)
     * Test with python script

@@ -106,9 +106,6 @@ const router = async (p) => {
   }
   const action = req.query.Action
   switch (action) {
-    case KMS_ACTION.enroll.RA_GET_API_KEY:
-      create_user_info(action, DB, res, req)
-      break
     case KMS_ACTION.cryptographic.CreateKey:
       try {
         let { keyspec, origin, purpose = 0, padding_mode = 'NO_PADDING', digest_mode = 'NONE'} = payload
@@ -200,20 +197,6 @@ const router = async (p) => {
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         const ukey_base64 = await find_cmk_by_keyid(appid, ukeyid, res, DB)
         napi_res = napi_result(action, res, { cmk: cmk_base64, ukey: ukey_base64, aad, olddatakey: olddatakey_base })
-        napi_res && res.send(napi_res)
-      } catch (error) { }
-      break
-    case KMS_ACTION.enroll.RA_HANDSHAKE_MSG0:
-      try {
-        const json_str_params = JSON.stringify({ ...req.body })
-        napi_res = napi_result(action, res, json_str_params)
-        napi_res && res.send(napi_res)
-      } catch (error) { }
-      break
-    case KMS_ACTION.enroll.RA_HANDSHAKE_MSG2:
-      try {
-        const json_str_params = JSON.stringify({ ...req.body })
-        napi_res = napi_result(action, res, json_str_params)
         napi_res && res.send(napi_res)
       } catch (error) { }
       break

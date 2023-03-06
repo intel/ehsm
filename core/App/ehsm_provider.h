@@ -36,10 +36,6 @@
 #include <stdint.h>
 #include "datatypes.h"
 
-#include "sgx_ukey_exchange.h"
-#include "sgx_tkey_exchange.h"
-#include "sample_ra_msg.h"
-
 #define _T(x) x
 
 #define ENCLAVE_PATH "libenclave-ehsm-core.signed.so"

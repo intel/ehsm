@@ -33,9 +33,6 @@ const base64_decode = (base64_str) => new Buffer.from(base64_str, 'base64')
     .toString()
 
 const ActionBypassList = [
-    KMS_ACTION.enroll.RA_GET_API_KEY,
-    KMS_ACTION.enroll.RA_HANDSHAKE_MSG0,
-    KMS_ACTION.enroll.RA_HANDSHAKE_MSG2,
     KMS_ACTION.enroll.Enroll,
     KMS_ACTION.common.GetVersion,
 ]

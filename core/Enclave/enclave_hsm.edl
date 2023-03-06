@@ -33,7 +33,6 @@ enclave {
     from "sgx_tsgxssl.edl" import *;
     from "sgx_pthread.edl" import *;
 
-    from "sgx_tkey_exchange.edl" import *;
     from "sgx_tstdc.edl" import *;
     from "sgx_dcap_tvl.edl" import *;
 
@@ -109,19 +108,7 @@ enclave {
                             [in, size=d_cmk_size] ehsm_keyblob_t* d_cmk, size_t d_cmk_size,
                             [in, out, size=newkey_size] ehsm_data_t *newkey, size_t newkey_size);
 
-        public sgx_status_t enclave_generate_apikey(sgx_ra_context_t context,
-                            [out, size=apikey_size] uint8_t *p_apikey,
-                            uint32_t apikey_size,
-                            [out, size=cipherapikey_size] uint8_t *cipherapikey,
-                            uint32_t cipherapikey_size);
-
         public sgx_status_t enclave_get_apikey([out, size=kenlen] uint8_t *apikey, uint32_t kenlen);
-
-        public sgx_status_t enclave_verify_att_result_mac(sgx_ra_context_t context,
-                            [in,size=message_size] uint8_t* message,
-                            size_t message_size,
-                            [in,size=mac_size] uint8_t* mac,
-                            size_t mac_size);
 
         public sgx_status_t enclave_get_rand([out, size=datalen] uint8_t *data, uint32_t datalen);
 
@@ -137,8 +124,6 @@ enclave {
 
         public sgx_status_t enclave_create_report([in]const sgx_target_info_t* p_qe3_target,
                             [out]sgx_report_t* p_report);
-
-        public sgx_status_t enclave_init_ra(int b_pse, [out] sgx_ra_context_t *p_context);
 
         /* Interfaces used to create local secure channel based on local attestation */
         public uint32_t enclave_la_create_session();
