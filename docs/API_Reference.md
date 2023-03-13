@@ -82,7 +82,7 @@ Create a customer master key(CMK) for the user, which can be a symmetric or an a
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | cmk | String |"aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" |A uinque keyid of the cmk. |
+  | keyid | String |"aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" |A uinque keyid of the cmk. |
 
 - **Example**
 	- Request sample in python
@@ -327,7 +327,7 @@ Decrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["keyid"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["keyid"] = "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e"
     payload["ciphertext"] = "EhGpx8pMYFRDr28xT4dJvrMg5***"
 
     params = OrderedDict()
@@ -386,7 +386,7 @@ Performs sign operation using the cmk(only support asymmetric keyspec).
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["keyid"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["keyid"] = "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e"
     payload["digest"] = "ZGlnZXN0"
 
     params = OrderedDict()
@@ -621,7 +621,7 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
   | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity. The aad stored in BASE64 string.|
   | keyid | String | "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" | The unique keyid of specified symmetric CMK. |
   | olddatakey | String | "J/qC8IwEnhsjFjzIf***" | The ciphertext of the datakey wrapped by the cmk in BASE64 string. |
-  | ukeyid | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric use specified key in BASE64 string. |
+  | ukeyid | String | "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e" | The unique keyid of the asymmetric CMK which used to export. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
@@ -638,9 +638,9 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
   ```python
     payload = OrderedDict()
     payload["aad"] = "Y2hhbGxlbmdl"
-    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["keyid"] = "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef"
     payload["olddatakey"] = "J/qC8IwEnhsjFjzIf***"
-    payload["ukey"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["ukeyid"] = "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e"
 
     params = OrderedDict()
     params["appid"] = appid
