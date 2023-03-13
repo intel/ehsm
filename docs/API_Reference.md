@@ -82,7 +82,7 @@ Create a customer master key(CMK) for the user, which can be a symmetric or an a
   |:-----------|:-----------|:-----------|:-----------|
   | code | int | 200 | The result of the method call, 200 is success, others are fail. |
   | message | String | "success" | The description of result. |
-  | cmk | String |"AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwAA***" |The result in json object for the cmk which in based64 encoding. |
+  | cmk | String |"aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" |A uinque keyid of the cmk. |
 
 - **Example**
 	- Request sample in python
@@ -111,7 +111,7 @@ Create a customer master key(CMK) for the user, which can be a symmetric or an a
         "code": 200,
         "message": "success!",
         "result": {
-            "cmk":"AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+            "keyid":"aac3e45a-d3dc-4791-89b6-4ada0e38e6ef"
         }
     }
   ```
@@ -130,7 +130,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
   | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. The aad stored in BASE64 string.|
-  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A symmetric cmk in BASE64 string. |
+  | keyid | String | "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" | The keyid of the cmk you want to use which must be a symmetric key. |
   | plaintext | String | "cGxhaW50ZXh0" | The datas of the plaintext which in based64 encoding. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -148,7 +148,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
   ```python
     payload = OrderedDict()
     payload["aad"] = "Y2hhbGxlbmdl"
-    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["keyid"] = "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef"
     payload["plaintext"] = "cGxhaW50ZXh0"
 
     params = OrderedDict()
@@ -191,7 +191,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
   | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. The aad stored in BASE64 string.|
-  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A symmetric cmk in BASE64 string. |
+  | keyid | String | "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" | The keyid of the symmetric cmk which used to decryt the ciphertext. |
   | ciphertext | String | "uSDos6NLWNVp4sQZS2+mzLvDw***" | Ciphertext to be decrypted in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -209,7 +209,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support symmetric types).
   ```python
     payload = OrderedDict()
     payload["aad"] = "Y2hhbGxlbmdl"
-    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["keyid"] = "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef"
     payload["ciphertext"] = "uSDos6NLWNVp4sQZS2+mzLvDw***"
 
     params = OrderedDict()
@@ -251,7 +251,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | cmk | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
+  | keyid | String | "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e" | A unique keyid for asymmetric key. |
   | plaintext | String | "cGxhaW50ZXh0" | The datas of the plaintext which in based64 encoding. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -268,7 +268,7 @@ Encrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["cmk"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["keyid"] = "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e"
     payload["plaintext"] = "cGxhaW50ZXh0"
 
     params = OrderedDict()
@@ -310,7 +310,7 @@ Decrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | cmk | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
+  | keyid | String | "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e" | The keyid of the asymmetric cmk. |
   | ciphertext | String | "EhGpx8pMYFRDr28xT4dJvrMg5***" | The data of the ciphertext in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -327,7 +327,7 @@ Decrypt an arbitrary set of bytes using the CMK.(only support asymmetric types).
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["cmk"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["keyid"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
     payload["ciphertext"] = "EhGpx8pMYFRDr28xT4dJvrMg5***"
 
     params = OrderedDict()
@@ -369,7 +369,7 @@ Performs sign operation using the cmk(only support asymmetric keyspec).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | cmk | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
+  | keyid | String | "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e" | A unique keyid of asymmetric cmk. |
   | digest | String | "ZGlnZXN0" | The hash of datas want to be signed, and stored in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -386,7 +386,7 @@ Performs sign operation using the cmk(only support asymmetric keyspec).
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["cmk"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["keyid"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
     payload["digest"] = "ZGlnZXN0"
 
     params = OrderedDict()
@@ -428,7 +428,7 @@ Performs verify operation using the cmk(only support asymmetric keyspec).
 
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
-  | cmk | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric cmk in BASE64 string. |
+  | keyid | String | "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e" | The keyid of the asymmetric cmk. |
   | digest | String | "ZGlnZXN0" | The hash of datas want to be signed, and stored in BASE64 string. |
   | signature | String | "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***" | The signature of the digest signed by the cmk in BASE64 string. |
 
@@ -446,7 +446,7 @@ Performs verify operation using the cmk(only support asymmetric keyspec).
 	- Request sample in python
   ```python
     payload = OrderedDict()
-    payload["cmk"] = "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***"
+    payload["keyid"] = "ec1ccb09-4dd5-4af9-b04b-a97c4613cd7e"
     payload["digest"] = "ZGlnZXN0"
     payload["signature"] = "KkUO2y2IJVdsahlUL4GA0fYf4y9wPaaocdEtfG3***"
 
@@ -495,7 +495,7 @@ when you want to obtain the plaintext of datakey again, you can call the Decrypt
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
   | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. The aad stored in BASE64 string.|
-  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A specified symmetric CMK in BASE64 string. |
+  | keyid | String | "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" | A unique id of the specified symmetric CMK. |
   | keylen | int | 16 | Specifies the length of the plaintext, length is 0~1024 bytes. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -514,7 +514,7 @@ when you want to obtain the plaintext of datakey again, you can call the Decrypt
   ```python
     payload = OrderedDict()
     payload["aad"] = "Y2hhbGxlbmdl"
-    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["keyid"] = "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef"
     payload["keylen"] = 16
 
     params = OrderedDict()
@@ -558,7 +558,7 @@ The same as GenerateDataKey, but it doesn’t return plaintext of generated Data
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
   | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity, and not be included in the cipherblobs. The aad stored in BASE64 string.|
-  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***" | A specified symmetric CMK in BASE64 string. |
+  | keyid | String | "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" | The unique keyid of the specified symmetric CMK. |
   | keylen | int | 16 | Specifies the length of the plaintext, length is 0~1024 bytes. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
@@ -576,7 +576,7 @@ The same as GenerateDataKey, but it doesn’t return plaintext of generated Data
   ```python
     payload = OrderedDict()
     payload["aad"] = "Y2hhbGxlbmdl"
-    payload["cmk"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
+    payload["keyid"] = "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwA***"
     payload["keylen"] = 16
 
     params = OrderedDict()
@@ -619,9 +619,9 @@ ehsm-core enclave will decrypt user-supplied ciphertextblob with specified CMK t
   | Name | Type | Reference Value | Description |
   |:-----------|:-----------|:-----------|:-----------|
   | aad | String | "Y2hhbGxlbmdl" | Some extra datas input by the user, which could help to to ensure data integrity. The aad stored in BASE64 string.|
-  | cmk | String | "AAAAAAAAAAAAAAAAAAAAAGCcKdP/fwAA***" | A specified symmetric CMK in BASE64 string. |
+  | keyid | String | "aac3e45a-d3dc-4791-89b6-4ada0e38e6ef" | The unique keyid of specified symmetric CMK. |
   | olddatakey | String | "J/qC8IwEnhsjFjzIf***" | The ciphertext of the datakey wrapped by the cmk in BASE64 string. |
-  | ukey | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric use specified key in BASE64 string. |
+  | ukeyid | String | "AwAAAAAAAAAAJ9EXav7ngTocodwxFwPz/xWGh***" | An asymmetric use specified key in BASE64 string. |
 
   Notes: for the common request parameters, please refer to the [common params](#Common-Prameters)
    
