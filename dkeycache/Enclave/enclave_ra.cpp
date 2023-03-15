@@ -148,7 +148,7 @@ int communicate_with_server(SSL *ssl)
 
         if (bytes_read <= 0)
         {
-            int error = SSL_get_error(ssl, bytes_read);
+            error = SSL_get_error(ssl, bytes_read);
             if (error == SSL_ERROR_WANT_READ)
                 continue;
 
@@ -162,7 +162,7 @@ int communicate_with_server(SSL *ssl)
         if (bytes_read != SGX_DOMAIN_KEY_SIZE)
         {
             log_d(
-                TLS_CLIENT "ERROR: expected reading %lu bytes but only "
+                TLS_CLIENT "ERROR: expected reading %u bytes but only "
                            "received %d bytes\n",
                 SGX_DOMAIN_KEY_SIZE,
                 bytes_read);
@@ -176,9 +176,9 @@ int communicate_with_server(SSL *ssl)
             ret = 0;
             memcpy(g_domain_key, buf, SGX_DOMAIN_KEY_SIZE);
             log_i("Successfully received the DomainKey from deploy server.\n");
-            for (unsigned long int i = 0; i < sizeof(g_domain_key); i++)
+            for (int i = 0; i < sizeof(g_domain_key); i++)
             {
-                log_d("domain_key[%u]=%2u\n", i, g_domain_key[i]);
+                log_d("domain_key[%d]=%2u\n", i, g_domain_key[i]);
             }
             int retval = 0;
             if (ocall_set_dkeycache_done(&retval) != SGX_SUCCESS)

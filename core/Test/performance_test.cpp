@@ -78,7 +78,7 @@ static bool _createkey(ehsm_keyblob_t *&cmk)
     cmk = (ehsm_keyblob_t *)realloc(cmk, APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen));
     if (cmk == NULL)
     {
-        log_e("realloc with keyspec code %d failed.\n", cmk->metadata.keyspec);
+        log_e("realloc failed.\n");
         return false;
     }
 

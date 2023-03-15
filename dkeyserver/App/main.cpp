@@ -247,7 +247,6 @@ static void parse_args(int argc,
             }
             else
             {
-                char *ip = NULL;
                 target_ip_addr = inet_ntoa(*(struct in_addr *)hptr->h_addr_list[0]);
             }
             break;

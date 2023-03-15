@@ -161,13 +161,14 @@ static bool aes_gcm_decryption(map<string, string> test_vector)
  */
 bool aes_gcm_crypto_test()
 {
+    log_i("%s start", __func__);
     int index = 1;
-    for (auto test_vector : aes_gcm_crypto_test_vectors)
+    for (auto &test_vector : aes_gcm_crypto_test_vectors)
     {
         if (!aes_gcm_encryption(test_vector))
         {
             log_e("self test failed");
-            for (auto item : test_vector)
+            for (auto &item : test_vector)
                 log_e("[%s]: [%s]", item.first.c_str(), item.second.c_str());
             continue;
         }
@@ -175,7 +176,7 @@ bool aes_gcm_crypto_test()
         if (!aes_gcm_decryption(test_vector))
         {
             log_e("self test failed");
-            for (auto item : test_vector)
+            for (auto &item : test_vector)
                 log_e("[%s]: [%s]", item.first.c_str(), item.second.c_str());
             continue;
         }
@@ -187,6 +188,6 @@ bool aes_gcm_crypto_test()
     {
         return false;
     }
-
+    log_i("%s end", __func__);
     return true;
 }
