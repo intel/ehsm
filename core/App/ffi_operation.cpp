@@ -1225,7 +1225,7 @@ extern "C"
     {
         RetJsonObj retJsonObj;
 
-        const char *challenge_base64 = payloadJson.readData_cstr("challenge");
+        char *challenge_base64 = payloadJson.readData_cstr("challenge");
 
         if (challenge_base64 == NULL)
         {
@@ -1294,6 +1294,7 @@ extern "C"
         retJsonObj.addData_string("quote", quote_base64);
 
     out:
+        SAFE_FREE(challenge_base64);
         SAFE_FREE(quote);
         retJsonObj.toChar(respJson);
         return ret;
@@ -1323,27 +1324,27 @@ extern "C"
      */
     uint32_t ffi_verifyQuote(JsonObj payloadJson, char *respJson)
     {
+        ehsm_status_t ret = EH_OK;
+        int result = SGX_QL_QV_RESULT_UNSPECIFIED;
+        ehsm_data_t *quote = NULL;
+        string quote_str;
+        int quote_size = 0;
         RetJsonObj retJsonObj;
 
-        const char *quote_base64 = payloadJson.readData_cstr("quote");
-        const char *mr_signer = payloadJson.readData_cstr("mr_signer");
-        const char *mr_enclave = payloadJson.readData_cstr("mr_enclave");
-        const char *nonce_base64 = payloadJson.readData_cstr("nonce");
+        char *quote_base64 = payloadJson.readData_cstr("quote");
+        char *mr_signer = payloadJson.readData_cstr("mr_signer");
+        char *mr_enclave = payloadJson.readData_cstr("mr_enclave");
+        char *nonce_base64 = payloadJson.readData_cstr("nonce");
 
         if (quote_base64 == NULL || nonce_base64 == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("paramter invalid.");
-            retJsonObj.toChar(respJson);
-            return EH_ARGUMENTS_BAD;
+            goto out;
         }
 
-        ehsm_status_t ret = EH_OK;
-        int result = SGX_QL_QV_RESULT_UNSPECIFIED;
-        ehsm_data_t *quote;
-
-        string quote_str = base64_decode(quote_base64);
-        int quote_size = quote_str.size();
+        quote_str = base64_decode(quote_base64);
+        quote_size = quote_str.size();
         if (quote_size == 0 || quote_size > EH_QUOTE_MAX_SIZE)
         {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
@@ -1373,6 +1374,11 @@ extern "C"
         retJsonObj.addData_string("nonce", nonce_base64);
 
     out:
+        SAFE_FREE(quote_base64);
+        SAFE_FREE(mr_signer);
+        SAFE_FREE(mr_enclave);
+        SAFE_FREE(nonce_base64);
+        SAFE_FREE(quote);
         retJsonObj.toChar(respJson);
         return ret;
     }

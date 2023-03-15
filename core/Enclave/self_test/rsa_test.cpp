@@ -617,14 +617,15 @@ static bool rsa_sign_verify_with_PKCS1_PSS(map<string, string> test_vector)
  */
 bool rsa_crypto_test()
 {
+    log_i("%s start", __func__);
     int index = 1;
 
-    for (auto test_vector : rsa_crypto_with_pkcs_oaep_test_vectors)
+    for (auto &test_vector : rsa_crypto_with_pkcs_oaep_test_vectors)
     {
         if (!rsa_decryption_with_pkcs_oaep(test_vector))
         {
             log_e("self test failed");
-            for (auto item : test_vector)
+            for (auto &item : test_vector)
                 log_e("[%s]: [%s]", item.first.c_str(), item.second.c_str());
             continue;
         }
@@ -636,7 +637,7 @@ bool rsa_crypto_test()
     {
         return false;
     }
-
+    log_i("%s end", __func__);
     return true;
 }
 
@@ -647,13 +648,14 @@ bool rsa_crypto_test()
  */
 bool rsa_sign_verify_test()
 {
+    log_i("%s start", __func__);
     int index = 1;
-    for (auto test_vector : rsa_sign_verify_with_PKCS1_test_vectors)
+    for (auto &test_vector : rsa_sign_verify_with_PKCS1_test_vectors)
     {
         if (!rsa_sign_verify_with_PKCS1(test_vector))
         {
             log_e("self test failed");
-            for (auto item : test_vector)
+            for (auto &item : test_vector)
                 log_e("[%s]: [%s]", item.first.c_str(), item.second.c_str());
             continue;
         }
@@ -661,12 +663,12 @@ bool rsa_sign_verify_test()
         index++;
     }
 
-    for (auto test_vector : rsa_sign_verify_with_PKCS1_PSS_test_vectors)
+    for (auto &test_vector : rsa_sign_verify_with_PKCS1_PSS_test_vectors)
     {
         if (!rsa_sign_verify_with_PKCS1_PSS(test_vector))
         {
-            log_e("self test failed");
-            for (auto item : test_vector)
+            log_e("rsa self test failed");
+            for (auto &item : test_vector)
                 log_e("[%s]: [%s]", item.first.c_str(), item.second.c_str());
             continue;
         }
@@ -679,6 +681,6 @@ bool rsa_sign_verify_test()
     {
         return false;
     }
-
+    log_i("%s end", __func__);
     return true;
 }

@@ -66,7 +66,7 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
     char recv_msg[BUFFER_SIZE + 1] = {0};
     FIFO_MSG *response = NULL;
 
-    struct sockaddr_un server_addr;
+    struct sockaddr_un server_addr = {0};
     int server_sock_fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (server_sock_fd == -1)
     {
@@ -75,7 +75,7 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
     }
 
     server_addr.sun_family = AF_UNIX;
-    strcpy(server_addr.sun_path, UNIX_DOMAIN);
+    strncpy(server_addr.sun_path, UNIX_DOMAIN, strlen(UNIX_DOMAIN));
 
     do
     {

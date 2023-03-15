@@ -243,7 +243,7 @@ sgx_status_t generate_key_pair(
     *public_key_size = strlen(reinterpret_cast<const char *>(local_public_key)) + 1;
     *private_key_size = strlen(reinterpret_cast<const char *>(local_private_key)) + 1;
 
-    log_d("public_key_size %d, private_key_size %d\n", *public_key_size, *private_key_size);
+    log_d("public_key_size %lu, private_key_size %lu\n", *public_key_size, *private_key_size);
     result = SGX_SUCCESS;
 
 done:

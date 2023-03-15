@@ -28,6 +28,8 @@
 #define ENCLAVE_PATH "libenclave-ehsm-dkeycache.signed.so"
 #include <inttypes.h>
 
+using namespace std;
+
 sgx_enclave_id_t g_enclave_id;
 
 void ocall_print_string(uint32_t log_level, const char *str, const char *filename, uint32_t line)
@@ -93,13 +95,6 @@ int ocall_set_dkeycache_done()
 LaTask *g_la_task = NULL;
 LaServer *g_la_server = NULL;
 
-std::string deploy_ip_addr;
-uint16_t deploy_port = 0;
-static const char *_sopts = "i:p:";
-static const struct option _lopts[] = {{"ip", required_argument, NULL, 'i'},
-                                       {"port", required_argument, NULL, 'p'},
-                                       {0, 0, 0, 0}};
-
 void signal_handler(int sig)
 {
     switch (sig)
@@ -131,10 +126,17 @@ static void show_usage_and_exit(int code)
     log_i("\nusage: ehsm-dkeycache -i 127.0.0.1 -p 8888\n\n");
     exit(code);
 }
-static void parse_args(int argc, char *argv[])
+static void parse_args(int argc, char *argv[],
+                       string &deploy_ip_addr,
+                       uint16_t *deploy_port)
 {
     int opt;
     int oidx = 0;
+    static const char *_sopts = "i:p:";
+    static const struct option _lopts[] = {{"ip", required_argument, NULL, 'i'},
+                                       {"port", required_argument, NULL, 'p'},
+                                       {0, 0, 0, 0}};
+
     while ((opt = getopt_long(argc, argv, _sopts, _lopts, &oidx)) != -1)
     {
         switch (opt)
@@ -145,7 +147,7 @@ static void parse_args(int argc, char *argv[])
         case 'p':
             try
             {
-                deploy_port = std::stoi(strdup(optarg));
+                *deploy_port = std::stoi(strdup(optarg));
             }
             catch (...)
             {
@@ -157,7 +159,7 @@ static void parse_args(int argc, char *argv[])
             show_usage_and_exit(EXIT_FAILURE);
         }
     }
-    if (deploy_ip_addr.empty() || deploy_port == 0)
+    if (deploy_ip_addr.empty() || *deploy_port == 0)
     {
         log_e("error: missing required argument(s)\n");
         show_usage_and_exit(EXIT_FAILURE);
@@ -182,8 +184,11 @@ int main(int argc, char *argv[])
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
 
+    string deploy_ip_addr;
+    uint16_t deploy_port = 0;
+
     // process argv
-    parse_args(argc, argv);
+    parse_args(argc, argv, deploy_ip_addr, &deploy_port);
 
     log_i("Runtime folder:\t\t%s", RUNTIME_FOLDER);
     log_i("DomainKey Server IP:\t\t%s", deploy_ip_addr.c_str());

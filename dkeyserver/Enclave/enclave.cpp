@@ -224,9 +224,9 @@ static void *SocketMsgHandler(void *arg)
         goto exit;
     }
 
-    for (unsigned long int i = 0; i < SGX_DOMAIN_KEY_SIZE; i++)
+    for (int i = 0; i < SGX_DOMAIN_KEY_SIZE; i++)
     {
-        log_d("domain_key[%u]=%2u", i, handler_ctx.domainkey[i]);
+        log_d("domain_key[%d]=%2u", i, handler_ctx.domainkey[i]);
     }
 
     log_d(TLS_SERVER "<---- Write to client:\n");
@@ -386,7 +386,7 @@ int create_socket(const char *server_name, uint16_t server_port)
             sizeof(struct sockaddr)) == -1)
     {
         log_e(
-            TLS_SERVER "failed to connect to target server %d:%d (errno=%d)\n",
+            TLS_SERVER "failed to connect to target server %s:%d (errno=%d)\n",
             server_name,
             server_port,
             errno);
@@ -509,7 +509,7 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
 
         if (bytes_read <= 0)
         {
-            int error = SSL_get_error(ssl_session, bytes_read);
+            error = SSL_get_error(ssl_session, bytes_read);
             if (error == SSL_ERROR_WANT_READ)
                 continue;
 
@@ -522,7 +522,7 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
         if (bytes_read != SGX_DOMAIN_KEY_SIZE)
         {
             log_e(
-                TLS_SERVER "ERROR: expected reading %lu bytes but only "
+                TLS_SERVER "ERROR: expected reading %ul bytes but only "
                            "received %d bytes\n",
                 SGX_DOMAIN_KEY_SIZE,
                 bytes_read);
@@ -537,9 +537,9 @@ sgx_status_t get_domainkey_from_target(uint8_t *domain_key,
         }
     } while (1);
 
-    for (unsigned long int i = 0; i < SGX_DOMAIN_KEY_SIZE; i++)
+    for (int i = 0; i < SGX_DOMAIN_KEY_SIZE; i++)
     {
-        log_d("domain_key[%u]=%2u", i, domain_key[i]);
+        log_d("domain_key[%d]=%2u", i, domain_key[i]);
     }
 
     ret = SGX_SUCCESS;
@@ -614,8 +614,10 @@ sgx_status_t get_domainkey_from_local(uint8_t *domain_key)
     else
         return SGX_ERROR_UNEXPECTED;
 
-    memcpy_s(domain_key, SGX_DOMAIN_KEY_SIZE, tmp, SGX_DOMAIN_KEY_SIZE);
-    memset_s(tmp, SGX_DOMAIN_KEY_SIZE, 0, SGX_DOMAIN_KEY_SIZE);
+    if (memcpy_s(domain_key, SGX_DOMAIN_KEY_SIZE, tmp, SGX_DOMAIN_KEY_SIZE))
+        return SGX_ERROR_UNEXPECTED;
+    if (memset_s(tmp, SGX_DOMAIN_KEY_SIZE, 0, SGX_DOMAIN_KEY_SIZE))
+        return SGX_ERROR_UNEXPECTED;
 
     return ret;
 }

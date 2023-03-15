@@ -132,7 +132,7 @@ sgx_status_t ehsm_aes_gcm_encrypt(ehsm_data_t *aad,
     uint32_t key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (key_size == UINT32_MAX || key_size != keysize)
     {
-        log_d("key_size:%d is not expected: %lu.\n", key_size, keysize);
+        log_d("key_size:%u is not expected: %u.\n", key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -224,7 +224,7 @@ sgx_status_t ehsm_aes_gcm_decrypt(ehsm_data_t *aad,
     uint32_t key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (key_size == UINT32_MAX || key_size != keysize)
     {
-        log_d("key_size size:%d is not expected: %lu.\n", key_size, keysize);
+        log_d("key_size size:%u is not expected: %u.\n", key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -304,7 +304,7 @@ sgx_status_t ehsm_sm4_ctr_encrypt(ehsm_keyblob_t *cmk,
     uint32_t key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (key_size == UINT32_MAX || key_size != keysize)
     {
-        log_d("key_size:%d is not expected: %lu.\n", key_size, keysize);
+        log_d("key_size:%u is not expected: %u.\n", key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -369,7 +369,7 @@ sgx_status_t ehsm_sm4_ctr_decrypt(ehsm_keyblob_t *cmk,
     uint32_t key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (key_size == UINT32_MAX || key_size != keysize)
     {
-        log_d("key_size size:%d is not expected: %lu.\n", key_size, keysize);
+        log_d("key_size size:%u is not expected: %u.\n", key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -430,7 +430,7 @@ sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
     uint32_t key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (key_size == UINT32_MAX || key_size != keysize)
     {
-        log_d("key_size:%d is not expected: %lu.\n", key_size, keysize);
+        log_d("key_size:%u is not expected: %u.\n", key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -507,7 +507,7 @@ sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
     uint32_t key_size = ehsm_get_gcm_ciphertext_size((sgx_aes_gcm_data_ex_t *)cmk->keyblob);
     if (key_size == UINT32_MAX || key_size != keysize)
     {
-        log_d("key_size size:%d is not expected: %lu.\n", key_size, keysize);
+        log_d("key_size size:%u is not expected: %u.\n", key_size, keysize);
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -621,6 +621,7 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ectx = NULL;
+    size_t outLen = 0;
 
     // load sm2 public key
     sm2_keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -657,33 +658,25 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 
     if (ciphertext->datalen == 0)
     {
-        size_t strLen;
-        if (EVP_PKEY_encrypt(ectx, NULL, &strLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
+        if (EVP_PKEY_encrypt(ectx, NULL, &outLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
         }
-        ciphertext->datalen = strLen;
+        ciphertext->datalen = outLen;
         ret = SGX_SUCCESS;
         goto out;
     }
 
-    if (plaintext->data != NULL)
+    outLen = ciphertext->datalen;
+    if (EVP_PKEY_encrypt(ectx,
+                        ciphertext->data,
+                        &outLen,
+                        plaintext->data,
+                        (size_t)plaintext->datalen) <= 0)
     {
-        size_t strLen = ciphertext->datalen;
-        if (EVP_PKEY_encrypt(ectx,
-                             ciphertext->data,
-                             &strLen,
-                             plaintext->data,
-                             (size_t)plaintext->datalen) <= 0)
-        {
-            log_d("failed to make sm2 encryption\n");
-            goto out;
-        }
-    }
-    else
-    {
-        ret = SGX_ERROR_INVALID_PARAMETER;
+        log_e("failed to make sm2 encryption\n");
+        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
@@ -727,7 +720,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
     bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
     {
-        log_d("failed to load key pem\n");
+        log_e("failed to load key pem\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -735,7 +728,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
     PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
     if (rsa_prikey == NULL)
     {
-        log_d("failed to load private key\n");
+        log_e("failed to load private key\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -753,7 +746,7 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
                                  cmk->metadata.padding_mode);
     if (retval <= 0)
     {
-        log_d("failed to make rsa decrypt\n");
+        log_e("failed to make rsa decrypt\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -778,7 +771,7 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *dctx = NULL;
-
+    size_t outLen = 0;
     // load private key
     sm2_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (sm2_keypair == NULL)
@@ -792,7 +785,7 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
     bio = BIO_new_mem_buf(sm2_keypair, -1); // use -1 to auto compute length
     if (bio == NULL)
     {
-        log_d("failed to load key pem\n");
+        log_e("failed to load key pem\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -800,7 +793,7 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
     pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
     if (pkey == NULL)
     {
-        log_d("failed to load sm2 key\n");
+        log_e("failed to load sm2 key\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
@@ -826,39 +819,32 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
 
     if (plaintext->datalen == 0)
     {
-        size_t strLen;
         if (EVP_PKEY_decrypt(dctx,
                              NULL,
-                             &strLen,
+                             &outLen,
                              ciphertext->data,
                              (size_t)ciphertext->datalen) != 1)
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
         }
-        plaintext->datalen = strLen;
+        plaintext->datalen = outLen;
         ret = SGX_SUCCESS;
         goto out;
     }
 
-    if (ciphertext->data != NULL)
+    outLen = plaintext->datalen;
+    if (EVP_PKEY_decrypt(dctx,
+                        plaintext->data,
+                        &outLen,
+                        ciphertext->data,
+                        (size_t)ciphertext->datalen) != 1)
     {
-        size_t strLen = plaintext->datalen;
-        if (EVP_PKEY_decrypt(dctx,
-                             plaintext->data,
-                             &strLen,
-                             ciphertext->data,
-                             (size_t)ciphertext->datalen) != 1)
-        {
-            ret = SGX_ERROR_UNEXPECTED;
-            goto out;
-        }
-    }
-    else
-    {
+        log_e("failed to make sm2 decryption\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
+    ret = SGX_SUCCESS;
 
 out:
     BIO_free(bio);

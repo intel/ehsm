@@ -421,13 +421,13 @@ uint32_t enclave_la_message_exchange()
 {
     ATTESTATION_STATUS ke_status = SUCCESS;
     uint32_t target_fn_id, msg_type;
-    uint8_t* marshalled_inp_buff;
-    uint32_t marshalled_inp_buff_len;
-    uint8_t* out_buff;
-    uint32_t out_buff_len;
+    uint8_t* marshalled_inp_buff = NULL;
+    uint32_t marshalled_inp_buff_len = 0;
+    uint8_t* out_buff = NULL;
+    uint32_t out_buff_len = 0;
     uint32_t max_out_buff_size;
-    uint8_t* secret;
-    uint32_t secret_len;
+    uint8_t* secret = NULL;
+    uint32_t secret_len = 0;
 
     uint32_t cmd_id;
 

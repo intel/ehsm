@@ -552,11 +552,15 @@ sgx_status_t enclave_generate_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
 
     if (sgx_read_rand(temp_datakey, plaintext->datalen) != SGX_SUCCESS)
     {
-        free(temp_datakey);
-        return SGX_ERROR_OUT_OF_MEMORY;
+        ret = SGX_ERROR_OUT_OF_MEMORY;
+        goto out;
     }
 
-    memcpy_s(plaintext->data, plaintext->datalen, temp_datakey, plaintext->datalen);
+    if (memcpy_s(plaintext->data, plaintext->datalen, temp_datakey, plaintext->datalen))
+    {
+        ret = SGX_ERROR_OUT_OF_MEMORY;
+        goto out;
+    }
 
     switch (cmk->metadata.keyspec)
     {
@@ -581,6 +585,8 @@ sgx_status_t enclave_generate_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
     default:
         break;
     }
+
+out:
     memset_s(temp_datakey, plaintext->datalen, 0, plaintext->datalen);
     free(temp_datakey);
     return ret;

@@ -288,8 +288,6 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     default:
         goto out;
     }
-    if (rsa_keypair == NULL)
-        goto out;
 
 #ifdef ENABLE_PAIR_WISE_TEST
     if (!pair_wise_test_for_rsa(rsa_keypair))

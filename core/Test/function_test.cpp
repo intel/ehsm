@@ -1336,6 +1336,7 @@ void test_GenerateQuote_and_VerifyQuote()
 
 cleanup:
     SAFE_FREE(returnJsonChar);
+    SAFE_FREE(quote_base64);
     log_i("============test_GenerateQuote_and_VerifyQuote end==========\n");
 }
 
@@ -1368,6 +1369,8 @@ void test_Enroll()
     log_i("apikey : %s\n", apikey);
 
 cleanup:
+    SAFE_FREE(appid);
+    SAFE_FREE(apikey);
     SAFE_FREE(returnJsonChar);
     log_i("============test_Enroll end==========\n");
 }

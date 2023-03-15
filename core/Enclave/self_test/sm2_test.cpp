@@ -240,13 +240,14 @@ out:
  */
 bool sm2_sign_verify_test()
 {
+    log_i("%s start", __func__);
     int index = 1;
-    for (auto test_vector : sm2_sign_verify_test_vectors)
+    for (auto &test_vector : sm2_sign_verify_test_vectors)
     {
         if (!sm2_verify_test(test_vector))
         {
             log_e("self test failed");
-            for (auto item : test_vector)
+            for (auto &item : test_vector)
                 log_e("[%s]: [%s]", item.first.c_str(), item.second.c_str());
             continue;
         }
@@ -258,7 +259,7 @@ bool sm2_sign_verify_test()
     {
         return false;
     }
-
+    log_i("%s end", __func__);
     return true;
 }
 
@@ -270,6 +271,7 @@ bool sm2_sign_verify_test()
  */
 bool sm2_crypto_test()
 {
+    log_i("%s start", __func__);
     int count = 10;
 
     for (int i = 0; i < count; i++)
@@ -277,7 +279,7 @@ bool sm2_crypto_test()
         uint16_t rand_len = 0;
         sgx_read_rand((uint8_t *)&rand_len, sizeof(rand_len));
         size_t length = rand_len % 1024 + 1;
-        log_i("sm2_crypto_test length = %d\n", length);
+        //log_i("sm2_crypto_test length = %lu\n", length);
 
         // create key
         EC_GROUP *ec_group = EC_GROUP_new_by_curve_name(NID_sm2);
@@ -311,8 +313,8 @@ bool sm2_crypto_test()
         if (memcmp(plaintext, _plaintext, length) != 0)
         {
             log_e("self test failed");
-            log_e("[plaintext(%d)]:", length);
-            for (auto item : plaintext)
+            log_e("[plaintext(%lu)]:", length);
+            for (auto &item : plaintext)
                 log_i("%02x", item);
             log_i("\n");
 
@@ -327,5 +329,7 @@ bool sm2_crypto_test()
         EVP_PKEY_free(pkey2);
         EVP_PKEY_CTX_free(dctx);
     }
+
+    log_i("%s end", __func__);
     return true;
 }

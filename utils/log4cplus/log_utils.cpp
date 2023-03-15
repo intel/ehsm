@@ -32,11 +32,9 @@ int initLogger(const char* logs_filename)
         }
 
         printf("Logs folder:\t%s\n", LOGS_FOLDER);
-        int path_len = strlen(LOGS_FOLDER) +
-                       strlen(logs_filename) +
-                       strlen("/");
+        int path_len = strlen(LOGS_FOLDER) + strlen(logs_filename) + strlen("/")+1;
         char logs_path[path_len] = {0};        
-        sprintf(logs_path,"%s/%s", LOGS_FOLDER, logs_filename);
+        snprintf(logs_path, path_len, "%s/%s", LOGS_FOLDER, logs_filename);
 
         SharedAppenderPtr fileAppender(new RollingFileAppender(
                                     LOG4CPLUS_TEXT(logs_path), 

@@ -44,100 +44,15 @@ class JsonObj
 private:
     Json::Value m_json;
     template <typename T>
+
     void addData(std::string key, T data)
     {
-        // key level
-        int level = 1;
-        std::string key_tmp = key;
-        while ((int)key_tmp.find(LAYERED_CHARACTER) > 0)
-        {
-            level++;
-            key_tmp = key_tmp.substr(key_tmp.find(LAYERED_CHARACTER) + strlen(LAYERED_CHARACTER),
-                                     key_tmp.size() - strlen(LAYERED_CHARACTER));
-        }
-
-        // key array
-        std::string *keys = new std::string[level];
-        key_tmp = key;
-        for (int i = 0; (int)key_tmp.find(LAYERED_CHARACTER) > 0; i++)
-        {
-            std::string sub_key = key_tmp.substr(0, key_tmp.find(LAYERED_CHARACTER));
-            keys[i] = sub_key;
-            key_tmp = key_tmp.substr(key_tmp.find(LAYERED_CHARACTER) + strlen(LAYERED_CHARACTER),
-                                     key_tmp.size() - strlen(LAYERED_CHARACTER));
-        }
-        keys[level - 1] = key_tmp;
-
-        switch (level)
-        {
-        case 1:
-            m_json[key] = data;
-            break;
-        case 2:
-            m_json[keys[0]][keys[1]] = data;
-            break;
-        case 3:
-            m_json[keys[0]][keys[1]][keys[2]] = data;
-            break;
-        case 4:
-            m_json[keys[0]][keys[1]][keys[2]][keys[3]] = data;
-            break;
-        case 5:
-            m_json[keys[0]][keys[1]][keys[2]][keys[3]][keys[4]] = data;
-            break;
-        case 6:
-            m_json[keys[0]][keys[1]][keys[2]][keys[3]][keys[4]][keys[5]] = data;
-            break;
-        case 7:
-            m_json[keys[0]][keys[1]][keys[2]][keys[3]][keys[4]][keys[5]][keys[6]] = data;
-            break;
-        }
+        m_json[key] = data;
     }
 
     Json::Value readData(std::string key)
     {
-        // key level
-        int level = 1;
-        std::string key_tmp = key;
-        while ((int)key_tmp.find(LAYERED_CHARACTER) > 0)
-        {
-            level++;
-            key_tmp = key_tmp.substr(key_tmp.find(LAYERED_CHARACTER) + strlen(LAYERED_CHARACTER),
-                                     key_tmp.size() - strlen(LAYERED_CHARACTER));
-        }
-
-        // key array
-        std::string *keys = new std::string[level];
-        key_tmp = key;
-        for (int i = 0; (int)key_tmp.find(LAYERED_CHARACTER) > 0; i++)
-        {
-            std::string sub_key = key_tmp.substr(0, key_tmp.find(LAYERED_CHARACTER));
-            keys[i] = sub_key;
-            key_tmp = key_tmp.substr(key_tmp.find(LAYERED_CHARACTER) + strlen(LAYERED_CHARACTER),
-                                     key_tmp.size() - strlen(LAYERED_CHARACTER));
-        }
-        keys[level - 1] = key_tmp;
-
-        switch (level)
-        {
-        case 1:
-            return m_json[key];
-        case 2:
-            return m_json[keys[0]][keys[1]];
-        case 3:
-            return m_json[keys[0]][keys[1]][keys[2]];
-        case 4:
-            return m_json[keys[0]][keys[1]][keys[2]][keys[3]];
-        case 5:
-            return m_json[keys[0]][keys[1]][keys[2]][keys[3]][keys[4]];
-        case 6:
-            return m_json[keys[0]][keys[1]][keys[2]][keys[3]][keys[4]][keys[5]];
-        case 7:
-            return m_json[keys[0]][keys[1]][keys[2]][keys[3]][keys[4]][keys[5]][keys[6]];
-        default:
-            Json::Value retVal;
-            return retVal;
-        }
+        return m_json[key];
     }
 
 public:
