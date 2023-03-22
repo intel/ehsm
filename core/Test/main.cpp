@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 {
     ehsm_status_t ret = EH_OK;
 
-    ret = Initialize();
+    ret = Initialize(false);
     if (ret != EH_OK)
     {
         printf("Initialize failed %d\n", ret);

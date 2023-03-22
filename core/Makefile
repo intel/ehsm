@@ -40,8 +40,6 @@ Enclave_Config_File := Enclave/enclave.config.xml
 Enclave_Signing_Key := Enclave/enclave_private_test.pem
 Sgx_Signing_tool := $(SGX_SDK)/bin/x64/sgx_sign
 
-EHSM_DEFAULT_DOMAIN_KEY_FALLBACK ?= 0
-
 ENABLE_PERFORMANCE_TEST ?= 0
 
 ENABLE_SELF_TEST ?= 0
@@ -71,10 +69,6 @@ else ifeq ($(SGX_PRERELEASE), 1)
     App_C_Flags += -DNDEBUG -DEDEBUG -UDEBUG
 else
     App_C_Flags += -DNDEBUG -UEDEBUG -UDEBUG
-endif
-
-ifeq (1, $(EHSM_DEFAULT_DOMAIN_KEY_FALLBACK))
-	App_C_Flags += -DEHSM_DEFAULT_DOMAIN_KEY_FALLBACK
 endif
 
 ifeq (1, $(ENABLE_PERFORMANCE_TEST))

@@ -39,7 +39,7 @@
 #include "key_operation.h"
 #include "openssl_operation.h"
 
-sgx_aes_gcm_256bit_key_t g_domain_key = {0};
+extern sgx_aes_gcm_256bit_key_t g_domain_key;
 
 using namespace std;
 
