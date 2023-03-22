@@ -1,38 +1,22 @@
 const nano = require('nano')
-
-const {
-  EHSM_CONFIG_COUCHDB_USERNAME,
-  EHSM_CONFIG_COUCHDB_PASSWORD,
-  EHSM_CONFIG_COUCHDB_SERVER,
-  EHSM_CONFIG_COUCHDB_PORT,
-  EHSM_CONFIG_COUCHDB_DB,
-} = process.env
+const { kms_config } = require('./constant')
+const logger = require('./logger')
 
 async function connectDB(server) {
-  if (
-    !EHSM_CONFIG_COUCHDB_USERNAME ||
-    !EHSM_CONFIG_COUCHDB_PASSWORD ||
-    !EHSM_CONFIG_COUCHDB_SERVER ||
-    !EHSM_CONFIG_COUCHDB_PORT ||
-    !EHSM_CONFIG_COUCHDB_DB
-  ) {
-    console.log('couchdb url error')
-  } else {
-    let dburl = `http://${EHSM_CONFIG_COUCHDB_USERNAME}:${EHSM_CONFIG_COUCHDB_PASSWORD}@${EHSM_CONFIG_COUCHDB_SERVER}:${EHSM_CONFIG_COUCHDB_PORT}`
+    let dburl = `http://${kms_config.database.username}:${kms_config.database.password}@${kms_config.database.server}:${kms_config.database.port}`
     const nanoDb = nano(dburl)
     let DB
     try {
-      await nanoDb.db.create(EHSM_CONFIG_COUCHDB_DB, { partitioned: true })
-      DB = await nanoDb.use(EHSM_CONFIG_COUCHDB_DB)
+        await nanoDb.db.create(kms_config.database.db, { partitioned: true })
+        DB = await nanoDb.use(kms_config.database.db)
     } catch (e) {
-      DB = await nanoDb.use(EHSM_CONFIG_COUCHDB_DB)
+        DB = await nanoDb.use(kms_config.database.db)
     }
     if (DB) {
-      server(DB)
+        server(DB)
     } else {
-      console.log('couchdb connect error')
+        logger.error('couchdb connect error')
     }
-  }
 }
 
 module.exports = connectDB

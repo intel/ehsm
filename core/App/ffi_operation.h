@@ -46,7 +46,7 @@ extern "C"
             result: {}
         }
     */
-    uint32_t ffi_initialize(char *respJson);
+    uint32_t ffi_initialize(JsonObj payloadJson, char *respJson);
 
     /*
     destory the enclave
