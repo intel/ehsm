@@ -14,8 +14,8 @@ import urllib.parse
 use_secure_cert = False
 
 # Using a dummy appid and app key
-appid='563173cf-f26d-4c74-82e1-a4105cf3fb48'
-apikey = 'xXH5nmw4J0NaKwKEJiKcxuJ859u1cwrE'
+appid='d48bcfe7-a8ee-44dd-95b8-6ab3d99d4907'
+apikey='99eDDs5Lu5PCbbQJH6YSqJB63W2mStau'
 
 headers = {"Content-Type":"application/json"}
 

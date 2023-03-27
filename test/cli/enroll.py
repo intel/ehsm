@@ -5,6 +5,8 @@ import base64
 import time
 import random
 import hmac
+import re
+
 from hashlib import sha256
 from collections import OrderedDict
 import urllib.parse
@@ -29,7 +31,21 @@ def enroll(base_url):
         return
 
     print('Enroll resp:\n%s\n' %(resp.text))
-    return json.loads(resp.text)['result']['appid'], json.loads(resp.text)['result']['apikey'] 
+
+
+    with open('_utils_.py', 'r') as f:
+        content = f.read()
+
+    appid = json.loads(resp.text)['result']['appid']
+    apikey = json.loads(resp.text)['result']['apikey']
+
+    content = re.sub(r"appid='[^']+'", f"appid='{appid}'", content)
+    content = re.sub(r"apikey='[^']+'", f"apikey='{apikey}'", content)
+
+    with open('_utils_.py', 'w') as f:
+        f.write(content)
+
+    return appid, apikey
 
 if __name__ == "__main__":
     headers = _utils_.headers
