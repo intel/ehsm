@@ -1,7 +1,7 @@
 # KMS Server base config.
 service:
   # KMS service's port, you can set an integer, the default value is 9000.
-  port: 9001
+  port: 9000
   # KMS service running mode, you can set single or cluster, the default value is cluster.
   #    single mode: You can run KMS directly without DKeyCache, KMS will be create a DK by self.
   #    cluster mode: You must connect to DKeyCache run KMS. If you cannot connect DKeyCache, KMS cannot start.
