@@ -62,16 +62,13 @@ void import_struct_from_json(JsonObj payloadJson, T **out, string key)
         ehsm_data_t *out_data = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(data_size));
         if (out_data == NULL)
             return;
+
         out_data->datalen = data_size;
         memcpy_s(out_data->data, data_size, (uint8_t *)data_str.data(), data_size);
 
         *out = (T *)malloc(APPEND_SIZE_TO_DATA_T(data_size));
-        if (*out == NULL)
-        {
-            explicit_bzero(out_data, APPEND_SIZE_TO_DATA_T(data_size));
-            return;
-        }
-        memcpy_s(*out, APPEND_SIZE_TO_DATA_T(data_size), out_data, APPEND_SIZE_TO_DATA_T(data_size));
+        if (*out != NULL)
+            memcpy_s(*out, APPEND_SIZE_TO_DATA_T(data_size), out_data, APPEND_SIZE_TO_DATA_T(data_size));
 
         explicit_bzero(out_data, APPEND_SIZE_TO_DATA_T(data_size));
         free(out_data);
@@ -82,16 +79,15 @@ void import_struct_from_json(JsonObj payloadJson, T **out, string key)
         size_t cmk_size = cmk_str.size();
 
         *out = (T *)malloc(cmk_size);
-        if (*out == NULL)
-            return;
-
-        memcpy_s(*out, cmk_size, (ehsm_keyblob_t *)cmk_str.data(), cmk_size);
+        if (*out != NULL)
+            memcpy_s(*out, cmk_size, (ehsm_keyblob_t *)cmk_str.data(), cmk_size);
     }
     else if (typeid(**out) == typeid(ehsm_keymetadata_t))
     {
         ehsm_keymetadata_t *out_data = (ehsm_keymetadata_t *)malloc(sizeof(ehsm_keymetadata_t));
         if (out_data == NULL)
             return;
+
         out_data->keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
         out_data->digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
         out_data->padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
@@ -99,12 +95,8 @@ void import_struct_from_json(JsonObj payloadJson, T **out, string key)
         out_data->purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
 
         *out = (T *)malloc(sizeof(ehsm_keymetadata_t));
-        if (*out == NULL)
-        {
-            explicit_bzero(out_data, sizeof(ehsm_keymetadata_t));
-            return;
-        }
-        memcpy_s(*out, sizeof(ehsm_keymetadata_t), out_data, sizeof(ehsm_keymetadata_t));
+        if (*out != NULL)
+            memcpy_s(*out, sizeof(ehsm_keymetadata_t), out_data, sizeof(ehsm_keymetadata_t));
 
         explicit_bzero(out_data, sizeof(ehsm_keymetadata_t));
         free(out_data);
@@ -112,8 +104,9 @@ void import_struct_from_json(JsonObj payloadJson, T **out, string key)
     else
     {
         log_e("no such item:%s\n", key.c_str());
-        return;
     }
+
+    return;
 }
 
 template <typename T>
