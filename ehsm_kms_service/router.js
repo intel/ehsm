@@ -1,4 +1,10 @@
-const { ehsm_keySpec_t, ehsm_keyorigin_t, ehsm_paddingMode_t, ehsm_digestMode_t } = require('./constant')
+const { 
+  ehsm_keySpec_t, 
+  ehsm_keyorigin_t,
+  ehsm_paddingMode_t,
+  ehsm_digestMode_t,
+  ehsm_purpose_t
+ } = require('./constant')
 const { KMS_ACTION } = require('./apis')
 const logger = require('./logger')
 const {
@@ -108,7 +114,7 @@ const router = async (p) => {
   switch (action) {
     case KMS_ACTION.cryptographic.CreateKey:
       try {
-        let { keyspec, origin, purpose = 0, padding_mode = 'NO_PADDING', digest_mode = 'NONE'} = payload
+        let { keyspec, origin, purpose = 'EH_PURPOSE_NONE', padding_mode = 'NO_PADDING', digest_mode = 'NONE'} = payload
         /**
          * keyspec、origin convert to enum type
          * enum in thie constant.js file
@@ -117,6 +123,7 @@ const router = async (p) => {
         origin = ehsm_keyorigin_t[origin]
         padding_mode = ehsm_paddingMode_t[padding_mode]
         digest_mode = ehsm_digestMode_t[digest_mode]
+        purpose = ehsm_purpose_t[purpose]
         const napi_res = napi_result(action, res, { keyspec, origin, purpose, padding_mode, digest_mode })
         napi_res && store_cmk(napi_res, res, appid, payload, DB)
       } catch (error) {

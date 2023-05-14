@@ -87,17 +87,21 @@ void import_struct_from_json(JsonObj payloadJson, T **out, string key)
         ehsm_keymetadata_t *out_data = (ehsm_keymetadata_t *)malloc(sizeof(ehsm_keymetadata_t));
         if (out_data == NULL)
             return;
-
-        out_data->keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
-        out_data->digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
-        out_data->padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
-        out_data->origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
-        out_data->purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
+        try {
+            out_data->keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+            out_data->digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
+            out_data->padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+            out_data->origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
+            out_data->purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
+        } catch (const Json::LogicError &e){
+            log_e("convert to ehsm_keymetadata_t failed: %s\n", e.what());
+            goto cleanup;
+        }
 
         *out = (T *)malloc(sizeof(ehsm_keymetadata_t));
         if (*out != NULL)
             memcpy_s(*out, sizeof(ehsm_keymetadata_t), out_data, sizeof(ehsm_keymetadata_t));
-
+cleanup:
         explicit_bzero(out_data, sizeof(ehsm_keymetadata_t));
         free(out_data);
     }

@@ -56,6 +56,12 @@ const ehsm_digestMode_t = {
     SM3: 5
 }
 
+const ehsm_purpose_t = {
+    EH_PURPOSE_NONE: 0,
+    EH_PURPOSE_ENCRYPT_DECRYPT: 1,
+    EH_PURPOSE_SIGN_VERIFY: 2
+}
+
 const ehsm_action_t = {
     EH_INITIALIZE: 0,
     EH_FINALIZE: 1,
@@ -229,5 +235,6 @@ module.exports = {
     ehsm_keyorigin_t,
     ehsm_action_t,
     ehsm_digestMode_t,
-    ehsm_paddingMode_t
+    ehsm_paddingMode_t,
+    ehsm_purpose_t
 }
