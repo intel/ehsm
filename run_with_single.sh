@@ -42,10 +42,10 @@ else
 fi
 
 if ! [ "$(node -v)" ]; then
-    wget https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz \
-        && tar xf node-v18.16.0-linux-x64.tar.xz \
-        && rm -rf node-v18.16.0-linux-x64.tar.xz \
-        && sudo mv node-v18.16.0-linux-x64/ /usr/local/nodejs \
+    wget https://nodejs.org/dist/v20.1.0/node-v20.1.0-linux-x64.tar.xz \
+        && tar xf node-v20.1.0-linux-x64.tar.xz \
+        && rm -rf node-v20.1.0-linux-x64.tar.xz \
+        && sudo mv node-v20.1.0-linux-x64/ /usr/local/nodejs \
         && sudo ln -s /usr/local/nodejs/bin/node /usr/local/bin \
         && sudo ln -s /usr/local/nodejs/bin/npm /usr/local/bin
 fi
