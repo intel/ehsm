@@ -40,20 +40,20 @@ const ehsm_keyorigin_t = {
 }
 
 const ehsm_paddingMode_t = {
-    NO_PADDING: 0,
-    PAD_RSA_PKCS1: 1,
-    PAD_RSA_NO: 3,
-    PAD_RSA_PKCS1_OAEP: 4,
-    PAD_RSA_PKCS1_PSS: 6
+    EH_NO_PADDING: 0,
+    EH_PAD_RSA_PKCS1: 1,
+    EH_PAD_RSA_NO: 3,
+    EH_PAD_RSA_PKCS1_OAEP: 4,
+    EH_PAD_RSA_PKCS1_PSS: 6
 }
 
 const ehsm_digestMode_t = {
-    NONE: 0,
-    SHA_2_224: 1,
-    SHA_2_256: 2,
-    SHA_2_384: 3,
-    SHA_2_512: 4,
-    SM3: 5
+    EH_NONE: 0,
+    EH_SHA_2_224: 1,
+    EH_SHA_2_256: 2,
+    EH_SHA_2_384: 3,
+    EH_SHA_2_512: 4,
+    EH_SM3: 5
 }
 
 const ehsm_purpose_t = {
