@@ -34,7 +34,7 @@ def test_deleteAllKey(base_url, headers):
     delete_all_key.delete_all_key(base_url)
     
 def test_listKey(base_url, headers):
-    createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, "PAD_RSA_PKCS1_OAEP", None)
+    createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_OAEP", None)
     keylist = listkey.listkey(base_url)
 
     global keyid 
