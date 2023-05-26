@@ -327,11 +327,15 @@ const enroll_user_info = (action, DB, res, req) => {
                         }))
                     })
                     .catch((e) => {
-                        res.send(_result(400, 'enroll user info faild', e))
+                        logger.error('database is unavailable')
+                        res.send(_result(500, 'enroll user info failed', e))
                     })
+            }else {
+                logger.error('encrypt apikey failed')
+                res.send(_result(500, 'enroll user info failed'))
             }
         } else {
-            res.send(_result(400, 'enroll user info faild'))
+            res.send(_result(400, 'enroll user info failed'))
         }
     }
 }

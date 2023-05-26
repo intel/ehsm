@@ -29,6 +29,14 @@ else
     echo "c_couchdb Docker container already exists. Nothing to do."
 fi
 
+# Check if the couchdb is available
+if ! [ "$(curl -u $EHSM_COUCHDB_USER:$EHSM_COUCHDB_PASSWORD -X GET http://localhost:$EHSM_COUCHDB_PORT/ehsm_kms_db > /dev/null 2>&1)" ]; then
+    echo "$EHSM_COUCHDB_DOCKER_NAME is available."
+else
+    echo "$EHSM_COUCHDB_DOCKER_NAME is unavailable, please remove it and try again."
+    exit 1
+fi
+
 # Clean build the EHSM
 if [ -e out/ehsm-core/libehsmprovider.so ] && [ -e out/ehsm-core/libenclave-ehsm-core.signed.so ]
 then
