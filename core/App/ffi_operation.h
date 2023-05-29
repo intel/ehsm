@@ -78,6 +78,26 @@ extern "C"
     uint32_t ffi_createKey(JsonObj payloadJson, char *respJson);
 
     /**
+     * @brief Get public key from sm2 keypair
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                pubkey : a base64 string
+            }
+        }
+     */
+    uint32_t ffi_getPublicKey(JsonObj payloadJson, char *respJson);
+
+    /**
      * @brief encrypt plaintext with specicied key
      * this function is used for aes_gcm and sm4
      *

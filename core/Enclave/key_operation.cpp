@@ -189,6 +189,108 @@ out:
 }
 
 /**
+ * @brief get public key from sm2 keypair
+ * @param cmk Key information
+ * @param pubkey sm2 public key
+ */
+sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk,
+                                 ehsm_data_t *pubkey)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    uint8_t *keypair = NULL;
+    RSA *rsa_keypair = NULL;
+    BIO *bio_keypair;
+    BIO *bio_pubkey;
+    EVP_PKEY *pkey;
+    uint32_t key_size;
+
+    // load sm2 key pair
+    keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (keypair == NULL)
+        goto out;
+
+    if (SGX_SUCCESS != ehsm_parse_keyblob(keypair,
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+        goto out;
+    // load sm2 pubkey
+    bio_keypair = BIO_new_mem_buf(keypair, -1); // use -1 to auto compute length
+    if (bio_keypair == NULL)
+    {
+        log_d("failed to load keypair pem\n");
+        goto out;
+    }
+
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_SM2:
+    case EH_EC_P224:
+    case EH_EC_P256:
+    case EH_EC_P384:
+    case EH_EC_P521:
+        pkey = PEM_read_bio_PUBKEY(bio_keypair, NULL, NULL, NULL);
+        break;
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        PEM_read_bio_RSAPublicKey(bio_keypair, &rsa_keypair, NULL, NULL);
+        break;
+    }
+
+    if (pkey == NULL && rsa_keypair == NULL)
+    {
+        log_d("failed to load key pair\n");
+        goto out;
+    }
+
+    bio_pubkey = BIO_new(BIO_s_mem());
+    if (bio_pubkey == NULL)
+        goto out;
+
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_SM2:
+    case EH_EC_P224:
+    case EH_EC_P256:
+    case EH_EC_P384:
+    case EH_EC_P521:
+        if (!PEM_write_bio_PUBKEY(bio_pubkey, pkey))
+            goto out;
+        break;
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        if (!PEM_write_bio_RSAPublicKey(bio_pubkey, rsa_keypair))
+            goto out;
+        break;
+    }
+
+    key_size = BIO_pending(bio_pubkey);
+    if (key_size <= 0)
+        goto out;
+
+    if (pubkey->datalen == 0)
+    {
+        pubkey->datalen = key_size;
+        return SGX_SUCCESS;
+    }
+
+    if (BIO_read(bio_pubkey, pubkey->data, key_size) < 0)
+        goto out;
+
+    ret = SGX_SUCCESS;
+out:
+    RSA_free(rsa_keypair);
+    BIO_free(bio_keypair);
+    BIO_free(bio_pubkey);
+    EVP_PKEY_free(pkey);
+    SAFE_MEMSET(keypair, cmk->keybloblen, 0, cmk->keybloblen);
+    SAFE_FREE(keypair);
+
+    return ret;
+}
+
+/**
  * @brief Check parameters and decrypted data
  * @param aad Additional data
  * @param cmk_blob Key information
@@ -670,10 +772,10 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 
     outLen = ciphertext->datalen;
     if (EVP_PKEY_encrypt(ectx,
-                        ciphertext->data,
-                        &outLen,
-                        plaintext->data,
-                        (size_t)plaintext->datalen) <= 0)
+                         ciphertext->data,
+                         &outLen,
+                         plaintext->data,
+                         (size_t)plaintext->datalen) <= 0)
     {
         log_e("failed to make sm2 encryption\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -835,10 +937,10 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
 
     outLen = plaintext->datalen;
     if (EVP_PKEY_decrypt(dctx,
-                        plaintext->data,
-                        &outLen,
-                        ciphertext->data,
-                        (size_t)ciphertext->datalen) != 1)
+                         plaintext->data,
+                         &outLen,
+                         ciphertext->data,
+                         (size_t)ciphertext->datalen) != 1)
     {
         log_e("failed to make sm2 decryption\n");
         ret = SGX_ERROR_UNEXPECTED;

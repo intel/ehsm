@@ -150,6 +150,14 @@ const router = async (p) => {
         res.send(_result(500, 'Server internal error, please contact the administrator.'))
       }
       break
+    case KMS_ACTION.cryptographic.GetPublicKey:
+      try {
+        const { keyid } = payload
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, { cmk: cmk_base64 })
+        napi_res && res.send(napi_res)
+      } catch (error) { }
+      break
     case KMS_ACTION.cryptographic.GenerateDataKey:
       try {
         const { keyid, keylen, aad = '' } = payload

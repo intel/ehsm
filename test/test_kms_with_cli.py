@@ -8,7 +8,7 @@ import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy
+from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy, getPubkey
 import urllib.parse
 import _utils_
 appid= ''
@@ -61,6 +61,25 @@ def test_asymmetricKey_encrypt_decrypt(base_url, headers):
         asymmetric_decrypt.asymmetric_decrypt(base_url, i, ciphertext)
 
     print('====================test_asymmetricKey_encrypt_decrypt end===========================')
+
+def test_get_public_key(base_url, headers):
+    print('====================test_get_public_key start===========================')
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, None)
+    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_OAEP", None)
+    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_OAEP", None)
+    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1", None)
+    key_EC_p224 = createkey.createkey(base_url, "EH_EC_P224", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_224")
+    key_EC_p256 = createkey.createkey(base_url, "EH_EC_P256", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_256")
+    key_EC_p384 = createkey.createkey(base_url, "EH_EC_P384", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_384")
+    key_EC_p521 = createkey.createkey(base_url, "EH_EC_P521", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_512")
+    asymmetricKey = [key_SM2, key_RSA_3072, key_RSA_4096, key_RSA_2048, key_EC_p224, key_EC_p256, key_EC_p384, key_EC_p521]
+
+    for i in asymmetricKey:
+        pubkey = getPubkey.getPublicKey(base_url, i)
+        print(i, ' public key:\n')
+        print(base64.b64decode(pubkey))
+
+    print('====================test_get_public_key end===========================')
 
 def test_RSA_sign_verify(base_url, headers):
     print('====================test_RSA_sign_verify start===========================')
@@ -248,6 +267,8 @@ if __name__ == "__main__":
     get_appid_apikey(base_url)
     
     test_symmetricKey_encrypt_decrypt(base_url, headers)
+
+    test_get_public_key(base_url, headers)
 
     test_GenerateDataKey(base_url, headers)
 

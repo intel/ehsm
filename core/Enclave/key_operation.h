@@ -43,7 +43,10 @@
 #ifndef _KEY_OPERATION_H_
 #define _KEY_OPERATION_H_
 
-void log_printf(uint32_t log_level, const char* filename, uint32_t line, const char *fmt, ...);
+void log_printf(uint32_t log_level, const char *filename, uint32_t line, const char *fmt, ...);
+
+sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk_blob,
+                                 ehsm_data_t *pubkey);
 
 sgx_status_t ehsm_aes_gcm_encrypt(ehsm_data_t *aad,
                                   ehsm_keyblob_t *cmk,

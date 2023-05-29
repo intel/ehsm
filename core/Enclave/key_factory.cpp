@@ -115,7 +115,7 @@ sgx_status_t ehsm_create_keyblob(uint8_t *plaintext,
     if (SGX_SUCCESS != ret)
     {
         log_e("gcm encrypting failed.\n");
-    }   
+    }
     else
     {
         keyblob_data->ciphertext_size = plaintext_size;
@@ -329,7 +329,7 @@ out:
     if (bio)
         BIO_free(bio);
     if (e)
-       BN_free(e);
+        BN_free(e);
 
     SAFE_MEMSET(pem_keypair, key_size, 0, key_size);
     SAFE_FREE(pem_keypair);
