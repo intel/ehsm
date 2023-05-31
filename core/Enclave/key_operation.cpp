@@ -189,6 +189,76 @@ out:
 }
 
 /**
+ * @brief get public key from asymmetric keypair
+ * @param cmk Key information
+ * @param pubkey asymmetric public key
+ */
+sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk,
+                                 ehsm_data_t *pubkey)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    uint8_t *keypair = NULL;
+    BIO *bio_keypair;
+    BIO *bio_pubkey;
+    EVP_PKEY *pkey;
+    uint32_t key_size;
+
+    // load asymmetric key pair
+    keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (keypair == NULL)
+        goto out;
+
+    if (SGX_SUCCESS != ehsm_parse_keyblob(keypair,
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+        goto out;
+    // load asymmetric pubkey
+    bio_keypair = BIO_new_mem_buf(keypair, -1); // use -1 to auto compute length
+    if (bio_keypair == NULL)
+    {
+        log_d("failed to load keypair pem\n");
+        goto out;
+    }
+
+    pkey = PEM_read_bio_PUBKEY(bio_keypair, NULL, NULL, NULL);
+    if (pkey == NULL)
+    {
+        log_d("failed to load key pair\n");
+        goto out;
+    }
+
+    bio_pubkey = BIO_new(BIO_s_mem());
+    if (bio_pubkey == NULL)
+        goto out;
+
+    if (!PEM_write_bio_PUBKEY(bio_pubkey, pkey))
+        goto out;
+
+    key_size = BIO_pending(bio_pubkey);
+    if (key_size <= 0)
+        goto out;
+
+    if (pubkey->datalen == 0)
+    {
+        pubkey->datalen = key_size;
+        return SGX_SUCCESS;
+    }
+
+    if (BIO_read(bio_pubkey, pubkey->data, key_size) < 0)
+        goto out;
+
+    ret = SGX_SUCCESS;
+out:
+    BIO_free(bio_keypair);
+    BIO_free(bio_pubkey);
+    EVP_PKEY_free(pkey);
+    SAFE_MEMSET(keypair, cmk->keybloblen, 0, cmk->keybloblen);
+    SAFE_FREE(keypair);
+
+    return ret;
+}
+
+/**
  * @brief Check parameters and decrypted data
  * @param aad Additional data
  * @param cmk_blob Key information
@@ -670,10 +740,10 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
 
     outLen = ciphertext->datalen;
     if (EVP_PKEY_encrypt(ectx,
-                        ciphertext->data,
-                        &outLen,
-                        plaintext->data,
-                        (size_t)plaintext->datalen) <= 0)
+                         ciphertext->data,
+                         &outLen,
+                         plaintext->data,
+                         (size_t)plaintext->datalen) <= 0)
     {
         log_e("failed to make sm2 encryption\n");
         ret = SGX_ERROR_UNEXPECTED;
@@ -835,10 +905,10 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
 
     outLen = plaintext->datalen;
     if (EVP_PKEY_decrypt(dctx,
-                        plaintext->data,
-                        &outLen,
-                        ciphertext->data,
-                        (size_t)ciphertext->datalen) != 1)
+                         plaintext->data,
+                         &outLen,
+                         ciphertext->data,
+                         (size_t)ciphertext->datalen) != 1)
     {
         log_e("failed to make sm2 decryption\n");
         ret = SGX_ERROR_UNEXPECTED;

@@ -9,6 +9,7 @@ const cryptographic = {
   AsymmetricEncrypt: 'AsymmetricEncrypt',
   AsymmetricDecrypt: 'AsymmetricDecrypt',
   ExportDataKey: 'ExportDataKey',
+  GetPublicKey: 'GetPublicKey'
 }
 
 const enroll = {

@@ -75,10 +75,12 @@ const ehsm_action_t = {
     [KMS_ACTION.cryptographic.GenerateDataKey]: 9,
     [KMS_ACTION.cryptographic.GenerateDataKeyWithoutPlaintext]: 10,
     [KMS_ACTION.cryptographic.ExportDataKey]: 11,
-    [KMS_ACTION.common.GetVersion]: 12,
-    [KMS_ACTION.enroll.Enroll]: 13,
-    [KMS_ACTION.remote_attestation.GenerateQuote]: 14,
-    [KMS_ACTION.remote_attestation.VerifyQuote]: 15
+    [KMS_ACTION.cryptographic.GetPublicKey]: 12,
+    [KMS_ACTION.common.GetVersion]: 13,
+    [KMS_ACTION.enroll.Enroll]: 14,
+    [KMS_ACTION.remote_attestation.GenerateQuote]: 15,
+    [KMS_ACTION.remote_attestation.VerifyQuote]: 16
+    
 }
 
 const kms_config = {

@@ -8,7 +8,7 @@ import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy
+from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy, getPubkey
 import urllib.parse
 import _utils_
 appid= ''
@@ -61,6 +61,18 @@ def test_asymmetricKey_encrypt_decrypt(base_url, headers):
         asymmetric_decrypt.asymmetric_decrypt(base_url, i, ciphertext)
 
     print('====================test_asymmetricKey_encrypt_decrypt end===========================')
+
+def test_get_public_key(base_url, headers):
+    print('====================test_get_public_key start===========================')
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, None)
+    asymmetricKey = [key_SM2]
+
+    for i in asymmetricKey:
+        pubkey = getPubkey.getPublicKey(base_url, i)
+        print(i, ' public key:\n')
+        print(pubkey)
+
+    print('====================test_get_public_key end===========================')
 
 def test_RSA_sign_verify(base_url, headers):
     print('====================test_RSA_sign_verify start===========================')
@@ -248,6 +260,8 @@ if __name__ == "__main__":
     get_appid_apikey(base_url)
     
     test_symmetricKey_encrypt_decrypt(base_url, headers)
+
+    test_get_public_key(base_url, headers)
 
     test_GenerateDataKey(base_url, headers)
 

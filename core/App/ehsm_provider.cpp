@@ -68,17 +68,17 @@ using namespace std;
 
 void ocall_print_string(uint32_t log_level, const char *str, const char *filename, uint32_t line)
 {
-    switch (log_level) 
+    switch (log_level)
     {
-        case LOG_INFO:
-        case LOG_DEBUG:
-        case LOG_ERROR:
-        case LOG_WARN:
-            log_c(log_level, str, filename, line);
-            break;
-        default:
-            log_c(LOG_ERROR, "log system error in ocall print.\n", filename, line);
-            break;
+    case LOG_INFO:
+    case LOG_DEBUG:
+    case LOG_ERROR:
+    case LOG_WARN:
+        log_c(log_level, str, filename, line);
+        break;
+    default:
+        log_c(LOG_ERROR, "log system error in ocall print.\n", filename, line);
+        break;
     }
 }
 
@@ -278,6 +278,9 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
     case EH_EXPORT_DATAKEY:
         ffi_exportDataKey(payloadJson, respJson);
         break;
+    case EH_GET_PUBLIC_KEY:
+        ffi_getPublicKey(payloadJson, respJson);
+        break;
     case EH_GET_VERSION:
         ffi_getVersion(respJson);
         break;
@@ -368,8 +371,10 @@ int ocall_store_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
 
 ehsm_status_t Initialize(bool run_on_cluter)
 {
-    if (access(RUNTIME_FOLDER, F_OK) != 0) {
-        if (mkdir(RUNTIME_FOLDER, 0755) != 0) {
+    if (access(RUNTIME_FOLDER, F_OK) != 0)
+    {
+        if (mkdir(RUNTIME_FOLDER, 0755) != 0)
+        {
             return EH_FUNCTION_FAILED;
         }
     }
@@ -414,7 +419,7 @@ ehsm_status_t Initialize(bool run_on_cluter)
             log_e("failed(%d) to get domain key.\n", ret);
             return EH_DEVICE_ERROR;
         }
-     }
+    }
 
 #ifdef ENABLE_SELF_TEST
     ret = enclave_self_test(g_enclave_id, &sgxStatus);
@@ -452,6 +457,32 @@ ehsm_status_t CreateKey(ehsm_keyblob_t *cmk)
         return EH_ARGUMENTS_BAD;
 
     ret = enclave_create_key(g_enclave_id, &sgxStatus, cmk, APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen));
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+}
+
+ehsm_status_t GetPublicKey(ehsm_keyblob_t *cmk,
+                           ehsm_data_t *pubkey)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    /* only support to directly encrypt data of less than 6 KB */
+    if (!validate_params(cmk, EH_CMK_MAX_SIZE))
+        return EH_ARGUMENTS_BAD;
+
+    if (pubkey == NULL)
+        return EH_ARGUMENTS_BAD;
+
+    ret = enclave_get_public_key(g_enclave_id,
+                                 &sgxStatus,
+                                 cmk,
+                                 APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                                 pubkey,
+                                 APPEND_SIZE_TO_DATA_T(pubkey->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;
@@ -505,7 +536,7 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
         !validate_params(aad, EH_AAD_MAX_SIZE, false) ||
         !validate_params(ciphertext, EH_PLAINTEXT_MAX_SIZE + EH_AAD_MAX_SIZE))
         return EH_ARGUMENTS_BAD;
-        
+
     if (plaintext == NULL)
         return EH_ARGUMENTS_BAD;
 
@@ -536,7 +567,7 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
     if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
         !validate_params(plaintext, EH_PLAINTEXT_MAX_SIZE))
         return EH_ARGUMENTS_BAD;
-        
+
     if (ciphertext == NULL)
         return EH_ARGUMENTS_BAD;
 
