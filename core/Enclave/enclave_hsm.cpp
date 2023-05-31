@@ -200,6 +200,35 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
     return ret;
 }
 
+sgx_status_t enclave_get_public_key(ehsm_keyblob_t *cmk, size_t cmk_size,
+                                    ehsm_data_t *pubkey, size_t pubkey_size)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL ||
+        cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
+        cmk->keybloblen == 0 ||
+        cmk->metadata.origin != EH_INTERNAL_KEY)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (cmk->metadata.keyspec != EH_SM2)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (pubkey != NULL && pubkey_size != APPEND_SIZE_TO_DATA_T(pubkey->datalen))
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (pubkey == NULL && pubkey_size != 0)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (pubkey == NULL ||
+        pubkey_size != APPEND_SIZE_TO_DATA_T(pubkey->datalen))
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    ret = ehsm_get_public_key(cmk, pubkey);
+
+    return ret;
+}
+
 sgx_status_t enclave_encrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
                              ehsm_data_t *aad, size_t aad_size,
                              ehsm_data_t *plaintext, size_t plaintext_size,

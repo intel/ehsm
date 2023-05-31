@@ -87,13 +87,16 @@ void import_struct_from_json(JsonObj payloadJson, T **out, string key)
         ehsm_keymetadata_t *out_data = (ehsm_keymetadata_t *)malloc(sizeof(ehsm_keymetadata_t));
         if (out_data == NULL)
             return;
-        try {
+        try
+        {
             out_data->keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
             out_data->digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
             out_data->padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
             out_data->origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
             out_data->purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
-        } catch (const Json::LogicError &e){
+        }
+        catch (const Json::LogicError &e)
+        {
             log_e("convert to ehsm_keymetadata_t failed: %s\n", e.what());
             goto cleanup;
         }
@@ -101,7 +104,7 @@ void import_struct_from_json(JsonObj payloadJson, T **out, string key)
         *out = (T *)malloc(sizeof(ehsm_keymetadata_t));
         if (*out != NULL)
             memcpy_s(*out, sizeof(ehsm_keymetadata_t), out_data, sizeof(ehsm_keymetadata_t));
-cleanup:
+    cleanup:
         explicit_bzero(out_data, sizeof(ehsm_keymetadata_t));
         free(out_data);
     }
@@ -305,8 +308,97 @@ extern "C"
 
         export_json_from_struct(retJsonObj, master_key, "cmk");
     out:
-        SAFE_FREE(key_metadata); 
+        SAFE_FREE(key_metadata);
         SAFE_FREE(master_key);
+        retJsonObj.toChar(respJson);
+        return ret;
+    }
+
+    /**
+     * @brief Get public key from asymmetric keypair
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                ciphertext : a base64 string
+            }
+        }
+     */
+    uint32_t ffi_getPublicKey(JsonObj payloadJson, char *respJson)
+    {
+        RetJsonObj retJsonObj;
+        ehsm_status_t ret = EH_OK;
+
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *pubkey = NULL;
+        char *publicKey = NULL;
+
+        JSON2STRUCT(payloadJson, cmk);
+
+        if (cmk == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Invalid Parameter.");
+            goto out;
+        }
+
+        pubkey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
+        if (pubkey == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        pubkey->datalen = 0;
+
+        ret = GetPublicKey(cmk, pubkey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        if (pubkey->datalen == 0 || pubkey->datalen > UINT16_MAX)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        pubkey = (ehsm_data_t *)realloc(pubkey, APPEND_SIZE_TO_DATA_T(pubkey->datalen));
+        if (pubkey == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        ret = GetPublicKey(cmk, pubkey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        publicKey = (char *)malloc(pubkey->datalen);
+        memcpy_s(publicKey, pubkey->datalen, pubkey->data, pubkey->datalen);
+        publicKey[pubkey->datalen]='\0';
+        retJsonObj.addData_string("pubkey", publicKey);
+
+    out:
+        SAFE_FREE(publicKey);
+        SAFE_FREE(cmk);
+        SAFE_FREE(pubkey);
         retJsonObj.toChar(respJson);
         return ret;
     }
@@ -494,7 +586,7 @@ extern "C"
         }
 
         STRUCT2JSON(retJsonObj, plaintext);
-       
+
     out:
         SAFE_FREE(cmk);
         SAFE_FREE(aad);

@@ -16,6 +16,7 @@ Currently, the eHSM-KMS-Service now provides the following restful APIs to the c
   - [GenerateDataKey](#GenerateDataKey)
   - [GenerateDataKeyWithoutPlaintext](#GenerateDataKeyWithoutPlaintext)
   - [ExportDataKey](#ExportDataKey)
+  - [GetPublicKey](#GetPublicKey)
   <br>
 - **Key Management APIs**
   Notes: These below Rest APIs are used to manage CMK functionalities for users.

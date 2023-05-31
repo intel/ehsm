@@ -60,6 +60,7 @@ typedef enum
     EH_GENERATE_DATAKEY,
     EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT,
     EH_EXPORT_DATAKEY,
+    EH_GET_PUBLIC_KEY,
     EH_GET_VERSION,
     EH_ENROLL,
     EH_GENERATE_QUOTE,
@@ -140,6 +141,17 @@ ehsm_status_t Encrypt(ehsm_keyblob_t *cmk,
                       ehsm_data_t *plaintext,
                       ehsm_data_t *aad,
                       ehsm_data_t *ciphertext);
+
+/*
+Description:
+Get public key from asymmetric keypair.
+Input:
+cmk -- A symmetric cmk,
+Output:
+pubkey -- the data of the asymmetric public key
+*/
+ehsm_status_t GetPublicKey(ehsm_keyblob_t *cmk,
+                           ehsm_data_t *pubkey);
 
 /*
 Description:

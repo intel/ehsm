@@ -122,6 +122,9 @@ const cryptographic_params = {
       required: true,
     },
   },
+  [KMS_ACTION.cryptographic.GetPublicKey]: {
+    keyid,
+  },
   [KMS_ACTION.cryptographic.AsymmetricDecrypt]: {
     keyid,
     ciphertext: {
