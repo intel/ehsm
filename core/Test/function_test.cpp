@@ -441,6 +441,75 @@ void test_SM2_encrypt_decrypt()
     log_i("============test_SM2_encrypt_decrypt end==========\n");
 }
 
+void test_get_pubkey()
+{
+    log_i("============test_get_public_key==========\n");
+    uint32_t keyspec[] = {EH_SM2, EH_RSA_2048, EH_RSA_3072, EH_RSA_4096, EH_EC_P224, EH_EC_P256, EH_EC_P384, EH_EC_P521};
+
+    case_number += sizeof(keyspec) / sizeof(keyspec[0]);
+
+    for (int i = 0; i < sizeof(keyspec) / sizeof(keyspec[0]); i++)
+    {
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
+
+        char *cmk_base64 = nullptr;
+        char *pubkey_base64 = nullptr;
+
+        RetJsonObj retJsonObj;
+        JsonObj param_json;
+        JsonObj payload_json;
+        payload_json.addData_uint32("keyspec", keyspec[i]);
+        payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        param_json.addData_uint32("action", EH_CREATE_KEY);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+        retJsonObj.parse(returnJsonChar);
+
+        if (retJsonObj.getCode() != 200)
+        {
+            log_e("Createkey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        log_i("FFI_CreateKey Json = %s\n", returnJsonChar);
+        log_i("Create CMK SUCCESSFULLY!\n");
+        cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+        payload_json.clear();
+        payload_json.addData_string("cmk", cmk_base64);
+
+        param_json.addData_uint32("action", EH_GET_PUBLIC_KEY);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+        retJsonObj.parse(returnJsonChar);
+
+        if (retJsonObj.getCode() != 200)
+        {
+            log_e("Failed to Get the public key, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        log_i("FFI_getPublicKey json = %s\n", returnJsonChar);
+
+        log_i("pubkey = \n%s\n", base64_decode(retJsonObj.readData_string("pubkey")).c_str());
+
+        if (std::string::npos != base64_decode(retJsonObj.readData_string("pubkey")).find("-----END PUBLIC KEY-----"))
+            success_number++;
+        if (std::string::npos != base64_decode(retJsonObj.readData_string("pubkey")).find("-----END RSA PUBLIC KEY-----"))
+            success_number++;
+
+        log_i("Get public key SUCCESSFULLY!\n");
+
+    cleanup:
+        SAFE_FREE(pubkey_base64);
+        SAFE_FREE(cmk_base64);
+        SAFE_FREE(returnJsonChar);
+    }
+
+    log_i("============test_get_public_key end==========\n");
+}
+
 /*
 
 step1. generate an rsa 3072 key as the CM(customer master key)
@@ -582,7 +651,7 @@ void test_ec_sign_verify()
         payload_json.addData_uint32("digest_mode", EH_SHA_2_256);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
-    
+
         EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
         retJsonObj.parse(returnJsonChar);
         if (retJsonObj.getCode() != 200)
@@ -1390,6 +1459,8 @@ void function_test()
     test_ec_sign_verify();
 
     test_SM2_encrypt_decrypt();
+
+    test_get_pubkey();
 
     test_generate_AES_datakey();
 

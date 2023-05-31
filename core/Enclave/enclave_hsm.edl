@@ -79,6 +79,9 @@ enclave {
                             [in, size=plaintext_size] ehsm_data_t *plaintext, size_t plaintext_size,
                             [in, out, size=ciphertext_size] ehsm_data_t *ciphertext, size_t ciphertext_size);
 
+        public sgx_status_t enclave_get_public_key([in, size=cmk_size] ehsm_keyblob_t* cmk, size_t cmk_size,
+                            [in, out, size=pubkey_size] ehsm_data_t *pubkey, size_t pubkey_size);
+
         public sgx_status_t enclave_decrypt([in, size=cmk_size] ehsm_keyblob_t* cmk, size_t cmk_size,
                             [in, size=aad_size] ehsm_data_t *aad, size_t aad_size,
                             [in, size=ciphertext_size] ehsm_data_t *ciphertext, size_t ciphertext_size,
