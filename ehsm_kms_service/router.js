@@ -114,7 +114,13 @@ const router = async (p) => {
   switch (action) {
     case KMS_ACTION.cryptographic.CreateKey:
       try {
-        let { keyspec, origin, purpose = 'EH_PURPOSE_NONE', padding_mode = 'NO_PADDING', digest_mode = 'NONE'} = payload
+        let { 
+            keyspec,
+            origin, 
+            purpose = 'EH_PURPOSE_NONE',
+            padding_mode = 'EH_NO_PADDING',
+            digest_mode = 'EH_NONE'
+        } = payload
         /**
          * keyspec、origin convert to enum type
          * enum in thie constant.js file
