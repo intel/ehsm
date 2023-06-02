@@ -38,16 +38,14 @@ else
 fi
 
 # Clean build the EHSM
-if [ -e out/ehsm-core/libehsmprovider.so ] && [ -e out/ehsm-core/libenclave-ehsm-core.signed.so ]
-then
-    # Copy the build binaries to the nodejs folder
-    cp out/ehsm-core/libehsmprovider.so ehsm_kms_service/
-    cp out/ehsm-core/libenclave-ehsm-core.signed.so ehsm_kms_service/
-    echo "ehsm libehsmprovider and libenclave-ehsm-core copied."
-else
-    make clean && make
-    echo "ehsm clean build done."
-fi
+make clean && make
+echo "ehsm clean build done."
+
+# Copy the build binaries to the nodejs folder
+cp out/ehsm-core/libehsmprovider.so ehsm_kms_service/
+cp out/ehsm-core/libenclave-ehsm-core.signed.so ehsm_kms_service/
+echo "ehsm libehsmprovider and libenclave-ehsm-core copied."
+
 
 if ! [ "$(node -v)" ]; then
     wget https://nodejs.org/dist/v20.1.0/node-v20.1.0-linux-x64.tar.xz \
