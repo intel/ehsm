@@ -199,15 +199,17 @@ $(App_Test_Name): $(App_Cpp_Objects) $(App_Test_Cpp_Objects) App/enclave_hsm_u.o
 
 ######## Enclave Objects ########
 
-Enclave/enclave_hsm_t.c: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
+Enclave/enclave_hsm_t.h: $(SGX_EDGER8R) Enclave/enclave_hsm.edl
 	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/enclave_hsm.edl --search-path ../Enclave --search-path ../Enclave/self_test --search-path $(SGX_SDK)/include --search-path $(OPENSSL_PATH)/include
 	@echo "GEN  =>  $@"
+
+Enclave/enclave_hsm_t.c: Enclave/enclave_hsm_t.h
 
 Enclave/enclave_hsm_t.o: Enclave/enclave_hsm_t.c
 	@$(CXX) $(Enclave_C_Flags) -c $< -o $@
 	@echo "CXX   <=  $<"
 
-Enclave/%.o: Enclave/%.cpp
+Enclave/%.o: Enclave/%.cpp Enclave/enclave_hsm_t.h
 	@$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
