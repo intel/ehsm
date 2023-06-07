@@ -493,9 +493,17 @@ static bool rsa_decryption_with_pkcs_oaep(map<string, string> test_vector)
                         BN_bin2bn(&*dmq1, VECTOR_LENGTH("dmq1"), NULL),
                         BN_bin2bn(&*iqmp, VECTOR_LENGTH("iqmp"), NULL));
 
-    uint8_t _plaintext[VECTOR_LENGTH("plaintext")] = {0};
+    int rsa_size = RSA_size(key);
+    if (rsa_size <= 42) {
+        RSA_free(key);
+        return false;
+    }
+    uint32_t plaintext_len =
+        std::max(VECTOR_LENGTH("plaintext"), (uint32_t)rsa_size - 42);
+    uint8_t _plaintext[plaintext_len];
+    memset(_plaintext, 0, plaintext_len);
 
-    RSA_private_decrypt(RSA_size(key), &*ciphertext, _plaintext, key, 4);
+    RSA_private_decrypt(rsa_size, &*ciphertext, _plaintext, key, 4);
 
     RSA_free(key);
 

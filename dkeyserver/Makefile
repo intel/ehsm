@@ -168,7 +168,7 @@ App/enclave_u.o: App/enclave_u.c
 	@$(CXX) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
 	@echo "CXX   <=  $<"
 
-App/%.o: App/%.cpp App/auto_version.h
+App/%.o: App/%.cpp App/auto_version.h App/enclave_u.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
