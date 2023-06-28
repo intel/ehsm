@@ -89,6 +89,7 @@ int client_send_receive(FIFO_MSG *fiforequest, size_t fiforequest_size, FIFO_MSG
         else
         {
             log_e("connection error, %s, line %d.", strerror(errno), __LINE__);
+            ret = -1;
             goto CLEAN;
         }
     } while (retry_count-- > 0);
