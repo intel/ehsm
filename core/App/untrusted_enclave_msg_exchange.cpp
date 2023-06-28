@@ -52,7 +52,7 @@
 extern "C" ATTESTATION_STATUS ocall_session_request(sgx_dh_msg1_t* dh_msg1, uint32_t* session_id)
 {
 	FIFO_MSG msg1_request;
-	FIFO_MSG *msg1_response;
+	FIFO_MSG *msg1_response = NULL;
 	SESSION_MSG1_RESP * msg1_respbody = NULL;
 	size_t  msg1_resp_size;
 
@@ -133,7 +133,7 @@ extern "C" ATTESTATION_STATUS ocall_exchange_report(sgx_dh_msg2_t *dh_msg2, sgx_
 extern "C" ATTESTATION_STATUS ocall_send_request(uint32_t session_id, secure_message_t* req_message, size_t req_message_size, size_t max_payload_size, secure_message_t* resp_message, size_t resp_message_size)
 {
 	FIFO_MSG *msgreq = NULL, * msgresp= NULL;
-	FIFO_MSGBODY_REQ * msgbody;
+	FIFO_MSGBODY_REQ * msgbody = NULL;
 
 	size_t reqsize, respsize;
 
@@ -181,7 +181,7 @@ extern "C" ATTESTATION_STATUS ocall_end_session(uint32_t session_id)
 {
 	FIFO_MSG *msgresp = NULL;
 	FIFO_MSG *closemsg;
-	SESSION_CLOSE_REQ * body;
+	SESSION_CLOSE_REQ * body = NULL;
 	size_t reqsize, respsize;
 
 	reqsize = sizeof(FIFO_MSG) + sizeof(SESSION_CLOSE_REQ);
