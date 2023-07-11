@@ -95,10 +95,11 @@ def test_EC_sign_verify(base_url, headers):
     print('====================test_EC_sign_verify start===========================')
     
     key_EC_p224 = createkey.createkey(base_url, "EH_EC_P224", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_224")
-    key_EC_p256 = createkey.createkey(base_url, "EH_EC_P256", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_256")
+    key_EC_p256K = createkey.createkey(base_url, "EH_EC_P256K", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_256")
+    key_EC_p256P = createkey.createkey(base_url, "EH_EC_P256", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_256")
     key_EC_p384 = createkey.createkey(base_url, "EH_EC_P384", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_384")
     key_EC_p521 = createkey.createkey(base_url, "EH_EC_P521", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_512")
-    asymmetricKey = [key_EC_p256, key_EC_p224, key_EC_p384, key_EC_p521]
+    asymmetricKey = [key_EC_p256K, key_EC_p256P, key_EC_p224, key_EC_p384, key_EC_p521]
     
     for i in asymmetricKey:
         # test Sign

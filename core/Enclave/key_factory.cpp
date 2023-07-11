@@ -57,6 +57,7 @@ sgx_status_t ehsm_calc_keyblob_size(const uint32_t keyspec, uint32_t &key_size)
         key_size = PEM_BUFSIZE * 5 + sizeof(sgx_aes_gcm_data_ex_t);
         break;
     case EH_EC_P256:
+    case EH_EC_P256K:
     case EH_EC_P224:
     case EH_EC_P384:
     case EH_EC_P521:
@@ -369,7 +370,6 @@ static bool pair_wise_test_for_ecc(uint8_t *keypair)
         goto out;
     }
     if (ecc_sign(pir_key,
-                 EVP_sha256(),
                  data2sign,
                  data2sign_size,
                  signature,
@@ -391,7 +391,6 @@ static bool pair_wise_test_for_ecc(uint8_t *keypair)
         goto out;
     }
     ecc_verify(pub_key,
-               EVP_sha256(),
                data2sign,
                data2sign_size,
                signature,
@@ -442,8 +441,11 @@ sgx_status_t ehsm_create_ecc_key(ehsm_keyblob_t *cmk) // https://github.com/inte
     case EH_EC_P224:
         nid = NID_secp224r1;
         break;
-    case EH_EC_P256:
+    case EH_EC_P256K:
         nid = NID_secp256k1;
+        break;
+    case EH_EC_P256:
+        nid = NID_X9_62_prime256v1;
         break;
     case EH_EC_P384:
         nid = NID_secp384r1;

@@ -82,6 +82,7 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
         return RSA_OAEP_3072_SIGNATURE_SIZE;
     case EH_RSA_4096:
         return RSA_OAEP_4096_SIGNATURE_SIZE;
+    case EH_EC_P256K:
     case EH_EC_P256:
         return EC_P256_SIGNATURE_MAX_SIZE;
     case EH_EC_P224:
@@ -181,6 +182,7 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
         ret = ehsm_create_rsa_key(cmk);
         break;
     case EH_EC_P224:
+    case EH_EC_P256K:
     case EH_EC_P256:
     case EH_EC_P384:
     case EH_EC_P521:
@@ -462,6 +464,7 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
                             data,
                             signature);
         break;
+    case EH_EC_P256K:
     case EH_EC_P256:
     case EH_EC_P224:
     case EH_EC_P384:
@@ -543,6 +546,7 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
                               signature,
                               result);
         break;
+    case EH_EC_P256K:
     case EH_EC_P256:
     case EH_EC_P224:
     case EH_EC_P384:
