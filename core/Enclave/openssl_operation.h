@@ -97,14 +97,12 @@ sgx_status_t rsa_verify(RSA *rsa_pubkey,
                        int saltlen = -1);
 
 sgx_status_t ecc_sign(EC_KEY *ec_key,
-                      const EVP_MD *digestMode,
                       const uint8_t *data,
                       uint32_t data_len,
                       uint8_t *signature,
                       uint32_t *signature_len);
 
 sgx_status_t ecc_verify(EC_KEY *ec_key,
-                        const EVP_MD *digestMode,
                         const uint8_t *data,
                         uint32_t data_len,
                         const uint8_t *signature,

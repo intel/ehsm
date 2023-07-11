@@ -496,7 +496,6 @@ out:
 }
 
 sgx_status_t ecc_sign(EC_KEY *ec_key,
-                      const EVP_MD *digestMode,
                       const uint8_t *data,
                       uint32_t data_len,
                       uint8_t *signature,
@@ -504,58 +503,14 @@ sgx_status_t ecc_sign(EC_KEY *ec_key,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    EVP_MD_CTX *mdctx = NULL;
-    uint8_t *digestMessage = NULL;
-    uint32_t digestMessage_len = MAX_DIGEST_LENGTH;
-
-    digestMessage = (uint8_t *)malloc(digestMessage_len);
-
-    mdctx = EVP_MD_CTX_new();
-    if (mdctx == NULL)
-    {
-        log_e("ecall ec_sign failed to create a EVP_MD_CTX.\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
-    }
-
-    if (EVP_MD_CTX_init(mdctx) != 1)
-    {
-        log_e("ecall ec_sign EVP_MD_CTX initialize failed.\n");
-        goto out;
-    }
-
-    // digest message
-    if (EVP_DigestInit(mdctx, digestMode) != 1)
-    {
-        log_e("ecall ec_sign EVP_DigestInit failed.\n");
-        goto out;
-    }
-
-    if (EVP_DigestUpdate(mdctx, data, data_len) != 1)
-    {
-        log_e("ecall ec_sign EVP_DigestUpdate failed.\n");
-        goto out;
-    }
-
-    if (EVP_DigestFinal(mdctx, digestMessage, &digestMessage_len) != 1)
-    {
-        log_e("ecall ec_sign EVP_DigestFinal failed.\n");
-        goto out;
-    }
-
-    if (ECDSA_sign(0, digestMessage, digestMessage_len, signature, signature_len, ec_key) != 1)
+    if (ECDSA_sign(0, data, data_len, signature, signature_len, ec_key) != 1)
     {
         log_e("ecall ecdsa_sign failed.\n");
         goto out;
     }
 
-    ret = SGX_SUCCESS;
-
 out:
-    EVP_MD_CTX_free(mdctx);
-
-    SAFE_MEMSET(digestMessage, digestMessage_len, 0, digestMessage_len);
-    SAFE_FREE(digestMessage);
+    ret = SGX_SUCCESS;
 
     return ret;
 }
@@ -792,7 +747,6 @@ out:
 }
 
 sgx_status_t ecc_verify(EC_KEY *ec_key,
-                        const EVP_MD *digestMode,
                         const uint8_t *data,
                         uint32_t data_len,
                         const uint8_t *signature,
@@ -801,46 +755,7 @@ sgx_status_t ecc_verify(EC_KEY *ec_key,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    EVP_MD_CTX *mdctx = NULL;
-    uint8_t *digestMessage = NULL;
-    uint32_t digestMessage_len = MAX_DIGEST_LENGTH;
-
-    digestMessage = (uint8_t *)malloc(digestMessage_len);
-
-    mdctx = EVP_MD_CTX_new();
-    if (mdctx == NULL)
-    {
-        log_e("ecall ec_verify failed to create a EVP_MD_CTX.\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
-    }
-
-    if (EVP_MD_CTX_init(mdctx) != 1)
-    {
-        log_e("ecall ec_verify EVP_MD_CTX initialize failed.\n");
-        goto out;
-    }
-
-    // digest message
-    if (EVP_DigestInit(mdctx, digestMode) != 1)
-    {
-        log_e("ecall ec_verify EVP_DigestInit failed.\n");
-        goto out;
-    }
-
-    if (EVP_DigestUpdate(mdctx, data, data_len) != 1)
-    {
-        log_e("ecall ec_verify EVP_DigestUpdate failed.\n");
-        goto out;
-    }
-
-    if (EVP_DigestFinal(mdctx, digestMessage, &digestMessage_len) != 1)
-    {
-        log_e("ecall ec_verify EVP_DigestFinal failed.\n");
-        goto out;
-    }
-
-    switch (ECDSA_verify(0, digestMessage, digestMessage_len, signature, signature_len, ec_key))
+    switch (ECDSA_verify(0, data, data_len, signature, signature_len, ec_key))
     {
     case 1:
         *result = true;
@@ -857,10 +772,6 @@ sgx_status_t ecc_verify(EC_KEY *ec_key,
     ret = SGX_SUCCESS;
 
 out:
-    EVP_MD_CTX_free(mdctx);
-
-    SAFE_MEMSET(digestMessage, MAX_DIGEST_LENGTH, 0, MAX_DIGEST_LENGTH);
-    SAFE_FREE(digestMessage);
 
     return ret;
 }
