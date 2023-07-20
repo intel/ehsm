@@ -48,7 +48,7 @@ ehsm_keyspec_t supported_asymmetric_keyspec_rsa[] = {EH_RSA_2048, EH_RSA_3072, E
 
 size_t supported_asymmetric_keyspec_rsa_num = sizeof(supported_asymmetric_keyspec_rsa) / sizeof(supported_asymmetric_keyspec_rsa[0]);
 
-ehsm_keyspec_t supported_asymmetric_keyspec_ec[] = {EH_EC_P224, EH_EC_P256, EH_EC_P384, EH_EC_P521};
+ehsm_keyspec_t supported_asymmetric_keyspec_ec[] = {EH_EC_P224, EH_EC_P256, EH_EC_P256K, EH_EC_P384, EH_EC_P521};
 
 size_t supported_asymmetric_keyspec_ec_num = sizeof(supported_asymmetric_keyspec_ec) / sizeof(supported_asymmetric_keyspec_ec[0]);
 

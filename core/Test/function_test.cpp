@@ -623,8 +623,8 @@ step3. Verify the signature
 void test_ec_sign_verify()
 {
     log_i("============test_ec_sign_verify start==========\n");
-    std::string plaintext[] = {"Testsign-EC-p224", "Testsign-EC-p256", "Testsign-EC-p384", "Testsign-EC-p521"};
-    uint32_t keyspec[] = {EH_EC_P224, EH_EC_P256, EH_EC_P384, EH_EC_P521};
+    std::string plaintext[] = {"Testsign-EC-p224", "Testsign-EC-p256", "Testsign-EC-p256k", "Testsign-EC-p384", "Testsign-EC-p521"};
+    uint32_t keyspec[] = {EH_EC_P224, EH_EC_P256, EH_EC_P256K, EH_EC_P384, EH_EC_P521};
 
     case_number += sizeof(plaintext) / sizeof(plaintext[0]);
     for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
