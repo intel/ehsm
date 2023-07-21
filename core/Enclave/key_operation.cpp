@@ -199,9 +199,10 @@ sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *keypair = NULL;
-    BIO *bio_keypair;
-    BIO *bio_pubkey;
-    EVP_PKEY *pkey;
+    RSA *rsa_keypair = NULL;
+    BIO *bio_keypair = NULL;
+    BIO *bio_pubkey = NULL;
+    EVP_PKEY *pkey = NULL;
     uint32_t key_size;
 
     // load asymmetric key pair
@@ -220,8 +221,24 @@ sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk,
         goto out;
     }
 
-    pkey = PEM_read_bio_PUBKEY(bio_keypair, NULL, NULL, NULL);
-    if (pkey == NULL)
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_SM2:
+    case EH_EC_P224:
+    case EH_EC_P256K:
+    case EH_EC_P256:
+    case EH_EC_P384:
+    case EH_EC_P521:
+        pkey = PEM_read_bio_PUBKEY(bio_keypair, NULL, NULL, NULL);
+        break;
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        PEM_read_bio_RSAPublicKey(bio_keypair, &rsa_keypair, NULL, NULL);
+        break;
+    }
+
+    if (pkey == NULL && rsa_keypair == NULL)
     {
         log_d("failed to load key pair\n");
         goto out;
@@ -231,8 +248,24 @@ sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk,
     if (bio_pubkey == NULL)
         goto out;
 
-    if (!PEM_write_bio_PUBKEY(bio_pubkey, pkey))
-        goto out;
+    switch (cmk->metadata.keyspec)
+    {
+    case EH_SM2:
+    case EH_EC_P224:
+    case EH_EC_P256:
+    case EH_EC_P256K:
+    case EH_EC_P384:
+    case EH_EC_P521:
+        if (!PEM_write_bio_PUBKEY(bio_pubkey, pkey))
+            goto out;
+        break;
+    case EH_RSA_2048:
+    case EH_RSA_3072:
+    case EH_RSA_4096:
+        if (!PEM_write_bio_RSAPublicKey(bio_pubkey, rsa_keypair))
+            goto out;
+        break;
+    }
 
     key_size = BIO_pending(bio_pubkey);
     if (key_size <= 0)
@@ -248,7 +281,9 @@ sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk,
         goto out;
 
     ret = SGX_SUCCESS;
+
 out:
+    RSA_free(rsa_keypair);
     BIO_free(bio_keypair);
     BIO_free(bio_pubkey);
     EVP_PKEY_free(pkey);

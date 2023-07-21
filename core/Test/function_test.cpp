@@ -444,7 +444,7 @@ void test_SM2_encrypt_decrypt()
 void test_get_pubkey()
 {
     log_i("============test_get_public_key==========\n");
-    uint32_t keyspec[] = {EH_SM2};
+    uint32_t keyspec[] = {EH_SM2, EH_EC_P224, EH_EC_P256, EH_EC_P256K, EH_EC_P384, EH_EC_P521, EH_RSA_2048, EH_RSA_3072, EH_RSA_4096};
 
     case_number += sizeof(keyspec) / sizeof(keyspec[0]);
 
