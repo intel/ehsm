@@ -226,7 +226,6 @@ static bool pair_wise_test_for_rsa(RSA *keypair)
     uint32_t data2sign_size = sizeof(data2sign) / sizeof(data2sign[0]);
     bool result = false;
     if (rsa_sign(keypair,
-                 EVP_sha256(),
                  EH_PAD_RSA_PKCS1_PSS,
                  data2sign,
                  data2sign_size,
@@ -235,13 +234,12 @@ static bool pair_wise_test_for_rsa(RSA *keypair)
         return false;
 
     if (rsa_verify(keypair,
-                   EVP_sha256(),
                    EH_PAD_RSA_PKCS1_PSS,
                    data2sign,
                    data2sign_size,
                    signature,
                    RSA_size(keypair),
-                   &result, -1) != SGX_SUCCESS)
+                   &result) != SGX_SUCCESS)
         return false;
 
     return result;

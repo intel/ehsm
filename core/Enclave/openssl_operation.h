@@ -22,7 +22,7 @@
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
  * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * digest, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -79,51 +79,45 @@ sgx_status_t sm4_cbc_decrypt(uint8_t *key, uint8_t *plaintext,
                              uint8_t *iv);
 
 sgx_status_t rsa_sign(RSA *rsa_prikey,
-                      const EVP_MD *digestMode,
                       ehsm_padding_mode_t padding_mode,
-                      const uint8_t *data,
-                      uint32_t data_len,
+                      const uint8_t *digest,
+                      uint32_t digest_len,
                       uint8_t *signature,
                       uint32_t signature_len);
 
 sgx_status_t rsa_verify(RSA *rsa_pubkey,
-                       const EVP_MD *digestMode,
                        ehsm_padding_mode_t padding_mode,
-                       const uint8_t *data,
-                       uint32_t data_len,
+                       const uint8_t *digest,
+                       uint32_t digest_len,
                        const uint8_t *signature,
                        uint32_t signature_len,
                        bool *result,
                        int saltlen = -1);
 
 sgx_status_t ecc_sign(EC_KEY *ec_key,
-                      const EVP_MD *digestMode,
-                      const uint8_t *data,
-                      uint32_t data_len,
+                      const uint8_t *digest,
+                      uint32_t digest_len,
                       uint8_t *signature,
                       uint32_t *signature_len);
 
 sgx_status_t ecc_verify(EC_KEY *ec_key,
-                        const EVP_MD *digestMode,
-                        const uint8_t *data,
-                        uint32_t data_len,
+                        const uint8_t *digest,
+                        uint32_t digest_len,
                         const uint8_t *signature,
                         uint32_t signature_len,
                         bool *result);
 
 sgx_status_t sm2_sign(EC_KEY *ec_key,
-                      const EVP_MD *digestMode,
-                      const uint8_t *data,
-                      uint32_t data_len,
+                      const uint8_t *digest,
+                      uint32_t digest_len,
                       uint8_t *signature,
                       uint32_t *signature_len,
                       const uint8_t *id,
                       uint32_t id_len);
 
 sgx_status_t sm2_verify(EC_KEY *ec_key,
-                        const EVP_MD *digestMode,
-                        const uint8_t *data,
-                        uint32_t data_len,
+                        const uint8_t *digest,
+                        uint32_t digest_len,
                         const uint8_t *signature,
                         uint32_t signature_len,
                         bool *result,

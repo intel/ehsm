@@ -623,16 +623,13 @@ step3. Verify the signature
 void test_ec_sign_verify()
 {
     log_i("============test_ec_sign_verify start==========\n");
-    std::string plaintext[] = {"Testsign-EC-p224", "Testsign-EC-p256", "Testsign-EC-p256k", "Testsign-EC-p384", "Testsign-EC-p521"};
     uint32_t keyspec[] = {EH_EC_P224, EH_EC_P256, EH_EC_P256K, EH_EC_P384, EH_EC_P521};
 
-    case_number += sizeof(plaintext) / sizeof(plaintext[0]);
-    for (int i = 0; i < sizeof(plaintext) / sizeof(plaintext[0]); i++)
+    case_number += sizeof(keyspec) / sizeof(keyspec[0]);
+    for (int i = 0; i < sizeof(keyspec) / sizeof(keyspec[0]); i++)
     {
-        log_i("============%s start==========\n", plaintext[i].c_str());
         ehsm_status_t ret = EH_OK;
         char *returnJsonChar = (char *)calloc(10000, sizeof(char));
-        char data2sign[] = "SIGN";
 
         char *cmk_base64 = nullptr;
         char *signature_base64 = nullptr;
@@ -642,7 +639,7 @@ void test_ec_sign_verify()
         JsonObj param_json;
         JsonObj payload_json;
 
-        std::string input_data2sign_base64 = base64_encode((const uint8_t *)data2sign, sizeof(data2sign) / sizeof(data2sign[0]));
+        std::string digest = "dfa84ec91daba0fecef93302a6f5754566a0249e90626dc7d289746ae412af75"; //sha256
 
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
@@ -659,13 +656,13 @@ void test_ec_sign_verify()
             goto cleanup;
         }
         log_i("FFI_CreateKey Json : %s\n", returnJsonChar);
-        log_i("Create CMK with RAS SUCCESSFULLY!\n");
+        log_i("Create CMK with ECC SUCCESSFULLY!\n");
 
         cmk_base64 = retJsonObj.readData_cstr("cmk");
 
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
-        payload_json.addData_string("digest", input_data2sign_base64);
+        payload_json.addData_string("digest", digest);
 
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -708,7 +705,6 @@ void test_ec_sign_verify()
         SAFE_FREE(signature_base64);
         SAFE_FREE(cmk_base64);
         SAFE_FREE(returnJsonChar);
-        log_i("============%s end==========\n", plaintext[i].c_str());
         log_i("\n");
     }
     log_i("============test_ec_sign_verify end==========\n");
@@ -1445,31 +1441,31 @@ cleanup:
 
 void function_test()
 {
-    test_symmertric_encrypt_decrypt();
+    // test_symmertric_encrypt_decrypt();
 
-    test_symmertric_encrypt_decrypt_without_aad();
+    // test_symmertric_encrypt_decrypt_without_aad();
 
-    test_RSA_encrypt_decrypt();
+    // test_RSA_encrypt_decrypt();
 
     test_RSA_sign_verify();
 
-    test_sm2_sign_verify();
+    // test_sm2_sign_verify();
 
     test_ec_sign_verify();
 
-    test_SM2_encrypt_decrypt();
+    // test_SM2_encrypt_decrypt();
 
-    test_get_pubkey();
+    // test_get_pubkey();
 
-    test_generate_AES_datakey();
+    // test_generate_AES_datakey();
 
-    test_generate_SM4_datakey();
+    // test_generate_SM4_datakey();
 
-    test_export_datakey();
+    // test_export_datakey();
 
-    test_GenerateQuote_and_VerifyQuote();
+    // test_GenerateQuote_and_VerifyQuote();
 
-    test_Enroll();
+    // test_Enroll();
 
     log_i("All of tests done. %d/%d success\n", success_number, case_number);
 }

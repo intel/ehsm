@@ -199,7 +199,6 @@ static bool sm2_verify_test(map<string, string> test_vector)
     }
 
     if (sm2_verify(ec_key,
-                   EVP_sm3(),
                    (const uint8_t *)test_vector["Msg"].c_str(),
                    strlen(test_vector["Msg"].c_str()),
                    signature,

@@ -985,13 +985,6 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     RSA *rsa_prikey = NULL;
 
-    // Get Digest Mode
-    const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
-    if (digestMode == NULL)
-    {
-        log_d("ecall rsa_sign digest Mode error.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
     // load private key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (rsa_keypair == NULL)
@@ -1016,7 +1009,6 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
         goto out;
     }
     ret = rsa_sign(rsa_prikey,
-                   digestMode,
                    cmk->metadata.padding_mode,
                    data->data,
                    data->datalen,
@@ -1058,14 +1050,6 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     RSA *rsa_pubkey = NULL;
 
-    // get digest mode
-    const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
-    if (digestMode == NULL)
-    {
-        log_d("ecall rsa_verify digestMode error.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (rsa_keypair == NULL)
@@ -1091,7 +1075,6 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     }
 
     ret = rsa_verify(rsa_pubkey,
-                     digestMode,
                      cmk->metadata.padding_mode,
                      data->data,
                      data->datalen,
@@ -1127,14 +1110,6 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     EC_KEY *ec_key = NULL;
 
-    const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
-    if (digestMode == NULL || digestMode == EVP_sm3())
-    {
-        log_d("ecall ec_sign digestMode error.\n");
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        goto out;
-    }
-
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
         goto out;
@@ -1159,7 +1134,6 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     }
 
     ret = ecc_sign(ec_key,
-                   digestMode,
                    data->data,
                    data->datalen,
                    signature->data,
@@ -1196,14 +1170,6 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     EC_KEY *ec_key = NULL;
 
-    const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
-    if (digestMode == NULL || digestMode == EVP_sm3())
-    {
-        log_d("ecall ec_verify digestMode error.\n");
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        goto out;
-    }
-
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
         goto out;
@@ -1228,7 +1194,6 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
     }
 
     ret = ecc_verify(ec_key,
-                     digestMode,
                      data->data,
                      data->datalen,
                      signature->data,
@@ -1264,12 +1229,6 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     EC_KEY *ec_key = NULL;
 
-    const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
-    if (digestMode == NULL)
-    {
-        log_d("ecall sm2_sign digestMode error.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
@@ -1295,7 +1254,6 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     }
 
     ret = sm2_sign(ec_key,
-                   digestMode,
                    data->data,
                    data->datalen,
                    signature->data,
@@ -1334,13 +1292,6 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     BIO *bio = NULL;
     EC_KEY *ec_key = NULL;
 
-    const EVP_MD *digestMode = GetDigestMode(cmk->metadata.digest_mode);
-    if (digestMode == NULL)
-    {
-        log_d("ecall sm2_verify digestMode error.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
         goto out;
@@ -1365,7 +1316,6 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     }
 
     ret = sm2_verify(ec_key,
-                     digestMode,
                      data->data,
                      data->datalen,
                      signature->data,
