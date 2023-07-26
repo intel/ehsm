@@ -18,27 +18,20 @@ def get_args():
     parser.add_argument('--url', type=str, help='the address of the ehsm_kms_server', required=True)
     parser.add_argument('--keyspec', type=str, help='supported keyspec [EH_AES_GCM_128", "EH_AES_GCM_192", "EH_AES_GCM_256", "EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_RSA_3072", "EH_EC_P256", "EH_EC_P256K", "EH_SM2", "EH_SM4]', required=True)
     parser.add_argument('--origin', type=str, help='the key origin [EH_EXTERNAL_KEY or EH_INTERNAL_KEY]', required=True)
-    parser.add_argument('--purpose', type=str, help='the key purpose')
-    parser.add_argument('--padding_mode', type=str, help='the key padding_mode')
-    parser.add_argument('--digest_mode', type=str, help='the key digest_mode')
+    parser.add_argument('--keyusage', type=str, help='the key usage', required=True)
     args = parser.parse_args()
 
     base_url = args.url + "/ehsm?Action="
     print(base_url)
     return base_url, args.keyspec, args.origin, args.purpose, args.padding_mode, args.digest_mode
 
-def createkey(base_url, keyspec, origin, purpose = None, padding_mode = None, digest_mode = None):
+def createkey(base_url, keyspec, origin, keyusage):
     print('generate key with keyspec %s' %(keyspec))
 
     payload = OrderedDict()
-    if digest_mode != None:
-        payload["digest_mode"] = digest_mode
     payload["keyspec"] = keyspec
     payload["origin"] = origin
-    if padding_mode != None:
-        payload["padding_mode"] = padding_mode
-    if purpose != None:
-        payload["purpose"] = purpose
+    payload["keyusage"] = keyusage
     params = _utils_.init_params(payload)
     print('createkey req:\n%s\n' %(params))
 
@@ -52,13 +45,13 @@ def createkey(base_url, keyspec, origin, purpose = None, padding_mode = None, di
 if __name__ == "__main__":
     headers = _utils_.headers
 
-    base_url, keyspec, origin, purpose, padding_mode, digest_mode = get_args()
+    base_url, keyspec, origin, keyusage = get_args()
 
     if origin != "EH_INTERNAL_KEY":
         origin = "EH_INTERNAL_KEY"
 
     if keyspec in supported_keyspec:
-        createkey(base_url, keyspec, origin, purpose, padding_mode, digest_mode)
+        createkey(base_url, keyspec, origin, keyusage)
     else:
         print('current version do not support this keyspec: %s' %(keyspec))
 

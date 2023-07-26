@@ -74,6 +74,7 @@ void test_symmertric_encrypt_decrypt()
         JsonObj payload_json;
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -174,6 +175,7 @@ void test_symmertric_encrypt_decrypt_without_aad()
         JsonObj payload_json;
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -271,7 +273,7 @@ void test_RSA_encrypt_decrypt()
         JsonObj payload_json;
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
-        payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -290,6 +292,7 @@ void test_RSA_encrypt_decrypt()
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
         payload_json.addData_string("plaintext", input_plaintext_base64);
+        payload_json.addData_uint32("padding_mode", EH_RSA_PKCS1);
 
         param_json.addData_uint32("action", EH_ASYMMETRIC_ENCRYPT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -368,6 +371,7 @@ void test_SM2_encrypt_decrypt()
         JsonObj payload_json;
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -460,6 +464,7 @@ void test_get_pubkey()
         JsonObj payload_json;
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_SIGN_VERIFY);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -518,9 +523,9 @@ step2. Sign the digest
 step3. Verify the signature
 
 */
-void test_RSA_sign_verify()
+void test_RSA_sign_verify_RAW()
 {
-    log_i("============test_RSA_sign_verify start==========\n");
+    log_i("============test_RSA_sign_verify_RAW start==========\n");
     std::string plaintext[] = {"Test1234-RSA2048", "Test1234-RSA3072", "Test1234-RSA4096"};
     uint32_t keyspec[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096};
 
@@ -544,8 +549,7 @@ void test_RSA_sign_verify()
 
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
-        payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_PSS);
-        payload_json.addData_uint32("digest_mode", EH_SHA_2_256);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_SIGN_VERIFY);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -563,7 +567,10 @@ void test_RSA_sign_verify()
 
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
-        payload_json.addData_string("digest", input_data2sign_base64);
+        payload_json.addData_string("message", input_data2sign_base64);
+        payload_json.addData_uint32("padding_mode", EH_RSA_PKCS1_PSS);
+        payload_json.addData_uint32("digest_mode", EH_SHA_256);
+        payload_json.addData_uint32("message_type", EH_RAW);
 
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -608,7 +615,105 @@ void test_RSA_sign_verify()
         SAFE_FREE(returnJsonChar);
         log_i("============%s end==========\n", plaintext[i].c_str());
     }
-    log_i("============test_RSA_sign_verify end==========\n");
+    log_i("============test_RSA_sign_verify_RAW end==========\n");
+}
+
+/*
+
+step1. generate an rsa 3072 key as the CM(customer master key)
+
+step2. Sign the digest
+
+step3. Verify the signature
+
+*/
+void test_RSA_sign_verify_DIGEST()
+{
+    log_i("============test_RSA_sign_verify_DIGEST start==========\n");
+    uint32_t keyspec[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096};
+
+    case_number += sizeof(keyspec) / sizeof(keyspec[0]);
+    for (int i = 0; i < sizeof(keyspec) / sizeof(keyspec[0]); i++)
+    {
+        ehsm_status_t ret = EH_OK;
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
+
+        char *cmk_base64 = nullptr;
+        char *signature_base64 = nullptr;
+        bool result = false;
+        RetJsonObj retJsonObj;
+
+        JsonObj param_json;
+        JsonObj payload_json;
+
+        payload_json.addData_uint32("keyspec", keyspec[i]);
+        payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_SIGN_VERIFY);
+        param_json.addData_uint32("action", EH_CREATE_KEY);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+        retJsonObj.parse(returnJsonChar);
+        if (retJsonObj.getCode() != 200)
+        {
+            log_e("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        log_i("FFI_CreateKey Json : %s\n", returnJsonChar);
+        log_i("Create CMK with RAS SUCCESSFULLY!\n");
+
+        cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+        payload_json.clear();
+        payload_json.addData_string("cmk", cmk_base64);
+        payload_json.addData_string("message", "JVAPBOYcL7HFfJhtEwqL1lDoMZnUVwxYpCa6atFTH0E=");
+        payload_json.addData_uint32("padding_mode", EH_RSA_PKCS1);
+        payload_json.addData_uint32("digest_mode", EH_SHA_256);
+        payload_json.addData_uint32("message_type", EH_DIGEST);
+
+        param_json.addData_uint32("action", EH_SIGN);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+        retJsonObj.parse(returnJsonChar);
+        if (retJsonObj.getCode() != 200)
+        {
+            log_e("FFI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        log_i("FFI_Sign Json = %s\n", returnJsonChar);
+        signature_base64 = retJsonObj.readData_cstr("signature");
+        log_i("Sign data SUCCESSFULLY!\n");
+
+        payload_json.addData_string("signature", signature_base64);
+
+        param_json.addData_uint32("action", EH_VERIFY);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+        retJsonObj.parse(returnJsonChar);
+        if (retJsonObj.getCode() != 200)
+        {
+            log_e("FFI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        log_i("FFI_Verify Json = %s\n", returnJsonChar);
+        result = retJsonObj.readData_bool("result");
+        log_i("Verify result : %s\n", result ? "true" : "false");
+        if (result == true)
+        {
+            success_number++;
+            log_i("Verify signature SUCCESSFULLY!\n");
+        }
+
+    cleanup:
+        SAFE_FREE(signature_base64);
+        SAFE_FREE(cmk_base64);
+        SAFE_FREE(returnJsonChar);
+    }
+    log_i("============test_RSA_sign_verify_DIGEST end==========\n");
 }
 
 /*
@@ -620,9 +725,9 @@ step2. Sign the digest
 step3. Verify the signature
 
 */
-void test_ec_sign_verify()
+void test_ec_sign_verify_RAW()
 {
-    log_i("============test_ec_sign_verify start==========\n");
+    log_i("============test_ec_sign_verify_RAW start==========\n");
     std::string plaintext[] = {"Testsign-EC-p224", "Testsign-EC-p256", "Testsign-EC-p256k", "Testsign-EC-p384", "Testsign-EC-p521"};
     uint32_t keyspec[] = {EH_EC_P224, EH_EC_P256, EH_EC_P256K, EH_EC_P384, EH_EC_P521};
 
@@ -646,8 +751,7 @@ void test_ec_sign_verify()
 
         payload_json.addData_uint32("keyspec", keyspec[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
-        payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1);
-        payload_json.addData_uint32("digest_mode", EH_SHA_2_256);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_SIGN_VERIFY);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -659,13 +763,15 @@ void test_ec_sign_verify()
             goto cleanup;
         }
         log_i("FFI_CreateKey Json : %s\n", returnJsonChar);
-        log_i("Create CMK with RAS SUCCESSFULLY!\n");
+        log_i("Create CMK with ECC SUCCESSFULLY!\n");
 
         cmk_base64 = retJsonObj.readData_cstr("cmk");
 
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
-        payload_json.addData_string("digest", input_data2sign_base64);
+        payload_json.addData_string("message", input_data2sign_base64);
+        payload_json.addData_uint32("digest_mode", EH_SHA_256);
+        payload_json.addData_uint32("message_type", EH_RAW);
 
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -711,7 +817,105 @@ void test_ec_sign_verify()
         log_i("============%s end==========\n", plaintext[i].c_str());
         log_i("\n");
     }
-    log_i("============test_ec_sign_verify end==========\n");
+    log_i("============test_ec_sign_verify_RAW end==========\n");
+}
+
+/*
+
+step1. generate an ec p256 key as the CM(customer master key)
+
+step2. Sign the digest
+
+step3. Verify the signature
+
+*/
+void test_ec_sign_verify_DIGEST()
+{
+    log_i("============test_ec_sign_verify_RAW start==========\n");
+    uint32_t keyspec[] = {EH_EC_P224, EH_EC_P256, EH_EC_P256K, EH_EC_P384, EH_EC_P521};
+
+    case_number += sizeof(keyspec) / sizeof(keyspec[0]);
+    for (int i = 0; i < sizeof(keyspec) / sizeof(keyspec[0]); i++)
+    {
+        ehsm_status_t ret = EH_OK;
+        char *returnJsonChar = (char *)calloc(10000, sizeof(char));
+
+        char *cmk_base64 = nullptr;
+        char *signature_base64 = nullptr;
+        bool result = false;
+        RetJsonObj retJsonObj;
+
+        JsonObj param_json;
+        JsonObj payload_json;
+
+        payload_json.addData_uint32("keyspec", keyspec[i]);
+        payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_SIGN_VERIFY);
+        param_json.addData_uint32("action", EH_CREATE_KEY);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+        retJsonObj.parse(returnJsonChar);
+        if (retJsonObj.getCode() != 200)
+        {
+            log_e("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        log_i("FFI_CreateKey Json : %s\n", returnJsonChar);
+        log_i("Create CMK with ECC SUCCESSFULLY!\n");
+
+        cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+        payload_json.clear();
+        payload_json.addData_string("cmk", cmk_base64);
+        payload_json.addData_string("message", "JVAPBOYcL7HFfJhtEwqL1lDoMZnUVwxYpCa6atFTH0E");
+        payload_json.addData_uint32("digest_mode", EH_SHA_256);
+        payload_json.addData_uint32("message_type", EH_DIGEST);
+
+        param_json.addData_uint32("action", EH_SIGN);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+        retJsonObj.parse(returnJsonChar);
+        if (retJsonObj.getCode() != 200)
+        {
+            log_e("FFI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        log_i("FFI_Sign Json = %s\n", returnJsonChar);
+        signature_base64 = retJsonObj.readData_cstr("signature");
+        log_i("Sign data SUCCESSFULLY!\n");
+
+        payload_json.addData_string("signature", signature_base64);
+
+        param_json.addData_uint32("action", EH_VERIFY);
+        param_json.addData_JsonValue("payload", payload_json.getJson());
+
+        memset(returnJsonChar, 0, 10000);
+        EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+        retJsonObj.parse(returnJsonChar);
+        if (retJsonObj.getCode() != 200)
+        {
+            log_e("FFI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+            goto cleanup;
+        }
+        log_i("FFI_Verify Json = %s\n", returnJsonChar);
+        result = retJsonObj.readData_bool("result");
+        log_i("Verify result : %s\n", result ? "true" : "false");
+        if (result == true)
+        {
+            success_number++;
+            log_i("Verify signature SUCCESSFULLY!\n");
+        }
+
+    cleanup:
+        SAFE_FREE(signature_base64);
+        SAFE_FREE(cmk_base64);
+        SAFE_FREE(returnJsonChar);
+        log_i("\n");
+    }
+    log_i("============test_ec_sign_verify_RAW end==========\n");
 }
 
 /*
@@ -723,7 +927,7 @@ step2. Sign the digest
 step3. Verify the signature
 
 */
-void test_sm2_sign_verify()
+void test_sm2_sign_verify_RAW()
 {
     case_number++;
     ehsm_status_t ret = EH_OK;
@@ -742,11 +946,10 @@ void test_sm2_sign_verify()
 
     payload_json.addData_uint32("keyspec", EH_SM2);
     payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
-    payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_PSS);
-    payload_json.addData_uint32("digest_mode", EH_SM3);
+    payload_json.addData_uint32("keyusage", EH_KEYUSAGE_SIGN_VERIFY);
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
-    log_i("============test_SM2_sign_verify start==========\n");
+    log_i("============test_sm2_sign_verify_RAW start==========\n");
 
     EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
     retJsonObj.parse(returnJsonChar);
@@ -756,13 +959,15 @@ void test_sm2_sign_verify()
         goto cleanup;
     }
     log_i("FFI_CreateKey Json : %s\n", returnJsonChar);
-    log_i("Create CMK with RAS SUCCESSFULLY!\n");
+    log_i("Create CMK with SM2 SUCCESSFULLY!\n");
 
     cmk_base64 = retJsonObj.readData_cstr("cmk");
 
     payload_json.clear();
     payload_json.addData_string("cmk", cmk_base64);
-    payload_json.addData_string("digest", input_data2sign_base64);
+    payload_json.addData_string("message", input_data2sign_base64);
+    payload_json.addData_uint32("digest_mode", EH_SM3);
+    payload_json.addData_uint32("message_type", EH_RAW);
 
     param_json.addData_uint32("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -805,7 +1010,100 @@ cleanup:
     SAFE_FREE(signature_base64);
     SAFE_FREE(cmk_base64);
     SAFE_FREE(returnJsonChar);
-    log_i("============test_SM2_sign_verify end==========\n");
+    log_i("============test_sm2_sign_verify_RAW end==========\n");
+    log_i("\n");
+}
+
+/*
+
+step1. generate an sm2 key as the CM(customer master key)
+
+step2. Sign the digest
+
+step3. Verify the signature
+
+*/
+void test_sm2_sign_verify_DIGEST()
+{
+    case_number++;
+    ehsm_status_t ret = EH_OK;
+    char *returnJsonChar = (char *)calloc(10000, sizeof(char));
+
+    char *cmk_base64 = nullptr;
+    char *signature_base64 = nullptr;
+    bool result = false;
+    RetJsonObj retJsonObj;
+
+    JsonObj param_json;
+    JsonObj payload_json;
+
+    payload_json.addData_uint32("keyspec", EH_SM2);
+    payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+    payload_json.addData_uint32("keyusage", EH_KEYUSAGE_SIGN_VERIFY);
+    param_json.addData_uint32("action", EH_CREATE_KEY);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+    log_i("============test_sm2_sign_verify_RAW start==========\n");
+
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+    retJsonObj.parse(returnJsonChar);
+    if (retJsonObj.getCode() != 200)
+    {
+        log_e("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    log_i("FFI_CreateKey Json : %s\n", returnJsonChar);
+    log_i("Create CMK with SM2 SUCCESSFULLY!\n");
+
+    cmk_base64 = retJsonObj.readData_cstr("cmk");
+
+    payload_json.clear();
+    payload_json.addData_string("cmk", cmk_base64);
+    payload_json.addData_string("message", "JVAPBOYcL7HFfJhtEwqL1lDoMZnUVwxYpCa6atFTH0E");
+    payload_json.addData_uint32("digest_mode", EH_SM3);
+    payload_json.addData_uint32("message_type", EH_DIGEST);
+
+    param_json.addData_uint32("action", EH_SIGN);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+    retJsonObj.parse(returnJsonChar);
+    if (retJsonObj.getCode() != 200)
+    {
+        log_e("FFI_Sign failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    log_i("FFI_Sign Json = %s\n", returnJsonChar);
+    signature_base64 = retJsonObj.readData_cstr("signature");
+    log_i("Sign data SUCCESSFULLY!\n");
+
+    payload_json.addData_string("signature", signature_base64);
+
+    param_json.addData_uint32("action", EH_VERIFY);
+    param_json.addData_JsonValue("payload", payload_json.getJson());
+
+    memset(returnJsonChar, 0, 10000);
+    EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+    retJsonObj.parse(returnJsonChar);
+    if (retJsonObj.getCode() != 200)
+    {
+        log_i("FFI_Verify failed, error message: %s \n", retJsonObj.getMessage().c_str());
+        goto cleanup;
+    }
+    log_i("FFI_Verify Json = %s\n", returnJsonChar);
+    result = retJsonObj.readData_bool("result");
+    log_i("Verify result : %s\n", result ? "true" : "false");
+    if (result == true)
+    {
+        success_number++;
+        log_i("Verify signature SUCCESSFULLY!\n");
+    }
+
+cleanup:
+    SAFE_FREE(signature_base64);
+    SAFE_FREE(cmk_base64);
+    SAFE_FREE(returnJsonChar);
+    log_i("============test_sm2_sign_verify_RAW end==========\n");
     log_i("\n");
 }
 
@@ -841,6 +1139,7 @@ void test_generate_AES_datakey()
     JsonObj param_json;
     payload_json.addData_uint32("keyspec", EH_AES_GCM_128);
     payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+    payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -971,6 +1270,7 @@ void test_generate_SM4_datakey()
     JsonObj param_json;
     payload_json.addData_uint32("keyspec", EH_SM4_CBC);
     payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+    payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
     param_json.addData_uint32("action", EH_CREATE_KEY);
     param_json.addData_JsonValue("payload", payload_json.getJson());
 
@@ -1095,6 +1395,8 @@ void test_export_datakey()
     ehsm_keyspec_t ukey_keyspec_test[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096, EH_SM2};
     int ukey_keyspec_test_num = sizeof(ukey_keyspec_test) / sizeof(ukey_keyspec_test[0]);
 
+    case_number += (cmk_keyspec_test_num * ukey_keyspec_test_num);
+
     char *returnJsonChar = (char *)calloc(10000, sizeof(char));
     char *cmk_base64 = nullptr;
     char *ukey_base64 = nullptr;
@@ -1120,6 +1422,7 @@ void test_export_datakey()
         param_json.clear();
         payload_json.addData_uint32("keyspec", cmk_keyspec_test[i]);
         payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
         param_json.addData_uint32("action", EH_CREATE_KEY);
         param_json.addData_JsonValue("payload", payload_json.getJson());
         memset(returnJsonChar, 0, 10000);
@@ -1140,6 +1443,7 @@ void test_export_datakey()
         payload_json.addData_string("aad", input_aad_base64);
         payload_json.addData_string("cmk", cmk_base64);
         payload_json.addData_uint32("keylen", keylen);
+        payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
         param_json.addData_uint32("action", EH_GENERATE_DATAKEY_WITHOUT_PLAINTEXT);
         param_json.addData_JsonValue("payload", payload_json.getJson());
         memset(returnJsonChar, 0, 10000);
@@ -1178,20 +1482,9 @@ void test_export_datakey()
             payload_json.clear();
             param_json.clear();
             payload_json.addData_uint32("keyspec", ukey_keyspec_test[j]);
-            switch (ukey_keyspec_test[j])
-            {
-            case EH_RSA_2048:
-            case EH_RSA_3072:
-            case EH_RSA_4096:
-                payload_json.addData_uint32("padding_mode", EH_PAD_RSA_PKCS1_OAEP);
-                break;
-            case EH_SM2:
-                break;
-            default:
-                break;
-            }
             /*step4. create key as the ukey */
             payload_json.addData_uint32("origin", EH_INTERNAL_KEY);
+            payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
             param_json.addData_uint32("action", EH_CREATE_KEY);
             param_json.addData_JsonValue("payload", payload_json.getJson());
             memset(returnJsonChar, 0, 10000);
@@ -1230,6 +1523,7 @@ void test_export_datakey()
             param_json.clear();
             payload_json.addData_string("cmk", ukey_base64);
             payload_json.addData_string("ciphertext", newdatakey_base64);
+            payload_json.addData_uint32("padding_mode", EH_RSA_PKCS1_OAEP);
             param_json.addData_uint32("action", EH_ASYMMETRIC_DECRYPT);
             param_json.addData_JsonValue("payload", payload_json.getJson());
             memset(returnJsonChar, 0, 10000);
@@ -1255,6 +1549,8 @@ void test_export_datakey()
             SAFE_FREE(ukey_base64);
             SAFE_FREE(newdatakey_base64);
             SAFE_FREE(newdatakeyplaintext_base64)
+
+            success_number++;
         }
         SAFE_FREE(cmk_base64);
         SAFE_FREE(ukey_base64);
@@ -1451,11 +1747,17 @@ void function_test()
 
     test_RSA_encrypt_decrypt();
 
-    test_RSA_sign_verify();
+    test_RSA_sign_verify_RAW();
 
-    test_sm2_sign_verify();
+    test_RSA_sign_verify_DIGEST();
 
-    test_ec_sign_verify();
+    test_sm2_sign_verify_RAW();
+
+    test_sm2_sign_verify_DIGEST();
+
+    test_ec_sign_verify_RAW();
+    
+    test_ec_sign_verify_DIGEST();
 
     test_SM2_encrypt_decrypt();
 

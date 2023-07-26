@@ -432,6 +432,8 @@ EHSM_TEST_VECTOR rsa_sign_verify_with_PKCS1_PSS_test_vectors = {
      {"digestmode", "512"}},
 };
 
+extern uint32_t getPaddingMode(ehsm_padding_mode_t padding_mode);
+
 static void RSA_create_key(RSA *key, const char *n, const char *e, const char *d)
 
 {
@@ -447,22 +449,6 @@ static void RSA_create_key(RSA *key, const char *n, const char *e, const char *d
                  modulus,
                  publicExponent,
                  privateExponent);
-}
-
-static ehsm_padding_mode_t get_paddingmode(int paddingmode)
-{
-    switch (paddingmode)
-    {
-    /* 1 means paddingmode PKCS#1 Ver 1.5, 2 means paddingmode PKCS#1 RSASSA-PSS */
-    case 1:
-        return EH_PAD_RSA_PKCS1;
-    case 2:
-        return EH_PAD_RSA_PKCS1_PSS;
-    case 3:
-        return EH_PAD_RSA_PKCS1_OAEP;
-    default:
-        return EH_PADDING_NONE;
-    }
 }
 
 static bool rsa_decryption_with_pkcs_oaep(map<string, string> test_vector)
@@ -494,7 +480,8 @@ static bool rsa_decryption_with_pkcs_oaep(map<string, string> test_vector)
                         BN_bin2bn(&*iqmp, VECTOR_LENGTH("iqmp"), NULL));
 
     int rsa_size = RSA_size(key);
-    if (rsa_size <= 42) {
+    if (rsa_size <= 42)
+    {
         RSA_free(key);
         return false;
     }
@@ -519,7 +506,6 @@ static bool rsa_sign_verify_with_PKCS1(map<string, string> test_vector)
     GET_PARAMETER(S);
 
     bool result = false;
-    int saltlen = -1;
     int digestmode = atoi((test_vector["digestmode"]).c_str());
     int paddingmode = atoi((test_vector["paddingmode"]).c_str());
 
@@ -534,8 +520,9 @@ static bool rsa_sign_verify_with_PKCS1(map<string, string> test_vector)
     uint8_t _S[RSA_size(key)] = {0};
 
     (void)rsa_sign(key,
-                   get_digestmode(digestmode),
-                   get_paddingmode(paddingmode),
+                   getDigestMode(digestmode),
+                   getPaddingMode((ehsm_padding_mode_t)paddingmode),
+                   EH_RAW,
                    &*msg,
                    VECTOR_LENGTH("msg"),
                    _S,
@@ -550,14 +537,14 @@ static bool rsa_sign_verify_with_PKCS1(map<string, string> test_vector)
 
     // Verify the generated signature
     (void)rsa_verify(key,
-                     get_digestmode(digestmode),
-                     get_paddingmode(paddingmode),
+                     getDigestMode(digestmode),
+                     getPaddingMode((ehsm_padding_mode_t)paddingmode),
+                     EH_RAW,
                      &*msg,
                      VECTOR_LENGTH("msg"),
                      &*S,
                      VECTOR_LENGTH("S"),
-                     &result,
-                     saltlen);
+                     &result);
 
     RSA_free(key);
 
@@ -598,8 +585,9 @@ static bool rsa_sign_verify_with_PKCS1_PSS(map<string, string> test_vector)
 
     // Verify the generated signature
     (void)rsa_verify(key,
-                     get_digestmode(digestmode),
-                     get_paddingmode(paddingmode),
+                     getDigestMode(digestmode),
+                     getPaddingMode((ehsm_padding_mode_t)paddingmode),
+                     EH_RAW,
                      &*msg,
                      VECTOR_LENGTH("msg"),
                      &*S,

@@ -16,17 +16,20 @@ def get_args():
     parser.add_argument('--url', type=str, help='the address of the ehsm_kms_server', required=True)
     parser.add_argument('--keyid', type=str, help='the keyid of asymmetric cmk', required=True)
     parser.add_argument('--data', type=str, help='the ciphertext data to be decrypted', required=True)
+    parser.add_argument('--padding_mode', type=str, help='the padding mode for RSA decrypt')
     args = parser.parse_args()
 
     base_url = args.url + "/ehsm?Action="
-    return base_url, args.keyid, args.data
+    return base_url, args.keyid, args.data, args.padding_mode
 
-def asymmetric_decrypt(base_url, keyid, data):
+def asymmetric_decrypt(base_url, keyid, data, padding_mode):
     print('decrypt data with an asymmetric cmk')
 
     payload = OrderedDict()
     payload["ciphertext"] = data
     payload["keyid"] = keyid
+    if padding_mode is not None:
+        payload["padding_mode"] = padding_mode
     params = _utils_.init_params(payload)
     print('asymmetric_decrypt req:\n%s\n' %(params))
 
@@ -42,7 +45,7 @@ def asymmetric_decrypt(base_url, keyid, data):
 if __name__ == "__main__":
     headers = _utils_.headers
 
-    base_url, keyid, data = get_args()
+    base_url, keyid, data, padding_mode = get_args()
 
-    asymmetric_decrypt(base_url, keyid, data)
+    asymmetric_decrypt(base_url, keyid, data, padding_mode)
 

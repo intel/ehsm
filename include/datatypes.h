@@ -91,7 +91,7 @@ typedef int errno_t;
 #define EC_P521_SIGNATURE_MAX_SIZE        141
 #define EC_SM2_SIGNATURE_MAX_SIZE         72
 
-#define MAX_DIGEST_DATA_SIZE         (6*1024)
+#define MAX_SIGN_DATA_SIZE         (6*1024)
 #define MAX_SIGNATURE_SIZE                512
 
 #define EH_AES_GCM_IV_SIZE  12
@@ -141,19 +141,16 @@ typedef enum {
 
 //sgx-ssl framework
 typedef enum  {
-    EH_ORIGIN_NONE = 0,
-    EH_INTERNAL_KEY,
+    EH_INTERNAL_KEY = 1,
     EH_EXTERNAL_KEY,
 } ehsm_keyorigin_t;
 
 typedef enum {
-    EH_PURPOSE_NONE = 0,
-    EH_PURPOSE_ENCRYPT_DECRYPT,
-    EH_PURPOSE_SIGN_VERIFY,
-} ehsm_keypurpose_t;
+    EH_KEYUSAGE_ENCRYPT_DECRYPT = 1,
+    EH_KEYUSAGE_SIGN_VERIFY,
+} ehsm_keyusage_t;
 
 typedef enum {
-    EH_KEYSPEC_NONE = 0,
     EH_AES_GCM_128 = 1,
     EH_AES_GCM_192 = 2,
     EH_AES_GCM_256 = 3,
@@ -171,21 +168,25 @@ typedef enum {
     EH_HMAC = 40
 } ehsm_keyspec_t;
 
+// use in sign/verify
 typedef enum {
-    EH_DIGEST_NONE = 0,
-    EH_SHA_2_224,
-    EH_SHA_2_256,
-    EH_SHA_2_384,
-    EH_SHA_2_512,
-    EH_SM3
+    EH_RAW = 1,
+    EH_DIGEST = 2,
+} ehsm_message_type_t;
+
+typedef enum {
+    EH_SHA_224 = 1,
+    EH_SHA_256 = 2,
+    EH_SHA_384 = 3,
+    EH_SHA_512 = 4,
+    EH_SM3 = 5 // only use for sm2 keypair
 } ehsm_digest_mode_t;
 
 typedef enum {
-    EH_PADDING_NONE = 0,
-    EH_PAD_RSA_PKCS1 = 1,
-    EH_PAD_RSA_NO = 3,        
-    EH_PAD_RSA_PKCS1_OAEP = 4,
-    EH_PAD_RSA_PKCS1_PSS = 6      
+    EH_PAD_NONE = 0,
+    EH_RSA_PKCS1 = 1,
+    EH_RSA_PKCS1_PSS = 2, // only use for RSA sign/verify
+    EH_RSA_PKCS1_OAEP = 3, // only use for RSA encrypt/decrypt
 } ehsm_padding_mode_t;
 
 #pragma pack(push,1)
@@ -197,10 +198,8 @@ typedef struct {
 
 typedef struct {
     ehsm_keyspec_t        keyspec;
-    ehsm_digest_mode_t    digest_mode;
-    ehsm_padding_mode_t   padding_mode;
     ehsm_keyorigin_t      origin;
-    ehsm_keypurpose_t     purpose;
+    ehsm_keyusage_t       keyusage;
 
     uint32_t              apiversion;
     uint8_t               descrption[16];

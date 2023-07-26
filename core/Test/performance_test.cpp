@@ -56,9 +56,9 @@ ehsm_keyspec_t supported_asymmetric_keyspec_sm2[] = {EH_SM2};
 
 size_t supported_asymmetric_keyspec_sm2_num = sizeof(supported_asymmetric_keyspec_sm2) / sizeof(supported_asymmetric_keyspec_sm2[0]);
 
-ehsm_digest_mode_t supported_rsa_ec_digest_mode[] = {EH_SHA_2_224, EH_SHA_2_256, EH_SHA_2_384, EH_SHA_2_512};
+ehsm_digest_mode_t supported_digest_mode[] = {EH_SHA_224, EH_SHA_256, EH_SHA_384, EH_SHA_512};
 
-size_t supported_rsa_ec_digest_mode_num = sizeof(supported_rsa_ec_digest_mode) / sizeof(supported_rsa_ec_digest_mode[0]);
+size_t supported_digest_mode_num = sizeof(supported_digest_mode) / sizeof(supported_digest_mode[0]);
 
 ehsm_digest_mode_t supported_sm2_digest_mode[] = {EH_SM3};
 
@@ -160,7 +160,7 @@ static bool _asymmetric_encrypt(ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehs
         return false;
     }
     ciphertext->datalen = 0;
-    ehsm_status_t ret = AsymmetricEncrypt(cmk, plaintext, ciphertext);
+    ehsm_status_t ret = AsymmetricEncrypt(cmk, EH_RSA_PKCS1, plaintext, ciphertext);
     if (ret != EH_OK)
     {
         log_e("first asymmetric encrypt failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -172,7 +172,7 @@ static bool _asymmetric_encrypt(ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehs
         log_e("out of memory realloc failed.\n");
         return false;
     }
-    ret = AsymmetricEncrypt(cmk, plaintext, ciphertext);
+    ret = AsymmetricEncrypt(cmk, EH_RSA_PKCS1, plaintext, ciphertext);
     if (ret != EH_OK)
     {
         log_e("asymmetric encrypt failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -190,7 +190,7 @@ static bool _asymmetric_decrypt(ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, eh
         return false;
     }
     plaintext->datalen = 0;
-    ehsm_status_t ret = AsymmetricDecrypt(cmk, ciphertext, plaintext);
+    ehsm_status_t ret = AsymmetricDecrypt(cmk, EH_RSA_PKCS1, ciphertext, plaintext);
     if (ret != EH_OK)
     {
         log_e("first asymmetric decrypt failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -202,7 +202,7 @@ static bool _asymmetric_decrypt(ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, eh
         log_e("out of memory realloc failed.\n");
         return false;
     }
-    ret = AsymmetricDecrypt(cmk, ciphertext, plaintext);
+    ret = AsymmetricDecrypt(cmk, EH_RSA_PKCS1, ciphertext, plaintext);
     if (ret != EH_OK)
     {
         log_e("asymmetric decrypt failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -211,7 +211,7 @@ static bool _asymmetric_decrypt(ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, eh
     return true;
 }
 
-static bool _sign(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *&signature)
+static bool _sign(ehsm_keyblob_t *cmk, ehsm_digest_mode_t digest_mode, ehsm_padding_mode_t padding_mode, ehsm_message_type_t message_type, ehsm_data_t *message, ehsm_data_t *&signature)
 {
     signature = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
     if (signature == NULL)
@@ -220,7 +220,7 @@ static bool _sign(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *&signat
         return false;
     }
     signature->datalen = 0;
-    ehsm_status_t ret = Sign(cmk, digest, signature);
+    ehsm_status_t ret = Sign(cmk, digest_mode, padding_mode, message_type, message, signature);
     if (ret != EH_OK)
     {
         log_e("first sign failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -232,7 +232,7 @@ static bool _sign(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *&signat
         log_e("out of memory realloc failed.\n");
         return false;
     }
-    ret = Sign(cmk, digest, signature);
+    ret = Sign(cmk, digest_mode, padding_mode, message_type, message, signature);
     if (ret != EH_OK)
     {
         log_e("sign failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -241,9 +241,9 @@ static bool _sign(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *&signat
     return true;
 }
 
-static bool _verify(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *signature, bool *result)
+static bool _verify(ehsm_keyblob_t *cmk, ehsm_digest_mode_t digest_mode, ehsm_padding_mode_t padding_mode, ehsm_message_type_t message_type, ehsm_data_t *message, ehsm_data_t *signature, bool *result)
 {
-    ehsm_status_t ret = Verify(cmk, digest, signature, result);
+    ehsm_status_t ret = Verify(cmk, digest_mode, padding_mode, message_type, message, signature, result);
     if (ret != EH_OK)
     {
         log_e("verify failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -269,6 +269,7 @@ void test_perf_create_aesgcm_key()
                 break;
             }
             cmk->metadata.keyspec = supported_symmetric_keyspec_aesgcm[i];
+            cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
             if (!_createkey(cmk))
             {
                 log_e("createkey failed\n");
@@ -304,6 +305,7 @@ void test_perf_create_sm4_key()
                 break;
             }
             cmk->metadata.keyspec = supported_symmetric_keyspec_sm4[i];
+            cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
             if (!_createkey(cmk))
             {
                 log_e("createkey failed\n");
@@ -339,6 +341,7 @@ void test_perf_create_rsa_key()
                 break;
             }
             cmk->metadata.keyspec = supported_asymmetric_keyspec_rsa[i];
+            cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
             if (!_createkey(cmk))
             {
                 log_e("createkey failed\n");
@@ -374,6 +377,7 @@ void test_perf_create_ec_key()
                 break;
             }
             cmk->metadata.keyspec = supported_asymmetric_keyspec_ec[i];
+            cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
             if (!_createkey(cmk))
             {
                 log_e("createkey failed\n");
@@ -409,6 +413,7 @@ void test_perf_create_sm2_key()
                 break;
             }
             cmk->metadata.keyspec = supported_asymmetric_keyspec_sm2[i];
+            cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
             if (!_createkey(cmk))
             {
                 log_e("createkey failed\n");
@@ -451,7 +456,8 @@ void test_perf_rsa_encrytion_decryption()
             goto out;
         }
         cmk->metadata.keyspec = supported_asymmetric_keyspec_rsa[i];
-        cmk->metadata.padding_mode = EH_PAD_RSA_PKCS1_OAEP;
+        cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
+
         if (!_createkey(cmk))
         {
             log_e("createkey failed\n");
@@ -544,6 +550,7 @@ void test_perf_sm2_encryption_decryption()
             goto out;
         }
         cmk->metadata.keyspec = supported_asymmetric_keyspec_sm2[i];
+        cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
         if (!_createkey(cmk))
         {
             log_e("createkey failed\n");
@@ -638,6 +645,7 @@ void test_perf_aesgcm_encryption_decryption()
             goto out;
         }
         cmk->metadata.keyspec = supported_symmetric_keyspec_aesgcm[i];
+        cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
         if (!_createkey(cmk))
         {
             log_e("createkey failed\n");
@@ -748,6 +756,7 @@ void test_perf_sm4_encryption_decryption()
             goto out;
         }
         cmk->metadata.keyspec = supported_symmetric_keyspec_sm4[i];
+        cmk->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
         if (!_createkey(cmk))
         {
             log_e("createkey failed\n");
@@ -839,7 +848,7 @@ void test_perf_rsa_sign_verify()
     // rsa
     for (int i = 0; i < supported_asymmetric_keyspec_rsa_num; i++)
     {
-        for (int j = 0; j < supported_rsa_ec_digest_mode_num; j++)
+        for (int j = 0; j < supported_digest_mode_num; j++)
         {
             bool status = true;
             bool verify_result = false;
@@ -858,8 +867,7 @@ void test_perf_rsa_sign_verify()
                 goto out;
             }
             cmk->metadata.keyspec = supported_asymmetric_keyspec_rsa[i];
-            cmk->metadata.padding_mode = EH_PAD_RSA_PKCS1_PSS;
-            cmk->metadata.digest_mode = supported_rsa_ec_digest_mode[j];
+            cmk->metadata.keyusage = EH_KEYUSAGE_SIGN_VERIFY;
             if (!_createkey(cmk))
             {
                 log_e("createkey failed\n");
@@ -879,9 +887,9 @@ void test_perf_rsa_sign_verify()
                 data2sign->datalen = data2sign_size;
                 memcpy_s(data2sign->data, data2sign_size, (uint8_t *)data2sign_str.data(), data2sign_size);
 
-                if (!_sign(cmk, data2sign, signature))
+                if (!_sign(cmk, supported_digest_mode[j], EH_RSA_PKCS1, EH_RAW, data2sign, signature))
                 {
-                    log_e("signed failed with keyspec code %d ,digest mode code %d in time %d.\n", supported_asymmetric_keyspec_rsa[i], supported_rsa_ec_digest_mode[j], k);
+                    log_e("signed failed with keyspec code %d ,digest mode code %d in time %d.\n", supported_asymmetric_keyspec_rsa[i], supported_digest_mode[j], k);
                     status = false;
                     goto out;
                 }
@@ -895,7 +903,7 @@ void test_perf_rsa_sign_verify()
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             if (status)
             {
-                log_i("Time measured of sign keyspec code %d, digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_rsa[i], supported_rsa_ec_digest_mode[j], RSA_SIGN_VERIFY_PERFNUM, elapsed.count() * 1e-9);
+                log_i("Time measured of sign keyspec code %d, digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_rsa[i], supported_digest_mode[j], RSA_SIGN_VERIFY_PERFNUM, elapsed.count() * 1e-9);
             }
 
             // verify
@@ -910,9 +918,9 @@ void test_perf_rsa_sign_verify()
                 }
                 data2sign->datalen = data2sign_size;
                 memcpy_s(data2sign->data, data2sign_size, (uint8_t *)data2sign_str.data(), data2sign_size);
-                if (!_verify(cmk, data2sign, signature, &verify_result))
+                if (!_verify(cmk, supported_digest_mode[j], EH_RSA_PKCS1, EH_RAW, data2sign, signature, &verify_result))
                 {
-                    log_e("verify failed with keyspec code %d digest mode code %d in time %d.\n", supported_asymmetric_keyspec_rsa[i], supported_rsa_ec_digest_mode[j], k);
+                    log_e("verify failed with keyspec code %d digest mode code %d in time %d.\n", supported_asymmetric_keyspec_rsa[i], supported_digest_mode[j], k);
                     status = false;
                     goto out;
                 }
@@ -922,7 +930,7 @@ void test_perf_rsa_sign_verify()
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             if (status)
             {
-                log_i("Time measured of verify keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_rsa[i], supported_rsa_ec_digest_mode[j], RSA_SIGN_VERIFY_PERFNUM, elapsed.count() * 1e-9);
+                log_i("Time measured of verify keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_rsa[i], supported_digest_mode[j], RSA_SIGN_VERIFY_PERFNUM, elapsed.count() * 1e-9);
             }
         out:
             SAFE_FREE(cmk);
@@ -939,7 +947,7 @@ void test_perf_ec_sign_verify()
     // ec
     for (int i = 0; i < supported_asymmetric_keyspec_ec_num; i++)
     {
-        for (int j = 0; j < supported_rsa_ec_digest_mode_num; j++)
+        for (int j = 0; j < supported_digest_mode_num; j++)
         {
             bool status = true;
             bool verify_result = false;
@@ -957,7 +965,7 @@ void test_perf_ec_sign_verify()
                 goto out;
             }
             cmk->metadata.keyspec = supported_asymmetric_keyspec_ec[i];
-            cmk->metadata.digest_mode = supported_rsa_ec_digest_mode[j];
+            cmk->metadata.keyusage = EH_KEYUSAGE_SIGN_VERIFY;
             if (!_createkey(cmk))
             {
                 log_e("createkey failed\n");
@@ -977,9 +985,9 @@ void test_perf_ec_sign_verify()
                 data2sign->datalen = data2sign_size;
                 memcpy_s(data2sign->data, data2sign_size, (uint8_t *)data2sign_str.data(), data2sign_size);
 
-                if (!_sign(cmk, data2sign, signature))
+                if (!_sign(cmk, supported_digest_mode[j], EH_PAD_NONE, EH_RAW, data2sign, signature))
                 {
-                    log_e("signed failed with keyspec code %d digest mode code %d in time %d.\n", supported_asymmetric_keyspec_ec[i], supported_rsa_ec_digest_mode[j], k);
+                    log_e("signed failed with keyspec code %d digest mode code %d in time %d.\n", supported_asymmetric_keyspec_ec[i], supported_digest_mode[j], k);
                     status = false;
                     goto out;
                 }
@@ -993,7 +1001,7 @@ void test_perf_ec_sign_verify()
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             if (status)
             {
-                log_i("Time measured of sign keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_ec[i], supported_rsa_ec_digest_mode[j], EC_SIGN_PERFNUM, elapsed.count() * 1e-9);
+                log_i("Time measured of sign keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_ec[i], supported_digest_mode[j], EC_SIGN_PERFNUM, elapsed.count() * 1e-9);
             }
 
             // verify
@@ -1008,9 +1016,9 @@ void test_perf_ec_sign_verify()
                 }
                 data2sign->datalen = data2sign_size;
                 memcpy_s(data2sign->data, data2sign_size, (uint8_t *)data2sign_str.data(), data2sign_size);
-                if (!_verify(cmk, data2sign, signature, &verify_result))
+                if (!_verify(cmk, supported_digest_mode[j], EH_PAD_NONE, EH_RAW, data2sign, signature, &verify_result))
                 {
-                    log_e("verify failed with keyspec code %d  digest mode code %d in time %d.\n", supported_asymmetric_keyspec_ec[i], supported_rsa_ec_digest_mode[j], k);
+                    log_e("verify failed with keyspec code %d  digest mode code %d in time %d.\n", supported_asymmetric_keyspec_ec[i], supported_digest_mode[j], k);
                     status = false;
                     goto out;
                 }
@@ -1020,7 +1028,7 @@ void test_perf_ec_sign_verify()
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             if (status)
             {
-                log_i("Time measured of verify keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_ec[i], supported_rsa_ec_digest_mode[j], EC_VERIFY_PERFNUM, elapsed.count() * 1e-9);
+                log_i("Time measured of verify keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_ec[i], supported_digest_mode[j], EC_VERIFY_PERFNUM, elapsed.count() * 1e-9);
             }
         out:
             SAFE_FREE(cmk);
@@ -1055,7 +1063,7 @@ void test_perf_sm2_sign_verify()
                 goto out;
             }
             cmk->metadata.keyspec = supported_asymmetric_keyspec_sm2[i];
-            cmk->metadata.digest_mode = supported_sm2_digest_mode[j];
+            cmk->metadata.keyusage = EH_KEYUSAGE_SIGN_VERIFY;
             if (!_createkey(cmk))
             {
                 log_e("createkey failed\n");
@@ -1075,9 +1083,9 @@ void test_perf_sm2_sign_verify()
                 data2sign->datalen = data2sign_size;
                 memcpy_s(data2sign->data, data2sign_size, (uint8_t *)data2sign_str.data(), data2sign_size);
 
-                if (!_sign(cmk, data2sign, signature))
+                if (!_sign(cmk, supported_sm2_digest_mode[j], EH_PAD_NONE, EH_RAW, data2sign, signature))
                 {
-                    log_e("signed failed with keyspec code %d digest mode code %d in time %d.\n", supported_asymmetric_keyspec_sm2[i], supported_rsa_ec_digest_mode[j], k);
+                    log_e("signed failed with keyspec code %d digest mode code %d in time %d.\n", supported_asymmetric_keyspec_sm2[i], supported_sm2_digest_mode[j], k);
                     status = false;
                     goto out;
                 }
@@ -1091,7 +1099,7 @@ void test_perf_sm2_sign_verify()
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             if (status)
             {
-                log_i("Time measured of sign keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_sm2[i], supported_rsa_ec_digest_mode[j], SM2_SIGN_VERIFY_PERFNUM, elapsed.count() * 1e-9);
+                log_i("Time measured of sign keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_sm2[i], supported_sm2_digest_mode[j], SM2_SIGN_VERIFY_PERFNUM, elapsed.count() * 1e-9);
             }
 
             // verify
@@ -1106,9 +1114,9 @@ void test_perf_sm2_sign_verify()
                 }
                 data2sign->datalen = data2sign_size;
                 memcpy_s(data2sign->data, data2sign_size, (uint8_t *)data2sign_str.data(), data2sign_size);
-                if (!_verify(cmk, data2sign, signature, &verify_result))
+                if (!_verify(cmk, supported_sm2_digest_mode[j], EH_PAD_NONE, EH_RAW, data2sign, signature, &verify_result))
                 {
-                    log_e("verify failed with keyspec code %d digest mode code %d in time %d.\n", supported_asymmetric_keyspec_sm2[i], supported_rsa_ec_digest_mode[j], k);
+                    log_e("verify failed with keyspec code %d digest mode code %d in time %d.\n", supported_asymmetric_keyspec_sm2[i], supported_sm2_digest_mode[j], k);
                     status = false;
                     goto out;
                 }
@@ -1118,7 +1126,7 @@ void test_perf_sm2_sign_verify()
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             if (status)
             {
-                log_i("Time measured of verify keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_sm2[i], supported_rsa_ec_digest_mode[j], SM2_SIGN_VERIFY_PERFNUM, elapsed.count() * 1e-9);
+                log_i("Time measured of verify keyspec code %d digest mode code %d with Repeat NUM(%d): %.6f seconds.\n", supported_asymmetric_keyspec_sm2[i], supported_sm2_digest_mode[j], SM2_SIGN_VERIFY_PERFNUM, elapsed.count() * 1e-9);
             }
         out:
             SAFE_FREE(cmk);

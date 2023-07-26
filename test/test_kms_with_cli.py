@@ -22,16 +22,16 @@ def get_appid_apikey(base_url):
 
 def test_export_datakey(base_url, headers):
     print('====================test_export_datakey start===========================')
-    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY", None, None, None)
-    key_GCM_192 = createkey.createkey(base_url, "EH_AES_GCM_192", "EH_INTERNAL_KEY", None, None, None)
-    key_GCM_256 = createkey.createkey(base_url, "EH_AES_GCM_256", "EH_INTERNAL_KEY", None, None, None)
-    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_INTERNAL_KEY", None, None, None)
-    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_INTERNAL_KEY", None, None, None)
+    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_GCM_192 = createkey.createkey(base_url, "EH_AES_GCM_192", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_GCM_256 = createkey.createkey(base_url, "EH_AES_GCM_256", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
 
-    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_OAEP", None)
-    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_OAEP", None)
-    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1", None)
-    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, None)
+    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
     symmetricKey = [key_GCM_128, key_GCM_192, key_GCM_256, key_SM4_ctr, key_SM4_cbc]
     asymmetricKey = [key_RSA_3072, key_RSA_4096, key_RSA_2048, key_SM2]
     aad = str(base64.b64encode("test".encode("utf-8")),'utf-8')
@@ -46,33 +46,33 @@ def test_export_datakey(base_url, headers):
 
 def test_asymmetricKey_encrypt_decrypt(base_url, headers):
     print('====================test_asymmetricKey_encrypt_decrypt start===========================')
-    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_OAEP", None)
-    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_OAEP", None)
-    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1", None)
-    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, None)
+    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
     asymmetricKey = [key_RSA_2048, key_RSA_3072, key_RSA_4096, key_SM2]
 
     for i in asymmetricKey:
         # test AsymmetricEncrypt("123456")
         print('%s encrypt' %i)
-        ciphertext = asymmetric_encrypt.asymmetric_encrypt(base_url, i, str(base64.b64encode("123456".encode("utf-8")), 'utf-8'))
+        ciphertext = asymmetric_encrypt.asymmetric_encrypt(base_url, i, str(base64.b64encode("123456".encode("utf-8")), 'utf-8'), "EH_RSA_PKCS1_OAEP")
 
         # test AsymmetricDecrypt(ciphertext)
-        asymmetric_decrypt.asymmetric_decrypt(base_url, i, ciphertext)
+        asymmetric_decrypt.asymmetric_decrypt(base_url, i, ciphertext, "EH_RSA_PKCS1_OAEP")
 
     print('====================test_asymmetricKey_encrypt_decrypt end===========================')
 
 def test_get_public_key(base_url, headers):
     print('====================test_get_public_key start===========================')
-    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, None)
-    key_EC_224 = createkey.createkey(base_url, "EH_EC_224", "EH_INTERNAL_KEY", None, None, None)
-    key_EC_256 = createkey.createkey(base_url, "EH_EC_256", "EH_INTERNAL_KEY", None, None, None)
-    key_EC_256K = createkey.createkey(base_url, "EH_EC_256K", "EH_INTERNAL_KEY", None, None, None)
-    key_EC_384 = createkey.createkey(base_url, "EH_EC_384", "EH_INTERNAL_KEY", None, None, None)
-    key_EC_521 = createkey.createkey(base_url, "EH_EC_521", "EH_INTERNAL_KEY", None, None, None)
-    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", None, None, None)
-    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, None, None)
-    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", None, None, None)
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_224 = createkey.createkey(base_url, "EH_EC_224", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_256 = createkey.createkey(base_url, "EH_EC_256", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_256K = createkey.createkey(base_url, "EH_EC_256K", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_384 = createkey.createkey(base_url, "EH_EC_384", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_521 = createkey.createkey(base_url, "EH_EC_521", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
     asymmetricKey = [key_SM2, key_EC_224, key_EC_256, key_EC_256K, key_EC_384, key_EC_521, key_RSA_2048, key_RSA_3072, key_RSA_4096]
 
     for i in asymmetricKey:
@@ -85,60 +85,60 @@ def test_get_public_key(base_url, headers):
 def test_RSA_sign_verify(base_url, headers):
     print('====================test_RSA_sign_verify start===========================')
 
-    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_PSS", "EH_SHA_2_224")
-    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1_PSS", "EH_SHA_2_384")
-    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", None, "EH_PAD_RSA_PKCS1", "EH_SHA_2_512")
+    key_RSA_3072 = createkey.createkey(base_url, "EH_RSA_3072", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_RSA_4096 = createkey.createkey(base_url, "EH_RSA_4096", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_RSA_2048 = createkey.createkey(base_url, "EH_RSA_2048", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
     asymmetricKey = [key_RSA_3072, key_RSA_4096, key_RSA_2048]
     
     for i in asymmetricKey:
         # test Sign
-        signature = sign.sign(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'))
+        signature = sign.sign(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), "EH_RAW", "EH_RSA_PKCS1", "EH_SHA_256")
 
         # test Verify
-        verify.verify(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature)
+        verify.verify(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature, "EH_RAW", "EH_RSA_PKCS1", "EH_SHA_256")
 
     print('====================test_RSA_sign_verify end===========================')
 
 def test_EC_sign_verify(base_url, headers):
     print('====================test_EC_sign_verify start===========================')
     
-    key_EC_p224 = createkey.createkey(base_url, "EH_EC_P224", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_224")
-    key_EC_p256 = createkey.createkey(base_url, "EH_EC_P256", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_256")
-    key_EC_p256k = createkey.createkey(base_url, "EH_EC_P256K", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_256")
-    key_EC_p384 = createkey.createkey(base_url, "EH_EC_P384", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_384")
-    key_EC_p521 = createkey.createkey(base_url, "EH_EC_P521", "EH_INTERNAL_KEY", None, None, "EH_SHA_2_512")
+    key_EC_p224 = createkey.createkey(base_url, "EH_EC_P224", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_p256 = createkey.createkey(base_url, "EH_EC_P256", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_p256k = createkey.createkey(base_url, "EH_EC_P256K", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_p384 = createkey.createkey(base_url, "EH_EC_P384", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
+    key_EC_p521 = createkey.createkey(base_url, "EH_EC_P521", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
     asymmetricKey = [key_EC_p256, key_EC_p256k, key_EC_p224, key_EC_p384, key_EC_p521]
     
     for i in asymmetricKey:
         # test Sign
-        signature = sign.sign(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'))
+        signature = sign.sign(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), "EH_RAW", "EH_PAD_NONE", "EH_SHA_256")
 
         # test Verify
-        verify.verify(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature)
+        verify.verify(base_url, i, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature, "EH_RAW", "EH_PAD_NONE", "EH_SHA_256")
 
     print('====================test_EC_sign_verify end===========================')
 
 def test_SM2_sign_verify(base_url, headers):
     print('====================test_SM2_sign_verify start===========================')
-    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", None, None, "EH_SM3")
+    key_SM2 = createkey.createkey(base_url, "EH_SM2", "EH_INTERNAL_KEY", "EH_KEYUSAGE_SIGN_VERIFY")
     userid = str(base64.b64encode(appid.encode("utf-8")),'utf-8')
 
     # test Sign
-    signature = sign.sign(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'))
+    signature = sign.sign(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'), "EH_RAW", "EH_PAD_NONE", "EH_SM3")
 
     # test Verify
-    verify.verify(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature)
+    verify.verify(base_url, key_SM2, str(base64.b64encode("test".encode("utf-8")),'utf-8'), signature, "EH_RAW", "EH_PAD_NONE", "EH_SM3")
 
     print('====================test_SM2_sign_verify end===========================')
 
 
 def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
     print('====================test_GenerateDataKeyWithoutPlaintext start===========================')
-    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY", None, None, None)
-    key_GCM_192 = createkey.createkey(base_url, "EH_AES_GCM_192", "EH_INTERNAL_KEY", None, None, None)
-    key_GCM_256 = createkey.createkey(base_url, "EH_AES_GCM_256", "EH_INTERNAL_KEY", None, None, None)
-    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_INTERNAL_KEY", None, None, None)
-    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_INTERNAL_KEY", None, None, None)
+    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_GCM_192 = createkey.createkey(base_url, "EH_AES_GCM_192", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_GCM_256 = createkey.createkey(base_url, "EH_AES_GCM_256", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
     symmetricKey = [key_GCM_128, key_GCM_192, key_GCM_256, key_SM4_ctr, key_SM4_cbc]
 
     # test GenerateDataKeyWithoutPlaintext
@@ -155,11 +155,11 @@ def test_GenerateDataKeyWithoutPlaintext(base_url, headers):
 
 def test_GenerateDataKey(base_url, headers):
     print('====================test_GenerateDataKey start===========================')
-    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY", None, None, None)
-    key_GCM_192 = createkey.createkey(base_url, "EH_AES_GCM_192", "EH_INTERNAL_KEY", None, None, None)
-    key_GCM_256 = createkey.createkey(base_url, "EH_AES_GCM_256", "EH_INTERNAL_KEY", None, None, None)
-    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_INTERNAL_KEY", None, None, None)
-    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_INTERNAL_KEY", None, None, None)
+    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_GCM_192 = createkey.createkey(base_url, "EH_AES_GCM_192", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_GCM_256 = createkey.createkey(base_url, "EH_AES_GCM_256", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
     symmetricKey = [key_GCM_128, key_GCM_192, key_GCM_256, key_SM4_ctr, key_SM4_cbc]
 
     # test GenerateDataKeyWithoutPlaintext
@@ -177,11 +177,11 @@ def test_GenerateDataKey(base_url, headers):
 
 def test_symmetricKey_encrypt_decrypt(base_url, headers):
     print('====================test_symmetricKey_encrypt_decrypt start===========================')
-    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY", None, None, None)
-    key_GCM_192 = createkey.createkey(base_url, "EH_AES_GCM_192", "EH_INTERNAL_KEY", None, None, None)
-    key_GCM_256 = createkey.createkey(base_url, "EH_AES_GCM_256", "EH_INTERNAL_KEY", None, None, None)
-    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_INTERNAL_KEY", None, None, None)
-    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_INTERNAL_KEY", None, None, None)
+    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_GCM_192 = createkey.createkey(base_url, "EH_AES_GCM_192", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_GCM_256 = createkey.createkey(base_url, "EH_AES_GCM_256", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
     symmetricKey = [key_GCM_128, key_GCM_192, key_GCM_256, key_SM4_ctr, key_SM4_cbc]
 
     aad = str(base64.b64encode("test".encode("utf-8")),'utf-8')

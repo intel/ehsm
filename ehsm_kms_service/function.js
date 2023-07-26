@@ -8,7 +8,9 @@ const {
     Definition,
     ehsm_keySpec_t,
     ehsm_keyorigin_t,
-    ehsm_action_t
+    ehsm_action_t,
+    ehsm_keyusage_t,
+    ehsm_padding_mode_t,
 } = require('./constant')
 const {
     KMS_ACTION
@@ -157,7 +159,8 @@ function store_cmk(napi_res, res, appid, payload, DB) {
         const keyid = uuidv4()
         let {
             keyspec,
-            origin
+            origin,
+            keyusage
         } = payload
 
         DB.insert({
@@ -170,6 +173,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
             alias: '',
             keyspec,
             origin,
+            keyusage,
             keyState: 1,
         })
             .then((r) => {
@@ -239,7 +243,8 @@ const create_user_info = (action, DB, res, req) => {
         } = napi_res.result
         let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, res, {
             keyspec: ehsm_keySpec_t.EH_AES_GCM_256,
-            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
+            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY,
+            keyusage: ehsm_keyusage_t.EH_KEYUSAGE_ENCRYPT_DECRYPT
         })
         if (cmk_res) {
             const {
@@ -293,11 +298,13 @@ const enroll_user_info = (action, DB, res, req) => {
         } = napi_res.result
         let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, undefined, {
             keyspec: ehsm_keySpec_t.EH_AES_GCM_256,
-            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
+            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY,
+            keyusage: ehsm_keyusage_t.EH_KEYUSAGE_ENCRYPT_DECRYPT
         })
         let sm_default_cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, undefined, {
             keyspec: ehsm_keySpec_t.EH_AES_GCM_256,
-            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY
+            origin: ehsm_keyorigin_t.EH_INTERNAL_KEY,
+            keyusage: ehsm_keyusage_t.EH_KEYUSAGE_ENCRYPT_DECRYPT
         })
         if (cmk_res && sm_default_cmk_res) {
             const {

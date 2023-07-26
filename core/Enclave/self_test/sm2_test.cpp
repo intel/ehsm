@@ -2,6 +2,8 @@
 
 using namespace std;
 
+// In current sm2_sign(), userid will be concatenated with Msg and then make digest.
+// The test vector can't pass in current method.
 EHSM_TEST_VECTOR sm2_sign_verify_test_vectors = {
     {// Case 1 sm2 verify, sm3 digest. From draft-shen-sm2-ecdsa-02
      {"P", "8542D69E4C044F18E8B92435BF6FF7DE457283915C45517D722EDB8B08F1DFC3"},
@@ -200,6 +202,7 @@ static bool sm2_verify_test(map<string, string> test_vector)
 
     if (sm2_verify(ec_key,
                    EVP_sm3(),
+                   EH_RAW,
                    (const uint8_t *)test_vector["Msg"].c_str(),
                    strlen(test_vector["Msg"].c_str()),
                    signature,

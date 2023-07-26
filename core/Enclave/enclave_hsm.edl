@@ -88,19 +88,23 @@ enclave {
                             [in, out, size=plaintext_size] ehsm_data_t *plaintext, size_t plaintext_size);
 
         public sgx_status_t enclave_asymmetric_encrypt([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            ehsm_padding_mode_t padding_mode,
                             [in, size=plaintext_size] ehsm_data_t *plaintext, size_t plaintext_size,
                             [in, out, size=ciphertext_size] ehsm_data_t *ciphertext, size_t ciphertext_size);
 
         public sgx_status_t enclave_asymmetric_decrypt([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
+                            ehsm_padding_mode_t padding_mode,
                             [in, size=ciphertext_size] ehsm_data_t *ciphertext, uint32_t ciphertext_size,
                             [in, out, size=plaintext_size] ehsm_data_t *plaintext, uint32_t plaintext_size);
 
         public sgx_status_t enclave_sign([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
-                            [in, size=data_size] const ehsm_data_t *data, size_t data_size,
+                            ehsm_digest_mode_t digest_mode, ehsm_padding_mode_t padding_mode, ehsm_message_type_t message_type,
+                            [in, size=message_size] const ehsm_data_t *message, size_t message_size,
                             [in, out, size=signature_size] ehsm_data_t *signature, size_t signature_size);
                                          
         public sgx_status_t enclave_verify([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
-                            [in, size=data_size] const ehsm_data_t *data, size_t data_size,
+                            ehsm_digest_mode_t digest_mode, ehsm_padding_mode_t padding_mode, ehsm_message_type_t message_type,
+                            [in, size=message_size] const ehsm_data_t *message, size_t message_size,
                             [in, size=signature_size] const ehsm_data_t *signature, size_t signature_size,
                             [out] bool* result);
 

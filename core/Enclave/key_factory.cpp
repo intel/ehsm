@@ -241,7 +241,7 @@ static bool pair_wise_test_for_rsa(RSA *keypair)
                    data2sign_size,
                    signature,
                    RSA_size(keypair),
-                   &result, -1) != SGX_SUCCESS)
+                   &result) != SGX_SUCCESS)
         return false;
 
     return result;
