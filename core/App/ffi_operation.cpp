@@ -1136,13 +1136,17 @@ extern "C"
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *cmk = NULL;
-        ehsm_data_t *digest = NULL;
+        ehsm_data_t *message = NULL;
         ehsm_data_t *signature = NULL;
+        ehsm_data_t *message_type = NULL;
+        ehsm_data_t *algorithm = NULL;
 
         JSON2STRUCT(payloadJson, cmk);
-        JSON2STRUCT(payloadJson, digest);
+        JSON2STRUCT(payloadJson, message);
+        JSON2STRUCT(payloadJson, message_type);
+        JSON2STRUCT(payloadJson, algorithm);
 
-        if (cmk == NULL || digest == NULL)
+        if (cmk == NULL || message == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Invalid Parameter.");
@@ -1158,7 +1162,7 @@ extern "C"
         }
         signature->datalen = 0;
 
-        ret = Sign(cmk, digest, signature);
+        ret = Sign(cmk, algorithm, message_type, message, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1182,7 +1186,7 @@ extern "C"
         }
 
         // sign
-        ret = Sign(cmk, digest, signature);
+        ret = Sign(cmk, algorithm, message_type, message, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1195,7 +1199,9 @@ extern "C"
     out:
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
-        SAFE_FREE(digest);
+        SAFE_FREE(message);
+        SAFE_FREE(message_type);
+        SAFE_FREE(algorithm);
         retJsonObj.toChar(respJson);
         return ret;
     }
@@ -1233,21 +1239,25 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         bool result = false;
         ehsm_keyblob_t *cmk = NULL;
-        ehsm_data_t *digest = NULL;
+        ehsm_data_t *message = NULL;
         ehsm_data_t *signature = NULL;
+        ehsm_data_t *message_type = NULL;
+        ehsm_data_t *algorithm = NULL;
 
         JSON2STRUCT(payloadJson, cmk);
-        JSON2STRUCT(payloadJson, digest);
+        JSON2STRUCT(payloadJson, message);
         JSON2STRUCT(payloadJson, signature);
+        JSON2STRUCT(payloadJson, message_type);
+        JSON2STRUCT(payloadJson, algorithm);
 
-        if (cmk == NULL || digest == NULL || signature == NULL)
+        if (cmk == NULL || message == NULL || signature == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Invalid Parameter.");
             goto out;
         }
         // verify sign
-        ret = Verify(cmk, digest, signature, &result);
+        ret = Verify(cmk, algorithm, message_type, message, signature, &result);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1259,7 +1269,9 @@ extern "C"
     out:
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
-        SAFE_FREE(digest);
+        SAFE_FREE(message);
+        SAFE_FREE(message_type);
+        SAFE_FREE(algorithm);
         retJsonObj.toChar(respJson);
         return ret;
     }

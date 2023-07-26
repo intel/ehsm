@@ -391,7 +391,8 @@ out:
 
 sgx_status_t rsa_sign(RSA *rsa_prikey,
                       const EVP_MD *digestMode,
-                      ehsm_padding_mode_t padding_mode,
+                      ehsm_message_type_t message_type,
+                      const ehsm_padding_mode_t padding_mode,
                       const uint8_t *data,
                       uint32_t data_len,
                       uint8_t *signature,
@@ -497,6 +498,7 @@ out:
 
 sgx_status_t ecc_sign(EC_KEY *ec_key,
                       const EVP_MD *digestMode,
+                      ehsm_message_type_t message_type,
                       const uint8_t *data,
                       uint32_t data_len,
                       uint8_t *signature,
@@ -562,6 +564,7 @@ out:
 
 sgx_status_t sm2_sign(EC_KEY *ec_key,
                       const EVP_MD *digestMode,
+                      ehsm_message_type_t message_type,
                       const uint8_t *data,
                       uint32_t data_len,
                       uint8_t *signature,
@@ -670,7 +673,8 @@ out:
 
 sgx_status_t rsa_verify(RSA *rsa_pubkey,
                         const EVP_MD *digestMode,
-                        ehsm_padding_mode_t padding_mode,
+                        ehsm_message_type_t message_type,
+                        const ehsm_padding_mode_t padding_mode,
                         const uint8_t *data,
                         uint32_t data_len,
                         const uint8_t *signature,
@@ -793,6 +797,7 @@ out:
 
 sgx_status_t ecc_verify(EC_KEY *ec_key,
                         const EVP_MD *digestMode,
+                        ehsm_message_type_t message_type,
                         const uint8_t *data,
                         uint32_t data_len,
                         const uint8_t *signature,
@@ -867,6 +872,7 @@ out:
 
 sgx_status_t sm2_verify(EC_KEY *ec_key,
                         const EVP_MD *digestMode,
+                        ehsm_message_type_t message_type,
                         const uint8_t *data,
                         uint32_t data_len,
                         const uint8_t *signature,

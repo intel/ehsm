@@ -425,6 +425,8 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
  * @return ehsm_status_t
  */
 sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
+                          ehsm_data_t *algorithm, size_t algorithm_size,
+                          ehsm_data_t *message_type, size_t message_type_size,
                           const ehsm_data_t *data, size_t data_size,
                           ehsm_data_t *signature, size_t signature_size)
 {
@@ -469,6 +471,8 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     case EH_RSA_3072:
     case EH_RSA_4096:
         ret = ehsm_rsa_sign(cmk,
+                            algorithm,
+                            message_type,
                             data,
                             signature);
         break;
@@ -478,11 +482,15 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     case EH_EC_P384:
     case EH_EC_P521:
         ret = ehsm_ecc_sign(cmk,
+                            algorithm,
+                            message_type,
                             data,
                             signature);
         break;
     case EH_SM2:
         ret = ehsm_sm2_sign(cmk,
+                            algorithm,
+                            message_type,
                             data,
                             signature);
         break;
@@ -507,6 +515,8 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
  * @return ehsm_status_t
  */
 sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
+                            ehsm_data_t *algorithm, size_t algorithm_size,
+                            ehsm_data_t *message_type, size_t message_type_size,
                             const ehsm_data_t *data, size_t data_size,
                             const ehsm_data_t *signature, size_t signature_size,
                             bool *result)
@@ -550,6 +560,8 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
             return SGX_ERROR_INVALID_PARAMETER;
         }
         ret = ehsm_rsa_verify(cmk,
+                              algorithm,
+                              message_type,
                               data,
                               signature,
                               result);
@@ -562,12 +574,16 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
         // not check ecc & sm2 signateure len because the len will be change after sign
         // refence https://wiki.openssl.org/index.php/EVP_Signing_and_Verifying#Signing
         ret = ehsm_ecc_verify(cmk,
+                              algorithm,
+                              message_type,
                               data,
                               signature,
                               result);
         break;
     case EH_SM2:
         ret = ehsm_sm2_verify(cmk,
+                              algorithm,
+                              message_type,
                               data,
                               signature,
                               result);

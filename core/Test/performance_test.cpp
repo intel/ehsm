@@ -220,7 +220,7 @@ static bool _sign(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *&signat
         return false;
     }
     signature->datalen = 0;
-    ehsm_status_t ret = Sign(cmk, digest, signature);
+    ehsm_status_t ret = Sign(cmk, nullptr, nullptr, digest, signature);
     if (ret != EH_OK)
     {
         log_e("first sign failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -232,7 +232,7 @@ static bool _sign(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *&signat
         log_e("out of memory realloc failed.\n");
         return false;
     }
-    ret = Sign(cmk, digest, signature);
+    ret = Sign(cmk, nullptr, nullptr, digest, signature);
     if (ret != EH_OK)
     {
         log_e("sign failed with keyspec code %d.\n", cmk->metadata.keyspec);
@@ -243,7 +243,7 @@ static bool _sign(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *&signat
 
 static bool _verify(ehsm_keyblob_t *cmk, ehsm_data_t *digest, ehsm_data_t *signature, bool *result)
 {
-    ehsm_status_t ret = Verify(cmk, digest, signature, result);
+    ehsm_status_t ret = Verify(cmk, nullptr, nullptr, digest, signature, result);
     if (ret != EH_OK)
     {
         log_e("verify failed with keyspec code %d.\n", cmk->metadata.keyspec);

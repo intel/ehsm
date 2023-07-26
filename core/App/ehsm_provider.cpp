@@ -619,19 +619,23 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
  * @brief Sign the message and store it in signature
  *
  * @param cmk storage the key metadata and keyblob
- * @param digest message to be signed
+ * @param algorithm specify which algorithm to use for signature
+ * @param message_type type of the message: raw or digest string
+ * @param message message to be signed
  * @param signature generated signature
  * @return ehsm_status_t
  */
 ehsm_status_t Sign(ehsm_keyblob_t *cmk,
-                   ehsm_data_t *digest,
+                   ehsm_data_t *algorithm,
+                   ehsm_data_t *message_type,
+                   ehsm_data_t *message,
                    ehsm_data_t *signature)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
-        !validate_params(digest, MAX_DIGEST_DATA_SIZE))
+        !validate_params(message, MAX_DIGEST_DATA_SIZE))
         return EH_ARGUMENTS_BAD;
 
     if (signature == NULL)
@@ -641,8 +645,12 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
                        &sgxStatus,
                        cmk,
                        APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                       digest,
-                       APPEND_SIZE_TO_DATA_T(digest->datalen),
+                       algorithm,
+                       APPEND_SIZE_TO_DATA_T(algorithm->datalen),
+                       message_type,
+                       APPEND_SIZE_TO_DATA_T(message_type->datalen),
+                       message,
+                       APPEND_SIZE_TO_DATA_T(message->datalen),
                        signature,
                        APPEND_SIZE_TO_DATA_T(signature->datalen));
 
@@ -656,13 +664,17 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
  * @brief verify the signature is correct
  *
  * @param cmk storage the key metadata and keyblob
- * @param digest message for signature
+ * @param algorithm specify which algorithm to use for signature
+ * @param message_type type of the message: raw or digest string
+ * @param message message for signature
  * @param signature generated signature
  * @param result Signature match result
  * @return ehsm_status_t
  */
 ehsm_status_t Verify(ehsm_keyblob_t *cmk,
-                     ehsm_data_t *digest,
+                     ehsm_data_t *algorithm,
+                     ehsm_data_t *message_type,
+                     ehsm_data_t *message,
                      ehsm_data_t *signature,
                      bool *result)
 {
@@ -670,7 +682,7 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
-        !validate_params(digest, MAX_DIGEST_DATA_SIZE) ||
+        !validate_params(message, MAX_DIGEST_DATA_SIZE) ||
         !validate_params(signature, MAX_SIGNATURE_SIZE))
         return EH_ARGUMENTS_BAD;
 
@@ -678,8 +690,12 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                          &sgxStatus,
                          cmk,
                          APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                         digest,
-                         APPEND_SIZE_TO_DATA_T(digest->datalen),
+                         algorithm,
+                         APPEND_SIZE_TO_DATA_T(algorithm->datalen),
+                         message_type,
+                         APPEND_SIZE_TO_DATA_T(message_type->datalen),
+                         message,
+                         APPEND_SIZE_TO_DATA_T(message->datalen),
                          signature,
                          APPEND_SIZE_TO_DATA_T(signature->datalen),
                          result);

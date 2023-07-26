@@ -96,11 +96,15 @@ enclave {
                             [in, out, size=plaintext_size] ehsm_data_t *plaintext, uint32_t plaintext_size);
 
         public sgx_status_t enclave_sign([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
-                            [in, size=data_size] const ehsm_data_t *data, size_t data_size,
+                            [in, size=algorithm_size] ehsm_data_t *algorithm, size_t algorithm_size,
+                            [in, size=message_type_size] ehsm_data_t *message_type, size_t message_type_size,
+                            [in, size=message_size] const ehsm_data_t *message, size_t message_size,
                             [in, out, size=signature_size] ehsm_data_t *signature, size_t signature_size);
                                          
         public sgx_status_t enclave_verify([in, size=cmk_size] const ehsm_keyblob_t* cmk, size_t cmk_size,
-                            [in, size=data_size] const ehsm_data_t *data, size_t data_size,
+                            [in, size=algorithm_size] ehsm_data_t *algorithm, size_t algorithm_size,
+                            [in, size=message_type_size] ehsm_data_t *message_type, size_t message_type_size,
+                            [in, size=message_size] const ehsm_data_t *message, size_t message_size,
                             [in, size=signature_size] const ehsm_data_t *signature, size_t signature_size,
                             [out] bool* result);
 

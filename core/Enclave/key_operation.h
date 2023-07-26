@@ -91,28 +91,40 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
                               ehsm_data_t *plaintext);
 
 sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk_blob,
+                           ehsm_data_t *algorithm,
+                           ehsm_data_t *message_type,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature);
 
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_data_t *algorithm,
+                             ehsm_data_t *message_type,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result);
 
 sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
+                           ehsm_data_t *algorithm,
+                           ehsm_data_t *message_type,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature);
 
 sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_data_t *algorithm,
+                             ehsm_data_t *message_type,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result);
 
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
+                           ehsm_data_t *algorithm,
+                           ehsm_data_t *message_type,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature);
 
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_data_t *algorithm,
+                             ehsm_data_t *message_type,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result);

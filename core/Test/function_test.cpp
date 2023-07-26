@@ -563,7 +563,7 @@ void test_RSA_sign_verify()
 
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
-        payload_json.addData_string("digest", input_data2sign_base64);
+        payload_json.addData_string("message", input_data2sign_base64);
 
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -665,7 +665,7 @@ void test_ec_sign_verify()
 
         payload_json.clear();
         payload_json.addData_string("cmk", cmk_base64);
-        payload_json.addData_string("digest", input_data2sign_base64);
+        payload_json.addData_string("message", input_data2sign_base64);
 
         param_json.addData_uint32("action", EH_SIGN);
         param_json.addData_JsonValue("payload", payload_json.getJson());
@@ -762,7 +762,7 @@ void test_sm2_sign_verify()
 
     payload_json.clear();
     payload_json.addData_string("cmk", cmk_base64);
-    payload_json.addData_string("digest", input_data2sign_base64);
+    payload_json.addData_string("message", input_data2sign_base64);
 
     param_json.addData_uint32("action", EH_SIGN);
     param_json.addData_JsonValue("payload", payload_json.getJson());

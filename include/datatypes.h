@@ -183,10 +183,22 @@ typedef enum {
 typedef enum {
     EH_PADDING_NONE = 0,
     EH_PAD_RSA_PKCS1 = 1,
-    EH_PAD_RSA_NO = 3,        
+    EH_PAD_RSA_NO = 3,
     EH_PAD_RSA_PKCS1_OAEP = 4,
-    EH_PAD_RSA_PKCS1_PSS = 6      
+    EH_PAD_RSA_PKCS1_PSS = 6
 } ehsm_padding_mode_t;
+
+typedef enum {
+    EH_RAW = 0,
+    EH_DIGEST = 1,
+} ehsm_message_type_t;
+
+typedef enum {
+    EH_RSA_PSS_SHA_256 = 0,
+    EH_RSA_PKCS1_SHA_256 = 1,
+    EH_ECDSA_SHA_256  = 10,
+    EH_SM2DSA = 20,
+} ehsm_algorithm_t;
 
 #pragma pack(push,1)
 

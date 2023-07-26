@@ -263,12 +263,16 @@ Description:
 Performs sign operation using the cmk(only support asymmetric keyspec).
 Input:
 cmk -- An asymmetric cmk,
-digest -- the hash of datas want to be signed.
+algorithm -- specify which algorithm to use for signature
+message_type -- type of the message: raw or digest string
+message -- the hash of datas want to be signed.
 Output:
 signature -- the signature of the digest signed by the cmk
 */
 ehsm_status_t Sign(ehsm_keyblob_t *cmk,
-                   ehsm_data_t *digest,
+                   ehsm_data_t *algorithm,
+                   ehsm_data_t *message_type,
+                   ehsm_data_t *message,
                    ehsm_data_t *signature);
 
 /*
@@ -276,13 +280,17 @@ Description:
 Performs verify operation using the cmk(only support asymmetric keyspec).
 Input:
 cmk -- An asymmetric cmk,
-digest -- the hash of datas want to be signed.
+algorithm -- specify which algorithm to use for signature
+message_type -- type of the message: raw or digest string
+message -- the hash of datas want to be signed.
 signature -- the signature of the digest signed by the cmk
 Output:
 result -- true/false
 */
 ehsm_status_t Verify(ehsm_keyblob_t *cmk,
-                     ehsm_data_t *digest,
+                     ehsm_data_t *algorithm,
+                     ehsm_data_t *message_type,
+                     ehsm_data_t *message,
                      ehsm_data_t *signature,
                      bool *result);
 

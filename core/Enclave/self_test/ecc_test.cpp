@@ -396,6 +396,7 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     // Verify the generated signature
     if (ecc_verify(ec_key,
                    get_digestmode(digestmode),
+                   EH_RAW,
                    &*Msg,
                    VECTOR_LENGTH("Msg"),
                    signature,

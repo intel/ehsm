@@ -535,6 +535,7 @@ static bool rsa_sign_verify_with_PKCS1(map<string, string> test_vector)
 
     (void)rsa_sign(key,
                    get_digestmode(digestmode),
+                   EH_RAW,
                    get_paddingmode(paddingmode),
                    &*msg,
                    VECTOR_LENGTH("msg"),
@@ -551,6 +552,7 @@ static bool rsa_sign_verify_with_PKCS1(map<string, string> test_vector)
     // Verify the generated signature
     (void)rsa_verify(key,
                      get_digestmode(digestmode),
+                     EH_RAW,
                      get_paddingmode(paddingmode),
                      &*msg,
                      VECTOR_LENGTH("msg"),
@@ -599,6 +601,7 @@ static bool rsa_sign_verify_with_PKCS1_PSS(map<string, string> test_vector)
     // Verify the generated signature
     (void)rsa_verify(key,
                      get_digestmode(digestmode),
+                     EH_RAW,
                      get_paddingmode(paddingmode),
                      &*msg,
                      VECTOR_LENGTH("msg"),

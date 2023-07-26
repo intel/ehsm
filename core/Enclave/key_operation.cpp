@@ -98,6 +98,28 @@ static const EVP_MD *GetDigestMode(ehsm_digest_mode_t digestMode)
 }
 
 /**
+ * @brief Get the Sign Verify Message Type for sign/vewrify
+ *
+ * @param message_type raw/digest
+ * @return const ehsm_message_type_t
+ */
+static ehsm_message_type_t GetSignVerifyMessageType(ehsm_data_t *message_type)
+{
+    char raw[] = "raw";
+    char digest[] = "digest";
+    if (0 == memcmp(message_type->data, raw, strlen(raw)))
+    {
+        return EH_RAW;
+    }
+    if (0 == memcmp(message_type->data, digest, strlen(raw)))
+    {
+        return EH_DIGEST;
+    }
+
+    return EH_RAW;
+}
+
+/**
  * @brief Check parameters and encrypted data
  * @param aad Additional data
  * @param cmk Key information
@@ -972,6 +994,8 @@ out:
  * @return sgx_status_t
  */
 sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
+                           ehsm_data_t *algorithm,
+                           ehsm_data_t *message_type,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature)
 {
@@ -990,8 +1014,11 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     if (digestMode == NULL)
     {
         log_d("ecall rsa_sign digest Mode error.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
     }
+
+    // Get message type
+    ehsm_message_type_t messageType = GetSignVerifyMessageType(message_type);
+
     // load private key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (rsa_keypair == NULL)
@@ -1017,6 +1044,7 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     }
     ret = rsa_sign(rsa_prikey,
                    digestMode,
+                   messageType,
                    cmk->metadata.padding_mode,
                    data->data,
                    data->datalen,
@@ -1044,6 +1072,8 @@ out:
  * @return sgx_status_t
  */
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_data_t *algorithm,
+                             ehsm_data_t *message_type,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result)
@@ -1063,8 +1093,10 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     if (digestMode == NULL)
     {
         log_d("ecall rsa_verify digestMode error.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
     }
+
+    // Get message type
+    ehsm_message_type_t messageType = GetSignVerifyMessageType(message_type);
 
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -1092,6 +1124,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
 
     ret = rsa_verify(rsa_pubkey,
                      digestMode,
+                     messageType,
                      cmk->metadata.padding_mode,
                      data->data,
                      data->datalen,
@@ -1118,6 +1151,8 @@ out:
  * @return sgx_status_t
  */
 sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
+                           ehsm_data_t *algorithm,
+                           ehsm_data_t *message_type,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature)
 {
@@ -1131,9 +1166,10 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     if (digestMode == NULL || digestMode == EVP_sm3())
     {
         log_d("ecall ec_sign digestMode error.\n");
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        goto out;
     }
+
+    // Get message type
+    ehsm_message_type_t messageType = GetSignVerifyMessageType(message_type);
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
@@ -1160,6 +1196,7 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
 
     ret = ecc_sign(ec_key,
                    digestMode,
+                   messageType,
                    data->data,
                    data->datalen,
                    signature->data,
@@ -1186,6 +1223,8 @@ out:
  * @return sgx_status_t
  */
 sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_data_t *algorithm,
+                             ehsm_data_t *message_type,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result)
@@ -1200,9 +1239,10 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
     if (digestMode == NULL || digestMode == EVP_sm3())
     {
         log_d("ecall ec_verify digestMode error.\n");
-        ret = SGX_ERROR_INVALID_PARAMETER;
-        goto out;
     }
+
+    // Get message type
+    ehsm_message_type_t messageType = GetSignVerifyMessageType(message_type);
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
@@ -1229,6 +1269,7 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
 
     ret = ecc_verify(ec_key,
                      digestMode,
+                     messageType,
                      data->data,
                      data->datalen,
                      signature->data,
@@ -1255,6 +1296,8 @@ out:
  * @return sgx_status_t
  */
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
+                           ehsm_data_t *algorithm,
+                           ehsm_data_t *message_type,
                            const ehsm_data_t *data,
                            ehsm_data_t *signature)
 {
@@ -1268,8 +1311,10 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     if (digestMode == NULL)
     {
         log_d("ecall sm2_sign digestMode error.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
     }
+
+    // Get message type
+    ehsm_message_type_t messageType = GetSignVerifyMessageType(message_type);
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
@@ -1296,6 +1341,7 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
 
     ret = sm2_sign(ec_key,
                    digestMode,
+                   messageType,
                    data->data,
                    data->datalen,
                    signature->data,
@@ -1324,6 +1370,8 @@ out:
  * @return sgx_status_t
  */
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
+                             ehsm_data_t *algorithm,
+                             ehsm_data_t *message_type,
                              const ehsm_data_t *data,
                              const ehsm_data_t *signature,
                              bool *result)
@@ -1338,8 +1386,10 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     if (digestMode == NULL)
     {
         log_d("ecall sm2_verify digestMode error.\n");
-        return SGX_ERROR_INVALID_PARAMETER;
     }
+
+    // Get message type
+    ehsm_message_type_t messageType = GetSignVerifyMessageType(message_type);
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
@@ -1366,6 +1416,7 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
 
     ret = sm2_verify(ec_key,
                      digestMode,
+                     messageType,
                      data->data,
                      data->datalen,
                      signature->data,
