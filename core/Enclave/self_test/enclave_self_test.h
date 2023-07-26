@@ -23,4 +23,4 @@ void Str2Hex(const char *in, uint8_t *out, int nLen);
 
 shared_ptr<uint8_t> get_parameter(string key_name, map<string, string> test_vector);
 
-const EVP_MD *get_digestmode(int digestMode);
+const EVP_MD *getDigestMode(int digestMode);

@@ -17,7 +17,6 @@ const Definition = {
 }
 
 const ehsm_keySpec_t = {
-    EH_KEYSPEC_NONE: 0,
     EH_AES_GCM_128: 1,
     EH_AES_GCM_192: 2,
     EH_AES_GCM_256: 3,
@@ -36,32 +35,33 @@ const ehsm_keySpec_t = {
 }
 
 const ehsm_keyorigin_t = {
-    EH_ORIGIN_NONE: 0,
     EH_INTERNAL_KEY: 1,
     EH_EXTERNAL_KEY: 2
 }
 
-const ehsm_paddingMode_t = {
-    EH_NO_PADDING: 0,
-    EH_PAD_RSA_PKCS1: 1,
-    EH_PAD_RSA_NO: 3,
-    EH_PAD_RSA_PKCS1_OAEP: 4,
-    EH_PAD_RSA_PKCS1_PSS: 6
+const ehsm_padding_mode_t = {
+    EH_PAD_NONE: 0,
+    EH_RSA_PKCS1: 1,
+    EH_RSA_PKCS1_PSS: 2,
+    EH_RSA_PKCS1_OAEP: 3
 }
 
-const ehsm_digestMode_t = {
-    EH_NONE: 0,
-    EH_SHA_2_224: 1,
-    EH_SHA_2_256: 2,
-    EH_SHA_2_384: 3,
-    EH_SHA_2_512: 4,
+const ehsm_keyusage_t = {
+    EH_KEYUSAGE_ENCRYPT_DECRYPT: 1,
+    EH_KEYUSAGE_SIGN_VERIFY: 2
+}
+
+const ehsm_message_type_t = {
+    EH_RAW: 1,
+    EH_DIGEST: 2
+}
+
+const ehsm_digest_mode_t = {
+    EH_SHA_224: 1,
+    EH_SHA_256: 2,
+    EH_SHA_384: 3,
+    EH_SHA_512: 4,
     EH_SM3: 5
-}
-
-const ehsm_purpose_t = {
-    EH_PURPOSE_NONE: 0,
-    EH_PURPOSE_ENCRYPT_DECRYPT: 1,
-    EH_PURPOSE_SIGN_VERIFY: 2
 }
 
 const ehsm_action_t = {
@@ -238,7 +238,8 @@ module.exports = {
     ehsm_keySpec_t,
     ehsm_keyorigin_t,
     ehsm_action_t,
-    ehsm_digestMode_t,
-    ehsm_paddingMode_t,
-    ehsm_purpose_t
+    ehsm_digest_mode_t,
+    ehsm_message_type_t,
+    ehsm_keyusage_t,
+    ehsm_padding_mode_t,
 }

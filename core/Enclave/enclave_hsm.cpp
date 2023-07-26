@@ -39,19 +39,18 @@ using namespace std;
 
 sgx_aes_gcm_256bit_key_t g_domain_key = {0};
 
-static uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec, ehsm_padding_mode_t padding)
+static uint32_t get_asymmetric_max_encrypt_plaintext_size(ehsm_keyspec_t keyspec, ehsm_padding_mode_t padding_mode)
 {
     uint32_t padding_size;
-    switch (padding)
+    switch (padding_mode)
     {
-    case EH_PAD_RSA_PKCS1:
+    case EH_RSA_PKCS1:
         padding_size = 11;
         break;
-    case EH_PAD_RSA_PKCS1_OAEP:
+    case EH_RSA_PKCS1_OAEP:
         // https://github.com/openssl/openssl/blob/OpenSSL_1_1_1-stable/crypto/rsa/rsa_oaep.c#L66
         padding_size = 42;
         break;
-    case EH_PAD_RSA_NO:
     default:
         padding_size = 0;
         break;
@@ -164,7 +163,8 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
 
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        (cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT && cmk->metadata.keyusage != EH_KEYUSAGE_SIGN_VERIFY))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
@@ -210,7 +210,8 @@ sgx_status_t enclave_get_public_key(ehsm_keyblob_t *cmk, size_t cmk_size,
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        (cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT && cmk->metadata.keyusage != EH_KEYUSAGE_SIGN_VERIFY))
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (cmk->metadata.keyspec != EH_SM2 &&
@@ -249,7 +250,8 @@ sgx_status_t enclave_encrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
@@ -299,7 +301,8 @@ sgx_status_t enclave_decrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
@@ -338,6 +341,7 @@ sgx_status_t enclave_decrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
 }
 
 sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
+                                        ehsm_padding_mode_t padding_mode,
                                         ehsm_data_t *plaintext, size_t plaintext_size,
                                         ehsm_data_t *ciphertext, size_t ciphertext_size)
 {
@@ -346,14 +350,15 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (plaintext == NULL ||
         plaintext_size != APPEND_SIZE_TO_DATA_T(plaintext->datalen) ||
         plaintext->datalen == 0 ||
         /* Verify the maximum plaintext length supported by different keyspac */
-        plaintext->datalen > get_asymmetric_max_encrypt_plaintext_size(cmk->metadata.keyspec, cmk->metadata.padding_mode))
+        plaintext->datalen > get_asymmetric_max_encrypt_plaintext_size(cmk->metadata.keyspec, padding_mode))
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (ciphertext == NULL ||
@@ -365,7 +370,7 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     case EH_RSA_2048:
     case EH_RSA_3072:
     case EH_RSA_4096:
-        ret = ehsm_rsa_encrypt(cmk, plaintext, ciphertext);
+        ret = ehsm_rsa_encrypt(cmk, padding_mode, plaintext, ciphertext);
         break;
     case EH_SM2:
         ret = ehsm_sm2_encrypt(cmk, plaintext, ciphertext);
@@ -377,6 +382,7 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
 }
 
 sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_size,
+                                        ehsm_padding_mode_t padding_mode,
                                         ehsm_data_t *ciphertext, uint32_t ciphertext_size,
                                         ehsm_data_t *plaintext, uint32_t plaintext_size)
 {
@@ -385,7 +391,8 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (plaintext == NULL ||
@@ -402,7 +409,7 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     case EH_RSA_2048:
     case EH_RSA_3072:
     case EH_RSA_4096:
-        ret = ehsm_rsa_decrypt(cmk, ciphertext, plaintext);
+        ret = ehsm_rsa_decrypt(cmk, padding_mode, ciphertext, plaintext);
         break;
     case EH_SM2:
         ret = ehsm_sm2_decrypt(cmk, ciphertext, plaintext);
@@ -418,23 +425,28 @@ sgx_status_t enclave_asymmetric_decrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
  *
  * @param cmk storage the key metadata and keyblob
  * @param cmk_size size of input cmk
- * @param data message to be signed
- * @param data_size size of input message
+ * @param message message to be signed
+ * @param message_size size of input message
  * @param signature generated signature
  * @param signature_size size of input signature
  * @return ehsm_status_t
  */
 sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
-                          const ehsm_data_t *data, size_t data_size,
+                          ehsm_digest_mode_t digest_mode,
+                          ehsm_padding_mode_t padding_mode,
+                          ehsm_message_type_t message_type,
+                          const ehsm_data_t *message, size_t message_size,
                           ehsm_data_t *signature, size_t signature_size)
 {
+    // TODO : make default padding mode for ECC/SM2 
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // check cmk_blob and cmk_blob_size
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_SIGN_VERIFY)
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (signature == NULL ||
@@ -455,9 +467,9 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
         log_d("ecall sign cant get signature length or ecall sign signature length error.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (data == NULL ||
-        data_size != APPEND_SIZE_TO_DATA_T(data->datalen) ||
-        data->datalen == 0)
+    if (message == NULL ||
+        message_size != APPEND_SIZE_TO_DATA_T(message->datalen) ||
+        message->datalen == 0)
     {
         log_d("ecall sign data or data len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
@@ -469,7 +481,10 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     case EH_RSA_3072:
     case EH_RSA_4096:
         ret = ehsm_rsa_sign(cmk,
-                            data,
+                            digest_mode,
+                            padding_mode,
+                            message_type,
+                            message,
                             signature);
         break;
     case EH_EC_P224:
@@ -478,12 +493,16 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
     case EH_EC_P384:
     case EH_EC_P521:
         ret = ehsm_ecc_sign(cmk,
-                            data,
+                            digest_mode,
+                            message_type,
+                            message,
                             signature);
         break;
     case EH_SM2:
         ret = ehsm_sm2_sign(cmk,
-                            data,
+                            digest_mode,
+                            message_type,
+                            message,
                             signature);
         break;
     default:
@@ -499,24 +518,29 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
  *
  * @param cmk storage the key metadata and keyblob
  * @param cmk_size size of input cmk
- * @param data message for signature
- * @param data_size size of input message
+ * @param message message for signature
+ * @param message_size size of input message
  * @param signature generated signature
  * @param signature_size size of input signature
  * @param result Signature match result
  * @return ehsm_status_t
  */
 sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
-                            const ehsm_data_t *data, size_t data_size,
+                            ehsm_digest_mode_t digest_mode,
+                            ehsm_padding_mode_t padding_mode,
+                            ehsm_message_type_t message_type,
+                            const ehsm_data_t *message, size_t message_size,
                             const ehsm_data_t *signature, size_t signature_size,
                             bool *result)
 {
+    // TODO : make default padding mode for ECC/SM2
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_SIGN_VERIFY)
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (signature == NULL ||
@@ -526,9 +550,9 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
         log_d("ecall verify signture or signature_size wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    if (data == NULL ||
-        data_size != APPEND_SIZE_TO_DATA_T(data->datalen) ||
-        data->datalen == 0)
+    if (message == NULL ||
+        message_size != APPEND_SIZE_TO_DATA_T(message->datalen) ||
+        message->datalen == 0)
     {
         log_d("ecall verify data or data len is wrong.\n");
         return SGX_ERROR_INVALID_PARAMETER;
@@ -550,7 +574,10 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
             return SGX_ERROR_INVALID_PARAMETER;
         }
         ret = ehsm_rsa_verify(cmk,
-                              data,
+                              digest_mode,
+                              padding_mode,
+                              message_type,
+                              message,
                               signature,
                               result);
         break;
@@ -562,13 +589,17 @@ sgx_status_t enclave_verify(const ehsm_keyblob_t *cmk, size_t cmk_size,
         // not check ecc & sm2 signateure len because the len will be change after sign
         // refence https://wiki.openssl.org/index.php/EVP_Signing_and_Verifying#Signing
         ret = ehsm_ecc_verify(cmk,
-                              data,
+                              digest_mode,
+                              message_type,
+                              message,
                               signature,
                               result);
         break;
     case EH_SM2:
         ret = ehsm_sm2_verify(cmk,
-                              data,
+                              digest_mode,
+                              message_type,
+                              message,
                               signature,
                               result);
         break;
@@ -603,7 +634,8 @@ sgx_status_t enclave_generate_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (plaintext == NULL ||
@@ -705,7 +737,8 @@ sgx_status_t enclave_export_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY)
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return SGX_ERROR_INVALID_PARAMETER;
 
     if (aad != NULL && aad_size != APPEND_SIZE_TO_DATA_T(aad->datalen))
@@ -790,8 +823,10 @@ sgx_status_t enclave_export_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
     case EH_RSA_2048:
     case EH_RSA_3072:
     case EH_RSA_4096:
+        ret = enclave_asymmetric_encrypt(ukey, ukey_size, EH_RSA_PKCS1_OAEP, tmp_datakey, tmp_datakey_size, newdatakey, newdatakey_size);
+        break;
     case EH_SM2:
-        ret = enclave_asymmetric_encrypt(ukey, ukey_size, tmp_datakey, tmp_datakey_size, newdatakey, newdatakey_size);
+        ret = enclave_asymmetric_encrypt(ukey, ukey_size, EH_PAD_NONE, tmp_datakey, tmp_datakey_size, newdatakey, newdatakey_size);
         break;
     default:
         ret = SGX_ERROR_INVALID_PARAMETER;

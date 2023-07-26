@@ -44,6 +44,7 @@
 #define _KEY_OPERATION_H_
 
 void log_printf(uint32_t log_level, const char *filename, uint32_t line, const char *fmt, ...);
+uint32_t getPaddingMode(ehsm_padding_mode_t padding_mode);
 
 sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk_blob,
                                  ehsm_data_t *pubkey);
@@ -75,10 +76,12 @@ sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
                                   ehsm_data_t *plaintext);
 
 sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
+                              ehsm_padding_mode_t padding_mode,
                               const ehsm_data_t *plaintext,
                               ehsm_data_t *ciphertext);
 
 sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
+                              ehsm_padding_mode_t padding_mode,
                               const ehsm_data_t *ciphertext,
                               ehsm_data_t *plaintext);
 
@@ -91,29 +94,43 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
                               ehsm_data_t *plaintext);
 
 sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk_blob,
-                           const ehsm_data_t *data,
+                           ehsm_digest_mode_t digest_mode,
+                           ehsm_padding_mode_t padding_mode,
+                           ehsm_message_type_t message_type,
+                           const ehsm_data_t *message,
                            ehsm_data_t *signature);
 
 sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
-                             const ehsm_data_t *data,
+                             ehsm_digest_mode_t digest_mode,
+                             ehsm_padding_mode_t padding_mode,
+                             ehsm_message_type_t message_type,
+                             const ehsm_data_t *message,
                              const ehsm_data_t *signature,
                              bool *result);
 
 sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
-                           const ehsm_data_t *data,
+                           ehsm_digest_mode_t digest_mode,
+                           ehsm_message_type_t message_type,
+                           const ehsm_data_t *message,
                            ehsm_data_t *signature);
 
 sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
-                             const ehsm_data_t *data,
+                             ehsm_digest_mode_t digest_mode,
+                             ehsm_message_type_t message_type,
+                             const ehsm_data_t *message,
                              const ehsm_data_t *signature,
                              bool *result);
 
 sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
-                           const ehsm_data_t *data,
+                           ehsm_digest_mode_t digest_mode,
+                           ehsm_message_type_t message_type,
+                           const ehsm_data_t *message,
                            ehsm_data_t *signature);
 
 sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
-                             const ehsm_data_t *data,
+                             ehsm_digest_mode_t digest_mode,
+                             ehsm_message_type_t message_type,
+                             const ehsm_data_t *message,
                              const ehsm_data_t *signature,
                              bool *result);
 

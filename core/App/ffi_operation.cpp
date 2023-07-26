@@ -45,6 +45,7 @@ using namespace std;
 
 #define JSON2STRUCT(x, y) import_struct_from_json(x, &y, #y)
 #define STRUCT2JSON(x, y) export_json_from_struct(x, y, #y)
+
 #define RUN_MODE_SINGLE "single"
 #define RUN_MODE_CLUSTER "cluster"
 
@@ -90,10 +91,8 @@ void import_struct_from_json(JsonObj payloadJson, T **out, string key)
         try
         {
             out_data->keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
-            out_data->digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
-            out_data->padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
             out_data->origin = (ehsm_keyorigin_t)payloadJson.readData_uint32("origin");
-            out_data->purpose = (ehsm_keypurpose_t)payloadJson.readData_uint32("purpose");
+            out_data->keyusage = (ehsm_keyusage_t)payloadJson.readData_uint32("keyusage");
         }
         catch (const Json::LogicError &e)
         {
@@ -392,7 +391,7 @@ extern "C"
 
         publicKey = (char *)malloc(pubkey->datalen);
         memcpy_s(publicKey, pubkey->datalen, pubkey->data, pubkey->datalen);
-        publicKey[pubkey->datalen]='\0';
+        publicKey[pubkey->datalen] = '\0';
         retJsonObj.addData_string("pubkey", publicKey);
 
     out:
@@ -624,6 +623,8 @@ extern "C"
         ehsm_data_t *plaintext = NULL;
         ehsm_data_t *ciphertext = NULL;
 
+        ehsm_padding_mode_t padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+
         JSON2STRUCT(payloadJson, cmk);
         JSON2STRUCT(payloadJson, plaintext);
 
@@ -643,7 +644,7 @@ extern "C"
         }
         ciphertext->datalen = 0;
 
-        ret = AsymmetricEncrypt(cmk, plaintext, ciphertext);
+        ret = AsymmetricEncrypt(cmk, padding_mode, plaintext, ciphertext);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -666,7 +667,7 @@ extern "C"
             goto out;
         }
 
-        ret = AsymmetricEncrypt(cmk, plaintext, ciphertext);
+        ret = AsymmetricEncrypt(cmk, padding_mode, plaintext, ciphertext);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -712,6 +713,8 @@ extern "C"
         ehsm_data_t *plaintext = NULL;
         ehsm_data_t *ciphertext = NULL;
 
+        ehsm_padding_mode_t padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+
         JSON2STRUCT(payloadJson, cmk);
         JSON2STRUCT(payloadJson, ciphertext);
 
@@ -731,7 +734,7 @@ extern "C"
         }
         plaintext->datalen = 0;
 
-        ret = AsymmetricDecrypt(cmk, ciphertext, plaintext);
+        ret = AsymmetricDecrypt(cmk, padding_mode, ciphertext, plaintext);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -754,7 +757,7 @@ extern "C"
             goto out;
         }
 
-        ret = AsymmetricDecrypt(cmk, ciphertext, plaintext);
+        ret = AsymmetricDecrypt(cmk, padding_mode, ciphertext, plaintext);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1136,13 +1139,17 @@ extern "C"
         RetJsonObj retJsonObj;
         ehsm_status_t ret = EH_OK;
         ehsm_keyblob_t *cmk = NULL;
-        ehsm_data_t *digest = NULL;
+        ehsm_data_t *message = NULL;
         ehsm_data_t *signature = NULL;
 
-        JSON2STRUCT(payloadJson, cmk);
-        JSON2STRUCT(payloadJson, digest);
+        ehsm_digest_mode_t digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
+        ehsm_padding_mode_t padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+        ehsm_message_type_t message_type = (ehsm_message_type_t)payloadJson.readData_uint32("message_type");
 
-        if (cmk == NULL || digest == NULL)
+        JSON2STRUCT(payloadJson, cmk);
+        JSON2STRUCT(payloadJson, message);
+
+        if (cmk == NULL || message == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Invalid Parameter.");
@@ -1158,7 +1165,7 @@ extern "C"
         }
         signature->datalen = 0;
 
-        ret = Sign(cmk, digest, signature);
+        ret = Sign(cmk, digest_mode, padding_mode, message_type, message, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1182,7 +1189,7 @@ extern "C"
         }
 
         // sign
-        ret = Sign(cmk, digest, signature);
+        ret = Sign(cmk, digest_mode, padding_mode, message_type, message, signature);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1195,7 +1202,7 @@ extern "C"
     out:
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
-        SAFE_FREE(digest);
+        SAFE_FREE(message);
         retJsonObj.toChar(respJson);
         return ret;
     }
@@ -1233,21 +1240,25 @@ extern "C"
         ehsm_status_t ret = EH_OK;
         bool result = false;
         ehsm_keyblob_t *cmk = NULL;
-        ehsm_data_t *digest = NULL;
+        ehsm_data_t *message = NULL;
         ehsm_data_t *signature = NULL;
 
+        ehsm_digest_mode_t digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
+        ehsm_padding_mode_t padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+        ehsm_message_type_t message_type = (ehsm_message_type_t)payloadJson.readData_uint32("message_type");
+
         JSON2STRUCT(payloadJson, cmk);
-        JSON2STRUCT(payloadJson, digest);
+        JSON2STRUCT(payloadJson, message);
         JSON2STRUCT(payloadJson, signature);
 
-        if (cmk == NULL || digest == NULL || signature == NULL)
+        if (cmk == NULL || message == NULL || signature == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Invalid Parameter.");
             goto out;
         }
         // verify sign
-        ret = Verify(cmk, digest, signature, &result);
+        ret = Verify(cmk, digest_mode, padding_mode, message_type, message, signature, &result);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1259,7 +1270,7 @@ extern "C"
     out:
         SAFE_FREE(cmk);
         SAFE_FREE(signature);
-        SAFE_FREE(digest);
+        SAFE_FREE(message);
         retJsonObj.toChar(respJson);
         return ret;
     }

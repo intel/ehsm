@@ -33,7 +33,7 @@ shared_ptr<uint8_t> get_parameter(string key_name, map<string, string> test_vect
     return value;
 }
 
-const EVP_MD *get_digestmode(int digestMode)
+const EVP_MD *getDigestMode(int digestMode)
 {
     switch (digestMode)
     {

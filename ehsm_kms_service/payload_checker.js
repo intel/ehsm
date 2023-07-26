@@ -1,5 +1,5 @@
 const MAX_LENGTH = 8192
-const { ehsm_keySpec_t, ehsm_keyorigin_t } = require('./constant')
+const { ehsm_keySpec_t, ehsm_keyorigin_t, ehsm_message_type_t, ehsm_digest_mode_t, ehsm_padding_mode_t } = require('./constant')
 const { KMS_ACTION } = require('./apis')
 const { _result } = require('./function')
 const logger = require('./logger')
@@ -19,6 +19,24 @@ const PARAM_DATA_TYPE = {
   BASE64: 'base64',
   INT: 'int',
   CONST: 'const'
+}
+
+const message_type = {
+  type: PARAM_DATA_TYPE.CONST,
+  arr: Object.keys(ehsm_message_type_t),
+  required: true,
+}
+
+const digest_mode = {
+  type: PARAM_DATA_TYPE.CONST,
+  arr: Object.keys(ehsm_digest_mode_t),
+  required: true,
+}
+
+const padding_mode = {
+  type: PARAM_DATA_TYPE.CONST,
+  arr: Object.keys(ehsm_padding_mode_t),
+  required: false,
 }
 
 const keyid = {
@@ -91,21 +109,27 @@ const cryptographic_params = {
   },
   [KMS_ACTION.cryptographic.Sign]: {
     keyid,
-    digest: {
+    message: {
       type: PARAM_DATA_TYPE.BASE64,
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
     },
+    message_type,
+    digest_mode,
+    padding_mode,
   },
   [KMS_ACTION.cryptographic.Verify]: {
     keyid,
-    digest: {
+    message: {
       type: PARAM_DATA_TYPE.BASE64,
       maxLength: MAX_LENGTH,
       minLength: 1,
       required: true,
     },
+    message_type,
+    digest_mode,
+    padding_mode,
     signature: {
       type: PARAM_DATA_TYPE.BASE64,
       maxLength: MAX_LENGTH,
@@ -121,6 +145,7 @@ const cryptographic_params = {
       minLength: 1,
       required: true,
     },
+    padding_mode,
   },
   [KMS_ACTION.cryptographic.GetPublicKey]: {
     keyid,
@@ -133,6 +158,7 @@ const cryptographic_params = {
       minLength: 1,
       required: true,
     },
+    padding_mode,
   },
   [KMS_ACTION.cryptographic.ExportDataKey]: {
     keyid,

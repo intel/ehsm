@@ -558,6 +558,7 @@ ehsm_status_t Decrypt(ehsm_keyblob_t *cmk,
 }
 
 ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
+                                ehsm_padding_mode_t padding_mode,
                                 ehsm_data_t *plaintext,
                                 ehsm_data_t *ciphertext)
 {
@@ -575,6 +576,7 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
                                      &sgxStatus,
                                      cmk,
                                      APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                                     padding_mode,
                                      plaintext,
                                      APPEND_SIZE_TO_DATA_T(plaintext->datalen),
                                      ciphertext,
@@ -587,6 +589,7 @@ ehsm_status_t AsymmetricEncrypt(ehsm_keyblob_t *cmk,
 }
 
 ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
+                                ehsm_padding_mode_t padding_mode,
                                 ehsm_data_t *ciphertext,
                                 ehsm_data_t *plaintext)
 {
@@ -604,6 +607,7 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
                                      &sgxStatus,
                                      cmk,
                                      APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                                     padding_mode,
                                      ciphertext,
                                      APPEND_SIZE_TO_DATA_T(ciphertext->datalen),
                                      plaintext,
@@ -624,14 +628,17 @@ ehsm_status_t AsymmetricDecrypt(ehsm_keyblob_t *cmk,
  * @return ehsm_status_t
  */
 ehsm_status_t Sign(ehsm_keyblob_t *cmk,
-                   ehsm_data_t *digest,
+                   ehsm_digest_mode_t digest_mode,
+                   ehsm_padding_mode_t padding_mode,
+                   ehsm_message_type_t message_type,
+                   ehsm_data_t *message,
                    ehsm_data_t *signature)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
-        !validate_params(digest, MAX_DIGEST_DATA_SIZE))
+        !validate_params(message, MAX_SIGN_DATA_SIZE))
         return EH_ARGUMENTS_BAD;
 
     if (signature == NULL)
@@ -641,8 +648,11 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
                        &sgxStatus,
                        cmk,
                        APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                       digest,
-                       APPEND_SIZE_TO_DATA_T(digest->datalen),
+                       digest_mode,
+                       padding_mode,
+                       message_type,
+                       message,
+                       APPEND_SIZE_TO_DATA_T(message->datalen),
                        signature,
                        APPEND_SIZE_TO_DATA_T(signature->datalen));
 
@@ -662,15 +672,19 @@ ehsm_status_t Sign(ehsm_keyblob_t *cmk,
  * @return ehsm_status_t
  */
 ehsm_status_t Verify(ehsm_keyblob_t *cmk,
-                     ehsm_data_t *digest,
+                     ehsm_digest_mode_t digest_mode,
+                     ehsm_padding_mode_t padding_mode,
+                     ehsm_message_type_t message_type,
+                     ehsm_data_t *message,
                      ehsm_data_t *signature,
                      bool *result)
 {
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    // TODO : update size check for digest length
     if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
-        !validate_params(digest, MAX_DIGEST_DATA_SIZE) ||
+        !validate_params(message, MAX_SIGN_DATA_SIZE) ||
         !validate_params(signature, MAX_SIGNATURE_SIZE))
         return EH_ARGUMENTS_BAD;
 
@@ -678,8 +692,11 @@ ehsm_status_t Verify(ehsm_keyblob_t *cmk,
                          &sgxStatus,
                          cmk,
                          APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-                         digest,
-                         APPEND_SIZE_TO_DATA_T(digest->datalen),
+                         digest_mode,
+                         padding_mode,
+                         message_type,
+                         message,
+                         APPEND_SIZE_TO_DATA_T(message->datalen),
                          signature,
                          APPEND_SIZE_TO_DATA_T(signature->datalen),
                          result);

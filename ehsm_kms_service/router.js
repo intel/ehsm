@@ -1,9 +1,10 @@
 const { 
   ehsm_keySpec_t, 
   ehsm_keyorigin_t,
-  ehsm_paddingMode_t,
-  ehsm_digestMode_t,
-  ehsm_purpose_t
+  ehsm_keyusage_t,
+  ehsm_digest_mode_t,
+  ehsm_message_type_t,
+  ehsm_padding_mode_t,
  } = require('./constant')
 const { KMS_ACTION } = require('./apis')
 const logger = require('./logger')
@@ -117,9 +118,7 @@ const router = async (p) => {
         let { 
             keyspec,
             origin, 
-            purpose = 'EH_PURPOSE_NONE',
-            padding_mode = 'EH_NO_PADDING',
-            digest_mode = 'EH_NONE'
+            keyusage,
         } = payload
         /**
          * keyspec、origin convert to enum type
@@ -127,10 +126,8 @@ const router = async (p) => {
          */
         keyspec = ehsm_keySpec_t[keyspec]
         origin = ehsm_keyorigin_t[origin]
-        padding_mode = ehsm_paddingMode_t[padding_mode]
-        digest_mode = ehsm_digestMode_t[digest_mode]
-        purpose = ehsm_purpose_t[purpose]
-        const napi_res = napi_result(action, res, { keyspec, origin, purpose, padding_mode, digest_mode })
+        keyusage = ehsm_keyusage_t[keyusage]
+        const napi_res = napi_result(action, res, { keyspec, origin, keyusage })
         napi_res && store_cmk(napi_res, res, appid, payload, DB)
       } catch (error) {
         logger.error(error)
@@ -183,17 +180,27 @@ const router = async (p) => {
       break
     case KMS_ACTION.cryptographic.Sign:
       try {
-        const { keyid, digest } = payload
+        let { keyid, message, message_type, padding_mode, digest_mode } = payload
+
+        message_type = ehsm_message_type_t[message_type]
+        padding_mode = ehsm_padding_mode_t[padding_mode]
+        digest_mode = ehsm_digest_mode_t[digest_mode]
+
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, { cmk: cmk_base64, digest })
+        napi_res = napi_result(action, res, { cmk: cmk_base64, message, message_type, padding_mode, digest_mode })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
     case KMS_ACTION.cryptographic.Verify:
       try {
-        const { keyid, digest, signature } = payload
+        let { keyid, message, signature, message_type, padding_mode, digest_mode } = payload
+
+        message_type = ehsm_message_type_t[message_type]
+        padding_mode = ehsm_padding_mode_t[padding_mode]
+        digest_mode = ehsm_digest_mode_t[digest_mode]
+        
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, { cmk: cmk_base64, digest, signature })
+        napi_res = napi_result(action, res, { cmk: cmk_base64, message, signature, message_type, padding_mode, digest_mode })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
