@@ -53,8 +53,10 @@ This section describes the parameters that are common to all API requests and re
  |:-----------|:-----------|:-----------|:-----------|
  | appid | string | 12345678-0123-4567-*** | An unique id to request ehsm in a domain, which is requested<br> from ehsm service maintainer |
  | timestamp | string  | 1643050812444 | The timestamp of sending request; 30 minute validity;Taking the current time as the benchmark, detect timestamp within 30 minutes, which cannot be repeated |
- |sign|string   |iw6mkXDqNipxweCH****| The signature string of the current request.<br><br>**Notes:** Before to request the ehsm-kms cryptographic APIs, the cutomer should to request the unique appid and APIKey from the ehsm kms service maintainer, and make sure they are securely stored.<br>The API key will participate in the signature, but does not participate in the parameter transfer.<br><br>*Signature= base64(HMAC-SHA256(APIKey, RequestData))*, <br>where, *RequestData=[appid=\<appid\>&payload=\<payload\>&timestamp=\<timestamp\>]* ordered in ASCII ascending, and the <payload> parameter must also be ordered.|
+ |nonce | string | 2374462904 | The nonce is optional which max length is 64 bytes, the caller can decide whether to pass it with the request data.
+ |sign|string   |iw6mkXDqNipxweCH****| The signature string of the current request.<br><br>**Notes:** Before to request the ehsm-kms cryptographic APIs, the cutomer should to request the unique appid and APIKey from the ehsm kms service maintainer, and make sure they are securely stored.<br>The API key will participate in the signature, but does not participate in the parameter transfer.<br><br>*Signature= base64(HMAC-SHA256(APIKey, RequestData))*, <br>where, *RequestData=[appid=\<appid\>&nonce=\<nonce\>&payload=\<payload\>&timestamp=\<timestamp\>]* ordered in ASCII ascending, and the <payload> parameter must also be ordered.|
  |payload | Object | payload ={<br>"keyspec":"EH_RSA_3072",<br> "origin": "EH_INTERNAL_KEY"<br>} | The specific parameters of each method call.
+
    
 
 ## Createkey

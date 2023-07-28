@@ -431,7 +431,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
         }
         const {
             appid,
-            timestamp: nonce,
+            nonce, // nonce is a optional param.
             timestamp,
             sign,
             payload
@@ -454,6 +454,12 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
             res.send(_result(400, 'param type error'))
             return
         }
+        if (nonce != null && nonce != undefined){
+            if (nonce.length > Definition.MAX_NONCE_LEN) {
+                res.send(_result(400, 'Nonce length error'))
+                return
+            }
+        }   
         if (timestamp.length != Definition.TIMESTAMP_LEN) {
             res.send(_result(400, 'Timestamp length error'))
             return
@@ -476,6 +482,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
          */
         const nonce_data = {
             nonce,
+            timestamp,
             nonce_timestamp: new Date()
                 .getTime()
         }
@@ -485,6 +492,9 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
             !!nonce_database[appid] &&
             nonce_database[appid].findIndex(
                 (nonce_data) => nonce_data.nonce == nonce
+            ) > -1 &&
+            nonce_database[appid].findIndex(
+                (nonce_data) => nonce_data.timestamp == timestamp
             ) > -1
         ) {
             res.send(_result(400, "Timestamp can't be repeated in 20 minutes"))
@@ -503,6 +513,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
         // check sign
         let sign_params = {
             appid,
+            nonce,
             timestamp,
             payload
         }
