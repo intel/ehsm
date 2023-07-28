@@ -47,3 +47,4 @@ dkeyserver/App/auto_version.h
 test/__pycache__/
 
 sdk/rust/target/
+sdk/rust/Cargo.lock

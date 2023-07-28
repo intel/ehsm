@@ -1,28 +1,30 @@
 use tokio;
-//use serde_json::{json, Map, Value};
-//use serde::{Serialize, Deserialize};
-//use reqwest::{Client, ClientBuilder, Result, Error};
 
 use ehsm_client::{client::EHSMClient, api::KMS};
+use base64::{encode, decode};
 
-const APP_ID: &str = "011249a4-2f17-4380-8922-a90ff5dd3976";
-const API_KEY: &str = "Zgeiig9SFvNy6vWRpSQMSFyrWUfEYnnG";
-const BASE_URL: &str = "https://10.112.240.169:9002/ehsm?Action=";
+const PLAINT_TEXT: &str = "Intel test";
 
 #[tokio::main]
 async fn main() {
-
-    let mut client = EHSMClient::new(&BASE_URL.to_owned(), &APP_ID.to_owned(), &API_KEY.to_owned());
-    println!("client.base_url: {}", client.base_url);
-
-    let _result = client.create_key("EH_RSA_3072", "EH_INTERNAL_KEY", None, None, None).await;
-
-    match _result {
+    let mut client = EHSMClient::new();
+    
+    let keyid = client.create_key("EH_AES_GCM_128", "EH_INTERNAL_KEY",None, None, None)
+                        .await
+                        .expect("fail to get keyid");
+    
+    let decodedata = &encode(PLAINT_TEXT).to_string()[..];
+    let encrypt = client.encrypt(&keyid.to_owned(), &decodedata.to_owned(), Some(&encode("test").to_string()[..]))
+                    .await
+                    .expect("fail to encrypt");
+    let decrypt = client.decrypt(&keyid.to_owned(), &encrypt.to_owned(), Some(&encode("test").to_string()[..])).await;
+    let decode = String::from_utf8(decode(decrypt.unwrap()).unwrap()[..].to_vec());
+    match decode {
         Ok(key) => {
-            println!("key created: {}", key);
+            println!("Decrypt : {:?}", key);
         }
         Err(err) => {
-            eprintln!("Error creating key: {}", err);
+            eprintln!("Error: {}", err);
         }
     }
 }
