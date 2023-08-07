@@ -35,13 +35,15 @@ It will provide the following interfaces:
 - get_secret_value
 - restore_secret
 
-### Start eHSM-KMS service
+## Start eHSM-KMS service
+Notes: it need to run on a sgx capable machine.
 
 ```
 # start ehsm-kms on a single machine without remote attestation
 ./run_with_single.sh
 ```
-Or you can build and run ehsm-kms with docker-compose:
+
+or you can build and run ehsm-kms with docker-compose:
 ```
 # Download the ehsm code from github
 git clone --recursive https://github.com/intel/ehsm.git ehsm && cd ehsm
@@ -57,9 +59,12 @@ TAG_VERSION=main              # (Optional) the default code base is using the ma
 # start to build and run the docker images (couchdb, dkeyserver, dkeycache, ehsm_kms_service)
 cd docker && docker-compose up -d
 ```
+
+## Run the unit-test
+Notes: this can be run on non-sgx capable machine.
 ### Enroll to eHSM-KMS with Restful interface
 ```
-curl -v -k -G "https://<kms_ip>:9000/ehsm?Action=Enroll"
+curl -v -k -G "https://<kms_ip>:<port>/ehsm?Action=Enroll"
 
 {"code":200,"message":"successful","result":{"apikey":"xbtXGHwBexb1pgnEz8JZWHLgaSVb1xSk","appid":"56c46c76-60e0-4722-a6ad-408cdd0c62c2"}}
 ```
@@ -70,10 +75,10 @@ export EHSM_APPID=56c46c76-60e0-4722-a6ad-408cdd0c62c2
 
 export EHSM_APIKEY=xbtXGHwBexb1pgnEz8JZWHLgaSVb1xSk
 
-export EHSM_ADDR=https://<kms_ip>:9000
+export EHSM_ADDR=https://<kms_ip>:<port>
 
 ```
-### Run the unit-test
+### Run test
 
 ```
 #cargo test
