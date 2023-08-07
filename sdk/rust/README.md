@@ -1,10 +1,43 @@
-# SDK for Rust 
-Introduction to the process of rust unit testing.
+# Client SDK interface for Rust
 
-## Start eHSM-KMS service
+It will provide the following interfaces:
+
+---
+**Key Management APIs:**
+- create_key
+- encrypt
+- decrypt
+- sign
+- verify
+- asymmetric_encrypt
+- asymmetric_decrypt
+- generate_datakey
+- generate_datakey_without_plaintext
+- export_datakey
+- get_publickey
+- get_version
+- enroll
+- list_key
+- delete_key
+- delete_allkey
+- enable_key
+- disable_key
+---
+
+**Secret Management APIs:**
+- create_secret
+- update_secret_desc
+- put_secret_value
+- list_secret_version_ids
+- list_secrets
+- describe_secret
+- delete_secret
+- get_secret_value
+- restore_secret
+
+### Start eHSM-KMS service
 
 ```
-
 # start ehsm-kms on a single machine without remote attestation
 ./run_with_single.sh
 ```
@@ -24,13 +57,13 @@ TAG_VERSION=main              # (Optional) the default code base is using the ma
 # start to build and run the docker images (couchdb, dkeyserver, dkeycache, ehsm_kms_service)
 cd docker && docker-compose up -d
 ```
-## Enroll to eHSM-KMS with Restful interface
+### Enroll to eHSM-KMS with Restful interface
 ```
 curl -v -k -G "https://<kms_ip>:9000/ehsm?Action=Enroll"
 
 {"code":200,"message":"successful","result":{"apikey":"xbtXGHwBexb1pgnEz8JZWHLgaSVb1xSk","appid":"56c46c76-60e0-4722-a6ad-408cdd0c62c2"}}
 ```
-## Export eHSM information to environment variables.
+### Export eHSM information to environment variables.
 
 ```
 export EHSM_APPID=56c46c76-60e0-4722-a6ad-408cdd0c62c2
@@ -40,7 +73,7 @@ export EHSM_APIKEY=xbtXGHwBexb1pgnEz8JZWHLgaSVb1xSk
 export EHSM_ADDR=https://<kms_ip>:9000
 
 ```
-## Run the unit-test
+### Run the unit-test
 
 ```
 #cargo test
