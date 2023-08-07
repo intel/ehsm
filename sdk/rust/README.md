@@ -1,4 +1,4 @@
-# SDK for Rust 
+# Rust unit testing
 Introduction to the process of rust unit testing.
 
 ## Start eHSM-KMS service
@@ -68,3 +68,42 @@ test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 
      Running unittests src/main.rs (target/debug/deps/ehsm_client-afbed2a26774fc60)
 ```
+# eHSM-Client SDK for rust
+
+This part contains the ehsm client sdk for rust applications.
+
+It will provide the following interfaces:
+
+---
+**Key Management APIs:**
+- create_key
+- encrypt
+- decrypt
+- sign
+- verify
+- asymmetric_encrypt
+- asymmetric_decrypt
+- generate_dataKey
+- generate_datakey_without_plaintext
+- export_dataKey
+- get_publickey
+
+- GetVersion
+- enroll
+- ListKey
+- DeleteKey
+- DeleteALLKey
+- EnableKey
+- DisableKey
+---
+
+**Secret Management APIs:**
+- CreateSecret
+- UpdateSecretDesc
+- PutSecretValue
+- ListSecretVersionIds
+- ListSecrets
+- DescribeSecret
+- DeleteSecret
+- GetSecretValue
+- RestoreSecret
