@@ -1,94 +1,93 @@
 package ehsm
 
 import (
-    hmac "crypto/hmac"
-    sha256 "crypto/sha256"
-    "encoding/base64"
-    "encoding/json"
-    "fmt"
-    ioutil "io/ioutil"
-    "time"
-    "strconv"
+	hmac "crypto/hmac"
+	sha256 "crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	ioutil "io/ioutil"
+	"strconv"
+	"time"
 
-    "github.com/iancoleman/orderedmap"
+	"github.com/iancoleman/orderedmap"
 )
 
 type CreateKeyResponse struct {
-    Code int `json:"code"`
-    Message string `json:"message"`
-    Result struct {
-        Keyid string `json:"keyid"`
-    } `json:"result"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Result  struct {
+		Keyid string `json:"keyid"`
+	} `json:"result"`
 }
 
-func (c *Client) CreateKey(keyspec, origin, purpose, padding_mode string) (string, error){
-    // make JSON for createkey
-    payload := orderedmap.New()
-    if keyspec != ""{
-        payload.Set("keyspec", keyspec)
-    } else {
-        return "", fmt.Errorf("Please input keyspec.")
-    }
-    if origin != ""{
-        payload.Set("origin", origin)
-    } else {
-        return "", fmt.Errorf("Please input origin.")
-    }
+func (c *Client) CreateKey(keyspec, origin, keyusage string) (string, error) {
+	// make JSON for createkey
+	payload := orderedmap.New()
+	if keyspec != "" {
+		payload.Set("keyspec", keyspec)
+	} else {
+		return "", fmt.Errorf("Please input keyspec.")
+	}
+	if origin != "" {
+		payload.Set("origin", origin)
+	} else {
+		return "", fmt.Errorf("Please input origin.")
+	}
 
-    if purpose != ""{
-        payload.Set("purpose", purpose)
-    }
-    if padding_mode != ""{
-        payload.Set("padding_mode", padding_mode)
-    }
-    
-    params := orderedmap.New()
-    params.Set("appid", c.appid)
-    params.Set("payload", payload)
-    params.Set("timestamp", strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10))
+	if keyusage != "" {
+		payload.Set("keyusage", keyusage)
+	} else {
+		return "", fmt.Errorf("Please input keyusage.")
+	}
 
-    signString := paramsSortStr(params)
-    hmacSha256 := hmac.New(sha256.New, []byte(c.apikey))
-    hmacSha256.Write([]byte(signString))
-    sign := base64.StdEncoding.EncodeToString(hmacSha256.Sum(nil))
+	params := orderedmap.New()
+	params.Set("appid", c.appid)
+	params.Set("payload", payload)
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10))
 
-    params.Set("sign", sign)
+	signString := paramsSortStr(params)
+	hmacSha256 := hmac.New(sha256.New, []byte(c.apikey))
+	hmacSha256.Write([]byte(signString))
+	sign := base64.StdEncoding.EncodeToString(hmacSha256.Sum(nil))
 
-    c.modifyLock.Lock()
-    defer c.modifyLock.Unlock()
+	params.Set("sign", sign)
 
-    c.action = "CreateKey"
-    c.resquest = params
+	c.modifyLock.Lock()
+	defer c.modifyLock.Unlock()
 
-    // call ehsm kms
-    resp, err := c.ehsmHttpAction()
-    if err != nil {
-        fmt.Println("ehsmHttpAction error:", err)
-        return "", err
-    }
+	c.action = "CreateKey"
+	c.resquest = params
 
-    defer resp.Body.Close()
+	// call ehsm kms
+	resp, err := c.ehsmHttpAction()
+	if err != nil {
+		fmt.Println("ehsmHttpAction error:", err)
+		return "", err
+	}
 
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        fmt.Println("ReadAll error:", err)
-        return "", err
-    }
+	defer resp.Body.Close()
 
-    // parse response for cosign
-    var createKeyResponse CreateKeyResponse
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("ReadAll error:", err)
+		return "", err
+	}
 
-    str := string(body)
+	// parse response for cosign
+	var createKeyResponse CreateKeyResponse
 
-    err = json.Unmarshal([]byte(str), &createKeyResponse)
-    if err != nil{
-        fmt.Println("Unmarshal error:", err)
-        return "", err
-    }
+	str := string(body)
 
-    if createKeyResponse.Code != 200 {
-        return "", fmt.Errorf(createKeyResponse.Message)
-    }
+	err = json.Unmarshal([]byte(str), &createKeyResponse)
+	if err != nil {
+		fmt.Println("Unmarshal error:", err)
+		return "", err
+	}
 
-    return createKeyResponse.Result.Keyid, nil
+	if createKeyResponse.Code != 200 {
+		return "", fmt.Errorf(createKeyResponse.Message)
+	}
+
+	return createKeyResponse.Result.Keyid, nil
 }
