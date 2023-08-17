@@ -48,3 +48,4 @@ test/__pycache__/
 
 sdk/rust/target/
 sdk/rust/Cargo.lock
+sdk/go/go.sum
