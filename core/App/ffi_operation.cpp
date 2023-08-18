@@ -1535,4 +1535,82 @@ extern "C"
         return EH_OK;
     }
 
+    /**
+     * @brief Generate Hmac (SHA-256) with given apikey(encrypted), cmk and payload
+     * @param payload : Pass in the cmk, apikey(encrypted) and payload in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    apikey: a base64 string
+                    payload : a string,
+                }
+     * @return [string] json string
+                {
+                    code: int,
+                    message: string,
+                    result: {
+                        hmac: string,
+                    }
+                }
+     */
+    uint32_t ffi_generateHmac(JsonObj payloadJson, char *respJson)
+    {
+        ehsm_status_t ret;
+        // input params
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *apikey = NULL;
+        ehsm_data_t *payload = NULL;
+        // immediate vars
+        size_t payload_size;
+        std::string payload_str;
+        // output params
+        ehsm_data_t *hmac = NULL;
+        std::string hmac_str;
+        RetJsonObj retJsonObj;
+
+        // 0. prepare data
+        JSON2STRUCT(payloadJson, cmk);
+        JSON2STRUCT(payloadJson, apikey);
+
+        payload_str = payloadJson.readData_string("payload");
+        payload_size = payload_str.size();
+        payload = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(payload_size));
+        if (payload == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
+            retJsonObj.setMessage("The payload's length is invalid.");
+            goto out;
+        }
+        payload->datalen = payload_size;
+        memcpy_s(payload->data, payload_size, (uint8_t *)payload_str.data(), payload_size);
+        
+        // 1. generate hmac
+        hmac = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_HMAC_SHA256_SIZE));
+        if (hmac == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        hmac->datalen = EH_HMAC_SHA256_SIZE;
+
+        ret = GenerateHmac(cmk, apikey, payload, hmac);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        hmac_str = base64_encode(hmac->data, hmac->datalen);
+        retJsonObj.setCode(retJsonObj.CODE_SUCCESS);
+        retJsonObj.addData_string("hmac", hmac_str);
+
+out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(apikey);
+        SAFE_FREE(payload);
+        retJsonObj.toChar(respJson);
+        return ret;
+    }
+
 } // extern "C"

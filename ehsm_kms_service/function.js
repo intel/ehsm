@@ -525,7 +525,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
             payload
         }
 
-        gen_hmac(DB, appid, sign_params)
+        gen_hmac_safe(DB, appid, sign_params)
             .then(result => {
                 if (result.hmac.length == 0) {
                     res.send(_result(400, result.error))
@@ -628,6 +628,62 @@ const gen_hmac = async (DB, appid, sign_params) => {
             error: '',
             hmac: sign_result
         }
+    } catch (error) {
+        logger.error(error)
+        return {
+            error: error,
+            hmac: ''
+        }
+    }
+}
+
+/**
+ * Gen Hmac safely, without transfering plaintext of apikey ouside enclave
+ * @param {object} DB //Database object
+ * @param {string} appid // APP ID from client
+ * @param {object} sign_params // A list object contain string params
+ * @returns {object} (error, hmac) // One object contain "error" and "hmac" attributes
+ */
+const gen_hmac_safe = async (DB, appid, sign_params) => {
+    try {
+        const db_query = {
+            selector: {
+                _id: `user_info:${appid}`,
+            },
+            fields: ['appid', 'apikey', 'cmk'],
+            limit: 1,
+        }
+        const query_result = await DB.partitionedFind('user_info', db_query)
+        if (!query_result || !query_result.docs[0]) {
+            return {
+                msg: 'keyid not found',
+                hmac: ''
+            }
+        }
+
+        const { cmk, apikey } = query_result.docs[0];
+        if (apikey && apikey.length == 0) {
+            logger.error('Unexpected Error')
+            return {
+                error: 'Unexpected Error',
+                hmac: ''
+            }
+        }
+
+        const sign_string = params_sort_str(sign_params)
+        const { result } = napi_result(
+            KMS_ACTION.common.GenHmac,
+            undefined,
+            {
+                cmk,
+                apikey,
+                payload: sign_string,
+            })
+        return {
+            error: '',
+            hmac: result.hmac,
+        }
+
     } catch (error) {
         logger.error(error)
         return {

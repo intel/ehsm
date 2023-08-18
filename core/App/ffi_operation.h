@@ -374,6 +374,22 @@ extern "C"
      */
     uint32_t ffi_getVersion(char *respJson);
 
+    /**
+     * @brief Generate Hmac (SHA-256) with given apikey(encrypted), cmk and payload
+     * @param payload : Pass in the cmk, apikey(encrypted) and payload in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    apikey : string,
+                    payload : string,
+                }
+     * @return [string] json string
+                {
+                    code: int,
+                    hmac: string,
+                }
+     */
+    uint32_t ffi_generateHmac(JsonObj payloadJson, char *respJson);
+
 } // extern "C"
 
 #endif

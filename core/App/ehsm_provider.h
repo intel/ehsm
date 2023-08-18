@@ -65,6 +65,7 @@ typedef enum
     EH_ENROLL,
     EH_GENERATE_QUOTE,
     EH_VERIFY_QUOTE,
+    EH_GEN_HMAC,
 } ehsm_action_t;
 
 extern "C"
@@ -323,5 +324,17 @@ appid -- an uuid
 apikey -- 32byte random number
 */
 ehsm_status_t Enroll(ehsm_data_t *appid, ehsm_data_t *apikey);
+
+/*
+Description:
+Generate HMAC(SHA-256) of payload with given apikey
+Input:
+cmk -- A symmetric cmk
+apikey -- 32byte random number (in plaintext, not encrypted)
+payload -- the payload, a string
+Output:
+hmac -- the hmac
+*/
+ehsm_status_t GenerateHmac(ehsm_keyblob_t *cmk, ehsm_data_t *apikey, ehsm_data_t *payload, ehsm_data_t *hmac);
 
 #endif
