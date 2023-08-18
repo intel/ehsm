@@ -206,17 +206,19 @@ const router = async (p) => {
       break
     case KMS_ACTION.cryptographic.AsymmetricEncrypt:
       try {
-        const { keyid, plaintext } = payload
+        let { keyid, plaintext, padding_mode } = payload
+        padding_mode = ehsm_padding_mode_t[padding_mode]
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, { cmk: cmk_base64, plaintext })
+        napi_res = napi_result(action, res, { cmk: cmk_base64, plaintext, padding_mode })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
     case KMS_ACTION.cryptographic.AsymmetricDecrypt:
       try {
-        const { keyid, ciphertext } = payload
+        let { keyid, ciphertext, padding_mode } = payload
+        padding_mode = ehsm_padding_mode_t[padding_mode]
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
-        napi_res = napi_result(action, res, { cmk: cmk_base64, ciphertext })
+        napi_res = napi_result(action, res, { cmk: cmk_base64, ciphertext, padding_mode })
         napi_res && res.send(napi_res)
       } catch (error) { }
       break

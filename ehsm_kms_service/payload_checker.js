@@ -36,7 +36,7 @@ const digest_mode = {
 const padding_mode = {
   type: PARAM_DATA_TYPE.CONST,
   arr: Object.keys(ehsm_padding_mode_t),
-  required: false,
+  required: true,
 }
 
 const keyid = {
