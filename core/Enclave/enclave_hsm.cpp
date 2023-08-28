@@ -438,7 +438,7 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
                           const ehsm_data_t *message, size_t message_size,
                           ehsm_data_t *signature, size_t signature_size)
 {
-    // TODO : make default padding mode for ECC/SM2 
+    // TODO : make default padding mode for ECC/SM2
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // check cmk_blob and cmk_blob_size

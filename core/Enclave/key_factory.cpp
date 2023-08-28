@@ -182,7 +182,7 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk == NULL)
+    if (cmk == NULL || cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return ret;
 
     if (cmk->keybloblen == 0)
@@ -635,7 +635,7 @@ sgx_status_t ehsm_create_sm4_key(ehsm_keyblob_t *cmk)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    if (cmk == NULL)
+    if (cmk == NULL || cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return ret;
 
     if (cmk->keybloblen == 0)
