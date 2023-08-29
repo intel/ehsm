@@ -96,24 +96,8 @@ pub async fn do_get(base_url: &str, action: &str) -> Result<Value, Box<dyn std::
 }
 
 pub fn is_base64(s: &str) -> bool {
-
-    // Base64 characters can only be [A-Za-z0-9+/]
- 
-    // Padding character '=' is allowed at the end
- 
-    let allowed_chars: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".chars().collect();
- 
-    s.chars().all(|c| allowed_chars.contains(&c))
- 
-        && s.len() % 4 == 0 // Check if the length is a multiple of 4
- 
-        && s.chars().all(|c| c == '=' || c.is_ascii() || allowed_chars.contains(&c))
- 
-        && s.matches('=').count() <= 2 // There can be at most two '=' padding characters at the end
- 
-        && base64::decode_config(s, base64::STANDARD).is_ok()
- 
- }
+	base64::decode_config(s, base64::STANDARD).is_ok()
+}
 
 impl EHSMClient {
     pub fn new() -> Self {

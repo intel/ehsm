@@ -9,10 +9,9 @@ const PLAINT_TEXT: &str = "Intel test";
 async fn main() {
     let mut client = EHSMClient::new();
     
-    let keyid = client.create_key("EH_AES_GCM_128", "EH_INTERNAL_KEY",None, None, None)
+    let keyid = client.create_key("EH_AES_GCM_128", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
                         .await
                         .expect("fail to get keyid");
-    
     let decodedata = &encode(PLAINT_TEXT).to_string()[..];
     let encrypt = client.encrypt(&keyid.to_owned(), &decodedata.to_owned(), Some(&encode("test").to_string()[..]))
                     .await
