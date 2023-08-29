@@ -33,9 +33,9 @@ func (c *Client) Decrypt(keyid, data_b64, aad_b64 string) (string, error) {
 		return "", fmt.Errorf("data is false.")
 	}
 	if aad_b64 != "" && isBase64(aad_b64) {
-		payload.Set("add", aad_b64)
+		payload.Set("aad", aad_b64)
 	} else {
-		return "", fmt.Errorf("add is false.")
+		return "", fmt.Errorf("aad is false.")
 	}
 
 	params := c.initParams(payload)

@@ -17,7 +17,7 @@ keyid    	-- A unique id of the specified symmetric CMK.
 ukeyid   	-- The unique keyid of the asymmetric CMK which used to export.
 
 aad_64  	-- Some extra datas input by the user, which could help to to ensure data integrity.
-		   	   The aad stored in BASE64 string.
+                   The aad stored in BASE64 string.
 
 datakey_64  -- The ciphertext of the datakey wrapped by the cmk in BASE64 string.
 
@@ -44,9 +44,9 @@ func (c *Client) ExportDatakey(keyid, ukeyid, datakey_64, aad_64 string) (string
 	}
 
 	if aad_64 != "" && isBase64(aad_64) {
-		payload.Set("add", aad_64)
+		payload.Set("aad", aad_64)
 	} else {
-		return "", fmt.Errorf("add is false.")
+		return "", fmt.Errorf("aad is false.")
 	}
 
 	params := c.initParams(payload)
