@@ -27,15 +27,15 @@ func (c *Client) GenerateDatakeyWithoutPlaintext(keyid, aad_b64 string, len int3
 	} else {
 		return "", fmt.Errorf("keyid is empty.")
 	}
-	if len > 0 && len < 1024 {
+	if len > 0 && len <= 1024 {
 		payload.Set("keylen", len)
 	} else {
 		return "", fmt.Errorf("len is false.")
 	}
 	if aad_b64 != "" && isBase64(aad_b64) {
-		payload.Set("add", aad_b64)
+		payload.Set("aad", aad_b64)
 	} else {
-		return "", fmt.Errorf("add is empty.")
+		return "", fmt.Errorf("aad is empty.")
 	}
 
 	params := c.initParams(payload)
@@ -88,16 +88,16 @@ func (c *Client) GenerateDatakey(keyid, aad_b64 string, len int32) (string, erro
 		return "", fmt.Errorf("keyid is empty.")
 	}
 
-	if len > 0 && len < 1024 {
+	if len > 0 && len <= 1024 {
 		payload.Set("keylen", len)
 	} else {
 		return "", fmt.Errorf("len is false.")
 	}
 
 	if aad_b64 != "" && isBase64(aad_b64) {
-		payload.Set("add", aad_b64)
+		payload.Set("aad", aad_b64)
 	} else {
-		return "", fmt.Errorf("add is false.")
+		return "", fmt.Errorf("aad is false.")
 	}
 
 	params := c.initParams(payload)
