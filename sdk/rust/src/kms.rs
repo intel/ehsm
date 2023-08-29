@@ -12,22 +12,23 @@ impl KMS for EHSMClient {
             &mut self,
             keyspec: &str,
             origin: &str,
-            purpose: Option<&str>,
-            padding_mode: Option<&str>,
-            digest_mode: Option<&str>) -> Result<String> {
+            keyusage: &str) -> Result<String> {
                 
             let mut payload: Map<String, Value> = Map::new();
-
-            if let Some(digest_mode) = digest_mode {
-                payload.insert("digest_mode".to_owned(), Value::String(digest_mode.to_owned()));
+            if !keyspec.is_empty() {
+                payload.insert("keyspec".to_owned(), Value::String(keyspec.to_owned()));
+            } else {
+                return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyspec is empty."));
             }
-            payload.insert("keyspec".to_owned(), Value::String(keyspec.to_owned()));
-            payload.insert("origin".to_owned(), Value::String(origin.to_owned()));
-            if let Some(padding_mode) = padding_mode {
-                payload.insert("padding_mode".to_owned(), Value::String(padding_mode.to_owned()));
+            if !origin.is_empty() {
+                payload.insert("origin".to_owned(), Value::String(origin.to_owned()));
+            } else {
+                return Err::<String, anyhow::Error>(anyhow::Error::msg("Origin is empty."));
             }
-            if let Some(purpose) = purpose {
-                payload.insert("purpose".to_owned(), Value::String(purpose.to_owned()));
+            if !keyusage.is_empty() {
+                payload.insert("keyusage".to_owned(), Value::String(keyusage.to_owned()));
+            } else {
+                return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyusage is empty."));
             }
 
             let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
@@ -42,16 +43,24 @@ impl KMS for EHSMClient {
             Ok(keyid)
         }
 
-    async fn decrypt(&mut self, _keyid: &str, data_b64: &str, aad_b64: Option<&str>) -> Result<String> {
+    async fn decrypt(&mut self, keyid: &str, data_b64: &str, aad_b64: Option<&str>) -> Result<String> {
         let mut payload: Map<String, Value> = Map::new();
-        payload.insert("keyid".to_owned(), Value::String(_keyid.to_owned()));
-        if crate::client::is_base64(aad_b64.unwrap()) && crate::client::is_base64(data_b64) {
-            if let Some(aad_b64) = aad_b64 {
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
+        }
+        if let Some(aad_b64) = aad_b64 {
+            if crate::client::is_base64(aad_b64) {
                 payload.insert("aad".to_owned(), Value::String(aad_b64.to_owned()));
+            } else {
+                return Err::<String, anyhow::Error>(anyhow::Error::msg("Aad should be base64 encode."));
             }
+        } 
+        if !data_b64.is_empty() && crate::client::is_base64(data_b64) {
             payload.insert("ciphertext".to_owned(), Value::String(data_b64.to_owned()));
         } else {
-            println!("Please base64 encode the value");
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Data should be base64 encoded and not empty."));
         }
 
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
@@ -67,16 +76,24 @@ impl KMS for EHSMClient {
 
     }
 
-    async fn encrypt(&mut self, _keyid: &str, data_b64: &str, aad_b64: Option<&str>) -> Result<String> {
+    async fn encrypt(&mut self, keyid: &str, data_b64: &str, aad_b64: Option<&str>) -> Result<String> {
         let mut payload: Map<String, Value> = Map::new();
-        payload.insert("keyid".to_owned(), Value::String(_keyid.to_owned()));
-        if crate::client::is_base64(aad_b64.unwrap()) && crate::client::is_base64(data_b64) {
-            if let Some(aad_b64) = aad_b64 {
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
+        }
+        if let Some(aad_b64) = aad_b64 {
+            if crate::client::is_base64(aad_b64) {
                 payload.insert("aad".to_owned(), Value::String(aad_b64.to_owned()));
+            } else {
+                return Err::<String, anyhow::Error>(anyhow::Error::msg("Aad should be base64 encode."));
             }
+        }
+        if !data_b64.is_empty() && crate::client::is_base64(data_b64) {
             payload.insert("plaintext".to_owned(), Value::String(data_b64.to_owned()));
         } else {
-            println!("Please base64 encode the value");
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Data should be base64 encoded and not empty."));
         }
 
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
@@ -95,14 +112,16 @@ impl KMS for EHSMClient {
 
     async fn get_publickey(&mut self, keyid: &str) -> Result<String> {
         let mut payload: Map<String, Value> = Map::new();
-
-        payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
-
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
+        }
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
 
         let resp_json = crate::client::do_post(body, &self.base_url, "GetPublicKey")
-                            .await.unwrap();    
-       
+                            .await
+                            .unwrap();  
         let pubkey = resp_json["result"]["pubkey"]
                         .as_str()
                         .ok_or_else(|| anyhow!("Missing pubkey"))?
@@ -111,17 +130,46 @@ impl KMS for EHSMClient {
         Ok(pubkey)
     }
 
-    async fn sign(&mut self, keyid: &str, digest: &str) -> Result<String> {
+    async fn sign(
+        &mut self, 
+        keyid: &str, 
+        padding_mode: &str, 
+        digest_mode: &str, 
+        message_type: &str, 
+        message: &str) -> Result<String> {
         let mut payload: Map<String, Value> = Map::new();
 
-        payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
-        payload.insert("digest".to_owned(), Value::String(digest.to_owned()));
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
+        }
+        if !padding_mode.is_empty() {
+            payload.insert("padding_mode".to_owned(), Value::String(padding_mode.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Padding_mode is empty."));
+        }
+        if !digest_mode.is_empty() {
+            payload.insert("digest_mode".to_owned(), Value::String(digest_mode.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Digest_mode is empty."));
+        }
+        if !message_type.is_empty() {
+            payload.insert("message_type".to_owned(), Value::String(message_type.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Message_type is empty."));
+        }
+        if !message.is_empty() && crate::client::is_base64(message) {
+            payload.insert("message".to_owned(), Value::String(message.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Message should be base64 encoded and not empty."));
+        }
 
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
-
+        
         let resp_json = crate::client::do_post(body, &self.base_url, "Sign")
                                 .await.unwrap();
-        
+
         let signature = resp_json["result"]["signature"]
                         .as_str()
                         .ok_or_else(|| anyhow!("Missing signature"))?
@@ -130,12 +178,46 @@ impl KMS for EHSMClient {
         Ok(signature)
     }
 
-    async fn verify(&mut self, keyid: &str, digest: &str, signature: &str) -> Result<bool> {
+    async fn verify(
+        &mut self, 
+        keyid: &str, 
+        padding_mode: &str, 
+        digest_mode: &str, 
+        message_type: &str, 
+        message: &str, 
+        signature: &str) -> Result<bool> {
         let mut payload: Map<String, Value> = Map::new();
-
-        payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
-        payload.insert("digest".to_owned(), Value::String(digest.to_owned()));
-        payload.insert("signature".to_owned(), Value::String(signature.to_owned()));
+        
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
+        } else {
+            return Err::<bool, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
+        }
+        if !padding_mode.is_empty() {
+            payload.insert("padding_mode".to_owned(), Value::String(padding_mode.to_owned()));
+        } else {
+            return Err::<bool, anyhow::Error>(anyhow::Error::msg("Padding_mode is empty."));
+        }
+        if !digest_mode.is_empty() {
+            payload.insert("digest_mode".to_owned(), Value::String(digest_mode.to_owned()));
+        } else {
+            return Err::<bool, anyhow::Error>(anyhow::Error::msg("Digest_mode is empty."));
+        }
+        if !message_type.is_empty() {
+            payload.insert("message_type".to_owned(), Value::String(message_type.to_owned()));
+        } else {
+            return Err::<bool, anyhow::Error>(anyhow::Error::msg("Message_type is empty."));
+        }
+        if !message.is_empty() && crate::client::is_base64(message) {
+            payload.insert("message".to_owned(), Value::String(message.to_owned()));
+        } else {
+            return Err::<bool, anyhow::Error>(anyhow::Error::msg("Message should be base64 encoded and not empty."));
+        }
+        if !signature.is_empty() && crate::client::is_base64(signature) {
+            payload.insert("signature".to_owned(), Value::String(signature.to_owned()));
+        } else {
+            return Err::<bool, anyhow::Error>(anyhow::Error::msg("Signature should be base64 encoded and not empty."));
+        }
 
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
         let resp_json = crate::client::do_post(body, &self.base_url, "Verify")
@@ -147,17 +229,25 @@ impl KMS for EHSMClient {
         Ok(result)
     }
 
-    async fn generate_datakey_without_plaintext(&mut self, _keyid: &str, _len: &i32, aad_b64: Option<&str>)-> Result<String> {
+    async fn generate_datakey_without_plaintext(&mut self, keyid: &str, keylen: &i32, aad_b64: Option<&str>)-> Result<String> {
         let mut payload: Map<String, Value> = Map::new();
-        payload.insert("keyid".to_owned(), Value::String(_keyid.to_owned()));
-        if crate::client::is_base64(aad_b64.unwrap()) {
-            if let Some(aad_b64) = aad_b64 {
-                payload.insert("aad".to_owned(), Value::String(aad_b64.to_owned()));
-            }
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
         } else {
-            println!("Please base64 encode the value");
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
         }
-        payload.insert("keylen".to_owned(), Value::Number(_len.to_owned().into()));
+        if let Some(aad_b64) = aad_b64 {
+            if crate::client::is_base64(aad_b64) {
+                payload.insert("aad".to_owned(), Value::String(aad_b64.to_owned()));
+            } else {
+                return Err::<String, anyhow::Error>(anyhow::Error::msg("Aad should be base64 encode."));
+            }
+        }
+        if keylen > &0 && keylen <= &1024 {
+            payload.insert("keylen".to_owned(), Value::Number(keylen.to_owned().into()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keylen should range from 0 to 1024."));
+        }
 
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
         
@@ -172,13 +262,25 @@ impl KMS for EHSMClient {
         Ok(datakey_cipher)
     }
 
-    async fn generate_datakey(&mut self, _keyid: &str, _len: &i32, aad_b64: Option<&str>)-> Result<String> {
+    async fn generate_datakey(&mut self, keyid: &str, keylen: &i32, aad_b64: Option<&str>)-> Result<String> {
         let mut payload: Map<String, Value> = Map::new();
-        payload.insert("keyid".to_owned(), Value::String(_keyid.to_owned()));
-        if let Some(aad_b64) = aad_b64 {
-            payload.insert("aad".to_owned(), Value::String(aad_b64.to_owned()));
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
         }
-        payload.insert("keylen".to_owned(), Value::Number(_len.to_owned().into()));
+        if let Some(aad_b64) = aad_b64 {
+            if crate::client::is_base64(aad_b64) {
+                payload.insert("aad".to_owned(), Value::String(aad_b64.to_owned()));
+            } else {
+                return Err::<String, anyhow::Error>(anyhow::Error::msg("Aad should be base64 encode."));
+            }
+        }
+        if keylen > &0 && keylen <= &1024 {
+            payload.insert("keylen".to_owned(), Value::Number(keylen.to_owned().into()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keylen should range from 0 to 1024."));
+        }
 
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
         
@@ -193,13 +295,22 @@ impl KMS for EHSMClient {
         Ok(datakey_cipher)
     }
 
-    async fn asymmetric_encrypt(&mut self, _keyid: &str, data_b64: &str)-> Result<String> {
+    async fn asymmetric_encrypt(&mut self, keyid: &str, data_b64: &str, padding_mode: &str)-> Result<String> {
         let mut payload: Map<String, Value> = Map::new();
-        payload.insert("keyid".to_owned(), Value::String(_keyid.to_owned()));
-        if crate::client::is_base64(data_b64) {
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
+        }
+        if !data_b64.is_empty() && crate::client::is_base64(data_b64) {
             payload.insert("plaintext".to_owned(), Value::String(data_b64.to_owned()));
         } else {
-            println!("Please base64 encode the value");
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Data should be base64 encoded and not empty."));
+        }
+        if !padding_mode.is_empty() {
+            payload.insert("padding_mode".to_owned(), Value::String(padding_mode.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Padding_mode is empty."));
         }
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
         
@@ -214,13 +325,22 @@ impl KMS for EHSMClient {
         Ok(ciphertext)
     }
  
-    async fn asymmetric_decrypt(&mut self, _keyid: &str, data_b64: &str)-> Result<String>{
+    async fn asymmetric_decrypt(&mut self, keyid: &str, data_b64: &str, padding_mode: &str)-> Result<String>{
         let mut payload: Map<String, Value> = Map::new();
-        payload.insert("keyid".to_owned(), Value::String(_keyid.to_owned()));
-        if crate::client::is_base64(data_b64) {
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
+        }
+        if !padding_mode.is_empty() {
+            payload.insert("padding_mode".to_owned(), Value::String(padding_mode.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Padding_mode is empty."));
+        }
+        if !data_b64.is_empty() && crate::client::is_base64(data_b64) {
             payload.insert("ciphertext".to_owned(), Value::String(data_b64.to_owned()));
         } else {
-            println!("Please base64 encode the value");
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Data should be base64 encoded and not empty."));
         }
 
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
@@ -235,18 +355,30 @@ impl KMS for EHSMClient {
         Ok(plaintext)
     }
 
-    async fn export_datakey(&mut self, _keyid: &str, _ukeyid: &str, _datakey: &str, aad_b64: Option<&str>) -> Result<String>{
+    async fn export_datakey(&mut self, keyid: &str, ukeyid: &str, datakey: &str, aad_b64: Option<&str>) -> Result<String>{
         let mut payload: Map<String, Value> = Map::new();
-        payload.insert("keyid".to_owned(), Value::String(_keyid.to_owned()));
-        if crate::client::is_base64(aad_b64.unwrap()) {
-            if let Some(aad_b64) = aad_b64 {
-                payload.insert("aad".to_owned(), Value::String(aad_b64.to_owned()));
-            }
+        if !keyid.is_empty() {
+            payload.insert("keyid".to_owned(), Value::String(keyid.to_owned()));
         } else {
-            println!("Please base64 encode the value");
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Keyid is empty."));
         }
-        payload.insert("olddatakey_base".to_owned(), Value::String(_datakey.to_owned()));
-        payload.insert("ukeyid".to_owned(), Value::String(_ukeyid.to_owned()));
+        if let Some(aad_b64) = aad_b64 {
+            if crate::client::is_base64(aad_b64) {
+                payload.insert("aad".to_owned(), Value::String(aad_b64.to_owned()));
+            } else {
+                return Err::<String, anyhow::Error>(anyhow::Error::msg("Aad should be base64 encode."));
+            }
+        } 
+        if !datakey.is_empty() && crate::client::is_base64(datakey) {
+            payload.insert("olddatakey_base".to_owned(), Value::String(datakey.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Datakey should be base64 encoded and not empty."));
+        }
+        if !ukeyid.is_empty() {
+            payload.insert("ukeyid".to_owned(), Value::String(ukeyid.to_owned()));
+        } else {
+            return Err::<String, anyhow::Error>(anyhow::Error::msg("Ukeyid is empty."));
+        }
 
         let body = crate::client::init_params(&payload, &self.appid, &self.apikey);
         
