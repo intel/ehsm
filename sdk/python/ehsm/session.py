@@ -1,0 +1,85 @@
+from collections import OrderedDict
+from typing import Dict
+import httpx
+
+from .serializers.key_management import EnrollResponse
+from .exceptions import CredentialMissingException
+from .utils import prepare_params
+
+
+class BaseSession:
+    """Base Session"""
+
+    def get(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def post(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+class Session(BaseSession):
+    """
+    A eHSM session with enroll API, add signature(HMAC) to request before send.
+
+    Usage::
+
+        >>> import ehsm
+        >>> s = ehsm.Session(base_url='https://127.0.0.1:9002')
+        >>> s.enroll()
+        >>> s.get()
+    """
+
+    _client: httpx.Client
+    _appid: str  # a random string
+    _apikey: str  # an UUID
+
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        appid: str = "",
+        apikey: str = "",
+        allow_insecure: bool = False
+    ) -> None:
+        super().__init__()
+        self._client = httpx.Client(base_url=base_url, verify=allow_insecure)
+        if appid is not None and apikey is not None:
+            self._appid = appid
+            self._apikey = apikey
+
+    def request(
+        self, method: str, url: str, *, check_creadentials: bool = True, **kwargs
+    ):
+        if check_creadentials and not (self._appid and self._apikey):
+            raise CredentialMissingException(
+                "Missing appid or apikey, please call enroll() first"
+            )
+        resp = self._client.request(method, url, **kwargs)
+        resp.raise_for_status()
+        return resp
+
+    def get(self, url: str, *, check_credentials: bool = True, **kwargs):
+        return self.request('GET', url, check_creadentials=check_credentials, **kwargs)
+
+    def post(
+        self,
+        url: str,
+        data: Dict = {},
+        *,
+        check_credentials: bool = True,
+        with_signature: bool = True,
+        **kwargs
+    ):
+        if with_signature:
+            params = OrderedDict(data)
+            data = prepare_params(params, self._appid, self._apikey)
+        return self.request('POST', url, check_creadentials=check_credentials, **kwargs)
+
+    def enroll(self):
+        """
+        Obtain a valid access keypair (APPID and APIKey) which is MUST before request the public cryptographic APIs.
+        """
+        resp = self._client.get('/', params={'Action': 'Enroll'})
+        data = EnrollResponse.from_response(resp)
+        self._appid, self._apikey = data.result.appid, data.result.apikey
+        return (self._appid, self._apikey)
