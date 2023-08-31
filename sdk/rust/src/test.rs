@@ -9,7 +9,8 @@ mod tests {
     async fn test_asymmetrickey_generate_key() {
         let mut client = EHSMClient::new();
 
-        let keyspecs = vec!["EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_SM2", "EH_EC_P224", "EH_EC_P256", "EH_EC_P384", "EH_EC_P521"];
+        let keyspecs = vec!["EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_SM2", "EH_EC_P224", 
+                        "EH_EC_P256", "EH_EC_P256K", "EH_EC_P384", "EH_EC_P521"];
         let keyusage = vec!["EH_KEYUSAGE_ENCRYPT_DECRYPT", "EH_KEYUSAGE_SIGN_VERIFY"];
 
         for keyspec in keyspecs.iter() {
@@ -54,7 +55,8 @@ mod tests {
     async fn test_get_publickey() {
         let mut client = EHSMClient::new();
 
-        let keyspecs = vec!["EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_SM2", "EH_EC_P224", "EH_EC_P256", "EH_EC_P384", "EH_EC_P521"];
+        let keyspecs = vec!["EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_SM2", "EH_EC_P224", 
+                    "EH_EC_P256","EH_EC_P256K" "EH_EC_P384", "EH_EC_P521"];
         let keyusage = vec!["EH_KEYUSAGE_SIGN_VERIFY", "EH_KEYUSAGE_ENCRYPT_DECRYPT"];
 
         for keyspec in keyspecs.iter() {
@@ -120,7 +122,8 @@ mod tests {
             let keyid = client.create_key(keyspec, "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
                             .await
                             .expect("fail to get keyid");
-            let generate_datakey_without_plaintext = client.generate_datakey_without_plaintext(&keyid.to_owned(), &48, Some(&encode(aad).to_string()[..])).await;
+            let generate_datakey_without_plaintext = client.generate_datakey_without_plaintext(&keyid.to_owned(), 
+                            &48, Some(&encode(aad).to_string()[..])).await;
             
             assert!(generate_datakey_without_plaintext.is_ok(), "ERROR get generate_datakey_without_plaintext: keyspec = {}", keyspec);
         }
@@ -211,7 +214,8 @@ mod tests {
                 let signature_raw = client.sign(&keyid.to_owned(), padding_mode, "EH_SHA_256", "EH_RAW", &encode(msg).to_string()[..])
                                 .await
                                 .expect("sign fail");
-                let verify_raw = client.verify(&keyid.to_owned(), padding_mode, "EH_SHA_256", "EH_RAW", &encode(msg).to_string()[..], &signature_raw.to_owned()).await;
+                let verify_raw = client.verify(&keyid.to_owned(), padding_mode, "EH_SHA_256", "EH_RAW", 
+                                &encode(msg).to_string()[..], &signature_raw.to_owned()).await;
                 assert!(verify_raw.is_ok(), "fail to verify_raw: keyspec = {}, padding_mode = {}", keyspec, padding_mode);
             }
         }
@@ -262,7 +266,7 @@ mod tests {
     async fn test_ec_sign_verify_raw() {
         let mut client = EHSMClient::new();
 
-        let keyspecs = vec!["EH_EC_P224", "EH_EC_P256", "EH_EC_P384", "EH_EC_P521"];
+        let keyspecs = vec!["EH_EC_P224", "EH_EC_P256", "EH_EC_P256K", "EH_EC_P384", "EH_EC_P521"];
 
         let msg = "unit test";
         
@@ -283,7 +287,7 @@ mod tests {
     async fn test_ec_sign_verify_digest() {
         let mut client = EHSMClient::new();
 
-        let keyspecs = vec!["EH_EC_P224", "EH_EC_P256", "EH_EC_P384", "EH_EC_P521"];
+        let keyspecs = vec!["EH_EC_P224", "EH_EC_P256", "EH_EC_P256K", "EH_EC_P384", "EH_EC_P521"];
 
         let msg = "unit test";
         let mut hasher = Sha256::new();
