@@ -670,7 +670,7 @@ const gen_hmac_safe = async (DB, appid, sign_params) => {
             }
         }
 
-        const sign_string = params_sort_str(sign_params)
+        const sign_string = base64_encode(params_sort_str(sign_params))
         const { result } = napi_result(
             KMS_ACTION.common.GenHmac,
             undefined,

@@ -1570,25 +1570,13 @@ extern "C"
         // 0. prepare data
         JSON2STRUCT(payloadJson, cmk);
         JSON2STRUCT(payloadJson, apikey);
+        JSON2STRUCT(payloadJson, payload);
 
-        if (cmk == NULL || apikey == NULL) {
+        if (cmk == NULL || apikey == NULL || payload == NULL) {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("paramter invalid.");
             goto out;
         }
-
-        payload_str = payloadJson.readData_string("payload");
-        payload_str = base64_decode(payload_str);
-        payload_size = payload_str.size();
-        payload = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(payload_size));
-        if (payload == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-            retJsonObj.setMessage("The payload's length is invalid.");
-            goto out;
-        }
-        payload->datalen = payload_size;
-        memcpy_s(payload->data, payload_size, (uint8_t *)payload_str.data(), payload_size);
         
         // 1. generate hmac
         hmac = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_HMAC_SHA256_SIZE));
