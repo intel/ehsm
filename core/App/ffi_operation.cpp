@@ -1616,6 +1616,7 @@ out:
         SAFE_FREE(cmk);
         SAFE_FREE(apikey);
         SAFE_FREE(payload);
+        SAFE_FREE(hmac);
         retJsonObj.toChar(respJson);
         return ret;
     }
