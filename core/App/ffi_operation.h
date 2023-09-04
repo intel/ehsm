@@ -379,8 +379,8 @@ extern "C"
      * @param payload : Pass in the cmk, apikey(encrypted) and payload in the form of JSON string
                 {
                     cmk : a base64 string,
-                    apikey : string,
-                    payload : string,
+                    apikey : a base64 string,
+                    payload : a base64 string,
                 }
      * @return [string] json string
                 {

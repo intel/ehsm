@@ -1541,7 +1541,7 @@ extern "C"
                 {
                     cmk : a base64 string,
                     apikey: a base64 string
-                    payload : a string,
+                    payload : a base64 string,
                 }
      * @return [string] json string
                 {
@@ -1577,8 +1577,8 @@ extern "C"
             goto out;
         }
 
-        // payload is a pure string without base64 encode, so that decode is not needed
         payload_str = payloadJson.readData_string("payload");
+        payload_str = base64_decode(payload_str);
         payload_size = payload_str.size();
         payload = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(payload_size));
         if (payload == NULL)
