@@ -983,7 +983,8 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
     aad = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
     if (aad == NULL)
     {
-        return SGX_ERROR_UNEXPECTED;
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
     }
     aad->datalen = 0;
 
@@ -991,7 +992,8 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
     rawApiKey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_API_KEY_SIZE));
     if (rawApiKey == NULL)
     {
-        return SGX_ERROR_UNEXPECTED;
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
     }
     rawApiKey->datalen = EH_API_KEY_SIZE;
 
@@ -1006,6 +1008,11 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
     ret = sgx_hmac_sha256_msg(payload->data, payload->datalen, rawApiKey->data, rawApiKey->datalen, hmac->data, hmac->datalen);
 
 out:
+    // clear sensitive info
+    if (rawApiKey) {
+        memset_s(rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen), 0, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
+    }
+    // free allocations
     SAFE_FREE(aad);
     SAFE_FREE(rawApiKey);
     return ret;
