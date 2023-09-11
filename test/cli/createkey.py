@@ -11,12 +11,12 @@ import urllib.parse
 
 import _utils_
 
-supported_keyspec = ["EH_AES_GCM_128", "EH_AES_GCM_192", "EH_AES_GCM_256", "EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_RSA_3072", "EH_EC_P256", "EH_EC_P256K", "EH_SM2", "EH_SM4"]
+supported_keyspec = ["EH_AES_GCM_128", "EH_AES_GCM_192", "EH_AES_GCM_256", "EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_EC_P256", "EH_EC_P256K", "EH_EC_P384", "EH_EC_P521", "EH_SM2", "EH_SM4_CTR", "EH_SM4_CBC"]
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--url', type=str, help='the address of the ehsm_kms_server', required=True)
-    parser.add_argument('--keyspec', type=str, help='supported keyspec [EH_AES_GCM_128", "EH_AES_GCM_192", "EH_AES_GCM_256", "EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_RSA_3072", "EH_EC_P256", "EH_EC_P256K", "EH_SM2", "EH_SM4]', required=True)
+    parser.add_argument('--keyspec', type=str, help='supported keyspec ["EH_AES_GCM_128", "EH_AES_GCM_192", "EH_AES_GCM_256", "EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096", "EH_EC_P256", "EH_EC_P256K", "EH_EC_P384", "EH_EC_P521", "EH_SM2", "EH_SM4_CTR", "EH_SM4_CBC"]', required=True)
     parser.add_argument('--origin', type=str, help='the key origin [EH_EXTERNAL_KEY or EH_INTERNAL_KEY]', required=True)
     parser.add_argument('--keyusage', type=str, help='the key usage', required=True)
     args = parser.parse_args()
