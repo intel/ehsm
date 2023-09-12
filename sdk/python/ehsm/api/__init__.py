@@ -7,12 +7,11 @@ from .base import EHSMBaseClient
 
 
 class Client(KeyManagementMixin, EHSMBaseClient):
-
     def __init__(
         self,
         base_url: str,
         *,
-        session: Optional[Session],
+        session: Optional[Session] = None,
         appid: str = "",
         apikey: str = "",
         allow_insecure: bool = False
@@ -23,4 +22,6 @@ class Client(KeyManagementMixin, EHSMBaseClient):
         if session:
             self._session = session
         else:
-            self._session = Session(base_url, appid=appid, apikey=apikey, allow_insecure=allow_insecure)
+            self._session = Session(
+                base_url, appid=appid, apikey=apikey, allow_insecure=allow_insecure
+            )

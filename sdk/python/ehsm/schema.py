@@ -14,10 +14,12 @@ def ehsm_response(schema: Type[Schema]):
         ...     app_id = fields.Str()
         >>> { code: int, message: str, result: { app_id: str } }
     """
+
     class EHSMResponse(Schema):
         code = fields.Int()
         message = fields.Str()
         result = fields.Nested(schema)
+
     # set the name
     EHSMResponse.__name__ = schema.__name__
     return EHSMResponse
@@ -27,5 +29,3 @@ class EHSMResponseSchema(Schema):
     code = fields.Int()
     message = fields.Str()
     result: Any
-    
-    

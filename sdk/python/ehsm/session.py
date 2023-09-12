@@ -1,5 +1,4 @@
-from collections import OrderedDict
-from typing import Dict
+from typing import Dict, Optional
 import httpx
 
 from .serializers.key_management import EnrollResponse
@@ -42,7 +41,7 @@ class Session(BaseSession):
         allow_insecure: bool = False
     ) -> None:
         super().__init__()
-        self._client = httpx.Client(base_url=base_url, verify=allow_insecure)
+        self._client = httpx.Client(base_url=base_url, verify=not allow_insecure)
         if appid is not None and apikey is not None:
             self._appid = appid
             self._apikey = apikey
@@ -59,27 +58,28 @@ class Session(BaseSession):
         return resp
 
     def get(self, url: str, *, check_credentials: bool = True, **kwargs):
-        return self.request('GET', url, check_creadentials=check_credentials, **kwargs)
+        return self.request("GET", url, check_creadentials=check_credentials, **kwargs)
 
     def post(
         self,
         url: str,
-        data: Dict = {},
+        data: Optional[Dict] = None,
         *,
         check_credentials: bool = True,
         with_signature: bool = True,
         **kwargs
     ):
         if with_signature:
-            params = OrderedDict(data)
-            data = prepare_params(params, self._appid, self._apikey)
-        return self.request('POST', url, check_creadentials=check_credentials, **kwargs)
+            data = prepare_params(data, self._appid, self._apikey)
+        return self.request(
+            "POST", url, check_creadentials=check_credentials, json=data, **kwargs
+        )
 
     def enroll(self):
         """
         Obtain a valid access keypair (APPID and APIKey) which is MUST before request the public cryptographic APIs.
         """
-        resp = self._client.get('/', params={'Action': 'Enroll'})
+        resp = self._client.get("/", params={"Action": "Enroll"})
         data = EnrollResponse.from_response(resp)
         self._appid, self._apikey = data.result.appid, data.result.apikey
         return (self._appid, self._apikey)
