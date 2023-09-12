@@ -29,3 +29,23 @@ class ListKeyItem:
 @dataclass
 class ListKeyResponse(EHSMBase):
     list: List[ListKeyItem]
+
+
+@dataclass
+class DeleteKeyResponse(EHSMBase):
+    pass
+
+
+@dataclass
+class DeleteAllKeyResponse(EHSMBase):
+    pass
+
+
+@dataclass
+class EnableKeyResponse(EHSMBase):
+    pass
+
+
+@dataclass
+class DisableKeyResponse(EHSMBase):
+    pass
