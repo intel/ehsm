@@ -525,7 +525,7 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
             payload
         }
 
-        gen_hmac_safe(DB, appid, sign_params)
+        gen_hmac(DB, appid, sign_params)
             .then(result => {
                 if (result.hmac.length == 0) {
                     res.send(_result(400, result.error))
@@ -601,50 +601,13 @@ const _query_api_key = async (DB, appid) => {
 }
 
 /**
- * Gen Hmac 
+ * Gen Hmac of sign_params safely, without transfering plaintext of apikey outside enclave
  * @param {object} DB //Database object
  * @param {string} appid // APP ID from client
  * @param {object} sign_params // A list object contain string params
  * @returns {object} (error, hmac) // One object contain "error" and "hmac" attributes
  */
 const gen_hmac = async (DB, appid, sign_params) => {
-    try {
-        let {
-            msg,
-            api_key
-        } = await _query_api_key(DB, appid)
-        if (api_key && api_key.length == 0) {
-            logger.error(msg)
-            return {
-                error: msg,
-                hmac: ''
-            }
-        }
-        let sign_string = params_sort_str(sign_params)
-        let sign_result = crypto.createHmac('sha256', api_key)
-            .update(sign_string, 'utf8')
-            .digest('base64')
-        return {
-            error: '',
-            hmac: sign_result
-        }
-    } catch (error) {
-        logger.error(error)
-        return {
-            error: error,
-            hmac: ''
-        }
-    }
-}
-
-/**
- * Gen Hmac safely, without transfering plaintext of apikey ouside enclave
- * @param {object} DB //Database object
- * @param {string} appid // APP ID from client
- * @param {object} sign_params // A list object contain string params
- * @returns {object} (error, hmac) // One object contain "error" and "hmac" attributes
- */
-const gen_hmac_safe = async (DB, appid, sign_params) => {
     try {
         const db_query = {
             selector: {
