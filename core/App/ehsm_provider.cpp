@@ -293,6 +293,9 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
     case EH_VERIFY_QUOTE:
         ffi_verifyQuote(payloadJson, respJson);
         break;
+    case EH_GEN_HMAC:
+        ffi_generateHmac(payloadJson, respJson);
+        break;
     default:
         RetJsonObj retJsonObj;
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1083,4 +1086,34 @@ out:
     *result = quote_verification_result;
     SAFE_FREE(p_supplemental_data);
     return rc;
+}
+
+ehsm_status_t GenerateHmac(ehsm_keyblob_t *cmk, ehsm_data_t *apikey, ehsm_data_t *payload, ehsm_data_t *hmac)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL)
+        return EH_ARGUMENTS_BAD;
+
+    if (apikey == NULL || apikey->datalen > EH_CIPHERTEXT_MAX_SIZE)
+        return EH_ARGUMENTS_BAD;
+
+    if (payload == NULL || payload->datalen > EH_PAYLOAD_MAX_SIZE)
+        return EH_ARGUMENTS_BAD;
+    
+    if (hmac == NULL || hmac->datalen != EH_HMAC_SHA256_SIZE)
+        return EH_ARGUMENTS_BAD;
+
+    ret = enclave_generate_hmac(g_enclave_id, &sgxStatus,
+        cmk, APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+        apikey, APPEND_SIZE_TO_DATA_T(apikey->datalen),
+        payload, APPEND_SIZE_TO_DATA_T(payload->datalen),
+        hmac, APPEND_SIZE_TO_DATA_T(hmac->datalen)
+    );
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
 }

@@ -44,7 +44,8 @@ const secret_manager = {
 }
 
 const common = {
-  GetVersion: 'GetVersion'
+  GetVersion: 'GetVersion',
+  GenHmac: 'GenHmac',
 }
 
 const KMS_ACTION = {

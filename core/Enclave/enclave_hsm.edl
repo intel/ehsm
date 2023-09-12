@@ -130,6 +130,11 @@ enclave {
                             [in, size=mr_enclave_good_size] const char* mr_enclave_good,
                             uint32_t mr_enclave_good_size);
 
+        public sgx_status_t enclave_generate_hmac([in, size=cmke_size] ehsm_keyblob_t *cmk, uint32_t cmke_size,
+                                                  [in, size=apikey_size] ehsm_data_t *apikey, uint32_t apikey_size, 
+                                                  [in, size=payload_size] ehsm_data_t *payload, uint32_t payload_size,
+                                                  [in, out, size=hmac_size] ehsm_data_t *hmac, uint32_t hmac_size);
+
         /* Interfaces for remote attestation */
         public sgx_status_t enclave_get_target_info([out] sgx_target_info_t* target_info);
 
