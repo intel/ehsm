@@ -976,17 +976,7 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
         return SGX_ERROR_INVALID_PARAMETER;
 
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    ehsm_data_t *aad = NULL;
     ehsm_data_t *rawApiKey = NULL;
-
-    // create empty aad
-    aad = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-    if (aad == NULL)
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
-    aad->datalen = 0;
 
     // create space for storing raw apikey
     rawApiKey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_API_KEY_SIZE));
@@ -998,7 +988,8 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
     rawApiKey->datalen = EH_API_KEY_SIZE;
 
     // 1. Decrypt the apikey
-    ret = enclave_decrypt(cmk, cmk_size, aad, APPEND_SIZE_TO_DATA_T(aad->datalen), apikey, apikey_size, rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
+    // aad is empty, thus NULL is passed as `aad` and 0 is passed as `aad_size`
+    ret = enclave_decrypt(cmk, cmk_size, NULL, 0, apikey, apikey_size, rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
     if (ret != SGX_SUCCESS) {
         log_w("apikey decrypt failed");
         goto out;
@@ -1013,7 +1004,6 @@ out:
         memset_s(rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen), 0, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
     }
     // free allocations
-    SAFE_FREE(aad);
     SAFE_FREE(rawApiKey);
     return ret;
 }
