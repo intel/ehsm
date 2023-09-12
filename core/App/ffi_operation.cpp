@@ -254,6 +254,8 @@ extern "C"
 
         ehsm_keymetadata_t *key_metadata = NULL;
         ehsm_keyblob_t *master_key = NULL;
+        ehsm_keyblob_t master_key_tmp;
+        memset(&master_key_tmp, 0, sizeof(master_key_tmp));
         JSON2STRUCT(payloadJson, key_metadata);
 
         if (key_metadata == NULL)
@@ -263,18 +265,9 @@ extern "C"
             goto out;
         }
 
-        master_key = (ehsm_keyblob_t *)malloc(sizeof(ehsm_keyblob_t));
-        if (master_key == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
+        memcpy(&master_key_tmp.metadata, key_metadata, sizeof(ehsm_keymetadata_t));
 
-        master_key->keybloblen = 0;
-        memcpy(&master_key->metadata, key_metadata, sizeof(ehsm_keymetadata_t));
-
-        ret = CreateKey(master_key);
+        ret = CreateKey(&master_key_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -282,20 +275,22 @@ extern "C"
             goto out;
         }
 
-        if (master_key->keybloblen == 0 || master_key->keybloblen > UINT16_MAX)
+        if (master_key_tmp.keybloblen == 0 || master_key_tmp.keybloblen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        master_key = (ehsm_keyblob_t *)realloc(master_key, APPEND_SIZE_TO_KEYBLOB_T(master_key->keybloblen));
+        master_key = (ehsm_keyblob_t *)malloc(APPEND_SIZE_TO_KEYBLOB_T(master_key_tmp.keybloblen));
         if (master_key == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        master_key->keybloblen = master_key_tmp.keybloblen;
+        master_key->metadata = master_key_tmp.metadata;
 
         ret = CreateKey(master_key);
         if (ret != EH_OK)
@@ -338,6 +333,7 @@ extern "C"
 
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *pubkey = NULL;
+        ehsm_data_t pubkey_tmp = {0};
         char *publicKey = NULL;
 
         JSON2STRUCT(payloadJson, cmk);
@@ -349,16 +345,7 @@ extern "C"
             goto out;
         }
 
-        pubkey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (pubkey == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-        pubkey->datalen = 0;
-
-        ret = GetPublicKey(cmk, pubkey);
+        ret = GetPublicKey(cmk, &pubkey_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -366,20 +353,21 @@ extern "C"
             goto out;
         }
 
-        if (pubkey->datalen == 0 || pubkey->datalen > UINT16_MAX)
+        if (pubkey_tmp.datalen == 0 || pubkey_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        pubkey = (ehsm_data_t *)realloc(pubkey, APPEND_SIZE_TO_DATA_T(pubkey->datalen));
+        pubkey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(pubkey_tmp.datalen));
         if (pubkey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        pubkey->datalen = pubkey_tmp.datalen;
 
         ret = GetPublicKey(cmk, pubkey);
         if (ret != EH_OK)
@@ -432,6 +420,7 @@ extern "C"
         ehsm_data_t *plaintext = NULL;
         ehsm_data_t *aad = NULL;
         ehsm_data_t *ciphertext = NULL;
+        ehsm_data_t ciphertext_tmp = {0};
 
         JSON2STRUCT(payloadJson, cmk);
         JSON2STRUCT(payloadJson, plaintext);
@@ -444,16 +433,7 @@ extern "C"
             goto out;
         }
 
-        ciphertext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (ciphertext == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-        ciphertext->datalen = 0;
-
-        ret = Encrypt(cmk, plaintext, aad, ciphertext);
+        ret = Encrypt(cmk, plaintext, aad, &ciphertext_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -461,20 +441,21 @@ extern "C"
             goto out;
         }
 
-        if (ciphertext->datalen == 0 || ciphertext->datalen > UINT16_MAX)
+        if (ciphertext_tmp.datalen == 0 || ciphertext_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        ciphertext = (ehsm_data_t *)realloc(ciphertext, APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
+        ciphertext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(ciphertext_tmp.datalen));
         if (ciphertext == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        ciphertext->datalen = ciphertext_tmp.datalen;
 
         ret = Encrypt(cmk, plaintext, aad, ciphertext);
         if (ret != EH_OK)
@@ -524,6 +505,7 @@ extern "C"
         ehsm_data_t *ciphertext = NULL;
         ehsm_data_t *aad = NULL;
         ehsm_data_t *plaintext = NULL;
+        ehsm_data_t plaintext_tmp = {0};
 
         JSON2STRUCT(payloadJson, cmk);
         JSON2STRUCT(payloadJson, ciphertext);
@@ -536,16 +518,7 @@ extern "C"
             goto out;
         }
 
-        plaintext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (plaintext == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-        plaintext->datalen = 0;
-
-        ret = Decrypt(cmk, ciphertext, aad, plaintext);
+        ret = Decrypt(cmk, ciphertext, aad, &plaintext_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -553,20 +526,21 @@ extern "C"
             goto out;
         }
 
-        if (plaintext->datalen == 0 || plaintext->datalen > UINT16_MAX)
+        if (plaintext_tmp.datalen == 0 || plaintext_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        plaintext = (ehsm_data_t *)realloc(plaintext, plaintext->datalen);
+        plaintext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(plaintext_tmp.datalen));
         if (plaintext == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        plaintext->datalen = plaintext_tmp.datalen;
 
         ret = Decrypt(cmk, ciphertext, aad, plaintext);
         if (ret != EH_OK)
@@ -622,6 +596,7 @@ extern "C"
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *plaintext = NULL;
         ehsm_data_t *ciphertext = NULL;
+        ehsm_data_t ciphertext_tmp = {0};
 
         ehsm_padding_mode_t padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
 
@@ -635,16 +610,7 @@ extern "C"
             goto out;
         }
 
-        ciphertext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (ciphertext == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-        ciphertext->datalen = 0;
-
-        ret = AsymmetricEncrypt(cmk, padding_mode, plaintext, ciphertext);
+        ret = AsymmetricEncrypt(cmk, padding_mode, plaintext, &ciphertext_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -652,20 +618,21 @@ extern "C"
             goto out;
         }
 
-        if (ciphertext->datalen == 0 || ciphertext->datalen > UINT16_MAX)
+        if (ciphertext_tmp.datalen == 0 || ciphertext_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        ciphertext = (ehsm_data_t *)realloc(ciphertext, APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
+        ciphertext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(ciphertext_tmp.datalen));
         if (ciphertext == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        ciphertext->datalen = ciphertext_tmp.datalen;
 
         ret = AsymmetricEncrypt(cmk, padding_mode, plaintext, ciphertext);
         if (ret != EH_OK)
@@ -712,6 +679,7 @@ extern "C"
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *plaintext = NULL;
         ehsm_data_t *ciphertext = NULL;
+        ehsm_data_t plaintext_tmp = {0};
 
         ehsm_padding_mode_t padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
 
@@ -725,16 +693,7 @@ extern "C"
             goto out;
         }
 
-        plaintext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (plaintext == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-        plaintext->datalen = 0;
-
-        ret = AsymmetricDecrypt(cmk, padding_mode, ciphertext, plaintext);
+        ret = AsymmetricDecrypt(cmk, padding_mode, ciphertext, &plaintext_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -742,20 +701,21 @@ extern "C"
             goto out;
         }
 
-        if (plaintext->datalen == 0 || plaintext->datalen > UINT16_MAX)
+        if (plaintext_tmp.datalen == 0 || plaintext_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        plaintext = (ehsm_data_t *)realloc(plaintext, APPEND_SIZE_TO_DATA_T(plaintext->datalen));
+        plaintext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(plaintext_tmp.datalen));
         if (plaintext == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        plaintext->datalen = plaintext_tmp.datalen;
 
         ret = AsymmetricDecrypt(cmk, padding_mode, ciphertext, plaintext);
         if (ret != EH_OK)
@@ -805,6 +765,7 @@ extern "C"
         uint32_t keylen = payloadJson.readData_uint32("keylen");
         ehsm_data_t *plain_datakey = NULL;
         ehsm_data_t *cipher_datakey = NULL;
+        ehsm_data_t cipher_datakey_tmp = {0};
 
         JSON2STRUCT(payloadJson, cmk);
         JSON2STRUCT(payloadJson, aad);
@@ -817,17 +778,15 @@ extern "C"
         }
 
         plain_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(keylen));
-        cipher_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (plain_datakey == NULL || cipher_datakey == NULL)
+        if (plain_datakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
         plain_datakey->datalen = keylen;
-        cipher_datakey->datalen = 0;
 
-        ret = GenerateDataKey(cmk, aad, plain_datakey, cipher_datakey);
+        ret = GenerateDataKey(cmk, aad, plain_datakey, &cipher_datakey_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -835,20 +794,21 @@ extern "C"
             goto out;
         }
 
-        if (cipher_datakey->datalen == 0 || cipher_datakey->datalen > UINT16_MAX)
+        if (cipher_datakey_tmp.datalen == 0 || cipher_datakey_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, APPEND_SIZE_TO_DATA_T(cipher_datakey->datalen));
+        cipher_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(cipher_datakey_tmp.datalen));
         if (cipher_datakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        cipher_datakey->datalen = cipher_datakey_tmp.datalen;
 
         ret = GenerateDataKey(cmk, aad, plain_datakey, cipher_datakey);
         if (ret != EH_OK)
@@ -908,6 +868,7 @@ extern "C"
         ehsm_data_t *aad = NULL;
         ehsm_data_t *plain_datakey = NULL;
         ehsm_data_t *cipher_datakey = NULL;
+        ehsm_data_t cipher_datakey_tmp = {0};
 
         JSON2STRUCT(payloadJson, cmk);
         JSON2STRUCT(payloadJson, aad);
@@ -920,17 +881,15 @@ extern "C"
         }
 
         plain_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(keylen));
-        cipher_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (plain_datakey == NULL || cipher_datakey == NULL)
+        if (plain_datakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
         plain_datakey->datalen = keylen;
-        cipher_datakey->datalen = 0;
 
-        ret = GenerateDataKeyWithoutPlaintext(cmk, aad, plain_datakey, cipher_datakey);
+        ret = GenerateDataKeyWithoutPlaintext(cmk, aad, plain_datakey, &cipher_datakey_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -938,20 +897,21 @@ extern "C"
             goto out;
         }
 
-        if (cipher_datakey->datalen == 0 || cipher_datakey->datalen > UINT16_MAX)
+        if (cipher_datakey_tmp.datalen == 0 || cipher_datakey_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        cipher_datakey = (ehsm_data_t *)realloc(cipher_datakey, APPEND_SIZE_TO_DATA_T(cipher_datakey->datalen));
+        cipher_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(cipher_datakey_tmp.datalen));
         if (cipher_datakey == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        cipher_datakey->datalen = cipher_datakey_tmp.datalen;
 
         ret = GenerateDataKeyWithoutPlaintext(cmk, aad, plain_datakey, cipher_datakey);
         if (ret != EH_OK)
@@ -1011,6 +971,7 @@ extern "C"
         ehsm_data_t *aad = NULL;
         ehsm_data_t *olddatakey = NULL;
         ehsm_data_t *newdatakey = NULL;
+        ehsm_data_t newdatakey_tmp = {0};
 
         JSON2STRUCT(payloadJson, cmk);
         JSON2STRUCT(payloadJson, ukey);
@@ -1024,16 +985,7 @@ extern "C"
             goto out;
         }
 
-        newdatakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (newdatakey == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-        newdatakey->datalen = 0;
-
-        ret = ExportDataKey(cmk, ukey, aad, olddatakey, newdatakey);
+        ret = ExportDataKey(cmk, ukey, aad, olddatakey, &newdatakey_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1055,19 +1007,20 @@ extern "C"
             goto out;
         }
 
-        if (newdatakey->datalen == 0 || newdatakey->datalen > UINT16_MAX)
+        if (newdatakey_tmp.datalen == 0 || newdatakey_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        newdatakey = (ehsm_data_t *)realloc(newdatakey, APPEND_SIZE_TO_DATA_T(newdatakey->datalen));
+        newdatakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(newdatakey_tmp.datalen));
         if (newdatakey == NULL)
         {
             ret = EH_DEVICE_MEMORY;
             goto out;
         }
+        newdatakey->datalen = newdatakey_tmp.datalen;
 
         if (newdatakey->datalen == 0)
         {
@@ -1141,6 +1094,7 @@ extern "C"
         ehsm_keyblob_t *cmk = NULL;
         ehsm_data_t *message = NULL;
         ehsm_data_t *signature = NULL;
+        ehsm_data_t signature_tmp = {0};
 
         ehsm_digest_mode_t digest_mode = (ehsm_digest_mode_t)payloadJson.readData_uint32("digest_mode");
         ehsm_padding_mode_t padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
@@ -1156,16 +1110,7 @@ extern "C"
             goto out;
         }
 
-        signature = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-        if (signature == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_FAILED);
-            retJsonObj.setMessage("Server exception.");
-            goto out;
-        }
-        signature->datalen = 0;
-
-        ret = Sign(cmk, digest_mode, padding_mode, message_type, message, signature);
+        ret = Sign(cmk, digest_mode, padding_mode, message_type, message, &signature_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1173,20 +1118,21 @@ extern "C"
             goto out;
         }
 
-        if (signature->datalen == 0 || signature->datalen > UINT16_MAX)
+        if (signature_tmp.datalen == 0 || signature_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        signature = (ehsm_data_t *)realloc(signature, APPEND_SIZE_TO_DATA_T(signature->datalen));
+        signature = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(signature_tmp.datalen));
         if (signature == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        signature->datalen = signature_tmp.datalen;
 
         // sign
         ret = Sign(cmk, digest_mode, padding_mode, message_type, message, signature);
@@ -1368,19 +1314,11 @@ extern "C"
         log_d("challenge: \n %s", challenge_base64);
 
         ehsm_status_t ret = EH_OK;
-        ehsm_data_t *quote;
+        ehsm_data_t *quote = NULL;
+        ehsm_data_t quote_tmp = {0};
         string quote_base64;
 
-        quote = (ehsm_data_t *)malloc(sizeof(ehsm_data_t));
-        if (quote == NULL)
-        {
-            retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
-            retJsonObj.setMessage("The cmk's length is invalid.");
-            goto out;
-        }
-
-        quote->datalen = 0;
-        ret = GenerateQuote(quote);
+        ret = GenerateQuote(&quote_tmp);
         if (ret != EH_OK)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -1389,20 +1327,21 @@ extern "C"
         }
         log_d("get the quote size successfuly\n");
 
-        if (quote->datalen == 0 || quote->datalen > UINT16_MAX)
+        if (quote_tmp.datalen == 0 || quote_tmp.datalen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
 
-        quote = (ehsm_data_t *)realloc(quote, APPEND_SIZE_TO_DATA_T(quote->datalen));
+        quote = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(quote_tmp.datalen));
         if (quote == NULL)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
             goto out;
         }
+        quote->datalen = quote_tmp.datalen;
 
         ret = GenerateQuote(quote);
         if (ret != EH_OK)

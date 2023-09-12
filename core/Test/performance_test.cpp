@@ -66,21 +66,24 @@ size_t supported_sm2_digest_mode_num = sizeof(supported_sm2_digest_mode) / sizeo
 
 static bool _createkey(ehsm_keyblob_t *&cmk)
 {
-    cmk->metadata.origin = EH_INTERNAL_KEY;
-    cmk->keybloblen = 0;
-    ehsm_status_t ret = CreateKey(cmk);
+    ehsm_keyblob_t cmk_tmp = {};
+    cmk_tmp.metadata.origin = EH_INTERNAL_KEY;
+    cmk_tmp.keybloblen = 0;
+    ehsm_status_t ret = CreateKey(&cmk_tmp);
     if (ret != EH_OK)
     {
-        log_e("first createkey failed with keyspec code %d failed.\n", cmk->metadata.keyspec);
+        log_e("first createkey failed with keyspec code %d failed.\n", cmk_tmp.metadata.keyspec);
         return false;
     }
 
-    cmk = (ehsm_keyblob_t *)realloc(cmk, APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen));
+    cmk = (ehsm_keyblob_t *)malloc(APPEND_SIZE_TO_KEYBLOB_T(cmk_tmp.keybloblen));
     if (cmk == NULL)
     {
-        log_e("realloc failed.\n");
+        log_e("malloc failed.\n");
         return false;
     }
+    cmk->keybloblen = cmk_tmp.keybloblen;
+    cmk->metadata = cmk_tmp.metadata;
 
     ret = CreateKey(cmk);
     if (ret != EH_OK)
@@ -93,25 +96,22 @@ static bool _createkey(ehsm_keyblob_t *&cmk)
 
 static bool _encrypt(ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *aad, ehsm_data_t *&ciphertext)
 {
-    ciphertext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-    if (ciphertext == NULL)
-    {
-        log_e("out of memory malloc failed.\n");
-        return false;
-    }
-    ciphertext->datalen = 0;
-    ehsm_status_t ret = Encrypt(cmk, plaintext, aad, ciphertext);
+    ehsm_data_t ciphertext_tmp = {0};
+
+    ehsm_status_t ret = Encrypt(cmk, plaintext, aad, &ciphertext_tmp);
     if (ret != EH_OK)
     {
         log_e("first encrypt failed with keyspec code %d.\n", cmk->metadata.keyspec);
         return false;
     }
-    ciphertext = (ehsm_data_t *)realloc(ciphertext, APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
+    ciphertext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(ciphertext_tmp.datalen));
     if (ciphertext == NULL)
     {
-        log_e("out of memory realloc failed.\n");
+        log_e("out of memory malloc failed.\n");
         return false;
     }
+    ciphertext->datalen = ciphertext_tmp.datalen;
+
     ret = Encrypt(cmk, plaintext, aad, ciphertext);
     if (ret != EH_OK)
     {
@@ -123,25 +123,22 @@ static bool _encrypt(ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *a
 
 static bool _decrypt(ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *aad, ehsm_data_t *&plaintext)
 {
-    plaintext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-    if (plaintext == NULL)
-    {
-        log_e("out of memory malloc failed.\n");
-        return false;
-    }
-    plaintext->datalen = 0;
-    ehsm_status_t ret = Decrypt(cmk, ciphertext, aad, plaintext);
+    ehsm_data_t plaintext_tmp = {0};
+
+    ehsm_status_t ret = Decrypt(cmk, ciphertext, aad, &plaintext_tmp);
     if (ret != EH_OK)
     {
         log_e("first encrypt failed with keyspec code %d.\n", cmk->metadata.keyspec);
         return false;
     }
-    plaintext = (ehsm_data_t *)realloc(plaintext, APPEND_SIZE_TO_DATA_T(plaintext->datalen));
+    plaintext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(plaintext_tmp.datalen));
     if (plaintext == NULL)
     {
-        log_e("out of memory realloc failed.\n");
+        log_e("out of memory malloc failed.\n");
         return false;
     }
+    plaintext->datalen = plaintext_tmp.datalen;
+
     ret = Decrypt(cmk, ciphertext, aad, plaintext);
     if (ret != EH_OK)
     {
@@ -153,25 +150,22 @@ static bool _decrypt(ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *
 
 static bool _asymmetric_encrypt(ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehsm_data_t *&ciphertext)
 {
-    ciphertext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-    if (ciphertext == NULL)
-    {
-        log_e("out of memory malloc failed.\n");
-        return false;
-    }
-    ciphertext->datalen = 0;
-    ehsm_status_t ret = AsymmetricEncrypt(cmk, EH_RSA_PKCS1, plaintext, ciphertext);
+    ehsm_data_t ciphertext_tmp = {0};
+
+    ehsm_status_t ret = AsymmetricEncrypt(cmk, EH_RSA_PKCS1, plaintext, &ciphertext_tmp);
     if (ret != EH_OK)
     {
         log_e("first asymmetric encrypt failed with keyspec code %d.\n", cmk->metadata.keyspec);
         return false;
     }
-    ciphertext = (ehsm_data_t *)realloc(ciphertext, APPEND_SIZE_TO_DATA_T(ciphertext->datalen));
+    ciphertext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(ciphertext_tmp.datalen));
     if (ciphertext == NULL)
     {
-        log_e("out of memory realloc failed.\n");
+        log_e("out of memory malloc failed.\n");
         return false;
     }
+    ciphertext->datalen = ciphertext_tmp.datalen;
+
     ret = AsymmetricEncrypt(cmk, EH_RSA_PKCS1, plaintext, ciphertext);
     if (ret != EH_OK)
     {
@@ -183,25 +177,22 @@ static bool _asymmetric_encrypt(ehsm_keyblob_t *cmk, ehsm_data_t *plaintext, ehs
 
 static bool _asymmetric_decrypt(ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, ehsm_data_t *&plaintext)
 {
-    plaintext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-    if (plaintext == NULL)
-    {
-        log_e("out of memory malloc failed.\n");
-        return false;
-    }
-    plaintext->datalen = 0;
-    ehsm_status_t ret = AsymmetricDecrypt(cmk, EH_RSA_PKCS1, ciphertext, plaintext);
+    ehsm_data_t plaintext_tmp = {0};
+
+    ehsm_status_t ret = AsymmetricDecrypt(cmk, EH_RSA_PKCS1, ciphertext, &plaintext_tmp);
     if (ret != EH_OK)
     {
         log_e("first asymmetric decrypt failed with keyspec code %d.\n", cmk->metadata.keyspec);
         return false;
     }
-    plaintext = (ehsm_data_t *)realloc(plaintext, APPEND_SIZE_TO_DATA_T(plaintext->datalen));
+    plaintext = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(plaintext_tmp.datalen));
     if (plaintext == NULL)
     {
-        log_e("out of memory realloc failed.\n");
+        log_e("out of memory malloc failed.\n");
         return false;
     }
+    plaintext->datalen = plaintext_tmp.datalen;
+
     ret = AsymmetricDecrypt(cmk, EH_RSA_PKCS1, ciphertext, plaintext);
     if (ret != EH_OK)
     {
@@ -213,25 +204,20 @@ static bool _asymmetric_decrypt(ehsm_keyblob_t *cmk, ehsm_data_t *ciphertext, eh
 
 static bool _sign(ehsm_keyblob_t *cmk, ehsm_digest_mode_t digest_mode, ehsm_padding_mode_t padding_mode, ehsm_message_type_t message_type, ehsm_data_t *message, ehsm_data_t *&signature)
 {
-    signature = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(0));
-    if (signature == NULL)
-    {
-        log_e("out of memory malloc failed.\n");
-        return false;
-    }
-    signature->datalen = 0;
-    ehsm_status_t ret = Sign(cmk, digest_mode, padding_mode, message_type, message, signature);
+    ehsm_data_t signature_tmp = {0};
+    ehsm_status_t ret = Sign(cmk, digest_mode, padding_mode, message_type, message, &signature_tmp);
     if (ret != EH_OK)
     {
         log_e("first sign failed with keyspec code %d.\n", cmk->metadata.keyspec);
         return false;
     }
-    signature = (ehsm_data_t *)realloc(signature, APPEND_SIZE_TO_DATA_T(signature->datalen));
+    signature = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(signature_tmp.datalen));
     if (signature == NULL)
     {
-        log_e("out of memory realloc failed.\n");
+        log_e("out of memory malloc failed.\n");
         return false;
     }
+    signature->datalen = signature_tmp.datalen;
     ret = Sign(cmk, digest_mode, padding_mode, message_type, message, signature);
     if (ret != EH_OK)
     {
