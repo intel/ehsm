@@ -601,7 +601,7 @@ const _query_api_key = async (DB, appid) => {
 }
 
 /**
- * Gen Hmac 
+ * Gen Hmac of sign_params safely, without transfering plaintext of apikey outside enclave
  * @param {object} DB //Database object
  * @param {string} appid // APP ID from client
  * @param {object} sign_params // A list object contain string params
@@ -609,25 +609,44 @@ const _query_api_key = async (DB, appid) => {
  */
 const gen_hmac = async (DB, appid, sign_params) => {
     try {
-        let {
-            msg,
-            api_key
-        } = await _query_api_key(DB, appid)
-        if (api_key && api_key.length == 0) {
-            logger.error(msg)
+        const db_query = {
+            selector: {
+                _id: `user_info:${appid}`,
+            },
+            fields: ['appid', 'apikey', 'cmk'],
+            limit: 1,
+        }
+        const query_result = await DB.partitionedFind('user_info', db_query)
+        if (!query_result || !query_result.docs[0]) {
             return {
-                error: msg,
+                msg: 'keyid not found',
                 hmac: ''
             }
         }
-        let sign_string = params_sort_str(sign_params)
-        let sign_result = crypto.createHmac('sha256', api_key)
-            .update(sign_string, 'utf8')
-            .digest('base64')
+
+        const { cmk, apikey } = query_result.docs[0];
+        if (apikey && apikey.length == 0) {
+            logger.error('Unexpected Error')
+            return {
+                error: 'Unexpected Error',
+                hmac: ''
+            }
+        }
+
+        const sign_string = base64_encode(params_sort_str(sign_params))
+        const { result } = napi_result(
+            KMS_ACTION.common.GenHmac,
+            undefined,
+            {
+                cmk,
+                apikey,
+                payload: sign_string,
+            })
         return {
             error: '',
-            hmac: sign_result
+            hmac: result.hmac,
         }
+
     } catch (error) {
         logger.error(error)
         return {

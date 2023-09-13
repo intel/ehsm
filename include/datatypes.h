@@ -73,6 +73,8 @@ typedef int errno_t;
 #define EH_API_KEY_SIZE    32
 #define UUID_STR_LEN	   37
 
+#define EH_HMAC_SHA256_SIZE 32
+
 #define TAG_SIZE           16
 #define IV_SIZE            12
 

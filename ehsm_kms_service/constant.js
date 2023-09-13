@@ -81,7 +81,8 @@ const ehsm_action_t = {
     [KMS_ACTION.common.GetVersion]: 13,
     [KMS_ACTION.enroll.Enroll]: 14,
     [KMS_ACTION.remote_attestation.GenerateQuote]: 15,
-    [KMS_ACTION.remote_attestation.VerifyQuote]: 16
+    [KMS_ACTION.remote_attestation.VerifyQuote]: 16,
+    [KMS_ACTION.common.GenHmac]: 17,
     
 }
 
