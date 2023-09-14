@@ -1,4 +1,4 @@
-const MAX_LENGTH = 8192
+const MAX_LENGTH = 6 * 1024
 const { ehsm_keySpec_t, ehsm_keyorigin_t, ehsm_message_type_t, ehsm_digest_mode_t, ehsm_padding_mode_t } = require('./constant')
 const { KMS_ACTION } = require('./apis')
 const { _result } = require('./function')
@@ -49,7 +49,7 @@ const keyid = {
 }
 const aad = {
   type: PARAM_DATA_TYPE.BASE64,
-  maxLength: MAX_LENGTH,
+  maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
   required: false,
 }
 
@@ -71,7 +71,7 @@ const cryptographic_params = {
     keyid,
     plaintext: {
       type: PARAM_DATA_TYPE.BASE64,
-      maxLength: MAX_LENGTH,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
       minLength: 1,
       required: true,
     },
@@ -81,7 +81,8 @@ const cryptographic_params = {
     keyid,
     ciphertext: {
       type: PARAM_DATA_TYPE.BASE64,
-      maxLength: MAX_LENGTH,
+      maxLength: (MAX_LENGTH + 30) * 4 / 3,  // This is the length after base64 encoding. 
+                                             // 30 is the length of base64(12B IV + 16B MAC), coming from ceil(28/3).
       minLength: 1,
       required: true,
     },
@@ -111,7 +112,7 @@ const cryptographic_params = {
     keyid,
     message: {
       type: PARAM_DATA_TYPE.BASE64,
-      maxLength: MAX_LENGTH,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
       minLength: 1,
       required: true,
     },
@@ -123,7 +124,7 @@ const cryptographic_params = {
     keyid,
     message: {
       type: PARAM_DATA_TYPE.BASE64,
-      maxLength: MAX_LENGTH,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
       minLength: 1,
       required: true,
     },
@@ -132,7 +133,7 @@ const cryptographic_params = {
     padding_mode,
     signature: {
       type: PARAM_DATA_TYPE.BASE64,
-      maxLength: MAX_LENGTH,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
       minLength: 1,
       required: true,
     },
@@ -141,7 +142,7 @@ const cryptographic_params = {
     keyid,
     plaintext: {
       type: PARAM_DATA_TYPE.BASE64,
-      maxLength: MAX_LENGTH,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
       minLength: 1,
       required: true,
     },
@@ -154,7 +155,7 @@ const cryptographic_params = {
     keyid,
     ciphertext: {
       type: PARAM_DATA_TYPE.BASE64,
-      maxLength: MAX_LENGTH,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
       minLength: 1,
       required: true,
     },
@@ -165,14 +166,14 @@ const cryptographic_params = {
     ukeyid: {
       type: PARAM_DATA_TYPE.STRING,
       minLength: 1,
-      maxLength: MAX_LENGTH,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
       required: true,
     },
     aad,
     olddatakey_base: {
       type: PARAM_DATA_TYPE.STRING,
       minLength: 1,
-      maxLength: MAX_LENGTH,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
       required: true,
     },
   },
