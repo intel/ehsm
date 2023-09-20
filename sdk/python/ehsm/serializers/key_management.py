@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+from pydantic.dataclasses import dataclass
 from typing import List
 
-from .base import EHSMBase
+from ehsm.serializers.base import EHSMBase
 
 
 @dataclass
