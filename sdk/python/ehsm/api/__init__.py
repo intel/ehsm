@@ -2,11 +2,12 @@ from typing import Optional
 
 from ehsm.session import Session
 
-from .key_management import KeyManagementMixin
-from .base import EHSMBaseClient
+from ehsm.api.key_management import KeyManagementMixin
+from ehsm.api.remote_attestation import RemoteAttestationMixin
+from ehsm.api.base import EHSMBaseClient
 
 
-class Client(KeyManagementMixin, EHSMBaseClient):
+class Client(KeyManagementMixin, RemoteAttestationMixin, EHSMBaseClient):
     def __init__(
         self,
         base_url: str,
