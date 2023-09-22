@@ -4,10 +4,11 @@ from ehsm.session import Session
 
 from ehsm.api.key_management import KeyManagementMixin
 from ehsm.api.remote_attestation import RemoteAttestationMixin
+from ehsm.api.crypto import CryptoMixin
 from ehsm.api.base import EHSMBaseClient
 
 
-class Client(KeyManagementMixin, RemoteAttestationMixin, EHSMBaseClient):
+class Client(KeyManagementMixin, RemoteAttestationMixin, CryptoMixin, EHSMBaseClient):
     def __init__(
         self,
         base_url: str,
