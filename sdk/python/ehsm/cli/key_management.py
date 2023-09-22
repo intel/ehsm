@@ -3,6 +3,7 @@ import click
 from ehsm.api import Client
 from ehsm.cli.base import ehsm_cli, with_client
 from ehsm.cli.utils import with_credential_missing_handler
+from ehsm.cli.options import *
 
 
 __all__ = [
@@ -50,8 +51,8 @@ def list_key(client: Client):
 @ehsm_cli.command()
 @with_client
 @with_credential_missing_handler
-@click.option(
-    "--keyid", type=str, required=True, help="ID of the CMK you want to delete"
+@option_keyid(
+    help="ID of the CMK you want to delete"
 )
 def delete_key(client: Client, keyid: str):
     resp = client.delete_key(keyid)
@@ -69,6 +70,7 @@ def delete_all_key(client: Client):
 @ehsm_cli.command()
 @with_client
 @with_credential_missing_handler
+@option_keyid()
 def enable_key(client: Client, keyid: str):
     resp = client.enable_key(keyid)
     click.echo(resp.message)
@@ -77,6 +79,7 @@ def enable_key(client: Client, keyid: str):
 @ehsm_cli.command()
 @with_client
 @with_credential_missing_handler
+@option_keyid()
 def disable_key(client: Client, keyid: str):
     resp = client.disable_key(keyid)
     click.echo(resp.message)
