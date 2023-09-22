@@ -39,9 +39,66 @@
 #include "key_operation.h"
 #include "openssl_operation.h"
 
+#include <openssl/param_build.h>
+#include <openssl/encoder.h>
+#include <openssl/decoder.h>
+
 extern sgx_aes_gcm_256bit_key_t g_domain_key;
 
 using namespace std;
+
+static sgx_status_t encode_keypair_to_pem(EVP_PKEY *pkey, ehsm_keyblob_t *cmk)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    uint8_t *pem_keypair = NULL;
+    size_t key_size = 0;
+    BIO *bio = NULL;
+    OSSL_ENCODER_CTX *ectx;
+
+    bio = BIO_new(BIO_s_mem());
+    if (bio == NULL)
+        goto out;
+
+    ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey,
+                                         OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
+                                         "PEM", NULL,
+                                         NULL);
+    if (ectx == NULL)
+        goto out;
+
+    if (!OSSL_ENCODER_to_bio(ectx, bio))
+        goto out;
+
+    ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey,
+                                         OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
+                                         "PEM", NULL,
+                                         NULL);
+    if (ectx == NULL)
+        goto out;
+
+    if (!OSSL_ENCODER_to_bio(ectx, bio))
+        goto out;
+
+    key_size = BIO_pending(bio);
+    pem_keypair = (uint8_t *)malloc(key_size);
+    if (pem_keypair == NULL)
+        goto out;
+
+    if (BIO_read(bio, pem_keypair, key_size) < 0)
+        goto out;
+
+    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+
+out:
+    BIO_free(bio);
+    OSSL_ENCODER_CTX_free(ectx);
+
+    SAFE_MEMSET(pem_keypair, key_size, 0, key_size);
+    SAFE_FREE(pem_keypair);
+
+    return ret;
+}
 
 sgx_status_t ehsm_calc_keyblob_size(const uint32_t keyspec, uint32_t &key_size)
 {
@@ -258,37 +315,33 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     if (cmk->keybloblen == 0)
         return ehsm_calc_keyblob_size(cmk->metadata.keyspec, cmk->keybloblen);
 
-    RSA *rsa_keypair = NULL;
-    BIO *bio = NULL;
-    uint8_t *pem_keypair = NULL;
-    uint32_t key_size = 0;
-    BIGNUM *e = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EVP_PKEY *pkey = NULL;
 
-    e = BN_new();
-    if (!e)
+    pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    if (pkey_ctx == NULL)
         goto out;
 
-    if (!BN_set_word(e, (BN_ULONG)RSA_F4))
-        goto out;
-
-    rsa_keypair = RSA_new();
-    if (rsa_keypair == NULL)
+    if (EVP_PKEY_keygen_init(pkey_ctx) <= 0)
         goto out;
 
     switch (cmk->metadata.keyspec)
     {
     case EH_RSA_2048:
-        RSA_generate_key_ex(rsa_keypair, RSA_2048_KEY_BITS, e, NULL);
+        EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_2048_KEY_BITS);
         break;
     case EH_RSA_3072:
-        RSA_generate_key_ex(rsa_keypair, RSA_3072_KEY_BITS, e, NULL);
+        EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_3072_KEY_BITS);
         break;
     case EH_RSA_4096:
-        RSA_generate_key_ex(rsa_keypair, RSA_4096_KEY_BITS, e, NULL);
+        EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_4096_KEY_BITS);
         break;
     default:
         goto out;
     }
+
+    if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0)
+        goto out;
 
 #ifdef ENABLE_PAIR_WISE_TEST
     if (!pair_wise_test_for_rsa(rsa_keypair))
@@ -298,42 +351,12 @@ sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk)
     }
 #endif
 
-    bio = BIO_new(BIO_s_mem());
-    if (bio == NULL)
-        goto out;
-
-    if (!PEM_write_bio_RSAPublicKey(bio, rsa_keypair))
-        goto out;
-
-    if (!PEM_write_bio_RSAPrivateKey(bio, rsa_keypair, NULL, NULL, 0, NULL, NULL))
-        goto out;
-
-    key_size = BIO_pending(bio);
-    if (key_size <= 0)
-        goto out;
-
-    pem_keypair = (uint8_t *)malloc(key_size);
-    if (pem_keypair == NULL)
-        goto out;
-
-    if (BIO_read(bio, pem_keypair, key_size) < 0)
-        goto out;
-
-    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
-
-    if (ret != SGX_SUCCESS)
-        goto out;
+    ret = encode_keypair_to_pem(pkey, cmk);
 
 out:
-    if (rsa_keypair)
-        RSA_free(rsa_keypair);
-    if (bio)
-        BIO_free(bio);
-    if (e)
-        BN_free(e);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    EVP_PKEY_free(pkey);
 
-    SAFE_MEMSET(pem_keypair, key_size, 0, key_size);
-    SAFE_FREE(pem_keypair);
     return ret;
 }
 
@@ -399,14 +422,14 @@ static bool pair_wise_test_for_ecc(uint8_t *keypair)
                signature_size,
                &result);
 out:
-    if (pir_key)
-        EC_KEY_free(pir_key);
+    // if (pir_key)
+    //     EC_KEY_free(pir_key);
     if (pri_bio)
         BIO_free(pri_bio);
     if (pub_bio)
         BIO_free(pub_bio);
-    if (pub_key)
-        EC_KEY_free(pub_key);
+    // if (pub_key)
+    //     EC_KEY_free(pub_key);
 
     memset_s(signature, signature_size, 0, signature_size);
     SAFE_FREE(signature);
@@ -426,9 +449,6 @@ sgx_status_t ehsm_create_ecc_key(ehsm_keyblob_t *cmk) // https://github.com/inte
 
     EVP_PKEY_CTX *pkey_ctx = NULL;
     EVP_PKEY *pkey = NULL;
-    BIO *bio = NULL;
-    uint8_t *pem_keypair = NULL;
-    uint32_t key_size = 0;
 
     pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
     if (pkey_ctx == NULL)
@@ -465,27 +485,6 @@ sgx_status_t ehsm_create_ecc_key(ehsm_keyblob_t *cmk) // https://github.com/inte
     if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0)
         goto out;
 
-    bio = BIO_new(BIO_s_mem());
-    if (bio == NULL)
-        goto out;
-
-    if (!PEM_write_bio_PUBKEY(bio, pkey))
-        goto out;
-
-    if (!PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL))
-        goto out;
-
-    key_size = BIO_pending(bio);
-    if (key_size <= 0)
-        goto out;
-
-    pem_keypair = (uint8_t *)malloc(key_size);
-    if (pem_keypair == NULL)
-        goto out;
-
-    if (BIO_read(bio, pem_keypair, key_size) < 0)
-        goto out;
-
 #ifdef ENABLE_PAIR_WISE_TEST
     if (!pair_wise_test_for_ecc(pem_keypair))
     {
@@ -494,18 +493,12 @@ sgx_status_t ehsm_create_ecc_key(ehsm_keyblob_t *cmk) // https://github.com/inte
     }
 #endif
 
-    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    ret = encode_keypair_to_pem(pkey, cmk);
 
 out:
-    if (pkey_ctx)
-        EVP_PKEY_CTX_free(pkey_ctx);
-    if (pkey)
-        EVP_PKEY_free(pkey);
-    if (bio)
-        BIO_free(bio);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    EVP_PKEY_free(pkey);
 
-    SAFE_MEMSET(pem_keypair, key_size, 0, key_size);
-    SAFE_FREE(pem_keypair);
     return ret;
 }
 
@@ -543,7 +536,6 @@ static bool pair_wise_test_for_sm2(EC_KEY *ec_key)
 #endif
 
 sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
-// https://github.com/intel/intel-sgx-ssl/blob/master/Linux/sgx/test_app/enclave/tests/evp_smx.c
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -553,37 +545,21 @@ sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
     if (cmk->keybloblen == 0)
         return ehsm_calc_keyblob_size(cmk->metadata.keyspec, cmk->keybloblen);
 
-    BIO *bio = NULL;
-    uint8_t *pem_keypair = NULL;
-    uint32_t key_size = 0;
-    EC_GROUP *ec_group = NULL;
-    EC_KEY *ec_key = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
 
-    ec_group = EC_GROUP_new_by_curve_name(NID_sm2);
-    if (ec_group == NULL)
-    {
-        log_e("Error: fail to create an EC_GROUP object for SM2\n");
+    pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_SM2, NULL);
+    if (pkey_ctx == NULL)
         goto out;
-    }
 
-    ec_key = EC_KEY_new();
-    if (ec_key == NULL)
-    {
-        log_e("Error: fail to create a new EC key\n");
+    if (EVP_PKEY_keygen_init(pkey_ctx) <= 0)
         goto out;
-    }
 
-    if (EC_KEY_set_group(ec_key, ec_group) != 1)
-    {
-        log_e("Error: fail to set the new EC key's curve\n");
+    if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, NID_sm2) <= 0)
         goto out;
-    }
 
-    if (!EC_KEY_generate_key(ec_key))
-    {
-        log_e("Error: fail to generate key pair based on the curve\n");
+    if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0)
         goto out;
-    }
 
 #ifdef ENABLE_PAIR_WISE_TEST
     if (!pair_wise_test_for_sm2(ec_key))
@@ -593,41 +569,14 @@ sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk)
     }
 #endif
 
-    bio = BIO_new(BIO_s_mem());
-    if (bio == NULL)
-        goto out;
-
-    if (!PEM_write_bio_EC_PUBKEY(bio, ec_key))
-        goto out;
-
-    if (!PEM_write_bio_ECPrivateKey(bio, ec_key, NULL, NULL, 0, NULL, NULL))
-        goto out;
-
-    key_size = BIO_pending(bio);
-    if (key_size <= 0)
-        goto out;
-
-    pem_keypair = (uint8_t *)malloc(key_size);
-    if (pem_keypair == NULL)
-        goto out;
-
-    if (BIO_read(bio, pem_keypair, key_size) < 0)
-        goto out;
-
-    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    ret = encode_keypair_to_pem(pkey, cmk);
 
     if (ret != SGX_SUCCESS)
         goto out;
 out:
-    if (ec_key)
-        EC_KEY_free(ec_key);
-    if (bio)
-        BIO_free(bio);
-    if (ec_group)
-        EC_GROUP_free(ec_group);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    EVP_PKEY_free(pkey);
 
-    SAFE_MEMSET(pem_keypair, key_size, 0, key_size);
-    SAFE_FREE(pem_keypair);
     return ret;
 }
 

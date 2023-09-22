@@ -78,7 +78,7 @@ sgx_status_t sm4_cbc_decrypt(uint8_t *key, uint8_t *plaintext,
                              uint8_t *ciphertext, uint32_t ciphertext_len,
                              uint8_t *iv);
 
-sgx_status_t rsa_sign(RSA *rsa_prikey,
+sgx_status_t rsa_sign(EVP_PKEY *evpkey,
                       const EVP_MD *digestMode,
                       uint32_t padding_mode,
                       ehsm_message_type_t message_type,
@@ -88,7 +88,7 @@ sgx_status_t rsa_sign(RSA *rsa_prikey,
                       uint32_t signature_len,
                       int saltlen = -1);
 
-sgx_status_t rsa_verify(RSA *rsa_pubkey,
+sgx_status_t rsa_verify(EVP_PKEY *evpkey,
                        const EVP_MD *digestMode,
                        uint32_t padding_mode,
                        ehsm_message_type_t message_type,
@@ -99,7 +99,7 @@ sgx_status_t rsa_verify(RSA *rsa_pubkey,
                        bool *result,
                        int saltlen = -1);
 
-sgx_status_t ecc_sign(EC_KEY *ec_key,
+sgx_status_t ecc_sign(EVP_PKEY *evpkey,
                       const EVP_MD *digestMode,
                       ehsm_message_type_t message_type,
                       const uint8_t *data,
@@ -107,7 +107,7 @@ sgx_status_t ecc_sign(EC_KEY *ec_key,
                       uint8_t *signature,
                       uint32_t *signature_len);
 
-sgx_status_t ecc_verify(EC_KEY *ec_key,
+sgx_status_t ecc_verify(EVP_PKEY *evpkey,
                         const EVP_MD *digestMode,
                         ehsm_message_type_t message_type,
                         const uint8_t *data,
@@ -116,7 +116,7 @@ sgx_status_t ecc_verify(EC_KEY *ec_key,
                         uint32_t signature_len,
                         bool *result);
 
-sgx_status_t sm2_sign(EC_KEY *ec_key,
+sgx_status_t sm2_sign(EVP_PKEY *evpkey,
                       const EVP_MD *digestMode,
                       ehsm_message_type_t message_type,
                       const uint8_t *data,
@@ -126,7 +126,7 @@ sgx_status_t sm2_sign(EC_KEY *ec_key,
                       const uint8_t *id,
                       uint32_t id_len);
 
-sgx_status_t sm2_verify(EC_KEY *ec_key,
+sgx_status_t sm2_verify(EVP_PKEY *evpkey,
                         const EVP_MD *digestMode,
                         ehsm_message_type_t message_type,
                         const uint8_t *data,
