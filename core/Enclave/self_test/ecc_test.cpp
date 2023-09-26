@@ -345,12 +345,13 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     bool ret = false;
     bool result = false;
 
-    // Get the curve in the test vector and set it in ec_key
-    ec_key = EC_KEY_new_by_curve_name(get_curve(curve));
-    if (ec_key == NULL)
-    {
-        goto out;
-    }
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+
+    pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
+    EVP_PKEY_keygen_init(pkey_ctx);
+    EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkey_ctx, get_curve(curve));
+
     ecdsa_sig = ECDSA_SIG_new();
     if (ecdsa_sig == NULL)
     {
@@ -363,12 +364,10 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     BN_hex2bn(&S, (test_vector["S"]).c_str());
 
     // Set the public key of ec_key through Qx and Qy
-    if (EC_KEY_set_public_key_affine_coordinates(ec_key, Qx, Qy) != 1)
-    {
-        log_e("EC_KEY_set_public_key_affine_coordinates failed.\n");
-        goto out;
-    }
-    ecdsa_signature_max_size = ECDSA_size(ec_key);
+    EVP_PKEY_set_bn_param(pkey, OSSL_PKEY_PARAM_EC_PUB_X, Qx);
+    EVP_PKEY_set_bn_param(pkey, OSSL_PKEY_PARAM_EC_PUB_Y, Qy);
+
+    ecdsa_signature_max_size = EVP_PKEY_get_size(pkey);
     {
         if (ecdsa_signature_max_size <= 0)
         {
@@ -394,7 +393,7 @@ static bool ecc_sign_verify(map<string, string> test_vector)
     }
 
     // Verify the generated signature
-    if (ecc_verify(ec_key,
+    if (ecc_verify(pkey,
                    getDigestMode(digestmode),
                    EH_RAW,
                    &*Msg,
@@ -415,8 +414,6 @@ static bool ecc_sign_verify(map<string, string> test_vector)
 
     ret = true;
 out:
-    if (ec_key)
-        EC_KEY_free(ec_key);
     if (ecdsa_sig)
         ECDSA_SIG_free(ecdsa_sig);
     if (Qx)

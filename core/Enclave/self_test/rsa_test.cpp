@@ -445,10 +445,10 @@ static void RSA_create_key(RSA *key, const char *n, const char *e, const char *d
     BN_hex2bn(&publicExponent, e);
     BN_hex2bn(&privateExponent, d);
 
-    RSA_set0_key(key,
-                 modulus,
-                 publicExponent,
-                 privateExponent);
+    // RSA_set0_key(key,
+    //              modulus,
+    //              publicExponent,
+    //              privateExponent);
 }
 
 static bool rsa_decryption_with_pkcs_oaep(map<string, string> test_vector)
@@ -465,34 +465,34 @@ static bool rsa_decryption_with_pkcs_oaep(map<string, string> test_vector)
     GET_PARAMETER(plaintext);
     GET_PARAMETER(ciphertext);
 
-    RSA *key = RSA_new();
+    OSSL_PARAM_BLD *params_build = OSSL_PARAM_BLD_new();
+    OSSL_PARAM_BLD_push_BN(params_build, "n", BN_bin2bn(&*n, VECTOR_LENGTH("n"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "e", BN_bin2bn(&*e, VECTOR_LENGTH("e"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "d", BN_bin2bn(&*d, VECTOR_LENGTH("d"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "rsa-factor1", BN_bin2bn(&*p, VECTOR_LENGTH("p"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "rsa-factor2", BN_bin2bn(&*q, VECTOR_LENGTH("q"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "rsa-exponent1", BN_bin2bn(&*dmp1, VECTOR_LENGTH("dmp1"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "rsa-exponent2", BN_bin2bn(&*dmq1, VECTOR_LENGTH("dmq1"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "rsa-coefficient1", BN_bin2bn(&*iqmp, VECTOR_LENGTH("iqmp"), NULL));
+    OSSL_PARAM *params = OSSL_PARAM_BLD_to_param(params_build);
 
-    RSA_set0_key(key,
-                 BN_bin2bn(&*n, VECTOR_LENGTH("n"), NULL),
-                 BN_bin2bn(&*e, VECTOR_LENGTH("e"), NULL),
-                 BN_bin2bn(&*d, VECTOR_LENGTH("d"), NULL));
-    RSA_set0_factors(key,
-                     BN_bin2bn(&*p, VECTOR_LENGTH("p"), NULL),
-                     BN_bin2bn(&*q, VECTOR_LENGTH("q"), NULL));
-    RSA_set0_crt_params(key,
-                        BN_bin2bn(&*dmp1, VECTOR_LENGTH("dmp1"), NULL),
-                        BN_bin2bn(&*dmq1, VECTOR_LENGTH("dmq1"), NULL),
-                        BN_bin2bn(&*iqmp, VECTOR_LENGTH("iqmp"), NULL));
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    size_t outLen = 0;
 
-    int rsa_size = RSA_size(key);
-    if (rsa_size <= 42)
-    {
-        RSA_free(key);
-        return false;
-    }
+    pkey_ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
+    EVP_PKEY_fromdata_init(pkey_ctx);
+    EVP_PKEY_fromdata(pkey_ctx, &pkey, OSSL_KEYMGMT_SELECT_PRIVATE_KEY, params);
+    EVP_PKEY_decrypt_init(pkey_ctx);
+    EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, 4);
+    EVP_PKEY_decrypt(pkey_ctx, NULL, &outLen, &*plaintext, (size_t)VECTOR_LENGTH("plaintext"));
+
     uint32_t plaintext_len =
-        std::max(VECTOR_LENGTH("plaintext"), (uint32_t)rsa_size - 42);
+        std::max(VECTOR_LENGTH("plaintext"), (uint32_t)outLen - 42);
     uint8_t _plaintext[plaintext_len];
     memset(_plaintext, 0, plaintext_len);
 
-    RSA_private_decrypt(rsa_size, &*ciphertext, _plaintext, key, 4);
-
-    RSA_free(key);
+    EVP_PKEY_decrypt(pkey_ctx, _plaintext, &outLen, &*plaintext, (size_t)VECTOR_LENGTH("plaintext"));
 
     return TEST_COMPARE(plaintext);
 }
@@ -509,24 +509,29 @@ static bool rsa_sign_verify_with_PKCS1(map<string, string> test_vector)
     int digestmode = atoi((test_vector["digestmode"]).c_str());
     int paddingmode = atoi((test_vector["paddingmode"]).c_str());
 
-    RSA *key = RSA_new();
-
     // Generate rsa key pair by n, e, d
-    RSA_create_key(key,
-                   test_vector["n"].c_str(),
-                   test_vector["e"].c_str(),
-                   test_vector["d"].c_str());
+    OSSL_PARAM_BLD *params_build = OSSL_PARAM_BLD_new();
+    OSSL_PARAM_BLD_push_BN(params_build, "n", BN_bin2bn(&*n, VECTOR_LENGTH("n"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "e", BN_bin2bn(&*e, VECTOR_LENGTH("e"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "d", BN_bin2bn(&*d, VECTOR_LENGTH("d"), NULL));
+    OSSL_PARAM *params = OSSL_PARAM_BLD_to_param(params_build);
 
-    uint8_t _S[RSA_size(key)] = {0};
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    pkey_ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
+    EVP_PKEY_fromdata_init(pkey_ctx);
+    EVP_PKEY_fromdata(pkey_ctx, &pkey, OSSL_KEYMGMT_SELECT_PRIVATE_KEY, params);
 
-    (void)rsa_sign(key,
+    uint8_t _S[BN_num_bytes(BN_bin2bn(&*n, VECTOR_LENGTH("n"), NULL))] = {0};
+
+    (void)rsa_sign(pkey,
                    getDigestMode(digestmode),
                    getPaddingMode((ehsm_padding_mode_t)paddingmode),
                    EH_RAW,
                    &*msg,
                    VECTOR_LENGTH("msg"),
                    _S,
-                   (uint32_t)RSA_size(key));
+                   (uint32_t)BN_num_bytes(BN_bin2bn(&*n, VECTOR_LENGTH("n"), NULL)));
 
     // Compare the result after RSA_sign with S in the test vector
     if (TEST_COMPARE(S) == false)
@@ -535,8 +540,10 @@ static bool rsa_sign_verify_with_PKCS1(map<string, string> test_vector)
         return false;
     }
 
+    EVP_PKEY_fromdata(pkey_ctx, &pkey, OSSL_KEYMGMT_SELECT_PUBLIC_KEY, params);
+
     // Verify the generated signature
-    (void)rsa_verify(key,
+    (void)rsa_verify(pkey,
                      getDigestMode(digestmode),
                      getPaddingMode((ehsm_padding_mode_t)paddingmode),
                      EH_RAW,
@@ -545,8 +552,6 @@ static bool rsa_sign_verify_with_PKCS1(map<string, string> test_vector)
                      &*S,
                      VECTOR_LENGTH("S"),
                      &result);
-
-    RSA_free(key);
 
     if (result == false)
     {
@@ -569,22 +574,20 @@ static bool rsa_sign_verify_with_PKCS1_PSS(map<string, string> test_vector)
     int digestmode = atoi((test_vector["digestmode"]).c_str());
     int paddingmode = atoi((test_vector["paddingmode"]).c_str());
 
-    RSA *key = RSA_new();
-
-    BIGNUM *modulus = BN_new();
-    BIGNUM *publicExponent = BN_new();
-
-    BN_hex2bn(&modulus, test_vector["n"].c_str());
-    BN_hex2bn(&publicExponent, test_vector["e"].c_str());
-
     // Generate rsa key pair by n, e
-    RSA_set0_key(key,
-                 modulus,
-                 publicExponent,
-                 NULL);
+    OSSL_PARAM_BLD *params_build = OSSL_PARAM_BLD_new();
+    OSSL_PARAM_BLD_push_BN(params_build, "n", BN_bin2bn(&*n, VECTOR_LENGTH("n"), NULL));
+    OSSL_PARAM_BLD_push_BN(params_build, "e", BN_bin2bn(&*e, VECTOR_LENGTH("e"), NULL));
+    OSSL_PARAM *params = OSSL_PARAM_BLD_to_param(params_build);
+
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    pkey_ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
+    EVP_PKEY_fromdata_init(pkey_ctx);
+    EVP_PKEY_fromdata(pkey_ctx, &pkey, OSSL_KEYMGMT_SELECT_PRIVATE_KEY, params);
 
     // Verify the generated signature
-    (void)rsa_verify(key,
+    (void)rsa_verify(pkey,
                      getDigestMode(digestmode),
                      getPaddingMode((ehsm_padding_mode_t)paddingmode),
                      EH_RAW,
@@ -594,8 +597,6 @@ static bool rsa_sign_verify_with_PKCS1_PSS(map<string, string> test_vector)
                      VECTOR_LENGTH("S"),
                      &result,
                      saltlen);
-
-    RSA_free(key);
 
     if (result == false)
     {

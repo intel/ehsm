@@ -31,7 +31,7 @@
 
 include buildenv.mk
 
-SUB_DIR := core dkeycache dkeyserver
+SUB_DIR := core
 SSL_DIR := third_party/intel-sgx-ssl
 export DESTDIR = ${OPENSSL_PATH}
 
@@ -61,10 +61,10 @@ ifeq ("$(wildcard $(SSL_DIR/Linux))", "")
 	@git submodule update --init --recursive
 endif
 ifeq ("$(wildcard $(DESTDIR))", "")
-	@wget https://www.openssl.org/source/openssl-1.1.1t.tar.gz -P $(SSL_DIR)/openssl_source/ || exit 1
+	@wget https://www.openssl.org/source/openssl-3.0.10.tar.gz -P $(SSL_DIR)/openssl_source/ || exit 1
 	$(MAKE) -C $(SSL_DIR)/Linux clean all install || exit 1
 	$(MAKE) -C $(SSL_DIR)/Linux clean
-	@rm -rf $(SSL_DIR)/openssl_source/openssl-1.1.1* $(SSL_DIR)/Linux/package/include/crypto
+	@rm -rf $(SSL_DIR)/openssl_source/openssl-* $(SSL_DIR)/Linux/package/include/crypto
 endif
 
 clean:
