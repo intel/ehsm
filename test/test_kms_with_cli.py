@@ -234,9 +234,6 @@ def test_GenerateQuote_and_VerifyQuote(base_url, headers):
     policyId = uploadQuotePolicy.uploadQuotePolicy(base_url, mr_enclave, mr_signer)
 
     result_getQuotePolicy = getQuotePolicy.getQuotePolicy(base_url, policyId)
-    print("------------------------")
-    print(result_getQuotePolicy)
-    print("------------------------")
     if ('mr_enclave' in result_getQuotePolicy):
         print('check getQuotePolicy result with %s: %s' %('mr_enclave', mr_enclave == result_getQuotePolicy['mr_enclave']))
     else:

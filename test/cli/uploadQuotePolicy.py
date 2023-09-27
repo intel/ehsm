@@ -32,7 +32,6 @@ def uploadQuotePolicy(base_url, mr_enclave, mr_signer):
     
     resp = requests.post(url=base_url + "UploadQuotePolicy", data=json.dumps(params), headers=_utils_.headers, verify=_utils_.use_secure_cert)
     if(_utils_.check_result(resp, 'UploadQuotePolicy') == False):
-        print("?????????????????????????????")
         return
     print('uploadQuotePolicy resp:\n%s\n' %(resp.text))
 

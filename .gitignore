@@ -45,6 +45,7 @@ dkeycache/App/auto_version.h
 dkeyserver/App/auto_version.h
 
 test/__pycache__/
+test/ehsm_enclave_out.log
 
 sdk/rust/target/
 sdk/rust/Cargo.lock
