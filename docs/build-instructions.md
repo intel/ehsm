@@ -50,10 +50,10 @@ Welcome to see the build instructions for the ehsm-kms project.
     ```
     ``` vi
     # PCCS server address
-    PCCS_URL=https://1.2.3.4:8081/sgx/certification/v3/ (your pccs IP)
+    "pccs_url": "https://1.2.3.4:8081/sgx/certification/v3/" (your pccs IP)
 
     # To accept insecure HTTPS certificate, set this option to FALSE
-    USE_SECURE_CERT=FALSE
+    "use_secure_cert": false
     ```
 
 * Install docker-compose
