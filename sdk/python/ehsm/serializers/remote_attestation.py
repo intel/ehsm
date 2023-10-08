@@ -1,5 +1,5 @@
 from pydantic.dataclasses import dataclass
-from .base import EHSMBase
+from ehsm.serializers.base import EHSMBase
 
 
 @dataclass
