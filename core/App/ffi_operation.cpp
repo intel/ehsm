@@ -265,7 +265,7 @@ extern "C"
             goto out;
         }
 
-        memcpy(&master_key_tmp.metadata, key_metadata, sizeof(ehsm_keymetadata_t));
+        memcpy_s(&master_key_tmp.metadata, sizeof(ehsm_keymetadata_t), key_metadata, sizeof(ehsm_keymetadata_t));
 
         ret = CreateKey(&master_key_tmp);
         if (ret != EH_OK)
@@ -275,7 +275,7 @@ extern "C"
             goto out;
         }
 
-        if (master_key_tmp.keybloblen == 0 || master_key_tmp.keybloblen > UINT16_MAX)
+        if ((master_key_tmp.keybloblen == 0 && master_key_tmp.metadata.origin != EH_EXTERNAL_KEY) || master_key_tmp.keybloblen > UINT16_MAX)
         {
             retJsonObj.setCode(retJsonObj.CODE_FAILED);
             retJsonObj.setMessage("Server exception.");
@@ -386,6 +386,291 @@ extern "C"
         SAFE_FREE(publicKey);
         SAFE_FREE(cmk);
         SAFE_FREE(pubkey);
+        retJsonObj.toChar(respJson);
+        return ret;
+    }
+
+    /**
+     * @brief Decrypt user's key and store as an external key.
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    padding_mode : int,
+                    importToken : a base64 string,
+                    key_material : a base64 string,
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                cmk : a base64 string
+            }
+        }
+     */
+    uint32_t ffi_importKeyMaterial(JsonObj payloadJson, char *respJson)
+    {
+        RetJsonObj retJsonObj;
+
+        JsonObj tokenJsonObj;
+
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_keyblob_t *sessionkey = NULL;
+        ehsm_status_t ret = EH_OK;
+        ehsm_data_t *key_material = NULL;
+        ehsm_data_t *hmac = NULL;
+        ehsm_data_t *importToken = NULL;
+        std::string hmac_str;
+
+        JSON2STRUCT(payloadJson, cmk);
+        JSON2STRUCT(payloadJson, sessionkey);
+
+        std::string token_str = base64_decode(payloadJson.readData_string("importToken"));
+        tokenJsonObj.parse(token_str);
+
+        std::string signature = tokenJsonObj.readData_string("hmac");
+        uint32_t time_token = atoi(tokenJsonObj.readData_cstr("timestamp"));
+        uint32_t timestamp = atoi(payloadJson.readData_cstr("timestamp"));
+
+        Json::Value token_json = tokenJsonObj.getJson();
+        token_json.removeMember("hmac");
+        tokenJsonObj.setJson(token_json);
+
+        importToken = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(tokenJsonObj.toString().size() - 1));
+        importToken->datalen = APPEND_SIZE_TO_DATA_T(tokenJsonObj.toString().size() - 1);
+
+        memcpy_s(importToken->data, importToken->datalen, tokenJsonObj.toString().c_str(), importToken->datalen);
+
+        string key_material_str_base64 = payloadJson.readData_string("key_material");
+
+        string key_material_str = base64_decode(key_material_str_base64);
+
+        key_material = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(key_material_str.length()));
+        key_material->datalen = key_material_str.length();
+        memcpy_s(key_material->data, key_material->datalen, key_material_str.c_str(), key_material->datalen);
+
+        ehsm_padding_mode_t padding_mode = (ehsm_padding_mode_t)payloadJson.readData_uint32("padding_mode");
+
+        // generate hmac space
+        hmac = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_HMAC_SHA256_SIZE));
+        if (hmac == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        hmac->datalen = EH_HMAC_SHA256_SIZE;
+
+        if (payloadJson.readData_string("sessionkey") == "")
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("SessionKeyBlob is empty.");
+            goto out;
+        }
+
+        ret = GenerateTokenHmac(sessionkey, importToken, hmac);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Generate tokenHmac failed.");
+            goto out;
+        }
+
+        hmac_str = base64_encode(hmac->data, hmac->datalen);
+        if (strcmp(hmac_str.c_str(), signature.c_str()))
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Hmac verify failed.");
+            goto out;
+        }
+        if (timestamp > time_token + TIME_24_HOURS)
+        {
+            memset(cmk->keyblob, 0, cmk->keybloblen);
+            cmk->keybloblen = 0;
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Timestamp expire.");
+            goto out;
+        }
+
+        ret = ImportKeyMaterial(cmk, padding_mode, key_material);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Import key failed.");
+            goto out;
+        }
+
+        STRUCT2JSON(retJsonObj, cmk);
+
+    out:
+        SAFE_FREE(cmk);
+        SAFE_FREE(key_material);
+        SAFE_FREE(importToken);
+        SAFE_FREE(hmac);
+        SAFE_FREE(sessionkey);
+        retJsonObj.toChar(respJson);
+        return ret;
+    }
+
+    /**
+     * @brief generate RSA keypair, store in external key and return public key.
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    keyspec : int,
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                pubkey : a base64 string，
+                importToken : a base64 string，
+            }
+        }
+     */
+    uint32_t ffi_getParametersForImport(JsonObj payloadJson, char *respJson)
+    {
+        ehsm_status_t ret = EH_OK;
+        // input params
+        ehsm_keyblob_t *cmk = NULL;
+        ehsm_data_t *importToken = NULL;
+        // immediate vars
+        Json::Value token_json;
+        ehsm_keyblob_t cmk_tmp;
+        ehsm_data_t *pubkey = NULL;
+        ehsm_data_t pubkey_tmp = {0};
+        ehsm_data_t *hmac = NULL;
+
+        // output params
+        char *publicKey = NULL;
+        std::string hmac_str;
+        std::string token_str;
+        ehsm_keyblob_t *sessionkey = NULL;
+        RetJsonObj retJsonObj;
+
+        memset(&cmk_tmp, 0, sizeof(cmk_tmp));
+
+        JSON2STRUCT(payloadJson, cmk);
+
+        ehsm_keyspec_t keyspec = (ehsm_keyspec_t)payloadJson.readData_uint32("keyspec");
+        token_json = payloadJson.readData_JsonValue("importToken");
+
+        JsonObj token;
+        token.setJson(token_json);
+
+        importToken = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(strlen(token.toString().c_str()) - 1));
+        importToken->datalen = APPEND_SIZE_TO_DATA_T(token.toString().size() - 1);
+
+        memcpy_s(importToken->data, importToken->datalen, token.toString().c_str(), importToken->datalen);
+
+        memcpy_s(&cmk_tmp, sizeof(ehsm_keyblob_t), cmk, sizeof(ehsm_keyblob_t));
+
+        ret = GetParametersForImport(&cmk_tmp, keyspec, &pubkey_tmp);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        if (pubkey_tmp.datalen == 0 || pubkey_tmp.datalen > UINT16_MAX)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        cmk = (ehsm_keyblob_t *)malloc(APPEND_SIZE_TO_KEYBLOB_T(cmk_tmp.keybloblen));
+        if (cmk == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        pubkey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(pubkey_tmp.datalen));
+        if (pubkey == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        pubkey->datalen = pubkey_tmp.datalen;
+        cmk->keybloblen = cmk_tmp.keybloblen;
+        cmk->metadata = cmk_tmp.metadata;
+
+        ret = GetParametersForImport(cmk, keyspec, pubkey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        publicKey = (char *)malloc(pubkey->datalen);
+        memcpy_s(publicKey, pubkey->datalen, pubkey->data, pubkey->datalen);
+        publicKey[pubkey->datalen] = '\0';
+        retJsonObj.addData_string("pubkey", publicKey);
+
+        // generate hmac space
+        hmac = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_HMAC_SHA256_SIZE));
+        if (hmac == NULL)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        hmac->datalen = EH_HMAC_SHA256_SIZE;
+
+        // generate a 32B cmk.
+        sessionkey = (ehsm_keyblob_t *)malloc(APPEND_SIZE_TO_KEYBLOB_T(80));
+
+        sessionkey->metadata.keyspec = EH_AES_GCM_256;
+        sessionkey->metadata.origin = EH_INTERNAL_KEY;
+        sessionkey->metadata.keyusage = EH_KEYUSAGE_ENCRYPT_DECRYPT;
+        sessionkey->keybloblen = 80;
+
+        ret = CreateKey(sessionkey);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+
+        STRUCT2JSON(retJsonObj, sessionkey);
+
+        ret = GenerateTokenHmac(sessionkey, importToken, hmac);
+        if (ret != EH_OK)
+        {
+            retJsonObj.setCode(retJsonObj.CODE_FAILED);
+            retJsonObj.setMessage("Server exception.");
+            goto out;
+        }
+        hmac_str = base64_encode(hmac->data, hmac->datalen);
+
+        token.addData_string("hmac", hmac_str);
+
+        token_str = base64_encode((uint8_t *)token.toString().c_str(), token.toString().size());
+
+        retJsonObj.addData_string("importToken", token_str);
+        STRUCT2JSON(retJsonObj, cmk);
+
+    out:
+        SAFE_FREE(publicKey);
+        SAFE_FREE(cmk);
+        SAFE_FREE(pubkey);
+        SAFE_FREE(importToken);
+        SAFE_FREE(hmac);
+        SAFE_FREE(sessionkey);
         retJsonObj.toChar(respJson);
         return ret;
     }
@@ -1511,12 +1796,13 @@ extern "C"
         JSON2STRUCT(payloadJson, apikey);
         JSON2STRUCT(payloadJson, payload);
 
-        if (cmk == NULL || apikey == NULL || payload == NULL) {
+        if (cmk == NULL || apikey == NULL || payload == NULL)
+        {
             retJsonObj.setCode(retJsonObj.CODE_BAD_REQUEST);
             retJsonObj.setMessage("paramter invalid.");
             goto out;
         }
-        
+
         // 1. generate hmac
         hmac = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(EH_HMAC_SHA256_SIZE));
         if (hmac == NULL)
@@ -1539,7 +1825,7 @@ extern "C"
         retJsonObj.setCode(retJsonObj.CODE_SUCCESS);
         retJsonObj.addData_string("hmac", hmac_str);
 
-out:
+    out:
         SAFE_FREE(cmk);
         SAFE_FREE(apikey);
         SAFE_FREE(payload);

@@ -31,9 +31,13 @@
 
 #include "enclave_hsm_t.h"
 #include "openssl/rand.h"
+#include "openssl/bio.h"
+#include "openssl/pem.h"
 #include "datatypes.h"
 #include "key_factory.h"
 #include "key_operation.h"
+
+#define DEBUG_ONLY 0
 
 using namespace std;
 
@@ -95,6 +99,31 @@ static size_t get_signature_length(ehsm_keyspec_t keyspec)
     default:
         return -1;
     }
+}
+
+static sgx_status_t check_key_length(int retval, ehsm_keyspec_t keyspec)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    switch (keyspec)
+    {
+    case EH_SM4_CTR:
+    case EH_SM4_CBC:
+    case EH_AES_GCM_128:
+        if (retval != 16)
+            ret = SGX_ERROR_UNEXPECTED;
+        break;
+    case EH_AES_GCM_192:
+        if (retval != 24)
+            ret = SGX_ERROR_UNEXPECTED;
+        break;
+    case EH_AES_GCM_256:
+        if (retval != 32)
+            ret = SGX_ERROR_UNEXPECTED;
+        break;
+    default:
+        ret = SGX_ERROR_UNEXPECTED;
+    }
+    return ret;
 }
 
 sgx_status_t enclave_get_domain_key_from_local()
@@ -163,10 +192,16 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
 
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
-        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        (cmk->metadata.origin != EH_EXTERNAL_KEY && cmk->metadata.origin != EH_INTERNAL_KEY) ||
         (cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT && cmk->metadata.keyusage != EH_KEYUSAGE_SIGN_VERIFY))
     {
         return SGX_ERROR_INVALID_PARAMETER;
+    }
+    // For external keys, keyblob is empty when first created.
+    if (cmk->metadata.origin == EH_EXTERNAL_KEY)
+    {
+        cmk->keybloblen = 0;
+        return SGX_SUCCESS;
     }
 
     switch (cmk->metadata.keyspec)
@@ -199,6 +234,214 @@ sgx_status_t enclave_create_key(ehsm_keyblob_t *cmk, size_t cmk_size)
         ret = SGX_ERROR_INVALID_PARAMETER;
     }
 
+    return ret;
+}
+
+sgx_status_t enclave_get_parameters_for_import(ehsm_keyblob_t *cmk, size_t cmk_size,
+                                               ehsm_keyspec_t keyspec,
+                                               ehsm_data_t *pubkey, size_t pubkey_size)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL ||
+        cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
+        cmk->metadata.origin != EH_EXTERNAL_KEY ||
+        pubkey_size != APPEND_SIZE_TO_DATA_T(pubkey->datalen) ||
+        (cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT && cmk->metadata.keyusage != EH_KEYUSAGE_SIGN_VERIFY))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    switch (keyspec)
+    {
+    case EH_RSA_2048:
+        cmk->keybloblen = PEM_BUFSIZE * 3 + sizeof(sgx_aes_gcm_data_ex_t);
+        break;
+    case EH_RSA_3072:
+        cmk->keybloblen = PEM_BUFSIZE * 4 + sizeof(sgx_aes_gcm_data_ex_t);
+        break;
+    case EH_RSA_4096:
+        cmk->keybloblen = PEM_BUFSIZE * 5 + sizeof(sgx_aes_gcm_data_ex_t);
+        break;
+    default:
+        return SGX_ERROR_INVALID_PARAMETER;
+        break;
+    }
+
+    RSA *rsa_keypair = NULL;
+    BIO *bio = NULL;
+    uint8_t *pem_keypair = NULL;
+    uint32_t key_size = 0;
+    BIGNUM *e = NULL;
+
+    e = BN_new();
+    if (!e)
+        goto out;
+
+    if (!BN_set_word(e, (BN_ULONG)RSA_F4))
+        goto out;
+
+    rsa_keypair = RSA_new();
+    if (rsa_keypair == NULL)
+        goto out;
+
+    switch (keyspec)
+    {
+    case EH_RSA_2048:
+        RSA_generate_key_ex(rsa_keypair, RSA_2048_KEY_BITS, e, NULL);
+        break;
+    case EH_RSA_3072:
+        RSA_generate_key_ex(rsa_keypair, RSA_3072_KEY_BITS, e, NULL);
+        break;
+    case EH_RSA_4096:
+        RSA_generate_key_ex(rsa_keypair, RSA_4096_KEY_BITS, e, NULL);
+        break;
+    default:
+        ret = SGX_ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    bio = BIO_new(BIO_s_mem());
+    if (bio == NULL)
+        goto out;
+
+    if (!PEM_write_bio_RSAPublicKey(bio, rsa_keypair))
+        goto out;
+
+    // pend pubkey
+    if (pubkey->datalen == 0)
+    {
+        key_size = BIO_pending(bio);
+        if (key_size < 0)
+            goto out;
+
+        pubkey->datalen = key_size;
+
+        ret = SGX_SUCCESS;
+        goto out;
+    }
+
+    // pend private key
+    if (!PEM_write_bio_RSAPrivateKey(bio, rsa_keypair, NULL, NULL, 0, NULL, NULL))
+        goto out;
+
+    key_size = BIO_pending(bio);
+    if (key_size <= 0)
+        goto out;
+
+    pem_keypair = (uint8_t *)malloc(key_size);
+    if (pem_keypair == NULL)
+        goto out;
+
+    if (BIO_read(bio, pem_keypair, key_size) < 0)
+        goto out;
+
+    memcpy_s(pubkey->data, pubkey->datalen, pem_keypair, pubkey->datalen);
+
+    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+out:
+    if (rsa_keypair)
+        RSA_free(rsa_keypair);
+    if (bio)
+        BIO_free(bio);
+    if (e)
+        BN_free(e);
+
+    SAFE_MEMSET(pem_keypair, key_size, 0, key_size);
+    SAFE_FREE(pem_keypair);
+
+    return ret;
+}
+
+sgx_status_t enclave_import_key_material(ehsm_keyblob_t *cmk, size_t cmk_size,
+                                         ehsm_padding_mode_t padding_mode,
+                                         ehsm_data_t *key_material, size_t key_material_size)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (cmk == NULL ||
+        cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
+        cmk->metadata.origin != EH_EXTERNAL_KEY ||
+        key_material_size != APPEND_SIZE_TO_DATA_T(key_material->datalen) ||
+        (cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT && cmk->metadata.keyusage != EH_KEYUSAGE_SIGN_VERIFY))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    ehsm_data_t *import_key = NULL;
+    int retval = 0;
+
+    int paddingMode = getPaddingMode(padding_mode);
+    if (paddingMode != RSA_PKCS1_PADDING && paddingMode != RSA_PKCS1_OAEP_PADDING)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    uint8_t *rsa_keypair = NULL;
+    BIO *bio = NULL;
+    RSA *rsa_prikey = NULL;
+
+    // load private key
+    rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (rsa_keypair == NULL)
+        goto out;
+
+    ret = ehsm_parse_keyblob(rsa_keypair,
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+    bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
+    if (bio == NULL)
+    {
+        log_e("failed to load key pem\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
+    if (rsa_prikey == NULL)
+    {
+        log_e("failed to load private key\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
+    import_key = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(RSA_size(rsa_prikey)));
+    memset(import_key, 0, APPEND_SIZE_TO_DATA_T(RSA_size(rsa_prikey)));
+
+    retval = RSA_private_decrypt(key_material->datalen,
+                                 key_material->data,
+                                 import_key->data,
+                                 rsa_prikey,
+                                 paddingMode);
+    if (retval <= 0)
+    {
+        log_e("failed to make rsa decrypt\n");
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+    import_key->datalen = retval;
+
+    ret = check_key_length(retval, cmk->metadata.keyspec);
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+    memset_s(cmk->keyblob, cmk->keybloblen, 0, cmk->keybloblen);
+
+    ret = ehsm_create_keyblob(import_key->data,
+                              import_key->datalen,
+                              (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+
+    cmk->keybloblen = import_key->datalen + sizeof(sgx_aes_gcm_data_ex_t);
+
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+out:
+    SAFE_MEMSET(import_key->data, import_key->datalen, 0, import_key->datalen);
+    SAFE_FREE(import_key);
     return ret;
 }
 
@@ -250,7 +493,7 @@ sgx_status_t enclave_encrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        (cmk->metadata.origin != EH_INTERNAL_KEY && cmk->metadata.origin != EH_EXTERNAL_KEY) ||
         cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return SGX_ERROR_INVALID_PARAMETER;
 
@@ -301,7 +544,7 @@ sgx_status_t enclave_decrypt(ehsm_keyblob_t *cmk, size_t cmk_size,
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
-        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        (cmk->metadata.origin != EH_INTERNAL_KEY && cmk->metadata.origin != EH_EXTERNAL_KEY) ||
         cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
         return SGX_ERROR_INVALID_PARAMETER;
 
@@ -347,6 +590,7 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+#if DEBUG_ONLY
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
         cmk->keybloblen == 0 ||
@@ -364,6 +608,7 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
     if (ciphertext == NULL ||
         ciphertext_size != APPEND_SIZE_TO_DATA_T(ciphertext->datalen))
         return SGX_ERROR_INVALID_PARAMETER;
+#endif
 
     switch (cmk->metadata.keyspec)
     {
@@ -376,7 +621,12 @@ sgx_status_t enclave_asymmetric_encrypt(const ehsm_keyblob_t *cmk, size_t cmk_si
         ret = ehsm_sm2_encrypt(cmk, plaintext, ciphertext);
         break;
     default:
+#if DEBUG_ONLY
         return SGX_ERROR_INVALID_PARAMETER;
+#else
+        ret = ehsm_rsa_encrypt(cmk, padding_mode, plaintext, ciphertext);
+        break;
+#endif
     }
     return ret;
 }
@@ -832,9 +1082,7 @@ sgx_status_t enclave_export_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
         goto out;
 
 out:
-    if (tmp_datakey_size != 0)
-        memset_s(tmp_datakey, tmp_datakey_size, 0, tmp_datakey_size);
-
+    SAFE_MEMSET(tmp_datakey, tmp_datakey_size, 0, tmp_datakey_size);
     SAFE_FREE(tmp_datakey);
     return ret;
 }
@@ -944,11 +1192,11 @@ sgx_status_t enclave_verify_quote_policy(uint8_t *quote, uint32_t quote_size,
  * @param apikey the encrypted apikey
  * @param payload the payload of HMAC
  * @param hmac the output of the function
-*/
+ */
 sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
-                                    ehsm_data_t *apikey, uint32_t apikey_size,
-                                    ehsm_data_t *payload, uint32_t payload_size,
-                                    ehsm_data_t *hmac, uint32_t hmac_size)
+                                   ehsm_data_t *apikey, uint32_t apikey_size,
+                                   ehsm_data_t *payload, uint32_t payload_size,
+                                   ehsm_data_t *hmac, uint32_t hmac_size)
 {
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
@@ -986,7 +1234,8 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
     // 1. Decrypt the apikey
     // aad is empty, thus NULL is passed as `aad` and 0 is passed as `aad_size`
     ret = enclave_decrypt(cmk, cmk_size, NULL, 0, apikey, apikey_size, rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
-    if (ret != SGX_SUCCESS) {
+    if (ret != SGX_SUCCESS)
+    {
         log_w("apikey decrypt failed");
         goto out;
     }
@@ -995,11 +1244,57 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
     ret = sgx_hmac_sha256_msg(payload->data, payload->datalen, rawApiKey->data, rawApiKey->datalen, hmac->data, hmac->datalen);
 
 out:
-    // clear sensitive info
-    if (rawApiKey) {
-        memset_s(rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen), 0, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
-    }
-    // free allocations
+    SAFE_MEMSET(rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen), 0, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
     SAFE_FREE(rawApiKey);
+    return ret;
+}
+
+sgx_status_t enclave_generate_token_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
+                                         ehsm_data_t *import_token, uint32_t import_token_size,
+                                         ehsm_data_t *hmac, uint32_t hmac_size)
+{
+    if (cmk == NULL ||
+        cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
+        cmk->keybloblen == 0 ||
+        cmk->metadata.origin != EH_INTERNAL_KEY ||
+        cmk->metadata.keyusage != EH_KEYUSAGE_ENCRYPT_DECRYPT)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (import_token == NULL ||
+        import_token_size != APPEND_SIZE_TO_DATA_T(import_token->datalen) ||
+        import_token->datalen == 0)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    if (hmac == NULL ||
+        hmac_size != APPEND_SIZE_TO_DATA_T(hmac->datalen) ||
+        hmac->datalen != EH_HMAC_SHA256_SIZE)
+        return SGX_ERROR_INVALID_PARAMETER;
+
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    uint32_t keysize = 0;
+    if (!ehsm_get_symmetric_key_size(cmk->metadata.keyspec, keysize))
+        return SGX_ERROR_UNEXPECTED;
+
+    uint8_t *key = (uint8_t *)malloc(keysize);
+    if (key == NULL)
+        return SGX_ERROR_OUT_OF_MEMORY;
+
+    ret = ehsm_parse_keyblob(key,
+                             (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+    ret = sgx_hmac_sha256_msg(import_token->data,
+                              import_token->datalen,
+                              key,
+                              keysize,
+                              hmac->data,
+                              hmac->datalen);
+
+    if (ret != SGX_SUCCESS)
+        goto out;
+
+out:
+    SAFE_FREE(key);
     return ret;
 }

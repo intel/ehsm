@@ -162,8 +162,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
             origin,
             keyusage
         } = payload
-
-        DB.insert({
+        const cmkData = {
             _id: `cmk:${keyid}`,
             keyid,
             keyBlob: napi_res.result.cmk,
@@ -175,7 +174,13 @@ function store_cmk(napi_res, res, appid, payload, DB) {
             origin,
             keyusage,
             keyState: 1,
-        })
+        }
+
+        if (origin === ehsm_keyorigin_t.EH_EXTERNAL_KEY) {
+            cmkData.sessionkeyblob = ''
+        }
+
+        DB.insert(cmkData)
             .then((r) => {
                 delete napi_res.result.cmk // Delete cmk in NaPi result
                 napi_res.result.keyid = keyid // The keyID field is added to the result returned to the user
@@ -294,7 +299,8 @@ const enroll_user_info = (action, DB, res, req) => {
     if (napi_res) {
         const {
             appid,
-            apikey
+            apikey,
+            sessionkeyblob
         } = napi_res.result
         let cmk_res = napi_result(KMS_ACTION.cryptographic.CreateKey, undefined, {
             keyspec: ehsm_keySpec_t.EH_AES_GCM_256,
@@ -327,6 +333,7 @@ const enroll_user_info = (action, DB, res, req) => {
                     apikey: ciphertext,
                     cmk: cmk,
                     sm_default_cmk,
+                    sessionkeyblob
                 })
                     .then((r) => {
                         res.send(_result(200, 'successful', {
@@ -337,7 +344,7 @@ const enroll_user_info = (action, DB, res, req) => {
                         logger.error('database is unavailable')
                         res.send(_result(500, 'enroll user info failed', e))
                     })
-            }else {
+            } else {
                 logger.error('encrypt apikey failed')
                 res.send(_result(500, 'enroll user info failed'))
             }
@@ -461,12 +468,12 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
             res.send(_result(400, 'param type error'))
             return
         }
-        if (nonce != null && nonce != undefined){
+        if (nonce != null && nonce != undefined) {
             if (nonce.length > Definition.MAX_NONCE_LEN) {
                 res.send(_result(400, 'Nonce length error'))
                 return
             }
-        }   
+        }
         if (timestamp.length != Definition.TIMESTAMP_LEN) {
             res.send(_result(400, 'Timestamp length error'))
             return

@@ -1,11 +1,11 @@
-const { 
-  ehsm_keySpec_t, 
+const {
+  ehsm_keySpec_t,
   ehsm_keyorigin_t,
   ehsm_keyusage_t,
   ehsm_digest_mode_t,
   ehsm_message_type_t,
   ehsm_padding_mode_t,
- } = require('./constant')
+} = require('./constant')
 const { KMS_ACTION } = require('./apis')
 const logger = require('./logger')
 const {
@@ -115,10 +115,10 @@ const router = async (p) => {
   switch (action) {
     case KMS_ACTION.cryptographic.CreateKey:
       try {
-        let { 
-            keyspec,
-            origin, 
-            keyusage,
+        let {
+          keyspec,
+          origin,
+          keyusage,
         } = payload
         /**
          * keyspec、origin convert to enum type
@@ -162,6 +162,92 @@ const router = async (p) => {
         napi_res && res.send(napi_res)
       } catch (error) { }
       break
+    case KMS_ACTION.cryptographic.GetParametersForImport:
+      try {
+        let { keyid, keyspec } = payload
+        let timestamp = req.body['timestamp']
+        keyspec = ehsm_keySpec_t[keyspec]
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, { cmk: cmk_base64, keyspec, importToken: { keyid, timestamp } })
+        const query = {
+          selector: {
+            _id: `cmk:${keyid}`,
+            creator: appid,
+          },
+          fields: [
+            '_id',
+            '_rev',
+            'keyid',
+            'keyBlob',
+            'creator',
+            'creationDate',
+            'expireTime',
+            'alias',
+            'keyspec',
+            'origin',
+            'keyState',
+            'sessionkeyblob',
+          ],
+          limit: 1,
+        }
+        DB.partitionedFind('cmk', query)
+          .then((cmks_res) => {
+            if (cmks_res.docs.length > 0) {
+              cmks_res.docs[0].keyBlob = napi_res.result.cmk
+              cmks_res.docs[0].sessionkeyblob = napi_res.result.sessionkey
+              DB.insert(cmks_res.docs[0])
+              delete napi_res.result.cmk // Delete cmk in NaPi result
+              delete napi_res.result.sessionkey
+              napi_res && res.send(napi_res)
+            } else {
+              res.send(_result(500, 'Import key failed.'))
+            }
+          })
+      } catch (error) {
+        logger.error(error)
+        res.send(_result(500, 'Import key failed.'))
+      }
+      break
+    case KMS_ACTION.cryptographic.ImportKeyMaterial:
+      try {
+        let { keyid, padding_mode, key_material, importToken } = payload
+        let timestamp = req.body['timestamp']
+        padding_mode = ehsm_padding_mode_t[padding_mode]
+        const query = {
+          selector: {
+            _id: `cmk:${keyid}`,
+            creator: appid,
+          },
+          fields: [
+            '_id',
+            '_rev',
+            'keyid',
+            'keyBlob',
+            'creator',
+            'creationDate',
+            'expireTime',
+            'alias',
+            'keyspec',
+            'origin',
+            'keyState',
+            'sessionkeyblob',
+          ],
+          limit: 1,
+        }
+        query_result = await DB.partitionedFind('cmk', query)
+        const { sessionkeyblob } = query_result.docs[0]
+        const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
+        napi_res = napi_result(action, res, { cmk: cmk_base64, padding_mode, key_material, sessionkey: sessionkeyblob, importToken, timestamp })
+        query_result.docs[0].keyBlob = napi_res.result.cmk
+        query_result.docs[0].sessionkeyblob = ''
+        DB.insert(query_result.docs[0])
+        delete napi_res.result.cmk // Delete cmk in NaPi result
+        napi_res && res.send(napi_res)
+      } catch (error) {
+        logger.error(error)
+        res.send(_result(500, 'Import key failed.'))
+      }
+      break
     case KMS_ACTION.cryptographic.GenerateDataKey:
       try {
         const { keyid, keylen, aad = '' } = payload
@@ -198,7 +284,7 @@ const router = async (p) => {
         message_type = ehsm_message_type_t[message_type]
         padding_mode = ehsm_padding_mode_t[padding_mode]
         digest_mode = ehsm_digest_mode_t[digest_mode]
-        
+
         const cmk_base64 = await find_cmk_by_keyid(appid, keyid, res, DB)
         napi_res = napi_result(action, res, { cmk: cmk_base64, message, signature, message_type, padding_mode, digest_mode })
         napi_res && res.send(napi_res)

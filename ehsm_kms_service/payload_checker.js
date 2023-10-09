@@ -151,6 +151,24 @@ const cryptographic_params = {
   [KMS_ACTION.cryptographic.GetPublicKey]: {
     keyid,
   },
+  [KMS_ACTION.cryptographic.GetParametersForImport]: {
+    keyid,
+    keyspec: {
+      type: PARAM_DATA_TYPE.CONST,
+      arr: Object.keys(ehsm_keySpec_t),
+      required: true,
+    },
+  },
+  [KMS_ACTION.cryptographic.ImportKeyMaterial]: {
+    keyid,
+    padding_mode,
+    key_material: {
+      type: PARAM_DATA_TYPE.BASE64,
+      maxLength: MAX_LENGTH * 4 / 3,  // This is the length after base64 encoding.
+      minLength: 1,
+      required: true,
+    },
+  },
   [KMS_ACTION.cryptographic.AsymmetricDecrypt]: {
     keyid,
     ciphertext: {

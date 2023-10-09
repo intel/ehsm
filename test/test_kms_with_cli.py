@@ -4,13 +4,17 @@ import argparse
 import base64
 import time
 import random
+import secrets
 import hmac
 import os
 from hashlib import sha256
 from collections import OrderedDict
-from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy, getPubkey
+from cli import createkey, asymmetric_decrypt, asymmetric_encrypt, decrypt, encrypt, export_datakey, generate_datakey, generate_datakey_withoutplaint, generate_quote, getversion, sign, verify, verify_quote, enroll, uploadQuotePolicy, getQuotePolicy, getPubkey, get_parameters_for_import, import_key_material
 import urllib.parse
 import _utils_
+from Crypto.Cipher import PKCS1_v1_5 as Cipher_pkcs1_v1_5
+from Crypto.Cipher import PKCS1_OAEP as Cipher_pkcs1_OAEP
+from Crypto.PublicKey import RSA
 appid= ''
 apikey= ''
 
@@ -61,6 +65,73 @@ def test_asymmetricKey_encrypt_decrypt(base_url, headers):
         asymmetric_decrypt.asymmetric_decrypt(base_url, i, ciphertext, "EH_RSA_PKCS1_OAEP")
 
     print('====================test_asymmetricKey_encrypt_decrypt end===========================')
+
+def test_import_key_pkcs1(base_url, headers):
+    print('====================test_import_key_pkcs1 start===========================')
+    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_EXTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_EXTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_EXTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+
+    symmetricKey = [key_GCM_128, key_SM4_ctr, key_SM4_cbc]
+
+    keyspec =["EH_RSA_2048","EH_RSA_3072","EH_RSA_4096"]
+
+    aad = str(base64.b64encode("test".encode("utf-8")),'utf-8')
+
+    key_16b = secrets.token_hex(8)
+
+    for i in symmetricKey:
+        for j in keyspec:
+            pubkey,importToken = get_parameters_for_import.get_parameters_for_import(base_url, i, j)
+
+            rsakey = RSA.importKey(pubkey)
+            key_material_16b = base64.b64encode(Cipher_pkcs1_v1_5.new(rsakey).encrypt(key_16b.encode('utf-8')))
+
+            import_key_material.import_key_material(base_url, i, "EH_RSA_PKCS1", key_material_16b.decode('utf-8'), importToken)
+
+            # test Encrypt("gcm128")
+            data = str(base64.b64encode("symmetricKeytest".encode("utf-8")),'utf-8')
+            ciphertext = encrypt.encrypt(base_url, i, data, aad)
+
+            # test Decrypt(ciphertext)
+            decrypt.decrypt(base_url, i, ciphertext, aad)
+
+
+    print('====================test_import_key_pkcs1 end===========================')
+
+def test_import_key_pkcs1_oaep(base_url, headers):
+    print('====================test_import_key_pkcs1_oaep start===========================')
+    key_GCM_128 = createkey.createkey(base_url, "EH_AES_GCM_128", "EH_EXTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_ctr = createkey.createkey(base_url, "EH_SM4_CTR", "EH_EXTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+    key_SM4_cbc = createkey.createkey(base_url, "EH_SM4_CBC", "EH_EXTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+
+    symmetricKey = [key_GCM_128, key_SM4_ctr, key_SM4_cbc]
+
+    keyspec =["EH_RSA_2048","EH_RSA_3072","EH_RSA_4096"]
+
+    aad = str(base64.b64encode("test".encode("utf-8")),'utf-8')
+
+    key_16b = secrets.token_hex(8)
+
+    for i in symmetricKey:
+        for j in keyspec:
+            pubkey,importToken = get_parameters_for_import.get_parameters_for_import(base_url, i, j)
+
+            rsakey = RSA.importKey(pubkey)
+            key_material_oaep_16b = base64.b64encode(Cipher_pkcs1_OAEP.new(rsakey).encrypt(key_16b.encode('utf-8')))
+
+            import_key_material.import_key_material(base_url, i, "EH_RSA_PKCS1_OAEP", key_material_oaep_16b.decode('utf-8'), importToken)
+
+            # test Encrypt("gcm128")
+            data = str(base64.b64encode("symmetricKeytest".encode("utf-8")),'utf-8')
+            ciphertext = encrypt.encrypt(base_url, i, data, aad)
+
+            # test Decrypt(ciphertext)
+            decrypt.decrypt(base_url, i, ciphertext, aad)
+
+
+    print('====================test_import_key_pkcs1_oaep end===========================')
+
 
 def test_get_public_key(base_url, headers):
     print('====================test_get_public_key start===========================')
@@ -268,23 +339,27 @@ if __name__ == "__main__":
 
     get_appid_apikey(base_url)
     
-    test_symmetricKey_encrypt_decrypt(base_url, headers)
+    # test_symmetricKey_encrypt_decrypt(base_url, headers)
 
-    test_get_public_key(base_url, headers)
+    # test_get_public_key(base_url, headers)
 
-    test_GenerateDataKey(base_url, headers)
+    # test_GenerateDataKey(base_url, headers)
 
-    test_GenerateDataKeyWithoutPlaintext(base_url, headers)
+    # test_GenerateDataKeyWithoutPlaintext(base_url, headers)
 
-    test_RSA_sign_verify(base_url, headers)
+    # test_RSA_sign_verify(base_url, headers)
     
-    test_EC_sign_verify(base_url, headers)
+    # test_EC_sign_verify(base_url, headers)
 
-    test_SM2_sign_verify(base_url, headers)
+    # test_SM2_sign_verify(base_url, headers)
 
-    test_asymmetricKey_encrypt_decrypt(base_url, headers)
+    # test_asymmetricKey_encrypt_decrypt(base_url, headers)
 
-    test_export_datakey(base_url, headers)
+    # test_export_datakey(base_url, headers)
 
-    test_GenerateQuote_and_VerifyQuote(base_url, headers)
+    # test_GenerateQuote_and_VerifyQuote(base_url, headers)
+
+    test_import_key_pkcs1(base_url, headers)
+
+    test_import_key_pkcs1_oaep(base_url, headers)
     

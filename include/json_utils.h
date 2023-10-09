@@ -278,6 +278,11 @@ public:
         m_result_json.addData_uint32Array(key, data, data_len);
     }
 
+    void addData_JsonValue(std::string key, Json::Value data)
+    {
+        m_result_json.addData_JsonValue(key, data);
+    }
+
     std::string toString()
     {
         m_json["result"] = m_result_json.getJson();
@@ -375,6 +380,11 @@ public:
     void readData_uint32Array(std::string key, uint32_t *data)
     {
         m_result_json.readData_uint32Array(key, data);
+    }
+
+    Json::Value readData_JsonValue(std::string key)
+    {
+        return m_result_json.readData_JsonValue(key);
     }
 };
 

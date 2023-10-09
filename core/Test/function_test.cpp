@@ -51,8 +51,7 @@ step3. decrypt the cipher text by CMK correctly
 void test_symmertric_encrypt_decrypt()
 {
     log_i("============test_AES_SM_encrypt_decrypt start==========\n");
-    std::string plaintext[] = {"Test1234-AES128", "Test1234-AES192",
-                               "Test1234-AES256", "Test1234-SM4-CTR", "Test1234-SM4-CBC"};
+    std::string plaintext[] = {"Test1234-AES128", "Test1234-AES192", "Test1234-AES256", "Test1234-SM4-CTR", "Test1234-SM4-CBC"};
     uint32_t keyspec[] = {EH_AES_GCM_128, EH_AES_GCM_192, EH_AES_GCM_256, EH_SM4_CTR, EH_SM4_CBC};
 
     case_number += sizeof(plaintext) / sizeof(plaintext[0]);
@@ -512,6 +511,194 @@ void test_get_pubkey()
     }
 
     log_i("============test_get_public_key end==========\n");
+}
+
+/*
+
+step1. generate a symmetric key as the import CM(customer master key)
+
+step2. generate an rsa 2048 key and get public key to encrypt.
+
+step3. import key material.
+
+*/
+void test_import_key_material()
+{
+    log_i("============test_import_key start==========\n");
+    uint32_t symmetric_keypec[] = {EH_AES_GCM_256};
+    uint32_t warpping_keyspec[] = {EH_RSA_2048, EH_RSA_3072, EH_RSA_4096};
+    case_number += sizeof(symmetric_keypec) / sizeof(symmetric_keypec[0]);
+    case_number *= sizeof(warpping_keyspec) / sizeof(warpping_keyspec[0]);
+
+    for (int i = 0; i < sizeof(symmetric_keypec) / sizeof(symmetric_keypec[0]); i++)
+    {
+        for (int j = 0; j < sizeof(warpping_keyspec) / sizeof(warpping_keyspec[0]); j++)
+        {
+            char *returnJsonChar = (char *)calloc(10000, sizeof(char));
+
+            RetJsonObj retJsonObj;
+            JsonObj param_json;
+            JsonObj payload_json;
+            Json::Value importToken_js;
+
+            // generate a 32 bytes aes key.
+            char aes_key[33];
+            const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            srand((unsigned int)time(NULL));
+            for (int i = 0; i < 32; i++)
+            {
+                int index = rand() % (int)(sizeof(charset) - 1);
+                aes_key[i] = charset[index];
+            }
+
+            std::string aes_key_base64 = base64_encode((const uint8_t *)aes_key, sizeof(aes_key) - 1);
+            char *cmk_import = nullptr;
+            char *sessionkeyblob = nullptr;
+            char *ciphertext_base64 = nullptr;
+            char *plaintext_base64 = nullptr;
+            char *importToken = nullptr;
+
+            // create external key.
+            payload_json.addData_uint32("keyspec", symmetric_keypec[i]);
+            payload_json.addData_uint32("origin", EH_EXTERNAL_KEY);
+            payload_json.addData_uint32("keyusage", EH_KEYUSAGE_ENCRYPT_DECRYPT);
+            param_json.addData_uint32("action", EH_CREATE_KEY);
+            param_json.addData_JsonValue("payload", payload_json.getJson());
+
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+            retJsonObj.parse(returnJsonChar);
+            if (retJsonObj.getCode() != 200)
+            {
+                log_e("FFI_CreateKey failed, error message: %s \n", retJsonObj.getMessage().c_str());
+                goto cleanup;
+            }
+            log_i("FFI_CreateKey Json : %s\n", returnJsonChar);
+            log_i("Create import CMK SUCCESSFULLY!\n");
+
+            // call GetParametersForImport.
+            cmk_import = retJsonObj.readData_cstr("cmk");
+
+            payload_json.clear();
+            importToken_js["keyid"] = "3c1bf5ab-b2db-42c6-ab04-1d25a7709f5a";
+            importToken_js["timestamp"] = "1698717325705";
+            payload_json.addData_string("cmk", cmk_import);
+            payload_json.addData_uint32("keyspec", warpping_keyspec[j]);
+            payload_json.addData_JsonValue("importToken", importToken_js);
+            param_json.addData_uint32("action", EH_GET_PARAMETERS_FOR_IMPORT);
+            param_json.addData_JsonValue("payload", payload_json.getJson());
+
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+            retJsonObj.parse(returnJsonChar);
+            if (retJsonObj.getCode() != 200)
+            {
+                log_e("ffi_getParametersForImport failed, error message: %s \n", retJsonObj.getMessage().c_str());
+                goto cleanup;
+            }
+            log_i("ffi_getParametersForImport Json : %s\n", returnJsonChar);
+            log_i("GetParametersForImport SUCCESSFULLY!\n");
+
+            // encrypt aes key with warppingkeyspec.
+            cmk_import = retJsonObj.readData_cstr("cmk");
+            sessionkeyblob = retJsonObj.readData_cstr("sessionkeyblob");
+            importToken = retJsonObj.readData_cstr("importToken");
+
+            payload_json.clear();
+            payload_json.addData_string("cmk", cmk_import);
+            payload_json.addData_string("plaintext", aes_key_base64);
+            payload_json.addData_uint32("padding_mode", EH_RSA_PKCS1);
+            param_json.addData_uint32("action", EH_ASYMMETRIC_ENCRYPT);
+            param_json.addData_JsonValue("payload", payload_json.getJson());
+
+            memset(returnJsonChar, 0, 10000);
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+            retJsonObj.parse(returnJsonChar);
+
+            if (retJsonObj.getCode() != 200)
+            {
+                log_e("Failed to Encrypt the plaintext data, error message: %s \n", retJsonObj.getMessage().c_str());
+                goto cleanup;
+            }
+            log_i("FFI_Encrypt json = %s\n", returnJsonChar);
+            log_i("Encrypt data SUCCESSFULLY!\n");
+
+            ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+
+            // call ImportKeyMaterial.
+            payload_json.clear();
+            payload_json.addData_string("cmk", cmk_import);
+            payload_json.addData_string("sessionkeyblob", sessionkeyblob);
+            payload_json.addData_string("key_material", ciphertext_base64);
+            payload_json.addData_string("timestamp", "1698717325706");
+            payload_json.addData_uint32("padding_mode", EH_RSA_PKCS1);
+            payload_json.addData_string("importToken", importToken);
+            param_json.addData_uint32("action", EH_IMPORT_KEY_MATERIAL);
+            param_json.addData_JsonValue("payload", payload_json.getJson());
+
+            memset(returnJsonChar, 0, 10000);
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+            retJsonObj.parse(returnJsonChar);
+
+            if (retJsonObj.getCode() != 200)
+            {
+                log_e("Failed to import the key, error message: %s \n", retJsonObj.getMessage().c_str());
+                goto cleanup;
+            }
+            log_i("FFI_Importkey json = %s\n", returnJsonChar);
+
+            // use this key
+            cmk_import = retJsonObj.readData_cstr("cmk");
+            payload_json.clear();
+            payload_json.addData_string("cmk", cmk_import);
+            payload_json.addData_string("plaintext", aes_key_base64);
+            param_json.addData_uint32("action", EH_ENCRYPT);
+            param_json.addData_JsonValue("payload", payload_json.getJson());
+
+            memset(returnJsonChar, 0, 10000);
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+            retJsonObj.parse(returnJsonChar);
+
+            if (retJsonObj.getCode() != 200)
+            {
+                log_e("Failed to Encrypt the plaintext data, error message: %s \n", retJsonObj.getMessage().c_str());
+                goto cleanup;
+            }
+            log_i("FFI_Encrypt json = %s\n", returnJsonChar);
+            log_i("Encrypt data SUCCESSFULLY!\n");
+
+            ciphertext_base64 = retJsonObj.readData_cstr("ciphertext");
+            payload_json.addData_string("ciphertext", ciphertext_base64);
+
+            param_json.addData_uint32("action", EH_DECRYPT);
+            param_json.addData_JsonValue("payload", payload_json.getJson());
+
+            memset(returnJsonChar, 0, 10000);
+            EHSM_FFI_CALL(param_json.toString().c_str(), returnJsonChar);
+            retJsonObj.parse(returnJsonChar);
+
+            if (retJsonObj.getCode() != 200)
+            {
+                log_e("Failed to Decrypt the data, error message: %s \n", retJsonObj.getMessage().c_str());
+                goto cleanup;
+            }
+            log_i("FFI_Decrypt json = %s\n", returnJsonChar);
+            plaintext_base64 = retJsonObj.readData_cstr("plaintext");
+            if (plaintext_base64 == aes_key_base64)
+            {
+                log_i("decode64 plaintext = %s\n", base64_decode(plaintext_base64).c_str());
+                log_i("Decrypt data SUCCESSFULLY!\n");
+                success_number++;
+            }
+
+        cleanup:
+            SAFE_FREE(ciphertext_base64);
+            SAFE_FREE(returnJsonChar);
+            SAFE_FREE(cmk_import);
+            SAFE_FREE(sessionkeyblob);
+            SAFE_FREE(plaintext_base64);
+            SAFE_FREE(importToken);
+        }
+    }
+    log_i("============test_import_key end==========\n");
 }
 
 /*
@@ -1741,6 +1928,8 @@ cleanup:
 
 void function_test()
 {
+    test_import_key_material();
+
     test_symmertric_encrypt_decrypt();
 
     test_symmertric_encrypt_decrypt_without_aad();
@@ -1756,7 +1945,7 @@ void function_test()
     test_sm2_sign_verify_DIGEST();
 
     test_ec_sign_verify_RAW();
-    
+
     test_ec_sign_verify_DIGEST();
 
     test_SM2_encrypt_decrypt();

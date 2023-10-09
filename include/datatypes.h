@@ -123,6 +123,8 @@ typedef int errno_t;
 #define RSA_3072_KEY_BITS   3072
 #define RSA_4096_KEY_BITS   4096
 
+#define TIME_24_HOURS   (24*60*60*1000)
+
 typedef uint8_t dh_nonce[NONCE_SIZE];
 typedef uint8_t cmac_128[MAC_SIZE];
 
