@@ -76,6 +76,7 @@ class CryptoMixin(EHSMBaseClient):
         digest_mode: DigestMode,
         message_type: MessageType,
         message: str,
+        signature: str,
     ):
         resp = self._session.post(
             "",
@@ -86,6 +87,7 @@ class CryptoMixin(EHSMBaseClient):
                 "digest_mode": digest_mode,
                 "message_type": message_type,
                 "message": message,
+                "signature": signature,
             },
         )
         return VerifyResponse.from_response(resp)

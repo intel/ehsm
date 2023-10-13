@@ -45,7 +45,7 @@ class RemoteAttestationMixin(EHSMBaseClient):
         """
         resp = self._session.post(
             "",
-            params={"Action": "UploadQuotePolicy"},
+            params={"Action": "GetQuotePolicy"},
             data={"policyId": policy_id},
         )
         return GetQuotePolicy.from_response(resp)

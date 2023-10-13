@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic.dataclasses import dataclass
 from ehsm.serializers.base import EHSMBase
 
@@ -10,20 +11,17 @@ class GenerateQuoteResponse(EHSMBase):
 
 @dataclass
 class VerifyQuoteResponse(EHSMBase):
-    result: bool
+    result: int
     nonce: str
-    mr_enclave: str
-    mr_signer: str
-    sign: str
 
 
 @dataclass
 class UploadQuotePolicy(EHSMBase):
-    policyId: str
+    policy_id: str = Field(alias="policyId")
 
 
 @dataclass
 class GetQuotePolicy(EHSMBase):
-    policyId: str
     mr_enclave: str
     mr_signer: str
+    policy_id: str = Field(alias="policyId")

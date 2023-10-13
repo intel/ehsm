@@ -1,4 +1,5 @@
 from pydantic.dataclasses import dataclass
+from pydantic import Field
 from typing import List
 
 from ehsm.serializers.base import EHSMBase
@@ -19,11 +20,11 @@ class EnrollResponse(EHSMBase):
 @dataclass
 class ListKeyItem:
     keyid: str
-    creation_date: int
-    expire_time: int
     alias: str
     keyspec: str
-    keystate: int
+    keystate: int = Field(alias='keyState')
+    creation_date: int = Field(alias='creationDate')
+    expire_time: int = Field(alias='expireTime')
 
 
 @dataclass

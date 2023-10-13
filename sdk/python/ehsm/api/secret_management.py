@@ -9,9 +9,9 @@ class SecretManagementMixin(EHSMBaseClient):
         self,
         secret_name: str,
         secret_data: str,
-        encryption_key_id: Optional[str],
-        description: Optional[str],
-        rotation_interval: Optional[str],
+        encryption_key_id: Optional[str] = None,
+        description: Optional[str] = None,
+        rotation_interval: Optional[str] = None,
     ):
         """
         Creates a secret and stores its initial version
@@ -29,7 +29,9 @@ class SecretManagementMixin(EHSMBaseClient):
         )
         return CreateSecretResponse.from_response(resp)
 
-    def update_secret_description(self, secret_name: str, description: Optional[str]):
+    def update_secret_description(
+        self, secret_name: str, description: Optional[str] = None
+    ):
         """
         Update the description of a secret
         """
@@ -68,9 +70,10 @@ class SecretManagementMixin(EHSMBaseClient):
                 "secretName": secret_name,
             },
         )
+        print(resp.content)
         return ListSecretVersionIdsResponse.from_response(resp)
 
-    def list_secrets(self, secret_name: Optional[str]):
+    def list_secrets(self, secret_name: Optional[str] = None):
         """
         Queries all secrets created by your appid. Maximum 4000 line
         """
@@ -99,8 +102,8 @@ class SecretManagementMixin(EHSMBaseClient):
     def delete_secret(
         self,
         secret_name: str,
-        recovery_period: Optional[int],
-        force_delete: Optional[bool],
+        recovery_period: Optional[int] = None,
+        force_delete: Optional[bool] = None,
     ):
         """
         Force delete secret or schedule a time to delete secret
@@ -118,7 +121,7 @@ class SecretManagementMixin(EHSMBaseClient):
         )
         return DeleteSecretResponse.from_response(resp)
 
-    def get_secret_value(self, secret_name: str, version_id: Optional[int]):
+    def get_secret_value(self, secret_name: str, version_id: Optional[int] = None):
         """
         Obtains a secret value
         """

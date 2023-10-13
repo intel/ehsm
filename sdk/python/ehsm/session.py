@@ -65,10 +65,14 @@ class Session(BaseSession):
         url: str,
         data: Optional[Dict] = None,
         *,
-        check_credentials: bool = True,
-        with_signature: bool = True,
+        check_credentials: bool = True,  # check if session has appid and apikey
+        with_signature: bool = True,  # whether add signature to the payload or not
+        emit_none_value: bool = True,  # whether remove all key which has None value
         **kwargs
     ):
+        if emit_none_value and data is not None:
+            data_items = filter(lambda it: it[1] is not None, data.items())
+            data = {k: v for k, v in data_items}
         if with_signature:
             data = prepare_params(data, self._appid, self._apikey)
         return self.request(
@@ -83,3 +87,17 @@ class Session(BaseSession):
         data = EnrollResponse.from_response(resp)
         self._appid, self._apikey = data.result.appid, data.result.apikey
         return (self._appid, self._apikey)
+
+    @property
+    def appid(self):
+        return self._appid
+
+    @property
+    def apikey(self):
+        return self._apikey
+
+    def set_appid(self, appid: str):
+        self._appid = appid
+
+    def set_apikey(self, apikey: str):
+        self._apikey = apikey
