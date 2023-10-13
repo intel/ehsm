@@ -30,7 +30,7 @@ class SecretValueVersion:
 class ListSecretVersionIdsResponse(EHSMBase):
     secret_name: str = Field(alias='secretName')
     total_count: int = Field(alias='totalCount')
-    version_ids: List[SecretValueVersion] = Field(alias='VersionIds')
+    version_ids: List[SecretValueVersion] = Field(alias='versionIds')
 
 
 @dataclass

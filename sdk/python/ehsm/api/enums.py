@@ -1,7 +1,19 @@
-from enum import Enum
+import enum
 
 
-class KeySpec(Enum):
+class BaseEnum(str, enum.Enum):
+    """
+    A hack for pydantic to avoid json serialization error.
+    Checkout:
+    - https://github.com/pydantic/pydantic/issues/2278
+    - https://docs.pydantic.dev/latest/api/standard_library_types/#enum
+    """
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class KeySpec(BaseEnum):
     EH_AES_GCM_128 = "EH_AES_GCM_128"
     EH_AES_GCM_192 = "EH_AES_GCM_192"
     EH_AES_GCM_256 = "EH_AES_GCM_256"
@@ -19,17 +31,17 @@ class KeySpec(Enum):
     EH_HMAC = "EH_HMAC"
 
 
-class Origin(Enum):
+class Origin(BaseEnum):
     EH_INTERNAL_KEY = "EH_INTERNAL_KEY"
     EH_EXTERNAL_KEY = "EH_EXTERNAL_KEY"
 
 
-class KeyUsage(Enum):
+class KeyUsage(BaseEnum):
     EH_KEYUSAGE_ENCRYPT_DECRYPT = "EH_KEYUSAGE_ENCRYPT_DECRYPT"
     EH_KEYUSAGE_SIGN_VERIFY = "EH_KEYUSAGE_SIGN_VERIFY"
 
 
-class PaddingMode(Enum):
+class PaddingMode(BaseEnum):
     # padding modes for RSA
     EH_RSA_PKCS1 = "EH_RSA_PKCS1"
     EH_RSA_PKCS1_OAEP = "EH_RSA_PKCS1_OAEP"
@@ -37,7 +49,7 @@ class PaddingMode(Enum):
     EH_PAD_NONE = "EH_PAD_NONE"
 
 
-class DigestMode(Enum):
+class DigestMode(BaseEnum):
     EH_SHA_224 = "EH_SHA_224"
     EH_SHA_256 = "EH_SHA_256"
     EH_SHA_384 = "EH_SHA_384"
@@ -45,6 +57,6 @@ class DigestMode(Enum):
     EH_SM3 = "EH_SM3"
 
 
-class MessageType(Enum):
+class MessageType(BaseEnum):
     EH_RAW = "EH_RAW"
     EH_DIGEST = "EH_DIGEST"
