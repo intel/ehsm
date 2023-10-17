@@ -55,8 +55,6 @@
 #include "openssl_operation.h"
 
 #define MAX_DIGEST_LENGTH 64
-#define SM4_NO_PAD 0
-#define SM4_PAD 1
 
 // https://github.com/openssl/openssl/blob/master/test/aesgcmtest.c#L38
 sgx_status_t aes_gcm_encrypt(uint8_t *key,
@@ -289,8 +287,6 @@ sgx_status_t sm4_cbc_encrypt(uint8_t *key,
 
     int temp_len = 0;
     EVP_CIPHER_CTX *pctx = NULL;
-    // set padding mode
-    int pad = (plaintext_len % 16 == 0) ? SM4_NO_PAD : SM4_PAD;
 
     // Create and initialize ctx
     if (!(pctx = EVP_CIPHER_CTX_new()))
@@ -305,18 +301,13 @@ sgx_status_t sm4_cbc_encrypt(uint8_t *key,
         goto out;
     }
 
-    if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
-    {
-        log_e("Error: failed to set padding\n");
-        goto out;
-    }
-
     // Encrypt the plaintext and obtain the encrypted output
     if (EVP_EncryptUpdate(pctx, cipherblob, &temp_len, plaintext, plaintext_len) != 1)
     {
         log_e("Error: failed to encrypt the plaintext\n");
         goto out;
     }
+
     // Finalize the encryption
     if (EVP_EncryptFinal_ex(pctx, cipherblob + temp_len, &temp_len) != 1)
     {
@@ -333,6 +324,7 @@ out:
 
 sgx_status_t sm4_cbc_decrypt(uint8_t *key,
                              uint8_t *plaintext,
+                             uint32_t &actual_plaintext_len,
                              uint8_t *ciphertext,
                              uint32_t ciphertext_len,
                              uint8_t *iv)
@@ -342,7 +334,6 @@ sgx_status_t sm4_cbc_decrypt(uint8_t *key,
     int temp_len = 0;
     EVP_CIPHER_CTX *pctx = NULL;
 
-    int pad = (ciphertext_len % 16 == 0) ? 0 : 1;
     // Create and initialize ctx
     if (!(pctx = EVP_CIPHER_CTX_new()))
     {
@@ -356,12 +347,6 @@ sgx_status_t sm4_cbc_decrypt(uint8_t *key,
         goto out;
     }
 
-    if (EVP_CIPHER_CTX_set_padding(pctx, pad) != 1)
-    {
-        log_e("Error: failed to set padding\n");
-        goto out;
-    }
-
     // Decrypt the ciphertext and obtain the decrypted output
     if (!EVP_DecryptUpdate(pctx, plaintext, &temp_len, ciphertext, ciphertext_len - 16))
     {
@@ -369,18 +354,15 @@ sgx_status_t sm4_cbc_decrypt(uint8_t *key,
         goto out;
     }
 
-    // Finalize the decryption:
-    // If length of decrypted data is integral multiple of 16, do not execute EVP_DecryptFinal_ex(), or it will failed to decrypt
-    // - A positive return value indicates success;
-    // - Anything else is a failure - the plaintext is not trustworthy.
-    if (ciphertext_len % 16 != 0)
+    actual_plaintext_len = temp_len;
+
+    if (EVP_DecryptFinal_ex(pctx, plaintext + temp_len, &temp_len) <= 0)
     {
-        if (EVP_DecryptFinal_ex(pctx, plaintext + temp_len, &temp_len) <= 0)
-        {
-            log_e("Error: failed to finalize the decryption\n");
-            goto out;
-        }
+        log_e("Error: failed to finalize the decryption\n");
+        goto out;
     }
+
+    actual_plaintext_len += temp_len;
 
     ret = SGX_SUCCESS;
 
