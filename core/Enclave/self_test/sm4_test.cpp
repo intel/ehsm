@@ -85,8 +85,10 @@ static bool sm4_cbc_decryption(map<string, string> test_vector)
     GET_PARAMETER(ciphertext);
 
     uint8_t _plaintext[VECTOR_LENGTH("plaintext")] = {0};
+    uint32_t actual_plaintext_len = 0;
     (void)sm4_cbc_decrypt(&*key,
                           _plaintext,
+                          actual_plaintext_len,
                           &*ciphertext,
                           VECTOR_LENGTH("plaintext") + VECTOR_LENGTH("iv"),
                           &*iv);

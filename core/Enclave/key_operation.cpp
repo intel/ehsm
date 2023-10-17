@@ -540,12 +540,12 @@ sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
     /* calculate the ciphertext length */
     if (cipherblob->datalen == 0)
     {
-        if (plaintext->datalen % 16 != 0)
-        {
-            cipherblob->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
-            return SGX_SUCCESS;
-        }
-        cipherblob->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
+        /*
+            padded plaintext length:
+            1. mod(plaintext, 16) = 0, ciphertext length will add extra 16B
+            2. mod(plaintext, 16) != 0, ciphertext length will fill in the part less than 16B
+        */
+        cipherblob->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
         return SGX_SUCCESS;
     }
 
@@ -563,21 +563,11 @@ sgx_status_t ehsm_sm4_cbc_encrypt(ehsm_keyblob_t *cmk,
     if (plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (cipherblob->datalen < plaintext->datalen + SGX_SM4_IV_SIZE)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    if (plaintext->datalen % 16 != 0 &&
-        (cipherblob->datalen < (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE))
+    if (cipherblob->datalen != (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE)
         return SGX_ERROR_UNEXPECTED;
 
-    if (plaintext->datalen % 16 == 0 &&
-        (cipherblob->datalen < plaintext->datalen + SGX_SM4_IV_SIZE))
-        return SGX_ERROR_UNEXPECTED;
+    iv = (uint8_t *)(cipherblob->data + ((plaintext->datalen / 16) + 1) * 16);
 
-    if (plaintext->datalen % 16 != 0)
-        iv = (uint8_t *)(cipherblob->data + ((plaintext->datalen / 16) + 1) * 16);
-    else
-        iv = (uint8_t *)(cipherblob->data + plaintext->datalen);
     uint8_t *key = (uint8_t *)malloc(keysize);
     if (key == NULL)
         return SGX_ERROR_OUT_OF_MEMORY;
@@ -615,6 +605,8 @@ sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
+    uint32_t actual_plaintext_len = 0;
+
     /* this api only support for symmetric keys */
     if (cmk->metadata.keyspec != EH_SM4_CBC)
         return SGX_ERROR_INVALID_PARAMETER;
@@ -640,7 +632,7 @@ sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
     if (plaintext->datalen > EH_ENCRYPT_MAX_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
-    if (cipherblob->datalen < plaintext->datalen + SGX_SM4_IV_SIZE)
+    if (cipherblob->datalen != plaintext->datalen + SGX_SM4_IV_SIZE)
         return SGX_ERROR_INVALID_PARAMETER;
 
     uint8_t *iv = (uint8_t *)(cipherblob->data + cipherblob->datalen - SGX_SM4_IV_SIZE);
@@ -662,9 +654,13 @@ sgx_status_t ehsm_sm4_cbc_decrypt(ehsm_keyblob_t *cmk,
 
     ret = sm4_cbc_decrypt(key,
                           plaintext->data,
+                          actual_plaintext_len,
                           cipherblob->data,
                           cipherblob->datalen,
                           iv);
+
+    /* reset the unpad plaintext length from actual_plaintext_len */
+    plaintext->datalen = actual_plaintext_len;
 
 out:
     SAFE_MEMSET(key, keysize, 0, keysize);

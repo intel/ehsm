@@ -74,7 +74,7 @@ sgx_status_t sm4_cbc_encrypt(uint8_t *key, uint8_t *cipherblob,
                              uint8_t *plaintext, uint32_t plaintext_len,
                              uint8_t *iv);
 
-sgx_status_t sm4_cbc_decrypt(uint8_t *key, uint8_t *plaintext,
+sgx_status_t sm4_cbc_decrypt(uint8_t *key, uint8_t *plaintext, uint32_t &actual_plaintext_len,
                              uint8_t *ciphertext, uint32_t ciphertext_len,
                              uint8_t *iv);
 
@@ -89,15 +89,15 @@ sgx_status_t rsa_sign(RSA *rsa_prikey,
                       int saltlen = -1);
 
 sgx_status_t rsa_verify(RSA *rsa_pubkey,
-                       const EVP_MD *digestMode,
-                       uint32_t padding_mode,
-                       ehsm_message_type_t message_type,
-                       const uint8_t *data,
-                       uint32_t data_len,
-                       const uint8_t *signature,
-                       uint32_t signature_len,
-                       bool *result,
-                       int saltlen = -1);
+                        const EVP_MD *digestMode,
+                        uint32_t padding_mode,
+                        ehsm_message_type_t message_type,
+                        const uint8_t *data,
+                        uint32_t data_len,
+                        const uint8_t *signature,
+                        uint32_t signature_len,
+                        bool *result,
+                        int saltlen = -1);
 
 sgx_status_t ecc_sign(EC_KEY *ec_key,
                       const EVP_MD *digestMode,
