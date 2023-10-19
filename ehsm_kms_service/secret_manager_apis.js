@@ -372,7 +372,7 @@ const putSecretValue = async (res, appid, DB, payload) => {
             res.send(_result(400, retCMK.msg))
             return
         }
-        
+
         const apikey_encrypt_res = napi_result(KMS_ACTION.cryptographic.Encrypt, res, { cmk: sm_masterKey, plaintext: secretData, aad: '' })
         // check encrypt status and get ciphertext
         if (!apikey_encrypt_res) {
@@ -536,7 +536,9 @@ const listSecrets = async (res, appid, DB, payload) => {
             for (const doc of secret_metadata_result.docs) {
                 let secret = {};
                 secret['secretName'] = base64_decode(doc['secretName'])
-                secret['description'] = base64_decode(doc['description'])
+                if (doc['description']) {
+                    secret['description'] = base64_decode(doc['description'])
+                }
                 secret['createTime'] = doc['createTime']
                 if (doc['plannedDeleteTime']) {
                     secret['plannedDeleteTime'] = doc['plannedDeleteTime']
@@ -594,7 +596,9 @@ const describeSecret = async (res, appid, DB, payload) => {
         if (secret_metadata_result.docs.length > 0) {
             const doc = secret_metadata_result.docs[0]
             result['secretName'] = base64_decode(doc['secretName'])
-            result['description'] = base64_decode(doc['description'])
+            if (doc['description']) {
+                result['description'] = base64_decode(doc['description'])
+            }
             result['createTime'] = doc['createTime']
             if (doc['plannedDeleteTime']) {
                 result['plannedDeleteTime'] = doc['plannedDeleteTime']
