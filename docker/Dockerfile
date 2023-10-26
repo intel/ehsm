@@ -49,18 +49,18 @@ RUN apt-get update && apt-get install -y \
 
 # Install the SDK
 WORKDIR /opt/intel
-RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.15/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.18.100.3.bin \
-    && chmod 777 sgx_linux_x64_sdk_2.18.100.3.bin \
-    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.18.100.3.bin'
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.22.100.3.bin \
+    && chmod 777 sgx_linux_x64_sdk_2.22.100.3.bin \
+    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.22.100.3.bin'
 
 #Install SDK toolset
-RUN wget https://download.01.org/intel-sgx/sgx-linux/2.18/as.ld.objdump.r4.tar.gz \
+RUN wget https://download.01.org/intel-sgx/sgx-linux/2.22/as.ld.objdump.r4.tar.gz \
     && tar -zxf as.ld.objdump.r4.tar.gz \
     && cp external/toolset/ubuntu20.04/* /usr/local/bin
 
 # Install DCAP packages
 # DCAP repository setup
-RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.15/linux/distro/ubuntu20.04-server/sgx_debian_local_repo.tgz \
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/ubuntu20.04-server/sgx_debian_local_repo.tgz \
     && tar xzf sgx_debian_local_repo.tgz \
     && echo 'deb [trusted=yes arch=amd64] file:///opt/intel/sgx_debian_local_repo focal main' | tee /etc/apt/sources.list.d/intel-sgx.list \
     && wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - \

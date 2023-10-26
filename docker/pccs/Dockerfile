@@ -1,7 +1,7 @@
 FROM ubuntu:20.04 AS builder
 
 # DCAP version (github repo branch, tag or commit hash)
-ARG DCAP_VERSION=DCAP_1.15
+ARG DCAP_VERSION=DCAP_1.19
 ARG http_proxy
 ARG https_proxy
 
@@ -26,9 +26,9 @@ RUN apt-get update -yq && \
 # install sgxsdk
 RUN mkdir /opt/intel && \
     cd /opt/intel && \
-    wget https://download.01.org/intel-sgx/sgx-dcap/1.15/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.18.100.3.bin && \
-    chmod a+x ./sgx_linux_x64_sdk_2.18.100.3.bin && \
-    printf "no\n/opt/intel\n"|./sgx_linux_x64_sdk_2.18.100.3.bin && \
+    wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.22.100.3.bin && \
+    chmod a+x ./sgx_linux_x64_sdk_2.22.100.3.bin && \
+    printf "no\n/opt/intel\n"|./sgx_linux_x64_sdk_2.22.100.3.bin && \
     . /opt/intel/sgxsdk/environment
 
 # install node.js
