@@ -1080,7 +1080,7 @@ Generate a quote of the eHSM-KMS core enclave for user used to do the SGX DCAP R
       "code": 200,
       "message": "success!",
       "result": {
-         "quote": "Y2hhbGxlbmdl"
+         "challenge": "Y2hhbGxlbmdl"
          "quote": "AwACAAAAAAAHAAwAk5pB***"
       }
     }
