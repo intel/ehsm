@@ -36,8 +36,8 @@ class Session(BaseSession):
         self,
         base_url: str,
         *,
-        appid: str = "",
-        apikey: str = "",
+        appid: Optional[str] = None,
+        apikey: Optional[str] = None,
         allow_insecure: bool = False
     ) -> None:
         super().__init__()
