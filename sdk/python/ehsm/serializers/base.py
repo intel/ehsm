@@ -1,5 +1,6 @@
-from typing import TypeVar, Generic
+from typing import TypeVar
 from httpx import Response
+from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 from ehsm.exceptions import (
     InvalidParamException,
@@ -12,13 +13,16 @@ U = TypeVar("U")
 
 
 @dataclass
-class EHSMResponse(Generic[T]):
+class EHSMResponse:
     code: int
     message: str
-    result: T
 
 
+@dataclass(config=ConfigDict(arbitrary_types_allowed=True))
 class EHSMBase:
+    response: EHSMResponse
+    raw_response: Response
+
     @classmethod
     def from_response(cls, response: Response, *args, **kwargs):
         data = response.json()
@@ -36,8 +40,8 @@ class EHSMBase:
             raise UnknownException(
                 f"Response has status {data['code']}: {data['message']}"
             )
-        return EHSMResponse[cls](
-            code=data["code"],
-            message=data["message"],
-            result=cls(**data["result"]),
+        return cls(
+            raw_response=response,
+            response=EHSMResponse(code=data["code"], message=data["message"]),
+            **data["result"],
         )

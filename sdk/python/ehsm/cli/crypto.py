@@ -14,8 +14,8 @@ from ehsm.cli.utils import with_credential_missing_handler, EnumChoice
 @options.origin()
 @options.keyusage()
 def create_key(client: Client, keyspec: KeySpec, origin: Origin, keyusage: KeyUsage):
-    resp = client.create_key(keyspec, origin, keyusage).result
-    click.echo(f"key id\t{resp.keyid}")
+    result = client.create_key(keyspec, origin, keyusage)
+    click.echo(f"key id\t{result.keyid}")
 
 
 @ehsm_cli.command()
@@ -25,10 +25,10 @@ def create_key(client: Client, keyspec: KeySpec, origin: Origin, keyusage: KeyUs
 @options.keyid()
 @options.plaintext()
 def encrypt(client: Client, aad: str, keyid: str, plaintext: str):
-    resp = client.encrypt(aad, keyid, plaintext).result
+    result = client.encrypt(aad, keyid, plaintext)
     click.echo("Ciphertext")
     click.echo("=" * 30)
-    click.echo(resp.ciphertext)
+    click.echo(result.ciphertext)
 
 
 @ehsm_cli.command()
@@ -38,10 +38,10 @@ def encrypt(client: Client, aad: str, keyid: str, plaintext: str):
 @options.keyid()
 @options.ciphertext()
 def decrypt(client: Client, aad: str, keyid: str, ciphertext: str):
-    resp = client.decrypt(aad, keyid, ciphertext).result
+    result = client.decrypt(aad, keyid, ciphertext)
     click.echo("Plaintext")
     click.echo("=" * 30)
-    click.echo(resp.plaintext)
+    click.echo(result.plaintext)
 
 
 @ehsm_cli.command()
@@ -53,10 +53,10 @@ def decrypt(client: Client, aad: str, keyid: str, ciphertext: str):
 def asymm_encrypt(
     client: Client, keyid: str, plaintext: str, padding_mode: PaddingMode
 ):
-    resp = client.asymm_encrypt(keyid, plaintext, padding_mode).result
+    result = client.asymm_encrypt(keyid, plaintext, padding_mode)
     click.echo("Ciphertext")
     click.echo("=" * 30)
-    click.echo(resp.ciphertext)
+    click.echo(result.ciphertext)
 
 
 @ehsm_cli.command()
@@ -68,10 +68,10 @@ def asymm_encrypt(
 def asymm_decrypt(
     client: Client, keyid: str, ciphertext: str, padding_mode: PaddingMode
 ):
-    resp = client.asymm_decrypt(keyid, ciphertext, padding_mode).result
+    result = client.asymm_decrypt(keyid, ciphertext, padding_mode)
     click.echo("Plaintext")
     click.echo("=" * 30)
-    click.echo(resp.plaintext)
+    click.echo(result.plaintext)
 
 
 @ehsm_cli.command()
@@ -90,10 +90,10 @@ def sign(
     message_type: MessageType,
     message: str,
 ):
-    resp = client.sign(keyid, padding_mode, digest_mode, message_type, message).result
+    result = client.sign(keyid, padding_mode, digest_mode, message_type, message)
     click.echo("Signature")
     click.echo("=" * 30)
-    click.echo(resp.signature)
+    click.echo(result.signature)
 
 
 @ehsm_cli.command()
@@ -103,6 +103,7 @@ def sign(
 @options.padding_mode()
 @options.digest_mode()
 @options.message_type()
+@options.signature()
 @options.ciphertext("--message", help="A base64 string to be verified")
 def verify(
     client: Client,
@@ -111,9 +112,10 @@ def verify(
     digest_mode: DigestMode,
     message_type: MessageType,
     message: str,
+    signature: str,
 ):
-    resp = client.verify(keyid, padding_mode, digest_mode, message_type, message).result
-    click.echo(f"Result:\t{resp.result}")
+    result = client.verify(keyid, padding_mode, digest_mode, message_type, message, signature)
+    click.echo(f"Result:\t{result.result}")
 
 
 @ehsm_cli.command()
@@ -123,14 +125,14 @@ def verify(
 @options.keyid()
 @options.keylen()
 def generate_data_key(client: Client, aad: str, keyid: str, keylen: int):
-    resp = client.generate_data_key(aad, keyid, keylen).result
+    result = client.generate_data_key(aad, keyid, keylen)
     click.echo(f"Plaintext:")
     click.echo("=" * 30)
-    click.echo(resp.plaintext)
+    click.echo(result.plaintext)
     click.echo("=" * 30)
     click.echo(f"Ciphertext:")
     click.echo("=" * 30)
-    click.echo(resp.ciphertext)
+    click.echo(result.ciphertext)
     click.echo("=" * 30)
 
 
@@ -143,10 +145,10 @@ def generate_data_key(client: Client, aad: str, keyid: str, keylen: int):
 def generate_data_key_without_plaintext(
     client: Client, aad: str, keyid: str, keylen: int
 ):
-    resp = client.generate_data_key_without_plaintext(aad, keyid, keylen).result
+    result = client.generate_data_key_without_plaintext(aad, keyid, keylen)
     click.echo(f"Ciphertext:")
     click.echo("=" * 30)
-    click.echo(resp.ciphertext)
+    click.echo(result.ciphertext)
 
 
 @ehsm_cli.command()
@@ -165,10 +167,10 @@ def generate_data_key_without_plaintext(
 )
 @options.padding_mode()
 def export_data_key(client: Client, aad:str, keyid: str, old_data_key: str, ukeyid: str, padding_mode: PaddingMode):
-    resp = client.export_data_key(aad, keyid, old_data_key, keyid, padding_mode).result
+    result = client.export_data_key(aad, keyid, old_data_key, ukeyid, padding_mode)
     click.echo('New Data Key')
     click.echo('=' * 30)
-    click.echo(resp.newdatakey)
+    click.echo(result.newdatakey)
 
 
 @ehsm_cli.command()
@@ -176,7 +178,7 @@ def export_data_key(client: Client, aad:str, keyid: str, old_data_key: str, ukey
 @with_credential_missing_handler
 @options.keyid()
 def get_public_key(client: Client, keyid: str):
-    resp = client.get_public_key(keyid).result
+    result = client.get_public_key(keyid)
     click.echo('New Data Key')
     click.echo('=' * 30)
-    click.echo(resp.pubkey)
+    click.echo(result.pubkey)

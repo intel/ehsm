@@ -84,6 +84,7 @@ class SecretManagementMixin(EHSMBaseClient):
                 "secretName": secret_name,
             },
         )
+        print(resp.text)
         return ListSecretsResponse.from_response(resp)
 
     def describe_secret(self, secret_name: str):

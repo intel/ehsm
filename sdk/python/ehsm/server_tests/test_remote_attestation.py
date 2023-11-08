@@ -65,31 +65,31 @@ def test_generate_quote_and_verify_quote(
     mr_enclave, mr_signer = parse_enclave_file(tmp_file.name)
 
     # upload quote
-    resp = client.upload_quote_policy(mr_enclave=mr_enclave, mr_signer=mr_signer)
-    assert_response_success(resp)
-    policy_id = resp.result.policy_id
+    result = client.upload_quote_policy(mr_enclave=mr_enclave, mr_signer=mr_signer)
+    assert_response_success(result.response)
+    policy_id = result.policy_id
     # try get uploaded quote
-    resp = client.get_quote_policy(policy_id)
-    assert_response_success(resp)
-    assert mr_enclave == resp.result.mr_enclave
-    assert mr_signer == resp.result.mr_signer
+    result = client.get_quote_policy(policy_id)
+    assert_response_success(result.response)
+    assert mr_enclave == result.mr_enclave
+    assert mr_signer == result.mr_signer
 
     # generte quote with random challenge
     challenge = random_str(random.randint(10, 100))
-    resp = client.generate_quote(str_to_base64(challenge))
-    assert_response_success(resp)
+    result = client.generate_quote(str_to_base64(challenge))
+    assert_response_success(result.response)
 
-    quote = resp.result.quote
+    quote = result.quote
     nonce = str_to_base64(random_str(random.randint(10, 20)))
 
     # verify quote (policy_id is optional?)
-    resp = client.verify_quote(quote=quote, nonce=nonce, policy_id=policy_id)
-    assert_response_success(resp)
-    is_valid = resp.result.result
+    result = client.verify_quote(quote=quote, nonce=nonce, policy_id=policy_id)
+    assert_response_success(result.response)
+    is_valid = result.result
     assert is_valid
     
     # try an invalid one
     invalid_quote = quote[:-1] + random_str(1) 
-    resp = client.verify_quote(quote=str_to_base64(invalid_quote), nonce=nonce, policy_id=policy_id)
+    result = client.verify_quote(quote=str_to_base64(invalid_quote), nonce=nonce, policy_id=policy_id)
     # assert invalid
-    assert resp.code != 200
+    assert result.response.code != 200

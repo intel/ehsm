@@ -67,6 +67,10 @@ message_type = partial(
     help="The message type",
 )
 
+signature = partial(
+    click.option, "--sign", "--signature", type=str, required=True, help="The signature"
+)
+
 aad = partial(
     click.option,
     "--aad",
@@ -154,4 +158,59 @@ force_delete = partial(
     "--force-delete",
     is_flag=True,
     help="Whether to forcibly delete the secret. If this parameter is specified, the secret cannot be recovered",
+)
+
+# Server test
+
+test_enroll = partial(
+    click.option,
+    "--enroll",
+    is_flag=True,
+    required=False,
+    default=False,
+    help="Whether to enroll before server test, the given appid and apikey will be used if this option is not specified",
+)
+
+test_run_quote = partial(
+    click.option,
+    "--run-quote",
+    is_flag=True,
+    required=False,
+    default=False,
+    help="Whether to run remote attestation server test",
+)
+
+test_sgx_sign_bin = partial(
+    click.option,
+    "--sgx-sign-bin",
+    type=str,
+    required=False,
+    help="Path of sgx_sign binary, used in remote attestation test",
+)
+
+test_ehsm_signed_so_file = partial(
+    click.option,
+    "--ehsm-signed-so-file",
+    type=str,
+    required=False,
+    help="Path of the libenclave-ehsm-core.signed.so file, used in remote attestation test",
+)
+
+test_extra_options = partial(
+    click.option,
+    "--extra",
+    type=str,
+    required=False,
+    default=[],
+    multiple=True,
+    help="Extra arguments for running pytest",
+)
+
+test_path = partial(
+    click.option,
+    "--path",
+    type=str,
+    required=False,
+    default="",
+    help="path or method name of the test file/method, e.g. test_crypto.py::test_get_public_key",
 )

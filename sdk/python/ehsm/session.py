@@ -85,8 +85,12 @@ class Session(BaseSession):
         """
         resp = self._client.get("/", params={"Action": "Enroll"})
         data = EnrollResponse.from_response(resp)
-        self._appid, self._apikey = data.result.appid, data.result.apikey
+        self._appid, self._apikey = data.appid, data.apikey
         return (self._appid, self._apikey)
+
+    @property
+    def base_url(self):
+        return self._client.base_url
 
     @property
     def appid(self):

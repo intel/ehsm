@@ -30,7 +30,7 @@ def creaet_secret(
         description,
         rotation_interval,
     )
-    click.echo(resp.message)
+    click.echo(resp.response.message)
 
 
 @ehsm_cli.command()
@@ -40,7 +40,7 @@ def creaet_secret(
 @options.description()
 def update_secret_description(client: Client, secret_name: str, description: Optional[str]):
     resp = client.update_secret_description(secret_name, description)
-    click.echo(resp.message)
+    click.echo(resp.response.message)
 
 
 @ehsm_cli.command()
@@ -50,7 +50,7 @@ def update_secret_description(client: Client, secret_name: str, description: Opt
 @options.secret_data()
 def put_secret_value(client: Client, secret_name: str, secret_data: str):
     resp = client.put_secret_value(secret_name, secret_data)
-    click.echo(resp.message)
+    click.echo(resp.response.message)
 
 
 @ehsm_cli.command()
@@ -58,7 +58,7 @@ def put_secret_value(client: Client, secret_name: str, secret_data: str):
 @with_credential_missing_handler
 @options.secret_name()
 def list_secret_version_id(client: Client, secret_name: str):
-    resp = client.list_secret_version_ids(secret_name).result
+    resp = client.list_secret_version_ids(secret_name)
     click.echo(f'secret name\t{resp.secret_name}')
     click.echo(f'total count\t{resp.total_count}')
     click.echo('-' * 30)
@@ -72,7 +72,7 @@ def list_secret_version_id(client: Client, secret_name: str):
 @with_credential_missing_handler
 @options.secret_name(required=False)
 def list_secrets(client: Client, secret_name: Optional[str]):
-    resp = client.list_secrets(secret_name).result
+    resp = client.list_secrets(secret_name)
     click.echo(f'total count\t{resp.total_count}')
     click.echo('-' * 30)
 
@@ -83,7 +83,7 @@ def list_secrets(client: Client, secret_name: Optional[str]):
 @with_credential_missing_handler
 @options.secret_name()
 def describe_secret(client: Client, secret_name: str):
-    resp = client.describe_secret(secret_name).result
+    resp = client.describe_secret(secret_name)
     click.echo(f'secret name\t{resp.secret_name}')
     click.echo(f'description\t{resp.description}')
     click.echo(f'create time\t{resp.create_time}')
@@ -101,7 +101,7 @@ def describe_secret(client: Client, secret_name: str):
 @options.force_delete()
 def delete_secret(client: Client, secret_name: str, recovery_period: Optional[int], force_delete: Optional[bool]):
     resp = client.delete_secret(secret_name, recovery_period, force_delete)
-    click.echo(resp.message)
+    click.echo(resp.response.message)
 
 
 @ehsm_cli.command()
@@ -110,7 +110,7 @@ def delete_secret(client: Client, secret_name: str, recovery_period: Optional[in
 @options.secret_name()
 @options.version_id()
 def get_secret_value(client: Client, secret_name: str, version_id: Optional[int]):
-    resp = client.get_secret_value(secret_name, version_id).result
+    resp = client.get_secret_value(secret_name, version_id)
     click.echo(f'secret name\t{resp.secret_name}')
     click.echo(f'secret data\t{resp.secret_data}')
     click.echo(f'version id\t{resp.version_id}')
@@ -123,4 +123,4 @@ def get_secret_value(client: Client, secret_name: str, version_id: Optional[int]
 @options.secret_name()
 def restore_secret(client: Client, secret_name: str):
     resp = client.restore_secret(secret_name)
-    click.echo(resp.message)
+    click.echo(resp.response.message)
