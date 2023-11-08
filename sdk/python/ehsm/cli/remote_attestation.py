@@ -12,7 +12,7 @@ from ehsm.cli.utils import with_credential_missing_handler
     "--challenge", type=str, required=True, help="A challenge in BASE64 string"
 )
 def generate_quote(client: Client, challenge: str):
-    quote = client.generate_quote(challenge).result
+    quote = client.generate_quote(challenge)
     click.echo(f"challenge\t{quote.challenge}")
     click.echo(f"quote\t{quote.quote}")
 
@@ -28,12 +28,9 @@ def generate_quote(client: Client, challenge: str):
 )
 @click.option("--policy-id", type=str, required=True, help="quote policy ID")
 def verify_quote(client: Client, quote: str, nonce: str, policy_id: str):
-    result = client.verify_quote(quote, nonce, policy_id).result
+    result = client.verify_quote(quote, nonce, policy_id)
     click.echo(f"result\t{result.result}")
     click.echo(f"nonce\t{result.nonce}")
-    click.echo(f"mr_enclave\t{result.mr_enclave}")
-    click.echo(f"mr_signer\t{result.mr_signer}")
-    click.echo(f"sign\t{result.sign}")
 
 
 @ehsm_cli.command()
@@ -61,7 +58,7 @@ def upload_quote_policy(client: Client, mr_enclave: str, mr_signer: str):
 @with_credential_missing_handler
 @click.option("--policy-id", type=str, required=True, help="a policy ID")
 def get_quote_policy(client: Client, policy_id: str):
-    policy = client.get_quote_policy(policy_id).result
-    click.echo(f"policy_id\t{policy.policyId}")
+    policy = client.get_quote_policy(policy_id)
+    click.echo(f"policy_id\t{policy.policy_id}")
     click.echo(f"mr_enclave\t{policy.mr_enclave}")
     click.echo(f"mr_signer\t{policy.mr_signer}")

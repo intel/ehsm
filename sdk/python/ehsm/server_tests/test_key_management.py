@@ -8,8 +8,8 @@ from ehsm.server_tests.utils import assert_response_success
 
 
 def test_get_version(client: Client):
-    resp = client.get_version()
-    assert_response_success(resp)
+    result = client.get_version()
+    assert_response_success(result.response)
 
 
 def test_enroll(client: Client):
@@ -44,9 +44,9 @@ def create_random_keys(client: Client, k: int = 8):
     ]
     key_ids = []
     for keyspec, origin, keyusage in keys:
-        resp = client.create_key(keyspec=keyspec, origin=origin, keyusage=keyusage)
-        assert_response_success(resp)
-        key_ids.append(resp.result.keyid)
+        result = client.create_key(keyspec=keyspec, origin=origin, keyusage=keyusage)
+        assert_response_success(result.response)
+        key_ids.append(result.keyid)
     return list(zip(key_ids, keys))
 
 
@@ -57,9 +57,9 @@ def test_list_key(client: Client):
     for keyid, (keyspec, _, _) in keys:
         validate_set.add((keyid, keyspec))
     # 2. get keys back
-    resp = client.list_key()
-    assert_response_success(resp)
-    resp_keys = set([(k.keyid, k.keyspec) for k in resp.result.list])
+    result = client.list_key()
+    assert_response_success(result.response)
+    resp_keys = set([(k.keyid, k.keyspec) for k in result.list])
     assert validate_set == resp_keys
 
 
@@ -68,30 +68,30 @@ def test_delete_all_key(client: Client):
     keys = create_random_keys(client, 10)
     assert len(keys) == 10
     # 2. delete all keys
-    resp = client.delete_all_key()
-    assert_response_success(resp)
+    result = client.delete_all_key()
+    assert_response_success(result.response)
     # 3. verify
-    resp = client.list_key()
-    assert_response_success(resp)
-    assert len(resp.result.list) == 0
+    result = client.list_key()
+    assert_response_success(result.response)
+    assert len(result.list) == 0
 
 
 def test_enable_disable_key(client: Client):
     keyid, _ = create_random_keys(client, 1)[0]
     # disable it
-    resp = client.disable_key(keyid)
-    assert_response_success(resp)
-    resp = client.list_key()
-    assert_response_success(resp)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, resp.result.list), None)
+    result = client.disable_key(keyid)
+    assert_response_success(result.response)
+    result = client.list_key()
+    assert_response_success(result.response)
+    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
     assert key is not None
     assert key.keystate == 0
     # enable it
-    resp = client.enable_key(keyid)
-    assert_response_success(resp)
-    resp = client.list_key()
-    assert_response_success(resp)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, resp.result.list), None)
+    result = client.enable_key(keyid)
+    assert_response_success(result.response)
+    result = client.list_key()
+    assert_response_success(result.response)
+    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
     assert key is not None
     assert key.keystate == 1
 
@@ -102,19 +102,19 @@ def test_enable_enable_key(client: Client):
     """
     keyid, _ = create_random_keys(client, 1)[0]
     # enable it
-    resp = client.enable_key(keyid)
-    assert_response_success(resp)
-    resp = client.list_key()
-    assert_response_success(resp)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, resp.result.list), None)
+    result = client.enable_key(keyid)
+    assert_response_success(result.response)
+    result = client.list_key()
+    assert_response_success(result.response)
+    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
     assert key is not None
     assert key.keystate == 1
     # enable it again
-    resp = client.enable_key(keyid)
-    assert_response_success(resp)
-    resp = client.list_key()
-    assert_response_success(resp)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, resp.result.list), None)
+    result = client.enable_key(keyid)
+    assert_response_success(result.response)
+    result = client.list_key()
+    assert_response_success(result.response)
+    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
     assert key is not None
     assert key.keystate == 1
 
@@ -125,19 +125,19 @@ def test_disable_disable_key(client: Client):
     """
     keyid, _ = create_random_keys(client, 1)[0]
     # enable it
-    resp = client.disable_key(keyid)
-    assert_response_success(resp)
-    resp = client.list_key()
-    assert_response_success(resp)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, resp.result.list), None)
+    result = client.disable_key(keyid)
+    assert_response_success(result.response)
+    result = client.list_key()
+    assert_response_success(result.response)
+    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
     assert key is not None
     assert key.keystate == 0
     # enable it again
-    resp = client.disable_key(keyid)
-    assert_response_success(resp)
-    resp = client.list_key()
-    assert_response_success(resp)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, resp.result.list), None)
+    result = client.disable_key(keyid)
+    assert_response_success(result.response)
+    result = client.list_key()
+    assert_response_success(result.response)
+    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
     assert key is not None
     assert key.keystate == 0
 
@@ -145,14 +145,14 @@ def test_disable_disable_key(client: Client):
 def test_delete_key(client: Client):
     keyid, _ = create_random_keys(client, 1)[0]
     # before delete: should successfully acquire
-    resp = client.list_key()
-    assert_response_success(resp)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, resp.result.list), None)
+    result = client.list_key()
+    assert_response_success(result.response)
+    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
     assert key is not None
     # delete: should not be found
-    resp = client.delete_key(keyid)
-    assert_response_success(resp)
-    resp = client.list_key()
-    assert_response_success(resp)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, resp.result.list), None)
+    result = client.delete_key(keyid)
+    assert_response_success(result.response)
+    result = client.list_key()
+    assert_response_success(result.response)
+    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
     assert key is None

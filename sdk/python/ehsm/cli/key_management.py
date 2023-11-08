@@ -20,7 +20,7 @@ __all__ = [
 @ehsm_cli.command()
 @with_client
 def get_version(client: Client):
-    version = client.get_version().result
+    version = client.get_version()
     click.echo(f"Git SHA: \t{version.git_sha}")
     click.echo(f"Version: \t{version.version}")
 
@@ -37,7 +37,7 @@ def enroll(client: Client):
 @with_client
 @with_credential_missing_handler
 def list_key(client: Client):
-    keys = client.list_key().result.list
+    keys = client.list_key().list
     if len(keys) == 0:
         click.echo("No keys found.")
         return
@@ -56,7 +56,7 @@ def list_key(client: Client):
 )
 def delete_key(client: Client, keyid: str):
     resp = client.delete_key(keyid)
-    click.echo(resp.message)
+    click.echo(resp.response.message)
 
 
 @ehsm_cli.command()
@@ -64,7 +64,7 @@ def delete_key(client: Client, keyid: str):
 @with_credential_missing_handler
 def delete_all_key(client: Client):
     resp = client.delete_all_key()
-    click.echo(resp.message)
+    click.echo(resp.response.message)
 
 
 @ehsm_cli.command()
@@ -73,7 +73,7 @@ def delete_all_key(client: Client):
 @options.keyid()
 def enable_key(client: Client, keyid: str):
     resp = client.enable_key(keyid)
-    click.echo(resp.message)
+    click.echo(resp.response.message)
 
 
 @ehsm_cli.command()
@@ -82,4 +82,4 @@ def enable_key(client: Client, keyid: str):
 @options.keyid()
 def disable_key(client: Client, keyid: str):
     resp = client.disable_key(keyid)
-    click.echo(resp.message)
+    click.echo(resp.response.message)

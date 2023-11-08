@@ -19,19 +19,19 @@ from ehsm.server_tests.utils import random_str, assert_response_success
 )
 def test_asymm_encrypt_decrypt(client: Client, keyspec: KeySpec):
     # 1. create a key
-    resp = client.create_key(
+    result = client.create_key(
         keyspec, Origin.EH_INTERNAL_KEY, KeyUsage.EH_KEYUSAGE_ENCRYPT_DECRYPT
     )
-    assert_response_success(resp)
-    keyid = resp.result.keyid
+    assert_response_success(result.response)
+    keyid = result.keyid
     # 2. test encrypt and decrypt
     origin_text = str_to_base64(random_str(100))
     enc_resp = client.asymm_encrypt(keyid, origin_text, PaddingMode.EH_RSA_PKCS1_OAEP)
-    assert_response_success(enc_resp)
-    ciphertext = enc_resp.result.ciphertext
+    assert_response_success(enc_resp.response)
+    ciphertext = enc_resp.ciphertext
     dec_resp = client.asymm_decrypt(keyid, ciphertext, PaddingMode.EH_RSA_PKCS1_OAEP)
-    assert_response_success(dec_resp)
-    plaintext = dec_resp.result.plaintext
+    assert_response_success(dec_resp.response)
+    plaintext = dec_resp.plaintext
     assert origin_text == plaintext
 
 
@@ -51,14 +51,14 @@ def test_asymm_encrypt_decrypt(client: Client, keyspec: KeySpec):
 )
 def test_get_public_key(client: Client, keyspec: KeySpec):
     # 1. create a key
-    resp = client.create_key(
+    result = client.create_key(
         keyspec, Origin.EH_INTERNAL_KEY, KeyUsage.EH_KEYUSAGE_SIGN_VERIFY
     )
-    assert_response_success(resp)
-    keyid = resp.result.keyid
+    assert_response_success(result.response)
+    keyid = result.keyid
     # 2. try acquire the key from server
-    resp = client.get_public_key(keyid)
-    assert_response_success(resp)
+    result = client.get_public_key(keyid)
+    assert_response_success(result.response)
 
 
 @pytest.mark.parametrize(
@@ -77,23 +77,23 @@ def test_get_public_key(client: Client, keyspec: KeySpec):
 )
 def test_sign_verify(client: Client, keyspec: KeySpec, padding_mode: PaddingMode):
     # 1. create key
-    resp = client.create_key(
+    result = client.create_key(
         keyspec, Origin.EH_INTERNAL_KEY, KeyUsage.EH_KEYUSAGE_SIGN_VERIFY
     )
-    assert_response_success(resp)
-    keyid = resp.result.keyid
+    assert_response_success(result.response)
+    keyid = result.keyid
     # 2. test sign and verify
     message = str_to_base64(random_str(100))
-    sign_resp = client.sign(
+    sign_result = client.sign(
         keyid=keyid,
         padding_mode=padding_mode,
         digest_mode=DigestMode.EH_SHA_256,
         message_type=MessageType.EH_RAW,
         message=message,
     )
-    assert_response_success(sign_resp)
-    sign = sign_resp.result.signature
-    verify_resp = client.verify(
+    assert_response_success(sign_result.response)
+    sign = sign_result.signature
+    verify_result = client.verify(
         keyid=keyid,
         padding_mode=PaddingMode.EH_RSA_PKCS1,
         digest_mode=DigestMode.EH_SHA_256,
@@ -101,9 +101,9 @@ def test_sign_verify(client: Client, keyspec: KeySpec, padding_mode: PaddingMode
         message=message,
         signature=sign,
     )
-    assert_response_success(verify_resp)
+    assert_response_success(verify_result.response)
     # assert the verification is success
-    assert verify_resp.result.result
+    assert verify_result.result
 
 
 @pytest.mark.parametrize(
@@ -118,22 +118,21 @@ def test_sign_verify(client: Client, keyspec: KeySpec, padding_mode: PaddingMode
 )
 def test_symm_encrypt_decrypt(client: Client, keyspec: KeySpec):
     # 1. create a key
-    resp = client.create_key(
+    result = client.create_key(
         keyspec, Origin.EH_INTERNAL_KEY, KeyUsage.EH_KEYUSAGE_ENCRYPT_DECRYPT
     )
-    assert_response_success(resp)
-    keyid = resp.result.keyid
+    assert_response_success(result.response)
+    keyid = result.keyid
     # 2. test encrypt and decrypt
     aad = str_to_base64(random_str(8))
     origin_text = str_to_base64(random_str(111))
-    enc_resp = client.encrypt(aad=aad, keyid=keyid, plaintext=origin_text)
-    assert_response_success(enc_resp)
-    ciphertext = enc_resp.result.ciphertext
-    dec_resp = client.decrypt(aad=aad, keyid=keyid, ciphertext=ciphertext)
-    assert_response_success(dec_resp)
-    plaintext = dec_resp.result.plaintext
-    # assert origin_text == plaintext
-    assert origin_text == base64_to_str(plaintext)
+    enc_result = client.encrypt(aad=aad, keyid=keyid, plaintext=origin_text)
+    assert_response_success(enc_result.response)
+    ciphertext = enc_result.ciphertext
+    dec_result = client.decrypt(aad=aad, keyid=keyid, ciphertext=ciphertext)
+    assert_response_success(dec_result.response)
+    plaintext = dec_result.plaintext
+    assert origin_text == plaintext
 
 
 @pytest.mark.parametrize(
@@ -150,15 +149,15 @@ def test_generate_data_key(client: Client, keyspec: KeySpec):
     KEYLEN = 16
     aad = str_to_base64(random_str(10))
     # 1. create data key
-    resp = client.create_key(
+    result = client.create_key(
         keyspec, Origin.EH_INTERNAL_KEY, KeyUsage.EH_KEYUSAGE_ENCRYPT_DECRYPT
     )
-    assert_response_success(resp)
-    keyid = resp.result.keyid
+    assert_response_success(result.response)
+    keyid = result.keyid
     # 2. test creation of data key
-    resp = client.generate_data_key(aad=aad, keyid=keyid, keylen=KEYLEN)
-    assert_response_success(resp)
-    ciphertext = resp.result.ciphertext
+    result = client.generate_data_key(aad=aad, keyid=keyid, keylen=KEYLEN)
+    assert_response_success(result.response)
+    ciphertext = result.ciphertext
     # 3. test decryption
     client.decrypt(aad=aad, keyid=keyid, ciphertext=ciphertext)
 
@@ -177,14 +176,14 @@ def test_generate_data_key_without_plaintext(client: Client, keyspec: KeySpec):
     KEYLEN = 48
     aad = str_to_base64(random_str(10))
     # 1. create data key
-    resp = client.create_key(
+    result = client.create_key(
         keyspec, Origin.EH_INTERNAL_KEY, KeyUsage.EH_KEYUSAGE_ENCRYPT_DECRYPT
     )
-    assert_response_success(resp)
-    keyid = resp.result.keyid
+    assert_response_success(result.response)
+    keyid = result.keyid
     # 2. test creation of data key
-    resp = client.generate_data_key_without_plaintext(aad=aad, keyid=keyid, keylen=KEYLEN)
-    assert_response_success(resp)
-    ciphertext = resp.result.ciphertext
+    result = client.generate_data_key_without_plaintext(aad=aad, keyid=keyid, keylen=KEYLEN)
+    assert_response_success(result.response)
+    ciphertext = result.ciphertext
     # 3. test decryption
     client.decrypt(aad=aad, keyid=keyid, ciphertext=ciphertext)

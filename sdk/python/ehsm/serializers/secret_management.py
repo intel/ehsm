@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 
@@ -35,9 +35,10 @@ class ListSecretVersionIdsResponse(EHSMBase):
 
 @dataclass
 class Secret:
-    description: str
     secret_name: str = Field(alias='secretName')
     create_time: int = Field(alias='createTime')
+    description: Optional[str] = None
+
 
 @dataclass
 class ListSecretsResponse(EHSMBase):

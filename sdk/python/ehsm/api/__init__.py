@@ -34,3 +34,13 @@ class Client(
             self._session = Session(
                 base_url, appid=appid, apikey=apikey, allow_insecure=allow_insecure
             )
+        # store props
+        self._allow_insecure = allow_insecure
+
+    @property
+    def base_url(self):
+        return self._session.base_url
+
+    @property
+    def allow_insecure(self):
+        return self._allow_insecure
