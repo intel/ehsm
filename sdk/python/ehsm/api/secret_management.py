@@ -70,7 +70,6 @@ class SecretManagementMixin(EHSMBaseClient):
                 "secretName": secret_name,
             },
         )
-        print(resp.content)
         return ListSecretVersionIdsResponse.from_response(resp)
 
     def list_secrets(self, secret_name: Optional[str] = None):
@@ -84,7 +83,6 @@ class SecretManagementMixin(EHSMBaseClient):
                 "secretName": secret_name,
             },
         )
-        print(resp.text)
         return ListSecretsResponse.from_response(resp)
 
     def describe_secret(self, secret_name: str):
