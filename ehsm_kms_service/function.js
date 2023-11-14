@@ -642,6 +642,14 @@ const gen_hmac = async (DB, appid, sign_params) => {
                 apikey,
                 payload: sign_string,
             })
+        // check if failed
+        if (!result) {
+            logger.error('Unexpected Error')
+            return {
+                error: 'Unexpected Error',
+                hmac: '',
+            }
+        }
         return {
             error: '',
             hmac: result.hmac,
