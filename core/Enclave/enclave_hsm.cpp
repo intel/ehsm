@@ -664,12 +664,7 @@ sgx_status_t enclave_generate_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
             ciphertext->datalen = plaintext->datalen + EH_AES_GCM_IV_SIZE + EH_AES_GCM_MAC_SIZE;
             return SGX_SUCCESS;
         case EH_SM4_CBC:
-            if (plaintext->datalen % 16 != 0)
-            {
-                ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
-                return SGX_SUCCESS;
-            }
-            ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
+            ciphertext->datalen = (plaintext->datalen / 16 + 1) * 16 + SGX_SM4_IV_SIZE;
             return SGX_SUCCESS;
         case EH_SM4_CTR:
             ciphertext->datalen = plaintext->datalen + SGX_SM4_IV_SIZE;
@@ -761,7 +756,6 @@ sgx_status_t enclave_export_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
         return SGX_ERROR_INVALID_PARAMETER;
 
     ehsm_data_t *tmp_datakey = NULL;
-    ehsm_data_t tmp_datakey_tmp = {0};
     size_t tmp_datakey_size = 0;
 
     // datakey plaintext
@@ -771,37 +765,38 @@ sgx_status_t enclave_export_datakey(ehsm_keyblob_t *cmk, size_t cmk_size,
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
-        tmp_datakey_tmp.datalen = olddatakey->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
-        tmp_datakey_size = APPEND_SIZE_TO_DATA_T(tmp_datakey_tmp.datalen);
+        tmp_datakey_size = olddatakey->datalen - EH_AES_GCM_IV_SIZE - EH_AES_GCM_MAC_SIZE;
         break;
     case EH_SM4_CBC:
     case EH_SM4_CTR:
-        tmp_datakey_tmp.datalen = olddatakey->datalen - SGX_SM4_IV_SIZE;
-        tmp_datakey_size = APPEND_SIZE_TO_DATA_T(tmp_datakey_tmp.datalen);
+        tmp_datakey_size = olddatakey->datalen - SGX_SM4_IV_SIZE;
         break;
     default:
         ret = SGX_ERROR_INVALID_PARAMETER;
         goto out;
     }
-    tmp_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(tmp_datakey_tmp.datalen));
+
+    tmp_datakey = (ehsm_data_t *)malloc(APPEND_SIZE_TO_DATA_T(tmp_datakey_size));
     if (tmp_datakey == NULL)
     {
         tmp_datakey_size = 0;
         ret = SGX_ERROR_INVALID_PARAMETER;
         goto out;
     }
-    tmp_datakey->datalen = tmp_datakey_tmp.datalen;
+    tmp_datakey->datalen = tmp_datakey_size;
+    tmp_datakey_size = APPEND_SIZE_TO_DATA_T(tmp_datakey_size);
     // decrypt olddatakey using cmk
     switch (cmk->metadata.keyspec)
     {
     case EH_AES_GCM_128:
     case EH_AES_GCM_192:
     case EH_AES_GCM_256:
+    case EH_SM4_CTR:
         ret = enclave_decrypt(cmk, cmk_size, aad, aad_size, olddatakey, olddatakey_size, tmp_datakey, tmp_datakey_size);
         break;
     case EH_SM4_CBC:
-    case EH_SM4_CTR:
         ret = enclave_decrypt(cmk, cmk_size, aad, aad_size, olddatakey, olddatakey_size, tmp_datakey, tmp_datakey_size);
+        tmp_datakey_size = APPEND_SIZE_TO_DATA_T(tmp_datakey->datalen);
         break;
     default:
         ret = SGX_ERROR_INVALID_PARAMETER;
