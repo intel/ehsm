@@ -38,6 +38,8 @@ services:
     volumes:
       - /var/run/aesmd:/var/run/aesmd
       - /var/run/ehsm:/var/run/ehsm
+      - /var/local/ehsm:/var/local/ehsm
+      - /var/log/ehsm:/var/log/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}
@@ -62,6 +64,8 @@ services:
     volumes:
       - /var/run/aesmd:/var/run/aesmd
       - /var/run/ehsm:/var/run/ehsm
+      - /var/local/ehsm:/var/local/ehsm
+      - /var/log/ehsm:/var/log/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}
@@ -91,6 +95,8 @@ services:
     volumes:
       - /var/run/aesmd:/var/run/aesmd
       - /var/run/ehsm:/var/run/ehsm
+      - /var/local/ehsm:/var/local/ehsm
+      - /var/log/ehsm:/var/log/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}

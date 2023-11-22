@@ -16,7 +16,7 @@ log4js.configure({
     },
     cheese: {
       type: 'dateFile',
-      filename: `/var/run/ehsm/logs/kms-service`,
+      filename: `/var/log/ehsm/kms-service`,
       encoding: 'utf-8',
       layout: {
         type: 'pattern',
