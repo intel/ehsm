@@ -68,11 +68,13 @@ static bool _createkey(ehsm_keyblob_t *&cmk)
 {
     ehsm_keyblob_t cmk_tmp = {};
     cmk_tmp.metadata.origin = EH_INTERNAL_KEY;
+    cmk_tmp.metadata.keyspec = cmk->metadata.keyspec;
+    cmk_tmp.metadata.keyusage = cmk->metadata.keyusage;
     cmk_tmp.keybloblen = 0;
     ehsm_status_t ret = CreateKey(&cmk_tmp);
     if (ret != EH_OK)
     {
-        log_e("first createkey failed with keyspec code %d failed.\n", cmk_tmp.metadata.keyspec);
+        log_e("first createkey failed with keyspec code %d failed(%d).\n", cmk_tmp.metadata.keyspec, ret);
         return false;
     }
 
