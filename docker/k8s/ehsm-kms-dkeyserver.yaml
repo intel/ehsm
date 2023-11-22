@@ -56,6 +56,12 @@ spec:
       - name: runtime-folder
         hostPath:
           path: /var/run/ehsm
+      - name: local-data-folder
+        hostPath:
+          path: /var/local/ehsm
+      - name: log-folder
+        hostPath:
+          path: /var/log/ehsm
       containers:
       - name: dkey-main
         image: intel/dkeyserver:latest
@@ -71,6 +77,10 @@ spec:
           name: dev-aesmd
         - mountPath: /var/run/ehsm
           name: runtime-folder
+        - mountPath: /var/local/ehsm
+          name: local-data-folder
+        - mountPath: /var/log/ehsm
+          name: log-folder
         readinessProbe:
           tcpSocket:
             port: dkey-main-port
@@ -129,6 +139,12 @@ spec:
       - name: runtime-folder
         hostPath:
           path: /var/run/ehsm
+      - name: local-data-folder
+        hostPath:
+          path: /var/local/ehsm
+      - name: log-folder
+        hostPath:
+          path: /var/log/ehsm
       initContainers:
       - name: init-worker
         # this images same the container's image.
@@ -161,6 +177,10 @@ spec:
           name: dev-aesmd
         - mountPath: /var/run/ehsm
           name: runtime-folder
+        - mountPath: /var/local/ehsm
+          name: local-data-folder
+        - mountPath: /var/log/ehsm
+          name: log-folder
         env:
         - name: PCCS_URL 
           valueFrom:

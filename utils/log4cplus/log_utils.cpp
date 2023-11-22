@@ -11,7 +11,7 @@
 
 using namespace log4cplus;
 
-#define LOGS_FOLDER (std::string(RUNTIME_FOLDER) + "logs").c_str()
+#define LOGS_FOLDER (std::string(LOG_FOLDER)).c_str()
 #define MAX_FILE_SIZE 10*1024*1024
 #define MAX_FILE_NUMBER 5
  

@@ -64,7 +64,7 @@
 
 using namespace std;
 
-#define DKEY_FILE_NAME (std::string(RUNTIME_FOLDER) + "single_test_dkey.bin").c_str()
+#define DKEY_FILE_NAME (std::string(LOCAL_DATA_FOLDER) + "single_test_dkey.bin").c_str()
 
 void ocall_print_string(uint32_t log_level, const char *str, const char *filename, uint32_t line)
 {
@@ -381,6 +381,20 @@ ehsm_status_t Initialize(bool run_on_cluter)
             return EH_FUNCTION_FAILED;
         }
     }
+    if (access(LOCAL_DATA_FOLDER, F_OK) != 0)
+    {
+        if (mkdir(LOCAL_DATA_FOLDER, 0755) != 0)
+        {
+            return EH_FUNCTION_FAILED;
+        }
+    }
+    if (access(LOG_FOLDER, F_OK) != 0)
+    {
+        if (mkdir(LOG_FOLDER, 0755) != 0)
+        {
+            return EH_FUNCTION_FAILED;
+        }
+    }
     if (initLogger("core.log") < 0)
         return EH_FUNCTION_FAILED;
 
@@ -388,6 +402,8 @@ ehsm_status_t Initialize(bool run_on_cluter)
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
     log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
+    log_i("Local data folder:\t%s", LOCAL_DATA_FOLDER);
+    log_i("Log folder:\t%s", LOG_FOLDER);
 
     ehsm_status_t rc = EH_OK;
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;

@@ -23,7 +23,7 @@
 #define ROLE_WORKER "worker"
 #define ROLE_ROOT "root"
 char s_port[] = "8888";
-#define FILE_NAME (std::string(RUNTIME_FOLDER) + "dkey.bin").c_str()
+#define FILE_NAME (std::string(LOCAL_DATA_FOLDER) + "dkey.bin").c_str()
 
 sgx_enclave_id_t g_enclave_id;
 
@@ -305,12 +305,32 @@ int main(int argc, char *argv[])
             return -1;
         }
     }
+    if (access(LOCAL_DATA_FOLDER, F_OK) != 0)
+    {
+        printf("Initializing local data folder [path: %s].\n", LOCAL_DATA_FOLDER);
+        if (mkdir(LOCAL_DATA_FOLDER, 0755) != 0)
+        {
+            printf("Create local data folder failed!\n");
+            return -1;
+        }
+    }
+    if (access(LOG_FOLDER, F_OK) != 0)
+    {
+        printf("Initializing log folder [path: %s].\n", LOG_FOLDER);
+        if (mkdir(LOG_FOLDER, 0755) != 0)
+        {
+            printf("Create log folder failed!\n");
+            return -1;
+        }
+    }
     if (initLogger("dkeyserver.log") < 0)
         return -1;
     log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
     log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
+    log_i("Local data folder:\t%s", LOCAL_DATA_FOLDER);
+    log_i("Log folder:\t%s", LOG_FOLDER);
     string server_role;
     string target_ip_addr;
     uint16_t target_port = 0;
