@@ -176,7 +176,7 @@ int communicate_with_server(SSL *ssl)
             ret = 0;
             memcpy(g_domain_key, buf, SGX_DOMAIN_KEY_SIZE);
             log_i("Successfully received the DomainKey from deploy server.\n");
-            for (int i = 0; i < sizeof(g_domain_key); i++)
+            for (size_t i = 0; i < sizeof(g_domain_key); i++)
             {
                 log_d("domain_key[%d]=%2u\n", i, g_domain_key[i]);
             }
