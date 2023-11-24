@@ -49,7 +49,7 @@
 
 #define BUFFER_SIZE 1024
 
-#define UNIX_DOMAIN (std::string(RUNTIME_FOLDER) + "dkeyprovision.sock").c_str()
+#define UNIX_DOMAIN (std::string(EHSM_RUNTIME_FOLDER) + "dkeyprovision.sock").c_str()
 
 /* Function Description: this is for client to send request message and receive response message
  * Parameter Description:

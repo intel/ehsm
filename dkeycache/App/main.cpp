@@ -169,10 +169,10 @@ static void parse_args(int argc, char *argv[],
 int main(int argc, char *argv[])
 {
     // mkdir RUNTIME_FOLDER
-    if (access(RUNTIME_FOLDER, F_OK) != 0)
+    if (access(EHSM_RUNTIME_FOLDER, F_OK) != 0)
     {
-        printf("Initializing runtime folder [path: %s].\n", RUNTIME_FOLDER);
-        if (mkdir(RUNTIME_FOLDER, 0755) != 0)
+        printf("Initializing runtime folder [path: %s].\n", EHSM_RUNTIME_FOLDER);
+        if (mkdir(EHSM_RUNTIME_FOLDER, 0755) != 0)
         {
             printf("Create runtime folder failed!\n");
             return -1;
@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
     // process argv
     parse_args(argc, argv, deploy_ip_addr, &deploy_port);
 
-    log_i("Runtime folder:\t\t%s", RUNTIME_FOLDER);
+    log_i("Runtime folder:\t\t%s", EHSM_RUNTIME_FOLDER);
     log_i("DomainKey Server IP:\t\t%s", deploy_ip_addr.c_str());
     log_i("DomainKey Server port:\t%d", deploy_port);
 

@@ -11,7 +11,6 @@
 
 using namespace log4cplus;
 
-#define LOGS_FOLDER (std::string(LOG_FOLDER)).c_str()
 #define MAX_FILE_SIZE 10*1024*1024
 #define MAX_FILE_NUMBER 5
  
@@ -23,18 +22,18 @@ int initLogger(const char* logs_filename)
 
     if (logs_filename!=NULL)
     {
-        if (access(LOGS_FOLDER, F_OK) != 0) {
-            printf("Initializing logs folder [path: %s].", LOGS_FOLDER);
-            if (mkdir(LOGS_FOLDER, 0755) != 0) {
+        if (access(EHSM_LOGS_FOLDER, F_OK) != 0) {
+            printf("Initializing logs folder [path: %s].", EHSM_LOGS_FOLDER);
+            if (mkdir(EHSM_LOGS_FOLDER, 0755) != 0) {
                 printf("Create logs folder failed!");
                 return -1;
             }
         }
 
-        printf("Logs folder:\t%s\n", LOGS_FOLDER);
-        int path_len = strlen(LOGS_FOLDER) + strlen(logs_filename) + strlen("/")+1;
+        printf("Logs folder:\t%s\n", EHSM_LOGS_FOLDER);
+        int path_len = strlen(EHSM_LOGS_FOLDER) + strlen(logs_filename) + strlen("/")+1;
         char logs_path[path_len] = {0};        
-        snprintf(logs_path, path_len, "%s/%s", LOGS_FOLDER, logs_filename);
+        snprintf(logs_path, path_len, "%s/%s", EHSM_LOGS_FOLDER, logs_filename);
 
         SharedAppenderPtr fileAppender(new RollingFileAppender(
                                     LOG4CPLUS_TEXT(logs_path), 

@@ -51,7 +51,7 @@ App_Include_Paths := \
 	-I$(TOPDIR)/include \
 	-I$(SGX_SDK)/include \
 
-App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DRUNTIME_FOLDER=\"$(RUNTIME_FOLDER)\" -DLOCAL_DATA_FOLDER=\"$(LOCAL_DATA_FOLDER)\" -DLOG_FOLDER=\"$(LOG_FOLDER)\"
+App_C_Flags := $(SGX_COMMON_FLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -DEHSM_RUNTIME_FOLDER=\"$(EHSM_RUNTIME_FOLDER)\" -DEHSM_LOCAL_DATA_FOLDER=\"$(EHSM_LOCAL_DATA_FOLDER)\" -DEHSM_LOGS_FOLDER=\"$(EHSM_LOGS_FOLDER)\"
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
