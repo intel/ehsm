@@ -135,7 +135,7 @@ You must have at least three computers,a master-node server,one or more work-nod
     apiVersion: kubeproxy.config.k8s.io/v1alpha1
     kind: KubeProxyConfiguration
     featureGates:
-      SupportIPVSProxyMode: true
+      #SupportIPVSProxyMode: true
     mode: ipvs
 
     # Start initialize and save log to kubeadm-init.log

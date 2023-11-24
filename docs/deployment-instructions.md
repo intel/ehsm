@@ -24,7 +24,7 @@ This below diagram depicts the high-level overview of the eHSM-KMS in K8S cluste
 * Download and Start the Dkeyserver service in the Dkeyserver node
 
     ```Shell
-    wget https://github.com/intel/ehsm/tree/main/docker/k8s/run_dkeyserver.sh
+    wget https://github.com/intel/ehsm/raw/main/docker/k8s/run_dkeyserver.sh
 
     # modify the below configs
     EHSM_DOCKER_IMAGE_NAME="intelccc/ehsm_dkeyserver:0.2.0"  --> <your_dkeyserver_image>
@@ -40,7 +40,7 @@ This below diagram depicts the high-level overview of the eHSM-KMS in K8S cluste
 * Download and modify the yaml file in the K8S master node.
     ```Shell
     Notes: You can get the example YAML file from:
-    https://github.com/intel/ehsm/tree/main/docker/k8s/ehsm-kms.yaml
+    https://github.com/intel/ehsm/raw/main/docker/k8s/ehsm-kms.yaml
 
     # Modify the below parameters based on your environment
 
