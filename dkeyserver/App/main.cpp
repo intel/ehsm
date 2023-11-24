@@ -23,7 +23,7 @@
 #define ROLE_WORKER "worker"
 #define ROLE_ROOT "root"
 char s_port[] = "8888";
-#define FILE_NAME (std::string(LOCAL_DATA_FOLDER) + "dkey.bin").c_str()
+#define FILE_NAME (std::string(EHSM_LOCAL_DATA_FOLDER) + "dkey.bin").c_str()
 
 sgx_enclave_id_t g_enclave_id;
 
@@ -296,28 +296,28 @@ int validate_parameter(string server_role,
 
 int main(int argc, char *argv[])
 {
-    if (access(RUNTIME_FOLDER, F_OK) != 0)
+    if (access(EHSM_RUNTIME_FOLDER, F_OK) != 0)
     {
-        printf("Initializing runtime folder [path: %s].\n", RUNTIME_FOLDER);
-        if (mkdir(RUNTIME_FOLDER, 0755) != 0)
+        printf("Initializing runtime folder [path: %s].\n", EHSM_RUNTIME_FOLDER);
+        if (mkdir(EHSM_RUNTIME_FOLDER, 0755) != 0)
         {
             printf("Create runtime folder failed!\n");
             return -1;
         }
     }
-    if (access(LOCAL_DATA_FOLDER, F_OK) != 0)
+    if (access(EHSM_LOCAL_DATA_FOLDER, F_OK) != 0)
     {
-        printf("Initializing local data folder [path: %s].\n", LOCAL_DATA_FOLDER);
-        if (mkdir(LOCAL_DATA_FOLDER, 0755) != 0)
+        printf("Initializing local data folder [path: %s].\n", EHSM_LOCAL_DATA_FOLDER);
+        if (mkdir(EHSM_LOCAL_DATA_FOLDER, 0755) != 0)
         {
             printf("Create local data folder failed!\n");
             return -1;
         }
     }
-    if (access(LOG_FOLDER, F_OK) != 0)
+    if (access(EHSM_LOGS_FOLDER, F_OK) != 0)
     {
-        printf("Initializing log folder [path: %s].\n", LOG_FOLDER);
-        if (mkdir(LOG_FOLDER, 0755) != 0)
+        printf("Initializing log folder [path: %s].\n", EHSM_LOGS_FOLDER);
+        if (mkdir(EHSM_LOGS_FOLDER, 0755) != 0)
         {
             printf("Create log folder failed!\n");
             return -1;
@@ -328,9 +328,9 @@ int main(int argc, char *argv[])
     log_i("Service name:\t\tDomainKey Provisioning Service %s", EHSM_VERSION);
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
-    log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
-    log_i("Local data folder:\t%s", LOCAL_DATA_FOLDER);
-    log_i("Log folder:\t%s", LOG_FOLDER);
+    log_i("Runtime folder:\t%s", EHSM_RUNTIME_FOLDER);
+    log_i("Local data folder:\t%s", EHSM_LOCAL_DATA_FOLDER);
+    log_i("Log folder:\t%s", EHSM_LOGS_FOLDER);
     string server_role;
     string target_ip_addr;
     uint16_t target_port = 0;

@@ -64,7 +64,7 @@
 
 using namespace std;
 
-#define DKEY_FILE_NAME (std::string(LOCAL_DATA_FOLDER) + "single_test_dkey.bin").c_str()
+#define DKEY_FILE_NAME (std::string(EHSM_LOCAL_DATA_FOLDER) + "single_test_dkey.bin").c_str()
 
 void ocall_print_string(uint32_t log_level, const char *str, const char *filename, uint32_t line)
 {
@@ -374,23 +374,23 @@ int ocall_store_domain_key(uint8_t *cipher_dk, uint32_t cipher_dk_len)
 
 ehsm_status_t Initialize(bool run_on_cluter)
 {
-    if (access(RUNTIME_FOLDER, F_OK) != 0)
+    if (access(EHSM_RUNTIME_FOLDER, F_OK) != 0)
     {
-        if (mkdir(RUNTIME_FOLDER, 0755) != 0)
+        if (mkdir(EHSM_RUNTIME_FOLDER, 0755) != 0)
         {
             return EH_FUNCTION_FAILED;
         }
     }
-    if (access(LOCAL_DATA_FOLDER, F_OK) != 0)
+    if (access(EHSM_LOCAL_DATA_FOLDER, F_OK) != 0)
     {
-        if (mkdir(LOCAL_DATA_FOLDER, 0755) != 0)
+        if (mkdir(EHSM_LOCAL_DATA_FOLDER, 0755) != 0)
         {
             return EH_FUNCTION_FAILED;
         }
     }
-    if (access(LOG_FOLDER, F_OK) != 0)
+    if (access(EHSM_LOGS_FOLDER, F_OK) != 0)
     {
-        if (mkdir(LOG_FOLDER, 0755) != 0)
+        if (mkdir(EHSM_LOGS_FOLDER, 0755) != 0)
         {
             return EH_FUNCTION_FAILED;
         }
@@ -401,9 +401,9 @@ ehsm_status_t Initialize(bool run_on_cluter)
     log_i("Service name:\t\teHSM-KMS service %s", EHSM_VERSION);
     log_i("Service built:\t\t%s", EHSM_DATE);
     log_i("Service git_sha:\t\t%s", EHSM_GIT_SHA);
-    log_i("Runtime folder:\t%s", RUNTIME_FOLDER);
-    log_i("Local data folder:\t%s", LOCAL_DATA_FOLDER);
-    log_i("Log folder:\t%s", LOG_FOLDER);
+    log_i("Runtime folder:\t%s", EHSM_RUNTIME_FOLDER);
+    log_i("Local data folder:\t%s", EHSM_LOCAL_DATA_FOLDER);
+    log_i("Logs folder:\t%s", EHSM_LOGS_FOLDER);
 
     ehsm_status_t rc = EH_OK;
     sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
