@@ -37,9 +37,9 @@ services:
       - "${DKEYSERVER_PORT}:8888"
     volumes:
       - /var/run/aesmd:/var/run/aesmd
-      - /var/run/ehsm:/var/run/ehsm
-      - /var/local/ehsm:/var/local/ehsm
-      - /var/log/ehsm:/var/log/ehsm
+      - ${EHSM_RUNTIME_FOLDER:-/var/run/ehsm}:/var/run/ehsm
+      - ${EHSM_LOCAL_DATA_FOLDER:-/var/local/ehsm}:/var/local/ehsm
+      - ${EHSM_LOG_FOLDER:-/var/log/ehsm}:/var/log/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}
@@ -63,9 +63,9 @@ services:
     image: "ehsm_dkeycache:${EHSM_VERSION_STR}"
     volumes:
       - /var/run/aesmd:/var/run/aesmd
-      - /var/run/ehsm:/var/run/ehsm
-      - /var/local/ehsm:/var/local/ehsm
-      - /var/log/ehsm:/var/log/ehsm
+      - ${EHSM_RUNTIME_FOLDER:-/var/run/ehsm}:/var/run/ehsm
+      - ${EHSM_LOCAL_DATA_FOLDER:-/var/local/ehsm}:/var/local/ehsm
+      - ${EHSM_LOG_FOLDER:-/var/log/ehsm}:/var/log/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}
@@ -94,9 +94,9 @@ services:
       - "${KMS_PORT}:9000"
     volumes:
       - /var/run/aesmd:/var/run/aesmd
-      - /var/run/ehsm:/var/run/ehsm
-      - /var/local/ehsm:/var/local/ehsm
-      - /var/log/ehsm:/var/log/ehsm
+      - ${EHSM_RUNTIME_FOLDER:-/var/run/ehsm}:/var/run/ehsm
+      - ${EHSM_LOCAL_DATA_FOLDER:-/var/local/ehsm}:/var/local/ehsm
+      - ${EHSM_LOG_FOLDER:-/var/log/ehsm}:/var/log/ehsm
     environment:
       - PCCS_URL=${PCCS_URL}
       - no_proxy=${no_proxy}
