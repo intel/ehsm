@@ -1,7 +1,7 @@
 FROM ubuntu:20.04 AS builder
 
 # DCAP version (github repo branch, tag or commit hash)
-ARG DCAP_VERSION=DCAP_1.15
+ARG DCAP_VERSION=DCAP_1.19
 ARG http_proxy
 ARG https_proxy
 
@@ -32,8 +32,12 @@ RUN mkdir /opt/intel && \
     . /opt/intel/sgxsdk/environment
 
 # install node.js
-RUN curl -sL https://deb.nodesource.com/setup_16.x | bash -
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends nodejs
+RUN wget https://nodejs.org/dist/v20.1.0/node-v20.1.0-linux-x64.tar.xz \
+    && tar xf node-v20.1.0-linux-x64.tar.xz \
+    && rm -rf node-v20.1.0-linux-x64.tar.xz \
+    && mv node-v20.1.0-linux-x64/ /usr/local/nodejs \
+    && ln -s /usr/local/nodejs/bin/node /usr/local/bin \
+    && ln -s /usr/local/nodejs/bin/npm /usr/local/bin
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -60,7 +64,6 @@ WORKDIR /SGXDataCenterAttestationPrimitives/QuoteGeneration/pccs/
 
 # build pccs
 RUN npm config set proxy $http_proxy && \
-    npm config set http-proxy $http_proxy && \
     npm config set https-proxy $https_proxy && \
     npm config set engine-strict true && \
     npm install
@@ -68,7 +71,7 @@ RUN npm config set proxy $http_proxy && \
 # build final image
 FROM ubuntu:20.04
 
-COPY --from=builder /usr/bin/node /usr/bin/node
+COPY --from=builder /usr/local/nodejs/bin/node /usr/bin/node
 COPY --from=builder /SGXDataCenterAttestationPrimitives/QuoteGeneration/pccs/ /opt/intel/pccs/
 ADD ./default.json /opt/intel/pccs/config/default.json
 ADD ./entrypoint.sh /opt/intel/pccs/entrypoint.sh

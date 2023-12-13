@@ -79,6 +79,24 @@ services:
     depends_on:
       - dkeyserver
 
+  pccs:
+    container_name: c_pccs
+    build: 
+      context: pccs
+      args:
+       http_proxy: ${http_proxy}
+       https_proxy: ${http_proxy}
+       PCCS_IMAGE_VERSION: ${PCCS_IMAGE_VERSION:-latest}
+    profiles: ["pccs"]
+    env_file:
+      - .env.pccs
+    image: "ehsm_pccs:${PCCS_IMAGE_VERSION:-latest}"
+    ports:
+      - "${PCCS_PORT:-8081}:8081"
+    devices:
+      - /dev/sgx/enclave
+      - /dev/sgx/provision
+
   # eHSM KMS service
   ehsmKMS:
     container_name: c_ehsmKMS
