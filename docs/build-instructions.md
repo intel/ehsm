@@ -2,7 +2,7 @@
 
 Welcome to see the build instructions for the ehsm-kms project.
 
-## Quick start with Docker-Compose
+## Quick start with Docker Compose
 
 **Notes:** The below steps has been verified on the **Ubuntu-20.04**.
 
@@ -61,21 +61,15 @@ Welcome to see the build instructions for the ehsm-kms project.
     USE_SECURE_CERT=FALSE
     ```
 
-* Install docker-compose
+* Install Docker Compose
 
     ``` shell
-    # Download the current stable release (remove the "-x $http_proxy" if you don't behind the proxy)
-    sudo curl -x $http_proxy -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
-    sudo chmod +x /usr/local/bin/docker-compose
-
-    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-
-    docker-compose --version
-    # docker-compose version 1.29.2, build 5becea4c
+    sudo apt install docker-compose-plugin
+    docker compose --version
+    # Docker Compose version v2.21.0
     ```
 
-* Build and Run ehsm-kms with docker-compose
+* Build and Run ehsm-kms with Docker Compose
 
     ```shell
     # Download the ehsm code from github
@@ -99,7 +93,7 @@ Welcome to see the build instructions for the ehsm-kms project.
     # ======== docker/.env.pccs END ========
 
     # Start to build and run the docker images (couchdb, dkeyserver, dkeycache, ehsm_kms_service)
-    cd docker && docker-compose up -d
+    cd docker && docker compose up -d
     # (Optional) If you want to start PCCS service as well, use `pccs` profile
     docker compose --profile=pccs up -d
     ```
