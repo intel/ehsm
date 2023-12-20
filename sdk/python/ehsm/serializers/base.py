@@ -29,17 +29,15 @@ class EHSMBase:
         if "result" not in data:
             raise ValueError("Response does not have attribute 'result'")
         if data["code"] >= 400 and data["code"] < 500:
-            raise InvalidParamException(
-                f"Response has status {data['code']}: {data['message']}"
-            )
+            # `message` may possibly missing in the repsonse data
+            message = f": {data['message']}" if "message" in data else ""
+            raise InvalidParamException(f"Response has status {data['code']}" + message)
         if data["code"] >= 500:
-            raise ServerExceptionException(
-                f"Response has status {data['code']}: {data['message']}"
-            )
+            message = f": {data['message']}" if "message" in data else ""
+            raise InvalidParamException(f"Response has status {data['code']}" + message)
         if data["code"] != 200:
-            raise UnknownException(
-                f"Response has status {data['code']}: {data['message']}"
-            )
+            message = f": {data['message']}" if "message" in data else ""
+            raise InvalidParamException(f"Response has status {data['code']}" + message)
         return cls(
             raw_response=response,
             response=EHSMResponse(code=data["code"], message=data["message"]),
