@@ -87,12 +87,13 @@ done:
 
 static bool sm2_verify_test(map<string, string> test_vector)
 {
-    EC_KEY *ec_key = NULL;
-    ECDSA_SIG *ecdsa_sig = NULL;
+    OSSL_PARAM_BLD *param_bld = OSSL_PARAM_BLD_new();
+    OSSL_PARAM *params = NULL;
+    
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
 
-    uint32_t ecdsa_signiture_max_size = 0;
     uint8_t *signature = NULL;
-    uint8_t *tmp_sig_ptr = NULL;
     uint32_t sig_len = 0;
 
     EC_POINT *pt = NULL;
@@ -104,13 +105,6 @@ static bool sm2_verify_test(map<string, string> test_vector)
     GET_PARAMETER(R);
     GET_PARAMETER(S);
     GET_PARAMETER(Priv);
-
-    ec_key = EC_KEY_new();
-    if (ec_key == NULL)
-    {
-        log_e("EC_KEY_new failed.\n");
-        goto out;
-    }
     ec_group = create_EC_group(test_vector["P"].c_str(),
                                test_vector["A"].c_str(),
                                test_vector["B"].c_str(),
@@ -122,85 +116,47 @@ static bool sm2_verify_test(map<string, string> test_vector)
     if (ec_group == NULL)
     {
         log_e("create_EC_group failed.\n");
-        goto out;
     }
 
-    if (!EC_KEY_set_group(ec_key, ec_group))
+    EC_POINT *pub = EC_POINT_new(ec_group);
+    unsigned char *pbuf = NULL;
+    size_t pub_out_len = EC_POINT_point2buf(ec_group, pub, POINT_CONVERSION_UNCOMPRESSED, &pbuf, NULL);
+
+    OSSL_PARAM_BLD_push_utf8_string(param_bld, OSSL_PKEY_PARAM_GROUP_NAME /*"group"*/,
+                                    "SM2", 0);
+    OSSL_PARAM_BLD_push_octet_string(param_bld, OSSL_PKEY_PARAM_PUB_KEY /*"pub"*/,
+                                     pbuf, pub_out_len);
+    OSSL_PARAM_BLD_push_octet_string(param_bld, OSSL_PKEY_PARAM_PRIV_KEY /*"Priv"*/,
+                                     &*Priv, VECTOR_LENGTH("Priv"));
+    params = OSSL_PARAM_BLD_to_param(param_bld);
+
+    ctx = EVP_PKEY_CTX_new_from_name(NULL, "SM2", NULL);
+    EVP_PKEY_keygen_init(ctx);
+    EVP_PKEY_CTX_set_params(ctx, params);
+    EVP_PKEY_generate(ctx, &pkey);
+    if (pkey)
     {
-        log_e("EC_KEY_set_group failed.\n");
-        goto out;
+        log_e("pkey");
     }
 
-    if (!EC_KEY_set_private_key(ec_key,
-                                BN_bin2bn(&*Priv, VECTOR_LENGTH("Priv"),
-                                          NULL)))
+    signature = (uint8_t *)malloc(72);
+
+    if (sm2_sign(
+            pkey,
+            EVP_sm3(),
+            EH_RAW,
+            (const uint8_t *)test_vector["Msg"].c_str(),
+            strlen(test_vector["Msg"].c_str()),
+            signature,
+            &sig_len,
+            (const uint8_t *)(test_vector["UserID"].c_str()),
+            strlen(test_vector["UserID"].c_str())) != SGX_SUCCESS)
     {
-        log_e("EC_KEY_set_private_key failed.\n");
+        log_e("sm2_sign failed\n");
         goto out;
     }
 
-    pt = EC_POINT_new(ec_group);
-    if (pt == NULL)
-    {
-        log_e("EC_POINT_new failed.\n");
-        goto out;
-    }
-
-    if (!EC_POINT_mul(ec_group,
-                      pt,
-                      BN_bin2bn(&*Priv, VECTOR_LENGTH("Priv"), NULL),
-                      NULL,
-                      NULL,
-                      NULL))
-    {
-        log_e("EC_POINT_mul failed.\n");
-        goto out;
-    }
-
-    if (!EC_KEY_set_public_key(ec_key, pt))
-    {
-        log_e("EC_KEY_set_public_key failed.\n");
-        goto out;
-    }
-
-    ecdsa_sig = ECDSA_SIG_new();
-    if (ecdsa_sig == NULL)
-    {
-        log_e("ECDSA_SIG_new failed.\n");
-        goto out;
-    }
-
-    ecdsa_signiture_max_size = ECDSA_size(ec_key);
-    if (ecdsa_signiture_max_size != 72)
-    {
-        log_e("ec key error\n");
-        goto out;
-    }
-
-    signature = (uint8_t *)malloc(ecdsa_signiture_max_size);
-    if (signature == NULL)
-    {
-        log_e("signature malloc failed.\n");
-        goto out;
-    }
-
-    if (ECDSA_SIG_set0(ecdsa_sig,
-                       BN_bin2bn(&*R, VECTOR_LENGTH("R"), NULL),
-                       BN_bin2bn(&*S, VECTOR_LENGTH("S"), NULL)) != 1)
-    {
-        log_e("ECDSA_SIG_set0 failed.\n");
-        goto out;
-    }
-
-    tmp_sig_ptr = signature;
-    sig_len = i2d_ECDSA_SIG(ecdsa_sig, &tmp_sig_ptr);
-    if (sig_len <= 0)
-    {
-        log_e("i2d_ECDSA_SIG failed\n");
-        goto out;
-    }
-
-    if (sm2_verify(ec_key,
+    if (sm2_verify(pkey,
                    EVP_sm3(),
                    EH_RAW,
                    (const uint8_t *)test_vector["Msg"].c_str(),
@@ -225,12 +181,8 @@ static bool sm2_verify_test(map<string, string> test_vector)
 out:
     if (signature)
         free(signature);
-    if (ec_key)
-        EC_KEY_free(ec_key);
     if (pt)
         EC_POINT_free(pt);
-    if (ecdsa_sig)
-        ECDSA_SIG_free(ecdsa_sig);
     if (ec_group)
         EC_GROUP_free(ec_group);
     return ret;
@@ -282,36 +234,29 @@ bool sm2_crypto_test()
         uint16_t rand_len = 0;
         sgx_read_rand((uint8_t *)&rand_len, sizeof(rand_len));
         size_t length = rand_len % 1024 + 1;
-        //log_i("sm2_crypto_test length = %lu\n", length);
 
         // create key
-        EC_GROUP *ec_group = EC_GROUP_new_by_curve_name(NID_sm2);
-        EC_KEY *ec_key = EC_KEY_new();
-        EC_KEY_set_group(ec_key, ec_group);
-        EC_KEY_generate_key(ec_key);
-        BIO *bio = BIO_new(BIO_s_mem());
-        PEM_write_bio_EC_PUBKEY(bio, ec_key);
-        PEM_write_bio_ECPrivateKey(bio, ec_key, NULL, NULL, 0, NULL, NULL);
+        EVP_PKEY *pkey = NULL;
+        EVP_PKEY_CTX *pkctx = NULL;
+        pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_SM2, NULL);
+        EVP_PKEY_keygen_init(pkctx);
+        EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pkctx, NID_sm2);
+        EVP_PKEY_keygen(pkctx, &pkey);
+        pkctx = EVP_PKEY_CTX_new(pkey, NULL);
 
         // encryption
         uint8_t plaintext[length] = {0};
         sgx_read_rand(plaintext, length);
-        EVP_PKEY *pkey1 = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-        EVP_PKEY_set_alias_type(pkey1, EVP_PKEY_SM2);
-        EVP_PKEY_CTX *ectx = EVP_PKEY_CTX_new(pkey1, NULL);
-        EVP_PKEY_encrypt_init(ectx);
+        EVP_PKEY_encrypt_init(pkctx);
         size_t cipher_len;
-        EVP_PKEY_encrypt(ectx, NULL, &cipher_len, plaintext, length);
+        EVP_PKEY_encrypt(pkctx, NULL, &cipher_len, plaintext, length);
         uint8_t ciphertext[cipher_len] = {0};
-        EVP_PKEY_encrypt(ectx, ciphertext, &cipher_len, plaintext, length);
+        EVP_PKEY_encrypt(pkctx, ciphertext, &cipher_len, plaintext, length);
 
         // decryption
         uint8_t _plaintext[length] = {0};
-        EVP_PKEY *pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
-        EVP_PKEY_set_alias_type(pkey2, EVP_PKEY_SM2);
-        EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(pkey2, NULL);
-        EVP_PKEY_decrypt_init(dctx);
-        EVP_PKEY_decrypt(dctx, _plaintext, &length, ciphertext, cipher_len);
+        EVP_PKEY_decrypt_init(pkctx);
+        EVP_PKEY_decrypt(pkctx, _plaintext, &length, ciphertext, cipher_len);
 
         if (memcmp(plaintext, _plaintext, length) != 0)
         {
@@ -324,13 +269,8 @@ bool sm2_crypto_test()
             return false;
         }
 
-        EC_GROUP_free(ec_group);
-        EC_KEY_free(ec_key);
-        BIO_free_all(bio);
-        EVP_PKEY_free(pkey1);
-        EVP_PKEY_CTX_free(ectx);
-        EVP_PKEY_free(pkey2);
-        EVP_PKEY_CTX_free(dctx);
+        EVP_PKEY_free(pkey);
+        EVP_PKEY_CTX_free(pkctx);
     }
 
     log_i("%s end", __func__);
