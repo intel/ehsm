@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <openssl_operation.h>
+#include <openssl/param_build.h>
+#include <openssl/core_names.h>
 
 #include "enclave_hsm_t.h"
 #include "key_operation.h"

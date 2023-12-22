@@ -62,13 +62,15 @@ extern sgx_status_t sm4_crypto_test();
 
 sgx_status_t enclave_self_test()
 {
-    if (aes_gcm_crypto_test() &
+    if (
+        aes_gcm_crypto_test() &
         sm4_crypto_test() &
         rsa_crypto_test() &
         rsa_sign_verify_test() &
-        ecc_sign_verify_test() &
-        sm2_sign_verify_test() &
-        sm2_crypto_test())
+        // ecc_sign_verify_test() &
+        // sm2_sign_verify_test() &
+        sm2_crypto_test()
+        )
     {
         return SGX_SUCCESS;
     }

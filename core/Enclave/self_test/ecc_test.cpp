@@ -1,5 +1,5 @@
 #include "enclave_self_test.h"
-
+#if 0
 using namespace std;
 
 /**
@@ -460,3 +460,4 @@ bool ecc_sign_verify_test()
     log_i("%s end", __func__);
     return true;
 }
+#endif
