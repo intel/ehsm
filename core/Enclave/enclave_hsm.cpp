@@ -438,7 +438,6 @@ sgx_status_t enclave_sign(const ehsm_keyblob_t *cmk, size_t cmk_size,
                           const ehsm_data_t *message, size_t message_size,
                           ehsm_data_t *signature, size_t signature_size)
 {
-    // TODO : make default padding mode for ECC/SM2
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     // check cmk_blob and cmk_blob_size
@@ -939,11 +938,11 @@ sgx_status_t enclave_verify_quote_policy(uint8_t *quote, uint32_t quote_size,
  * @param apikey the encrypted apikey
  * @param payload the payload of HMAC
  * @param hmac the output of the function
-*/
+ */
 sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
-                                    ehsm_data_t *apikey, uint32_t apikey_size,
-                                    ehsm_data_t *payload, uint32_t payload_size,
-                                    ehsm_data_t *hmac, uint32_t hmac_size)
+                                   ehsm_data_t *apikey, uint32_t apikey_size,
+                                   ehsm_data_t *payload, uint32_t payload_size,
+                                   ehsm_data_t *hmac, uint32_t hmac_size)
 {
     if (cmk == NULL ||
         cmk_size != APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen) ||
@@ -981,7 +980,8 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
     // 1. Decrypt the apikey
     // aad is empty, thus NULL is passed as `aad` and 0 is passed as `aad_size`
     ret = enclave_decrypt(cmk, cmk_size, NULL, 0, apikey, apikey_size, rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
-    if (ret != SGX_SUCCESS) {
+    if (ret != SGX_SUCCESS)
+    {
         log_w("apikey decrypt failed");
         goto out;
     }
@@ -991,7 +991,8 @@ sgx_status_t enclave_generate_hmac(ehsm_keyblob_t *cmk, uint32_t cmk_size,
 
 out:
     // clear sensitive info
-    if (rawApiKey) {
+    if (rawApiKey)
+    {
         memset_s(rawApiKey, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen), 0, APPEND_SIZE_TO_DATA_T(rawApiKey->datalen));
     }
     // free allocations

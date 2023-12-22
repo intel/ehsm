@@ -220,11 +220,6 @@ sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *keypair = NULL;
-    RSA *rsa_keypair = NULL;
-    BIO *bio_keypair = NULL;
-    BIO *bio_pubkey = NULL;
-    EVP_PKEY *pkey = NULL;
-    uint32_t key_size;
 
     // load asymmetric key pair
     keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -234,80 +229,40 @@ sgx_status_t ehsm_get_public_key(ehsm_keyblob_t *cmk,
     if (SGX_SUCCESS != ehsm_parse_keyblob(keypair,
                                           (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
         goto out;
-    // load asymmetric pubkey
-    bio_keypair = BIO_new_mem_buf(keypair, -1); // use -1 to auto compute length
-    if (bio_keypair == NULL)
-    {
-        log_d("failed to load keypair pem\n");
-        goto out;
-    }
-
-    switch (cmk->metadata.keyspec)
-    {
-    case EH_SM2:
-    case EH_EC_P224:
-    case EH_EC_P256K:
-    case EH_EC_P256:
-    case EH_EC_P384:
-    case EH_EC_P521:
-        pkey = PEM_read_bio_PUBKEY(bio_keypair, NULL, NULL, NULL);
-        break;
-    case EH_RSA_2048:
-    case EH_RSA_3072:
-    case EH_RSA_4096:
-        PEM_read_bio_RSAPublicKey(bio_keypair, &rsa_keypair, NULL, NULL);
-        break;
-    }
-
-    if (pkey == NULL && rsa_keypair == NULL)
-    {
-        log_d("failed to load key pair\n");
-        goto out;
-    }
-
-    bio_pubkey = BIO_new(BIO_s_mem());
-    if (bio_pubkey == NULL)
-        goto out;
-
-    switch (cmk->metadata.keyspec)
-    {
-    case EH_SM2:
-    case EH_EC_P224:
-    case EH_EC_P256:
-    case EH_EC_P256K:
-    case EH_EC_P384:
-    case EH_EC_P521:
-        if (!PEM_write_bio_PUBKEY(bio_pubkey, pkey))
-            goto out;
-        break;
-    case EH_RSA_2048:
-    case EH_RSA_3072:
-    case EH_RSA_4096:
-        if (!PEM_write_bio_RSAPublicKey(bio_pubkey, rsa_keypair))
-            goto out;
-        break;
-    }
-
-    key_size = BIO_pending(bio_pubkey);
-    if (key_size <= 0)
-        goto out;
 
     if (pubkey->datalen == 0)
     {
-        pubkey->datalen = key_size;
-        return SGX_SUCCESS;
+        // Key Pair Length (total) = |------------------------|
+        // Public Key Length       = |---------|
+        // Private Key Length      =            |-------------|
+        // length of public key calculated as total - private key
+        switch (cmk->metadata.keyspec)
+        {
+        case EH_SM2:
+            pubkey->datalen = strlen((char *)keypair) - strlen(strstr((char *)keypair, "-----BEGIN PRIVATE KEY-----"));
+            break;
+        case EH_EC_P224:
+        case EH_EC_P256K:
+        case EH_EC_P256:
+        case EH_EC_P384:
+        case EH_EC_P521:
+            pubkey->datalen = strlen((char *)keypair) - strlen(strstr((char *)keypair, "-----BEGIN EC PRIVATE KEY-----"));
+            break;
+        case EH_RSA_2048:
+        case EH_RSA_3072:
+        case EH_RSA_4096:
+            pubkey->datalen = strlen((char *)keypair) - strlen(strstr((char *)keypair, "-----BEGIN RSA PRIVATE KEY-----"));
+            break;
+        }
+        ret = SGX_SUCCESS;
+        goto out;
     }
 
-    if (BIO_read(bio_pubkey, pubkey->data, key_size) < 0)
-        goto out;
+    memcpy_s(pubkey->data, pubkey->datalen, keypair, pubkey->datalen);
 
     ret = SGX_SUCCESS;
 
 out:
-    RSA_free(rsa_keypair);
-    BIO_free(bio_keypair);
-    BIO_free(bio_pubkey);
-    EVP_PKEY_free(pkey);
     SAFE_MEMSET(keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(keypair);
 
@@ -681,8 +636,12 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_INVALID_PARAMETER;
 
     uint8_t *rsa_keypair = NULL;
-    BIO *bio = NULL;
-    RSA *rsa_pubkey = NULL;
+    uint8_t *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    size_t dataLen = 0;
+    size_t outLen = 0;
 
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -693,97 +652,31 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
                                           (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
         goto out;
 
-    bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load public key pem\n");
-        goto out;
-    }
-
-    // make encryption
-    PEM_read_bio_RSAPublicKey(bio, &rsa_pubkey, NULL, NULL);
-    if (rsa_pubkey == NULL)
-    {
-        log_d("failed to load rsa key\n");
-        goto out;
-    }
-
-    if (ciphertext->datalen == 0)
-    {
-        ciphertext->datalen = RSA_size(rsa_pubkey);
-        ret = SGX_SUCCESS;
-        goto out;
-    }
-
-    if (RSA_public_encrypt(plaintext->datalen,
-                           plaintext->data,
-                           ciphertext->data,
-                           rsa_pubkey,
-                           paddingMode) != RSA_size(rsa_pubkey))
-    {
-        log_d("failed to make rsa encryption\n");
-        goto out;
-    }
-
-    ret = SGX_SUCCESS;
-out:
-    BIO_free(bio);
-    RSA_free(rsa_pubkey);
-
-    SAFE_MEMSET(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
-    SAFE_FREE(rsa_keypair);
-
-    return ret;
-}
-
-sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
-                              const ehsm_data_t *plaintext,
-                              ehsm_data_t *ciphertext)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    uint8_t *sm2_keypair = NULL;
-    BIO *bio = NULL;
-    EVP_PKEY *pkey = NULL;
-    EVP_PKEY_CTX *ectx = NULL;
-    size_t outLen = 0;
-
-    // load sm2 public key
-    sm2_keypair = (uint8_t *)malloc(cmk->keybloblen);
-    if (sm2_keypair == NULL)
+    dataLen = strlen((const char *)rsa_keypair) + 1;
+    data = rsa_keypair;
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "RSA",
+                                         OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
 
-    if (SGX_SUCCESS != ehsm_parse_keyblob(sm2_keypair,
-                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+    if (!OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
         goto out;
 
-    bio = BIO_new_mem_buf(sm2_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load public key pem\n");
-        goto out;
-    }
-
-    // make encryption
-    pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-    if (pkey == NULL)
-    {
-        log_d("failed to load sm2 key\n");
-        goto out;
-    }
-    if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1)
+    pkey_ctx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (pkey_ctx == NULL)
         goto out;
 
-    ectx = EVP_PKEY_CTX_new(pkey, NULL);
-    if (ectx == NULL)
+    if (EVP_PKEY_encrypt_init(pkey_ctx) != 1)
         goto out;
 
-    if (EVP_PKEY_encrypt_init(ectx) != 1)
+    if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, paddingMode) <= 0)
         goto out;
 
     if (ciphertext->datalen == 0)
     {
-        if (EVP_PKEY_encrypt(ectx, NULL, &outLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
+        if (EVP_PKEY_encrypt(pkey_ctx, NULL, &outLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
         {
             ret = SGX_ERROR_UNEXPECTED;
             goto out;
@@ -794,25 +687,24 @@ sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
     }
 
     outLen = ciphertext->datalen;
-    if (EVP_PKEY_encrypt(ectx,
+    if (EVP_PKEY_encrypt(pkey_ctx,
                          ciphertext->data,
                          &outLen,
                          plaintext->data,
                          (size_t)plaintext->datalen) <= 0)
     {
-        log_e("failed to make sm2 encryption\n");
         ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
 
     ret = SGX_SUCCESS;
 out:
-    BIO_free(bio);
     EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(ectx);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    OSSL_DECODER_CTX_free(dctx);
 
-    SAFE_MEMSET(sm2_keypair, cmk->keybloblen, 0, cmk->keybloblen);
-    SAFE_FREE(sm2_keypair);
+    SAFE_MEMSET(rsa_keypair, dataLen, 0, dataLen);
+    SAFE_FREE(rsa_keypair);
 
     return ret;
 }
@@ -830,8 +722,12 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
         return SGX_ERROR_INVALID_PARAMETER;
 
     uint8_t *rsa_keypair = NULL;
-    BIO *bio = NULL;
-    RSA *rsa_prikey = NULL;
+    uint8_t *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    size_t outLen = 0;
+    size_t dataLen = 0;
 
     // load private key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -843,47 +739,132 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
     if (ret != SGX_SUCCESS)
         goto out;
 
-    bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_e("failed to load key pem\n");
-        ret = SGX_ERROR_UNEXPECTED;
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "RSA",
+                                         OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
-    }
 
-    PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
-    if (rsa_prikey == NULL)
-    {
-        log_e("failed to load private key\n");
-        ret = SGX_ERROR_UNEXPECTED;
+    data = (unsigned char *)strstr((char *)rsa_keypair, "-----BEGIN RSA PRIVATE KEY-----");
+    dataLen = strlen((char *)data) + 1;
+
+    if (!OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
         goto out;
-    }
+
+    if (!(pkey_ctx = EVP_PKEY_CTX_new(pkey, NULL)))
+        goto out;
+
+    if (EVP_PKEY_decrypt_init(pkey_ctx) != 1)
+        goto out;
+
+    if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, paddingMode) <= 0)
+        goto out;
 
     if (plaintext->datalen == 0)
     {
-        plaintext->datalen = RSA_size(rsa_prikey);
+        if (EVP_PKEY_decrypt(pkey_ctx,
+                             NULL,
+                             &outLen,
+                             ciphertext->data,
+                             (size_t)ciphertext->datalen) != 1)
+        {
+            goto out;
+        }
+        plaintext->datalen = outLen;
         ret = SGX_SUCCESS;
         goto out;
     }
 
-    retval = RSA_private_decrypt(ciphertext->datalen,
-                                 ciphertext->data,
-                                 plaintext->data,
-                                 rsa_prikey,
-                                 paddingMode);
-    if (retval <= 0)
+    outLen = plaintext->datalen;
+    if (EVP_PKEY_decrypt(pkey_ctx,
+                         plaintext->data,
+                         &outLen,
+                         ciphertext->data,
+                         (size_t)ciphertext->datalen) != 1)
     {
-        log_e("failed to make rsa decrypt\n");
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
     }
-    plaintext->datalen = retval;
-
+    plaintext->datalen = outLen;
+    ret = SGX_SUCCESS;
 out:
-    BIO_free(bio);
-    RSA_free(rsa_prikey);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    OSSL_DECODER_CTX_free(dctx);
+
     SAFE_MEMSET(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
+
+    return ret;
+}
+
+sgx_status_t ehsm_sm2_encrypt(const ehsm_keyblob_t *cmk,
+                              const ehsm_data_t *plaintext,
+                              ehsm_data_t *ciphertext)
+{
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    uint8_t *sm2_keypair = NULL;
+    uint8_t *data = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    size_t outLen = 0;
+    size_t dataLen = 0;
+
+    // load sm2 public key
+    sm2_keypair = (uint8_t *)malloc(cmk->keybloblen);
+    if (sm2_keypair == NULL)
+        goto out;
+
+    if (SGX_SUCCESS != ehsm_parse_keyblob(sm2_keypair,
+                                          (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
+        goto out;
+
+    dataLen = strlen((const char *)sm2_keypair) + 1;
+    data = sm2_keypair;
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "SM2",
+                                         OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
+        goto out;
+
+    if (!OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
+        goto out;
+
+    pkey_ctx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (pkey_ctx == NULL)
+        goto out;
+
+    if (EVP_PKEY_encrypt_init(pkey_ctx) != 1)
+        goto out;
+
+    if (ciphertext->datalen == 0)
+    {
+        if (EVP_PKEY_encrypt(pkey_ctx, NULL, &outLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
+            goto out;
+        ciphertext->datalen = outLen;
+        ret = SGX_SUCCESS;
+        goto out;
+    }
+
+    outLen = ciphertext->datalen;
+    if (EVP_PKEY_encrypt(pkey_ctx,
+                         ciphertext->data,
+                         &outLen,
+                         plaintext->data,
+                         (size_t)plaintext->datalen) <= 0)
+        goto out;
+
+    ret = SGX_SUCCESS;
+out:
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    OSSL_DECODER_CTX_free(dctx);
+
+    SAFE_MEMSET(sm2_keypair, cmk->keybloblen, 0, cmk->keybloblen);
+    SAFE_FREE(sm2_keypair);
 
     return ret;
 }
@@ -895,10 +876,13 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *sm2_keypair = NULL;
-    BIO *bio = NULL;
     EVP_PKEY *pkey = NULL;
-    EVP_PKEY_CTX *dctx = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
     size_t outLen = 0;
+    size_t dataLen = 0;
+    unsigned char *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+
     // load private key
     sm2_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (sm2_keypair == NULL)
@@ -909,74 +893,52 @@ sgx_status_t ehsm_sm2_decrypt(const ehsm_keyblob_t *cmk,
     if (ret != SGX_SUCCESS)
         goto out;
 
-    bio = BIO_new_mem_buf(sm2_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_e("failed to load key pem\n");
-        ret = SGX_ERROR_UNEXPECTED;
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "SM2",
+                                         OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
-    }
 
-    pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
-    if (pkey == NULL)
-    {
-        log_e("failed to load sm2 key\n");
-        ret = SGX_ERROR_UNEXPECTED;
-        goto out;
-    }
+    data = (unsigned char *)strstr((char *)sm2_keypair, "-----BEGIN PRIVATE KEY-----");
+    dataLen = strlen((char *)data) + 1;
 
-    // make decryption and compute plaintext length
-    if (EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2) != 1)
-    {
-        ret = SGX_ERROR_UNEXPECTED;
+    if (!OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
         goto out;
-    }
 
-    if (!(dctx = EVP_PKEY_CTX_new(pkey, NULL)))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
+    if (!(pkey_ctx = EVP_PKEY_CTX_new(pkey, NULL)))
         goto out;
-    }
 
-    if (EVP_PKEY_decrypt_init(dctx) != 1)
-    {
-        ret = SGX_ERROR_UNEXPECTED;
+    if (EVP_PKEY_decrypt_init(pkey_ctx) != 1)
         goto out;
-    }
 
     if (plaintext->datalen == 0)
     {
-        if (EVP_PKEY_decrypt(dctx,
+        if (EVP_PKEY_decrypt(pkey_ctx,
                              NULL,
                              &outLen,
                              ciphertext->data,
                              (size_t)ciphertext->datalen) != 1)
-        {
-            ret = SGX_ERROR_UNEXPECTED;
             goto out;
-        }
         plaintext->datalen = outLen;
         ret = SGX_SUCCESS;
         goto out;
     }
 
     outLen = plaintext->datalen;
-    if (EVP_PKEY_decrypt(dctx,
+    if (EVP_PKEY_decrypt(pkey_ctx,
                          plaintext->data,
                          &outLen,
                          ciphertext->data,
                          (size_t)ciphertext->datalen) != 1)
-    {
-        log_e("failed to make sm2 decryption\n");
-        ret = SGX_ERROR_UNEXPECTED;
         goto out;
-    }
+
     ret = SGX_SUCCESS;
 
 out:
-    BIO_free(bio);
     EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(dctx);
+    EVP_PKEY_CTX_free(pkey_ctx);
+    OSSL_DECODER_CTX_free(dctx);
 
     SAFE_MEMSET(sm2_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(sm2_keypair);
@@ -1003,20 +965,19 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *rsa_keypair = NULL;
-    BIO *bio = NULL;
-    RSA *rsa_prikey = NULL;
+    uint8_t *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    size_t dataLen = 0;
 
     // Get padding mode and digest mode
     const EVP_MD *digest = getDigestMode(digest_mode);
     if (digest == NULL)
-        digest = EVP_sha256();
+        return ret;
 
     int padding = getPaddingMode(padding_mode);
     if (padding != RSA_PKCS1_PADDING && padding != RSA_PKCS1_PSS_PADDING)
-    {
-        log_e("Padding mode does not support.");
         return ret;
-    }
 
     // load private key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -1027,32 +988,33 @@ sgx_status_t ehsm_rsa_sign(const ehsm_keyblob_t *cmk,
                                           (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
         goto out;
 
-    bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load rsa key pem\n");
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "RSA",
+                                         OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
-    }
 
-    PEM_read_bio_RSAPrivateKey(bio, &rsa_prikey, NULL, NULL);
-    if (rsa_prikey == NULL)
+    data = (unsigned char *)strstr((char *)rsa_keypair, "-----BEGIN RSA PRIVATE KEY-----");
+    dataLen = strlen((char *)data) + 1;
+
+    if (OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
     {
-        log_d("failed to load rsa key\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
+        ret = rsa_sign(pkey,
+                       digest,
+                       padding,
+                       message_type,
+                       message->data,
+                       message->datalen,
+                       signature->data,
+                       signature->datalen);
     }
-    ret = rsa_sign(rsa_prikey,
-                   digest,
-                   padding,
-                   message_type,
-                   message->data,
-                   message->datalen,
-                   signature->data,
-                   signature->datalen);
+    else
+        goto out;
 
 out:
-    RSA_free(rsa_prikey);
-    BIO_free(bio);
+    EVP_PKEY_free(pkey);
+    OSSL_DECODER_CTX_free(dctx);
 
     SAFE_MEMSET(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
@@ -1081,8 +1043,10 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *rsa_keypair = NULL;
-    BIO *bio = NULL;
-    RSA *rsa_pubkey = NULL;
+    uint8_t *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    size_t dataLen = 0;
 
     // Get padding mode and digest mode
     const EVP_MD *digest = getDigestMode(digest_mode);
@@ -1091,10 +1055,7 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
 
     int padding = getPaddingMode(padding_mode);
     if (padding != RSA_PKCS1_PADDING && padding != RSA_PKCS1_PSS_PADDING)
-    {
-        log_e("Padding mode does not support.");
         return ret;
-    }
 
     // load rsa public key
     rsa_keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -1105,33 +1066,34 @@ sgx_status_t ehsm_rsa_verify(const ehsm_keyblob_t *cmk,
                                           (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
         goto out;
 
-    bio = BIO_new_mem_buf(rsa_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load rsa key pem\n");
+    dataLen = strlen((const char *)rsa_keypair) + 1;
+    data = rsa_keypair;
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "RSA",
+                                         OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
-    }
 
-    PEM_read_bio_RSAPublicKey(bio, &rsa_pubkey, NULL, NULL);
-    if (rsa_pubkey == NULL)
+    if (OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
     {
-        log_d("failed to load rsa key\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
-    }
 
-    ret = rsa_verify(rsa_pubkey,
-                     digest,
-                     padding,
-                     message_type,
-                     message->data,
-                     message->datalen,
-                     signature->data,
-                     signature->datalen,
-                     result);
+        ret = rsa_verify(pkey,
+                         digest,
+                         padding,
+                         message_type,
+                         message->data,
+                         message->datalen,
+                         signature->data,
+                         signature->datalen,
+                         result);
+    }
+    else
+        goto out;
+
 out:
-    RSA_free(rsa_pubkey);
-    BIO_free(bio);
+    OSSL_DECODER_CTX_free(dctx);
+    EVP_PKEY_free(pkey);
 
     SAFE_MEMSET(rsa_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(rsa_keypair);
@@ -1157,8 +1119,10 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *ec_keypair = NULL;
-    BIO *bio = NULL;
-    EC_KEY *ec_key = NULL;
+    uint8_t *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    size_t dataLen = 0;
 
     // Get padding mode and digest mode
     const EVP_MD *digest = getDigestMode(digest_mode);
@@ -1173,32 +1137,32 @@ sgx_status_t ehsm_ecc_sign(const ehsm_keyblob_t *cmk,
                                           (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
         goto out;
 
-    bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load ecc key pem\n");
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "EC",
+                                         OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
-    }
 
-    PEM_read_bio_ECPrivateKey(bio, &ec_key, NULL, NULL);
-    if (ec_key == NULL)
+    data = (unsigned char *)strstr((char *)ec_keypair, "-----BEGIN EC PRIVATE KEY-----");
+    dataLen = strlen((char *)data) + 1;
+
+    if (OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
     {
-        log_d("failed to load ecc key\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
+        ret = ecc_sign(pkey,
+                       digest,
+                       message_type,
+                       message->data,
+                       message->datalen,
+                       signature->data,
+                       &signature->datalen);
     }
-
-    ret = ecc_sign(ec_key,
-                   digest,
-                   message_type,
-                   message->data,
-                   message->datalen,
-                   signature->data,
-                   &signature->datalen);
+    else
+        goto out;
 
 out:
-    EC_KEY_free(ec_key);
-    BIO_free(bio);
+    EVP_PKEY_free(pkey);
+    OSSL_DECODER_CTX_free(dctx);
 
     SAFE_MEMSET(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
@@ -1226,8 +1190,10 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *ec_keypair = NULL;
-    BIO *bio = NULL;
-    EC_KEY *ec_key = NULL;
+    uint8_t *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    size_t dataLen = 0;
 
     // Get padding mode and digest mode
     const EVP_MD *digest = getDigestMode(digest_mode);
@@ -1242,33 +1208,32 @@ sgx_status_t ehsm_ecc_verify(const ehsm_keyblob_t *cmk,
                                           (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
         goto out;
 
-    bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load ec key pem\n");
+    dataLen = strlen((const char *)ec_keypair) + 1;
+    data = ec_keypair;
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "EC",
+                                         OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
-    }
 
-    PEM_read_bio_EC_PUBKEY(bio, &ec_key, NULL, NULL);
-    if (ec_key == NULL)
+    if (OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
     {
-        log_d("failed to load ec key\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
+        ret = ecc_verify(pkey,
+                         digest,
+                         message_type,
+                         message->data,
+                         message->datalen,
+                         signature->data,
+                         signature->datalen,
+                         result);
     }
-
-    ret = ecc_verify(ec_key,
-                     digest,
-                     message_type,
-                     message->data,
-                     message->datalen,
-                     signature->data,
-                     signature->datalen,
-                     result);
+    else
+        goto out;
 
 out:
-    EC_KEY_free(ec_key);
-    BIO_free(bio);
+    OSSL_DECODER_CTX_free(dctx);
+    EVP_PKEY_free(pkey);
 
     SAFE_MEMSET(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
@@ -1294,12 +1259,14 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *ec_keypair = NULL;
-    BIO *bio = NULL;
-    EC_KEY *ec_key = NULL;
+    uint8_t *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    size_t dataLen = 0;
 
     // Get padding mode and digest mode
     const EVP_MD *digest = getDigestMode(digest_mode);
-    if (digest == NULL)
+    if (digest != EVP_sm3())
         digest = EVP_sm3();
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
@@ -1310,34 +1277,34 @@ sgx_status_t ehsm_sm2_sign(const ehsm_keyblob_t *cmk,
                                           (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
         goto out;
 
-    bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load ec key pem\n");
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "SM2",
+                                         OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
-    }
 
-    PEM_read_bio_ECPrivateKey(bio, &ec_key, NULL, NULL);
-    if (ec_key == NULL)
+    data = (unsigned char *)strstr((char *)ec_keypair, "-----BEGIN PRIVATE KEY-----");
+    dataLen = strlen((char *)data) + 1;
+
+    if (OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
     {
-        log_d("failed to load ec key\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
+        ret = sm2_sign(pkey,
+                       digest,
+                       message_type,
+                       message->data,
+                       message->datalen,
+                       signature->data,
+                       &signature->datalen,
+                       (uint8_t *)SM2_DEFAULT_USERID,
+                       strlen(SM2_DEFAULT_USERID));
     }
-
-    ret = sm2_sign(ec_key,
-                   digest,
-                   message_type,
-                   message->data,
-                   message->datalen,
-                   signature->data,
-                   &signature->datalen,
-                   (uint8_t *)SM2_DEFAULT_USERID,
-                   strlen(SM2_DEFAULT_USERID));
+    else
+        goto out;
 
 out:
-    EC_KEY_free(ec_key);
-    BIO_free(bio);
+    EVP_PKEY_free(pkey);
+    OSSL_DECODER_CTX_free(dctx);
 
     SAFE_MEMSET(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
@@ -1365,13 +1332,15 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint8_t *ec_keypair = NULL;
-    BIO *bio = NULL;
-    EC_KEY *ec_key = NULL;
+    uint8_t *data = NULL;
+    OSSL_DECODER_CTX *dctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    size_t dataLen = 0;
 
     // Get padding mode and digest mode
     const EVP_MD *digest = getDigestMode(digest_mode);
-    if (digest == NULL)
-        digest = EVP_sm3();
+    if (digest != EVP_sm3())
+        goto out;
 
     ec_keypair = (uint8_t *)malloc(cmk->keybloblen);
     if (ec_keypair == NULL)
@@ -1381,38 +1350,36 @@ sgx_status_t ehsm_sm2_verify(const ehsm_keyblob_t *cmk,
                                           (sgx_aes_gcm_data_ex_t *)cmk->keyblob))
         goto out;
 
-    bio = BIO_new_mem_buf(ec_keypair, -1); // use -1 to auto compute length
-    if (bio == NULL)
-    {
-        log_d("failed to load ec key pem\n");
+    dataLen = strlen((const char *)ec_keypair) + 1;
+    data = ec_keypair;
+    dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL,
+                                         "SM2",
+                                         OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
+                                         NULL, NULL);
+    if (dctx == NULL)
         goto out;
-    }
 
-    PEM_read_bio_EC_PUBKEY(bio, &ec_key, NULL, NULL);
-    if (ec_key == NULL)
+    if (OSSL_DECODER_from_data(dctx, (const unsigned char **)&data, &dataLen))
     {
-        log_d("failed to load ec key\n");
-        ret = SGX_ERROR_OUT_OF_MEMORY;
-        goto out;
+        ret = sm2_verify(pkey,
+                         digest,
+                         message_type,
+                         message->data,
+                         message->datalen,
+                         signature->data,
+                         signature->datalen,
+                         result,
+                         (uint8_t *)SM2_DEFAULT_USERID,
+                         strlen(SM2_DEFAULT_USERID));
     }
-
-    ret = sm2_verify(ec_key,
-                     digest,
-                     message_type,
-                     message->data,
-                     message->datalen,
-                     signature->data,
-                     signature->datalen,
-                     result,
-                     (uint8_t *)SM2_DEFAULT_USERID,
-                     strlen(SM2_DEFAULT_USERID));
+    else
+        goto out;
 
 out:
-    EC_KEY_free(ec_key);
-    BIO_free(bio);
+    EVP_PKEY_free(pkey);
+    OSSL_DECODER_CTX_free(dctx);
 
     SAFE_MEMSET(ec_keypair, cmk->keybloblen, 0, cmk->keybloblen);
     SAFE_FREE(ec_keypair);
-
     return ret;
 }
