@@ -22,9 +22,9 @@ class ListKeyItem:
     keyid: str
     alias: str
     keyspec: str
-    keystate: int = Field(alias='keyState')
-    creation_date: int = Field(alias='creationDate')
-    expire_time: int = Field(alias='expireTime')
+    keystate: int = Field(alias="keyState")
+    creation_date: int = Field(alias="creationDate")
+    expire_time: int = Field(alias="expireTime")
 
 
 @dataclass

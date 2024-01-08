@@ -1,6 +1,7 @@
 package ehsm
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"testing"
@@ -184,5 +185,84 @@ func TestInvalidKeyUsage(t *testing.T) {
 	ciphertext, err := client.AsymmetricEncrypt(keyid, base64.StdEncoding.EncodeToString([]byte(msg)), "EH_RSA_PKCS1")
 	if ciphertext != "" {
 		t.Error("keyusage mismatch test failed.")
+	}
+}
+
+func TestImportKey(t *testing.T) {
+	client, err := NewClient()
+	if err != nil {
+		t.Error(err)
+	}
+	keyspec := []string{"EH_AES_GCM_128", "EH_AES_GCM_192", "EH_AES_GCM_256", "EH_SM4_CBC", "EH_SM4_CTR"}
+	warpping_keyspec := []string{"EH_RSA_2048", "EH_RSA_3072", "EH_RSA_4096"}
+	padding_mode := []string{"EH_RSA_PKCS1", "EH_RSA_PKCS1_OAEP"}
+	for _, keyspec := range keyspec {
+		for _, warpping_keyspec := range warpping_keyspec {
+			for _, padding_mode := range padding_mode {
+				keyid, err := client.CreateKey(keyspec, "EH_EXTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+				if err != nil {
+					t.Error(err)
+				}
+				pubkey, importToken, err := client.GetParametersForImport(keyid, warpping_keyspec)
+				if err != nil {
+					t.Error(err)
+				}
+				key, err := generateRandomKey(keyspec)
+				if err != nil {
+					t.Error(err)
+				}
+				if _, err := rand.Read(key); err != nil {
+					t.Error(err)
+				}
+				key_material, err := rsaEncrypt(pubkey, key, padding_mode)
+				if err != nil {
+					t.Error(err)
+				}
+
+				_, err = client.ImportKeyMaterial(keyid, padding_mode, base64.StdEncoding.EncodeToString(key_material), importToken)
+				if err != nil {
+					t.Error(err)
+				}
+				msg := "test for encrypt"
+				aad := "aad"
+				ciphertext, err := client.Encrypt(keyid, base64.StdEncoding.EncodeToString([]byte(msg)), base64.StdEncoding.EncodeToString([]byte(aad)))
+				if err != nil {
+					t.Error(err)
+				}
+				plaintext_b64, err := client.Decrypt(keyid, ciphertext, base64.StdEncoding.EncodeToString([]byte(aad)))
+				if err != nil {
+					t.Error(err)
+				}
+				plaintext, _ := base64.StdEncoding.DecodeString(plaintext_b64)
+				if err != nil || string(plaintext) != msg {
+					t.Error(err)
+				}
+			}
+		}
+	}
+}
+
+func TestEncryptDecrypt(t *testing.T) {
+	client, err := NewClient()
+	if err != nil {
+		t.Error(err)
+	}
+	keyid, err := client.CreateKey("EH_AES_GCM_256", "EH_INTERNAL_KEY", "EH_KEYUSAGE_ENCRYPT_DECRYPT")
+	if err != nil {
+		t.Error(err)
+	}
+	msg := "test for encrypt"
+	aad := "aad"
+	ciphertext, err := client.Encrypt(keyid, base64.StdEncoding.EncodeToString([]byte(msg)), base64.StdEncoding.EncodeToString([]byte(aad)))
+	if err != nil {
+		panic(err)
+	}
+	plaintext_b64, err := client.Decrypt(keyid, ciphertext, base64.StdEncoding.EncodeToString([]byte(aad)))
+	if err != nil {
+		panic(err)
+	}
+	plaintext, _ := base64.StdEncoding.DecodeString(plaintext_b64)
+	if err != nil || string(plaintext) != msg {
+		t.Error(err)
 	}
 }

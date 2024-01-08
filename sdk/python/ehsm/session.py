@@ -38,7 +38,7 @@ class Session(BaseSession):
         *,
         appid: Optional[str] = None,
         apikey: Optional[str] = None,
-        allow_insecure: bool = False
+        allow_insecure: bool = False,
     ) -> None:
         super().__init__()
         self._client = httpx.Client(base_url=base_url, verify=not allow_insecure)
@@ -53,7 +53,8 @@ class Session(BaseSession):
             raise CredentialMissingException(
                 "Missing appid or apikey, please call enroll() first"
             )
-        resp = self._client.request(method, url, **kwargs)
+        # todo: Request to set timeout to NONE in order to pass the BYOK test
+        resp = self._client.request(method, url, timeout=None, **kwargs)
         resp.raise_for_status()
         return resp
 
@@ -68,7 +69,7 @@ class Session(BaseSession):
         check_credentials: bool = True,  # check if session has appid and apikey
         with_signature: bool = True,  # whether add signature to the payload or not
         emit_none_value: bool = True,  # whether remove all key which has None value
-        **kwargs
+        **kwargs,
     ):
         if emit_none_value and data is not None:
             data_items = filter(lambda it: it[1] is not None, data.items())

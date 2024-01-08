@@ -97,6 +97,21 @@ ciphertext = partial(
     help="The datas of the ciphertext which in based64 encoding",
 )
 
+key_material = partial(
+    click.option,
+    "--key_material",
+    type=str,
+    required=True,
+    help="The datas of the key_material which in based64 encoding",
+)
+
+importToken = partial(
+    click.option,
+    "--importToken",
+    type=str,
+    required=True,
+    help="The datas of the importToken which in based64 encoding",
+)
 # Secret Management
 
 secret_name = partial(

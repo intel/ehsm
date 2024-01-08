@@ -34,7 +34,7 @@ func (c *Client) GetPublicKey(keyid string) (crypto.PublicKey, error) {
 	if keyid != "" {
 		payload.Set("keyid", keyid)
 	} else {
-		return "", fmt.Errorf("Please input keyid.")
+		return nil, fmt.Errorf("Please input keyid.")
 	}
 
 	params := c.initParams(payload)
@@ -45,16 +45,16 @@ func (c *Client) GetPublicKey(keyid string) (crypto.PublicKey, error) {
 	// call ehsm kms
 	resp, err := c.doPost(params, "GetPublicKey")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	result, ok := resp["result"].(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("result field is not a valid map")
+		return nil, fmt.Errorf("result field is not a valid map")
 	}
 
 	pubkey, ok := result["pubkey"].(string)
 	if !ok {
-		return "", fmt.Errorf("pubkey field is not a valid string")
+		return nil, fmt.Errorf("pubkey field is not a valid string")
 	}
 	// parse keyblob to crypto.x509
 	// support EH_RSA_x and EH_EC_P256

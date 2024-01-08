@@ -83,7 +83,9 @@ def test_enable_disable_key(client: Client):
     assert_response_success(result.response)
     result = client.list_key()
     assert_response_success(result.response)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
+    key: Optional[ListKeyItem] = next(
+        filter(lambda k: k.keyid == keyid, result.list), None
+    )
     assert key is not None
     assert key.keystate == 0
     # enable it
@@ -91,7 +93,9 @@ def test_enable_disable_key(client: Client):
     assert_response_success(result.response)
     result = client.list_key()
     assert_response_success(result.response)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
+    key: Optional[ListKeyItem] = next(
+        filter(lambda k: k.keyid == keyid, result.list), None
+    )
     assert key is not None
     assert key.keystate == 1
 
@@ -106,7 +110,9 @@ def test_enable_enable_key(client: Client):
     assert_response_success(result.response)
     result = client.list_key()
     assert_response_success(result.response)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
+    key: Optional[ListKeyItem] = next(
+        filter(lambda k: k.keyid == keyid, result.list), None
+    )
     assert key is not None
     assert key.keystate == 1
     # enable it again
@@ -114,7 +120,9 @@ def test_enable_enable_key(client: Client):
     assert_response_success(result.response)
     result = client.list_key()
     assert_response_success(result.response)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
+    key: Optional[ListKeyItem] = next(
+        filter(lambda k: k.keyid == keyid, result.list), None
+    )
     assert key is not None
     assert key.keystate == 1
 
@@ -129,7 +137,9 @@ def test_disable_disable_key(client: Client):
     assert_response_success(result.response)
     result = client.list_key()
     assert_response_success(result.response)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
+    key: Optional[ListKeyItem] = next(
+        filter(lambda k: k.keyid == keyid, result.list), None
+    )
     assert key is not None
     assert key.keystate == 0
     # enable it again
@@ -137,7 +147,9 @@ def test_disable_disable_key(client: Client):
     assert_response_success(result.response)
     result = client.list_key()
     assert_response_success(result.response)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
+    key: Optional[ListKeyItem] = next(
+        filter(lambda k: k.keyid == keyid, result.list), None
+    )
     assert key is not None
     assert key.keystate == 0
 
@@ -147,12 +159,16 @@ def test_delete_key(client: Client):
     # before delete: should successfully acquire
     result = client.list_key()
     assert_response_success(result.response)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
+    key: Optional[ListKeyItem] = next(
+        filter(lambda k: k.keyid == keyid, result.list), None
+    )
     assert key is not None
     # delete: should not be found
     result = client.delete_key(keyid)
     assert_response_success(result.response)
     result = client.list_key()
     assert_response_success(result.response)
-    key: Optional[ListKeyItem] = next(filter(lambda k: k.keyid == keyid, result.list), None)
+    key: Optional[ListKeyItem] = next(
+        filter(lambda k: k.keyid == keyid, result.list), None
+    )
     assert key is None

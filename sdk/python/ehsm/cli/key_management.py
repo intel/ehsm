@@ -51,9 +51,7 @@ def list_key(client: Client):
 @ehsm_cli.command()
 @with_client
 @with_credential_missing_handler
-@options.keyid(
-    help="ID of the CMK you want to delete"
-)
+@options.keyid(help="ID of the CMK you want to delete")
 def delete_key(client: Client, keyid: str):
     resp = client.delete_key(keyid)
     click.echo(resp.response.message)
