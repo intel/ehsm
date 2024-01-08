@@ -75,6 +75,8 @@ typedef int errno_t;
 
 #define EH_HMAC_SHA256_SIZE 32
 
+#define EH_AES_GCM_256_SIZE 80 // 80: 32 + sizeof(sgx_aes_gcm_data_ex_t)
+
 #define TAG_SIZE           16
 #define IV_SIZE            12
 

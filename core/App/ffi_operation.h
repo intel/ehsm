@@ -390,6 +390,67 @@ extern "C"
      */
     uint32_t ffi_generateHmac(JsonObj payloadJson, char *respJson);
 
+    /**
+     * @brief Generate Token Hmac (SHA-256) with given cmk and payload.
+     *        Only using for BYOK.
+     * @param payload : Pass in the cmk, apikey(encrypted) and payload in the form of JSON string
+                {
+                    sessionkey : a base64 string,
+                    importToken : string,
+                }
+     * @return [string] json string
+                {
+                    code: int,
+                    message: string,
+                    result: {
+                        hmac: string,
+                    }
+                }
+     */
+    uint32_t ffi_generateTokenHmac(JsonObj payloadJson, char *respJson);
+
+    /**
+     * @brief Decrypt user's key and store as an external key.
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    padding_mode : int,
+                    importToken : a base64 string,
+                    key_material : a base64 string,
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {}
+        }
+     */
+    uint32_t ffi_importKeyMaterial(JsonObj payloadJson, char *respJson);
+
+    /**
+     * @brief generate RSA keypair, store in external key and return public key.
+     *
+     * @param payload : Pass in the key parameter in the form of JSON string
+                {
+                    cmk : a base64 string,
+                    keyspec : int,
+                }
+     *
+     * @return char*
+     * [string] json string
+        {
+            code: int,
+            message: string,
+            result: {
+                pubkey : a base64 string
+                sessionkey : a base64 string,
+            }
+        }
+     */
+    uint32_t ffi_getParametersForImport(JsonObj payloadJson, char *respJson);
 } // extern "C"
 
 #endif

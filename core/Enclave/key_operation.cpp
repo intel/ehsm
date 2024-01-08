@@ -674,6 +674,9 @@ sgx_status_t ehsm_rsa_encrypt(const ehsm_keyblob_t *cmk,
     if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, paddingMode) <= 0)
         goto out;
 
+    if (EVP_PKEY_CTX_set_rsa_oaep_md(pkey_ctx, EVP_sha256()) <= 0)
+        goto out;
+
     if (ciphertext->datalen == 0)
     {
         if (EVP_PKEY_encrypt(pkey_ctx, NULL, &outLen, plaintext->data, (size_t)plaintext->datalen) <= 0)
@@ -759,6 +762,9 @@ sgx_status_t ehsm_rsa_decrypt(const ehsm_keyblob_t *cmk,
         goto out;
 
     if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, paddingMode) <= 0)
+        goto out;
+
+    if (EVP_PKEY_CTX_set_rsa_oaep_md(pkey_ctx, EVP_sha256()) <= 0)
         goto out;
 
     if (plaintext->datalen == 0)

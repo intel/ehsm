@@ -74,6 +74,8 @@ sgx_status_t ehsm_create_aes_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_create_rsa_key(ehsm_keyblob_t *cmk);
 
+sgx_status_t ehsm_create_rsa_key_for_BYOK(ehsm_keyblob_t *cmk, ehsm_data_t *pubkey, ehsm_keyspec_t keyspec);
+
 sgx_status_t ehsm_create_ecc_key(ehsm_keyblob_t *cmk);
 
 sgx_status_t ehsm_create_sm2_key(ehsm_keyblob_t *cmk);
