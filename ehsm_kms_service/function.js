@@ -82,6 +82,60 @@ const _nonce_cache_timer = () => {
 }
 
 /**
+ * Clear keyblobs with token time more than 24 hours.
+ */
+const _token_time_verify = (DB) => {
+    setInterval(() => {
+        try {
+            const current_time = new Date()
+                .getTime()
+            const query = {
+                selector: {
+                    //Query criteria
+                    token_expired_time: {
+                        $lt: current_time
+                    },
+                },
+                fields: ['_id',
+                    '_rev',
+                    'keyid',
+                    'keyBlob',
+                    'creator',
+                    'creationDate',
+                    'expireTime',
+                    'alias',
+                    'keyspec',
+                    'origin',
+                    'keyState',
+                    'sessionkeyBlob',
+                    'token_expired_time'
+                ], // Fields returned after query
+                limit: 10000,
+            }
+            DB.partitionedFind('cmk', query) // Query expired cmks
+                .then((cmks_res) => {
+                    if (cmks_res.docs.length > 0) {
+                        for (const cmk_item of cmks_res.docs) {
+                            cmk_item.keyBlob = ''
+                        }
+                        DB.bulk({
+                            docs: cmks_res.docs
+                        }) // Batch delete expired cmks
+                            .catch((err) => {
+                                logger.error(err)
+                            })
+                    }
+                })
+                .catch((err) => {
+                    logger.error(err)
+                })
+        } catch (err) {
+            logger.error(err)
+        }
+    }, Definition.TOKEN_LOOP_CLEAR_TIME)
+}
+
+/**
  * CMK is valid for 5 years and 10 days
  * Clean up CMK overdue for more than ten days at three o'clock every day .
  * First, find out all expired items exceeding s from the database .
@@ -162,8 +216,7 @@ function store_cmk(napi_res, res, appid, payload, DB) {
             origin,
             keyusage
         } = payload
-
-        DB.insert({
+        const cmkData = {
             _id: `cmk:${keyid}`,
             keyid,
             keyBlob: napi_res.result.cmk,
@@ -175,7 +228,13 @@ function store_cmk(napi_res, res, appid, payload, DB) {
             origin,
             keyusage,
             keyState: 1,
-        })
+        }
+
+        if (origin === ehsm_keyorigin_t.EH_EXTERNAL_KEY) {
+            cmkData.sessionkeyBlob = ''
+        }
+
+        DB.insert(cmkData)
             .then((r) => {
                 delete napi_res.result.cmk // Delete cmk in NaPi result
                 napi_res.result.keyid = keyid // The keyID field is added to the result returned to the user
@@ -337,7 +396,7 @@ const enroll_user_info = (action, DB, res, req) => {
                         logger.error('database is unavailable')
                         res.send(_result(500, 'enroll user info failed', e))
                     })
-            }else {
+            } else {
                 logger.error('encrypt apikey failed')
                 res.send(_result(500, 'enroll user info failed'))
             }
@@ -461,12 +520,12 @@ const _checkParams = function (req, res, next, nonce_database, DB) {
             res.send(_result(400, 'param type error'))
             return
         }
-        if (nonce != null && nonce != undefined){
+        if (nonce != null && nonce != undefined) {
             if (nonce.length > Definition.MAX_NONCE_LEN) {
                 res.send(_result(400, 'Nonce length error'))
                 return
             }
-        }   
+        }
         if (timestamp.length != Definition.TIMESTAMP_LEN) {
             res.send(_result(400, 'Timestamp length error'))
             return
@@ -664,6 +723,55 @@ const gen_hmac = async (DB, appid, sign_params) => {
     }
 }
 
+/**
+ * Gen Token Hmac of importToken.
+ * @param {string} sessionkey 
+ * @param {object} importToken 
+ * @returns {object} (error, hmac) // One object contain "error" and "hmac" attributes
+ */
+const gen_token_hmac = async (sessionkey, importToken) => {
+    try {
+        const { result } = napi_result(
+            KMS_ACTION.common.GenTokenHmac,
+            undefined,
+            {
+                sessionkey,
+                importToken,
+            })
+        return {
+            error: '',
+            hmac: result.hmac,
+        }
+
+    } catch (error) {
+        logger.error(error)
+        return {
+            error: error,
+            hmac: ''
+        }
+    }
+}
+
+/**
+ * Compare string size on const time.
+ * @param {string} str1 
+ * @param {string} str2 
+ * @returns true | false
+ */
+function consttime_equal_compare(str1, str2) {
+    let result = 0
+    if (str1 == undefined || str2 == undefined) {
+        return true;
+    }
+    if (str1.length !== str2.length) {
+        return false;
+    }
+    for (let i = 0; i < str1.length; i++) {
+        result |= str1[i] ^ str2[i];
+    }
+    return !result;
+}
+
 module.exports = {
     getIPAdress,
     base64_encode,
@@ -677,4 +785,7 @@ module.exports = {
     store_cmk,
     _cmk_cache_timer,
     gen_hmac,
+    gen_token_hmac,
+    _token_time_verify,
+    consttime_equal_compare,
 }

@@ -9,7 +9,9 @@ const cryptographic = {
   AsymmetricEncrypt: 'AsymmetricEncrypt',
   AsymmetricDecrypt: 'AsymmetricDecrypt',
   ExportDataKey: 'ExportDataKey',
-  GetPublicKey: 'GetPublicKey'
+  GetPublicKey: 'GetPublicKey',
+  ImportKeyMaterial: 'ImportKeyMaterial',
+  GetParametersForImport: 'GetParametersForImport'
 }
 
 const enroll = {
@@ -46,6 +48,7 @@ const secret_manager = {
 const common = {
   GetVersion: 'GetVersion',
   GenHmac: 'GenHmac',
+  GenTokenHmac: 'GenTokenHmac',
 }
 
 const KMS_ACTION = {
