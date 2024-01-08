@@ -12,6 +12,7 @@ const {
     _cmk_cache_timer,
     base64_decode,
     base64_encode,
+    _token_time_verify,
     _result
 } = require('./function')
 const connectDB = require('./couchdb')
@@ -62,6 +63,11 @@ const server = (DB) => {
      * Clear nonce cache for more than 15 minutes
      */
     const { timer: nonce_cache_timer, nonce_database } = _nonce_cache_timer()
+
+    /**
+     * Check token expiration time every twelve hours.
+     */
+    _token_time_verify(DB)
 
     /**
      * Clear expired cmks

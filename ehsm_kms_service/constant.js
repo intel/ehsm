@@ -12,8 +12,10 @@ const Definition = {
     SM_SECRET_VERSION_STAGE_CURRENT: 1,
     SM_SECRET_VERSION_STAGE_PREVIOUS: 0,
     DEFAULT_DELETE_RECOVERY_DAYS: 30,
-    MAX_NONCE_LEN: 64, 
-    FFI_BUFFER_SIZE: 10000
+    MAX_NONCE_LEN: 64,
+    FFI_BUFFER_SIZE: 10000,
+    TOKEN_LOOP_CLEAR_TIME: 12 * 60 * 60 * 1000,
+    IMPORT_TOKEN_EFFECTIVE_DURATION: 24 * 60 * 60 * 1000
 }
 
 const ehsm_keySpec_t = {
@@ -83,7 +85,9 @@ const ehsm_action_t = {
     [KMS_ACTION.remote_attestation.GenerateQuote]: 15,
     [KMS_ACTION.remote_attestation.VerifyQuote]: 16,
     [KMS_ACTION.common.GenHmac]: 17,
-    
+    [KMS_ACTION.common.GenTokenHmac]: 18,
+    [KMS_ACTION.cryptographic.ImportKeyMaterial]: 19,
+    [KMS_ACTION.cryptographic.GetParametersForImport]: 20,
 }
 
 const kms_config = {
