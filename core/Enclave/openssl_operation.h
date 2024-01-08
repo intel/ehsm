@@ -46,6 +46,9 @@
 #include "openssl/param_build.h"
 #include "openssl/encoder.h"
 #include "openssl/decoder.h"
+#include "openssl/rand.h"
+#include "openssl/bio.h"
+#include "openssl/pem.h"
 
 #include "sgx_report.h"
 #include "sgx_utils.h"
@@ -92,15 +95,15 @@ sgx_status_t rsa_sign(EVP_PKEY *evpkey,
                       int saltlen = -1);
 
 sgx_status_t rsa_verify(EVP_PKEY *evpkey,
-                       const EVP_MD *digestMode,
-                       uint32_t padding_mode,
-                       ehsm_message_type_t message_type,
-                       const uint8_t *data,
-                       uint32_t data_len,
-                       const uint8_t *signature,
-                       uint32_t signature_len,
-                       bool *result,
-                       int saltlen = -1);
+                        const EVP_MD *digestMode,
+                        uint32_t padding_mode,
+                        ehsm_message_type_t message_type,
+                        const uint8_t *data,
+                        uint32_t data_len,
+                        const uint8_t *signature,
+                        uint32_t signature_len,
+                        bool *result,
+                        int saltlen = -1);
 
 sgx_status_t ecc_sign(EVP_PKEY *evpkey,
                       const EVP_MD *digestMode,

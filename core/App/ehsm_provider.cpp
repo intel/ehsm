@@ -296,6 +296,15 @@ uint32_t EHSM_FFI_CALL(const char *reqJson, char *respJson)
     case EH_GEN_HMAC:
         ffi_generateHmac(payloadJson, respJson);
         break;
+    case EH_GEN_TOKEN_HMAC:
+        ffi_generateTokenHmac(payloadJson, respJson);
+        break;
+    case EH_IMPORT_KEY_MATERIAL:
+        ffi_importKeyMaterial(payloadJson, respJson);
+        break;
+    case EH_GET_PARAMETERS_FOR_IMPORT:
+        ffi_getParametersForImport(payloadJson, respJson);
+        break;
     default:
         RetJsonObj retJsonObj;
         retJsonObj.setCode(retJsonObj.CODE_FAILED);
@@ -502,6 +511,55 @@ ehsm_status_t GetPublicKey(ehsm_keyblob_t *cmk,
                                  APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
                                  pubkey,
                                  APPEND_SIZE_TO_DATA_T(pubkey->datalen));
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+}
+
+ehsm_status_t ImportKeyMaterial(ehsm_keyblob_t *cmk, ehsm_padding_mode_t padding_mode, ehsm_data_t *key_material)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    /* only support to directly encrypt data of less than 6 KB */
+    if (!validate_params(cmk, EH_CMK_MAX_SIZE) ||
+        !validate_params(key_material, EH_CIPHERTEXT_MAX_SIZE))
+        return EH_ARGUMENTS_BAD;
+
+    ret = enclave_import_key_material(g_enclave_id,
+                                      &sgxStatus,
+                                      cmk,
+                                      APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                                      padding_mode,
+                                      key_material,
+                                      APPEND_SIZE_TO_DATA_T(key_material->datalen));
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+}
+
+ehsm_status_t GetParametersForImport(ehsm_keyblob_t *cmk, ehsm_keyspec_t keyspec, ehsm_data_t *pubkey)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (!validate_params(cmk, EH_CMK_MAX_SIZE))
+        return EH_ARGUMENTS_BAD;
+
+    if (pubkey == NULL)
+        return EH_ARGUMENTS_BAD;
+
+    ret = enclave_get_parameters_for_import(g_enclave_id,
+                                            &sgxStatus,
+                                            cmk,
+                                            APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                                            keyspec,
+                                            pubkey,
+                                            APPEND_SIZE_TO_DATA_T(pubkey->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;
@@ -1122,11 +1180,36 @@ ehsm_status_t GenerateHmac(ehsm_keyblob_t *cmk, ehsm_data_t *apikey, ehsm_data_t
         return EH_ARGUMENTS_BAD;
 
     ret = enclave_generate_hmac(g_enclave_id, &sgxStatus,
-        cmk, APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
-        apikey, APPEND_SIZE_TO_DATA_T(apikey->datalen),
-        payload, APPEND_SIZE_TO_DATA_T(payload->datalen),
-        hmac, APPEND_SIZE_TO_DATA_T(hmac->datalen)
-    );
+                                cmk, APPEND_SIZE_TO_KEYBLOB_T(cmk->keybloblen),
+                                apikey, APPEND_SIZE_TO_DATA_T(apikey->datalen),
+                                payload, APPEND_SIZE_TO_DATA_T(payload->datalen),
+                                hmac, APPEND_SIZE_TO_DATA_T(hmac->datalen));
+
+    if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
+        return EH_FUNCTION_FAILED;
+    else
+        return EH_OK;
+}
+
+ehsm_status_t GenerateTokenHmac(ehsm_keyblob_t *sessionkey, ehsm_data_t *import_token, ehsm_data_t *hmac)
+{
+    sgx_status_t sgxStatus = SGX_ERROR_UNEXPECTED;
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    if (sessionkey == NULL)
+        return EH_ARGUMENTS_BAD;
+
+    if (import_token == NULL || import_token->datalen > EH_PAYLOAD_MAX_SIZE)
+        return EH_ARGUMENTS_BAD;
+
+    if (hmac == NULL || hmac->datalen != EH_HMAC_SHA256_SIZE)
+        return EH_ARGUMENTS_BAD;
+    // At present, this interface is only compatible with BYOK function.
+    // The parameters of session key are set in function  ffi_getParametersForImpor.
+    ret = enclave_generate_token_hmac(g_enclave_id, &sgxStatus,
+                                      sessionkey, APPEND_SIZE_TO_KEYBLOB_T(sessionkey->keybloblen),
+                                      import_token, APPEND_SIZE_TO_DATA_T(import_token->datalen),
+                                      hmac, APPEND_SIZE_TO_DATA_T(hmac->datalen));
 
     if (ret != SGX_SUCCESS || sgxStatus != SGX_SUCCESS)
         return EH_FUNCTION_FAILED;

@@ -73,6 +73,14 @@ enclave {
         public sgx_status_t enclave_get_domain_key_from_local();
 
         public sgx_status_t enclave_create_key([in, out, size=cmk_size] ehsm_keyblob_t *cmk, size_t cmk_size);
+        
+        public sgx_status_t enclave_get_parameters_for_import([in, out, size=cmk_size] ehsm_keyblob_t* cmk, size_t cmk_size,
+                                                        ehsm_keyspec_t keyspec,
+                                                        [in, out, size=pubkey_size] ehsm_data_t *pubkey, size_t pubkey_size);
+
+        public sgx_status_t enclave_import_key_material([in, out, size=cmk_size] ehsm_keyblob_t* cmk, size_t cmk_size,
+                                                        ehsm_padding_mode_t padding_mode,
+                                                        [in, size=key_material_size] ehsm_data_t *key_material, size_t key_material_size);
 
         public sgx_status_t enclave_encrypt([in, size=cmk_size] ehsm_keyblob_t* cmk, size_t cmk_size,
                             [in, size=aad_size] ehsm_data_t *aad, size_t aad_size,
@@ -134,6 +142,11 @@ enclave {
                                                   [in, size=apikey_size] ehsm_data_t *apikey, uint32_t apikey_size, 
                                                   [in, size=payload_size] ehsm_data_t *payload, uint32_t payload_size,
                                                   [in, out, size=hmac_size] ehsm_data_t *hmac, uint32_t hmac_size);
+        
+        public sgx_status_t enclave_generate_token_hmac([in, size=sessionkey_size] ehsm_keyblob_t *sessionkey, uint32_t sessionkey_size,
+                                                  [in, size=import_token_size] ehsm_data_t *import_token, uint32_t import_token_size,
+                                                  [in, out, size=hmac_size] ehsm_data_t *hmac, uint32_t hmac_size);
+
 
         /* Interfaces for remote attestation */
         public sgx_status_t enclave_get_target_info([out] sgx_target_info_t* target_info);

@@ -58,9 +58,9 @@ static sgx_status_t encode_keypair_to_pem(EVP_PKEY *pkey, ehsm_keyblob_t *cmk)
         goto out;
 
     ectx_pubkey = OSSL_ENCODER_CTX_new_for_pkey(pkey,
-                                         OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
-                                         "PEM", NULL,
-                                         NULL);
+                                                OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
+                                                "PEM", NULL,
+                                                NULL);
     if (ectx_pubkey == NULL)
         goto out;
 
@@ -68,9 +68,9 @@ static sgx_status_t encode_keypair_to_pem(EVP_PKEY *pkey, ehsm_keyblob_t *cmk)
         goto out;
 
     ectx_prikey = OSSL_ENCODER_CTX_new_for_pkey(pkey,
-                                         OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
-                                         "PEM", NULL,
-                                         NULL);
+                                                OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
+                                                "PEM", NULL,
+                                                NULL);
     if (ectx_prikey == NULL)
         goto out;
 
@@ -360,6 +360,110 @@ out:
     return ret;
 }
 
+sgx_status_t ehsm_create_rsa_key_for_BYOK(ehsm_keyblob_t *cmk, ehsm_data_t *pubkey, ehsm_keyspec_t keyspec)
+{
+    // 1. generate a RSA keypair
+    // 2. return pubkey length
+    // 3. export pubkey
+    
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    uint8_t *pem_keypair = NULL;
+    size_t key_size = 0;
+    BIO *bio = NULL;
+    OSSL_ENCODER_CTX *ectx_pubkey;
+    OSSL_ENCODER_CTX *ectx_prikey;
+
+    pkey_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    if (pkey_ctx == NULL)
+        goto out;
+
+    if (EVP_PKEY_keygen_init(pkey_ctx) <= 0)
+        goto out;
+
+    switch (keyspec)
+    {
+    case EH_RSA_2048:
+        EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_2048_KEY_BITS);
+        break;
+    case EH_RSA_3072:
+        EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_3072_KEY_BITS);
+        break;
+    case EH_RSA_4096:
+        EVP_PKEY_CTX_set_rsa_keygen_bits(pkey_ctx, RSA_4096_KEY_BITS);
+        break;
+    default:
+        goto out;
+    }
+
+    if (EVP_PKEY_keygen(pkey_ctx, &pkey) <= 0)
+        goto out;
+
+#ifdef ENABLE_PAIR_WISE_TEST
+    if (!pair_wise_test_for_rsa(pkey))
+    {
+        log_e("rsa keypair test failed, exit");
+        goto out;
+    }
+#endif
+
+    bio = BIO_new(BIO_s_mem());
+    if (bio == NULL)
+        goto out;
+
+    ectx_pubkey = OSSL_ENCODER_CTX_new_for_pkey(pkey,
+                                                OSSL_KEYMGMT_SELECT_PUBLIC_KEY,
+                                                "PEM", NULL,
+                                                NULL);
+    if (ectx_pubkey == NULL)
+        goto out;
+
+    if (!OSSL_ENCODER_to_bio(ectx_pubkey, bio))
+        goto out;
+
+    if (pubkey->datalen == 0)
+    {
+        pubkey->datalen = BIO_pending(bio);
+        return SGX_SUCCESS;
+    }
+
+    ectx_prikey = OSSL_ENCODER_CTX_new_for_pkey(pkey,
+                                                OSSL_KEYMGMT_SELECT_PRIVATE_KEY,
+                                                "PEM", NULL,
+                                                NULL);
+    if (ectx_prikey == NULL)
+        goto out;
+
+    if (!OSSL_ENCODER_to_bio(ectx_prikey, bio))
+        goto out;
+
+    key_size = BIO_pending(bio);
+    pem_keypair = (uint8_t *)malloc(key_size);
+    if (pem_keypair == NULL)
+        goto out;
+
+    if (BIO_read(bio, pem_keypair, key_size) < 0)
+        goto out;
+
+    memcpy_s(pubkey->data, pubkey->datalen, pem_keypair, pubkey->datalen);
+
+    ret = ehsm_create_keyblob(pem_keypair, key_size, (sgx_aes_gcm_data_ex_t *)cmk->keyblob);
+
+out:
+    EVP_PKEY_CTX_free(pkey_ctx);
+    EVP_PKEY_free(pkey);
+    BIO_free(bio);
+    OSSL_ENCODER_CTX_free(ectx_prikey);
+    OSSL_ENCODER_CTX_free(ectx_pubkey);
+
+    SAFE_MEMSET(pem_keypair, key_size, 0, key_size);
+    SAFE_FREE(pem_keypair);
+
+    return ret;
+}
+
 #ifdef ENABLE_PAIR_WISE_TEST
 static bool pair_wise_test_for_ecc(EVP_PKEY *pkey, ehsm_keyspec_t keyspec)
 {
@@ -368,7 +472,7 @@ static bool pair_wise_test_for_ecc(EVP_PKEY *pkey, ehsm_keyspec_t keyspec)
     uint32_t signature_size = 0;
     bool result = false;
 
-    switch(keyspec)
+    switch (keyspec)
     {
     case EH_EC_P256:
     case EH_EC_P256K:
