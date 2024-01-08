@@ -57,3 +57,14 @@ class ExportDataKeyResponse(EHSMBase):
 @dataclass
 class GetPublicKeyResponse(EHSMBase):
     pubkey: str
+
+
+@dataclass
+class ImportKeyMaterialResponse(EHSMBase):
+   result: bool
+
+
+@dataclass
+class GetParamtersForImportResponse(EHSMBase):
+    pubkey: str
+    importToken: str

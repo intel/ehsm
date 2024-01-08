@@ -9,7 +9,7 @@ from ehsm.api.enums import (
     DigestMode,
     MessageType,
 )
-from ehsm.utils import base64_to_str, str_to_base64
+from ehsm.utils import str_to_base64, rsa_encrypt, generate_random_key_hex
 from ehsm.server_tests.utils import random_str, assert_response_success
 
 
@@ -62,20 +62,22 @@ def test_get_public_key(client: Client, keyspec: KeySpec):
 
 
 @pytest.mark.parametrize(
-    "keyspec, padding_mode",
+    "keyspec, padding_mode, digest_mode",
     [
-        (KeySpec.EH_RSA_2048, PaddingMode.EH_RSA_PKCS1),
-        (KeySpec.EH_RSA_3072, PaddingMode.EH_RSA_PKCS1),
-        (KeySpec.EH_RSA_4096, PaddingMode.EH_RSA_PKCS1),
-        (KeySpec.EH_SM2, PaddingMode.EH_PAD_NONE),
-        (KeySpec.EH_EC_P224, PaddingMode.EH_PAD_NONE),
-        (KeySpec.EH_EC_P256, PaddingMode.EH_PAD_NONE),
-        (KeySpec.EH_EC_P256K, PaddingMode.EH_PAD_NONE),
-        (KeySpec.EH_EC_P384, PaddingMode.EH_PAD_NONE),
-        (KeySpec.EH_EC_P521, PaddingMode.EH_PAD_NONE),
+        (KeySpec.EH_RSA_2048, PaddingMode.EH_RSA_PKCS1, DigestMode.EH_SHA_256),
+        (KeySpec.EH_RSA_3072, PaddingMode.EH_RSA_PKCS1, DigestMode.EH_SHA_256),
+        (KeySpec.EH_RSA_4096, PaddingMode.EH_RSA_PKCS1, DigestMode.EH_SHA_256),
+        (KeySpec.EH_SM2, PaddingMode.EH_PAD_NONE, DigestMode.EH_SM3),
+        (KeySpec.EH_EC_P224, PaddingMode.EH_PAD_NONE, DigestMode.EH_SHA_256),
+        (KeySpec.EH_EC_P256, PaddingMode.EH_PAD_NONE, DigestMode.EH_SHA_256),
+        (KeySpec.EH_EC_P256K, PaddingMode.EH_PAD_NONE, DigestMode.EH_SHA_256),
+        (KeySpec.EH_EC_P384, PaddingMode.EH_PAD_NONE, DigestMode.EH_SHA_256),
+        (KeySpec.EH_EC_P521, PaddingMode.EH_PAD_NONE, DigestMode.EH_SHA_256),
     ],
 )
-def test_sign_verify(client: Client, keyspec: KeySpec, padding_mode: PaddingMode):
+def test_sign_verify(
+    client: Client, keyspec: KeySpec, padding_mode: PaddingMode, digest_mode: DigestMode
+):
     # 1. create key
     result = client.create_key(
         keyspec, Origin.EH_INTERNAL_KEY, KeyUsage.EH_KEYUSAGE_SIGN_VERIFY
@@ -87,7 +89,7 @@ def test_sign_verify(client: Client, keyspec: KeySpec, padding_mode: PaddingMode
     sign_result = client.sign(
         keyid=keyid,
         padding_mode=padding_mode,
-        digest_mode=DigestMode.EH_SHA_256,
+        digest_mode=digest_mode,
         message_type=MessageType.EH_RAW,
         message=message,
     )
@@ -96,7 +98,7 @@ def test_sign_verify(client: Client, keyspec: KeySpec, padding_mode: PaddingMode
     verify_result = client.verify(
         keyid=keyid,
         padding_mode=PaddingMode.EH_RSA_PKCS1,
-        digest_mode=DigestMode.EH_SHA_256,
+        digest_mode=digest_mode,
         message_type=MessageType.EH_RAW,
         message=message,
         signature=sign,
@@ -182,8 +184,68 @@ def test_generate_data_key_without_plaintext(client: Client, keyspec: KeySpec):
     assert_response_success(result.response)
     keyid = result.keyid
     # 2. test creation of data key
-    result = client.generate_data_key_without_plaintext(aad=aad, keyid=keyid, keylen=KEYLEN)
+    result = client.generate_data_key_without_plaintext(
+        aad=aad, keyid=keyid, keylen=KEYLEN
+    )
     assert_response_success(result.response)
     ciphertext = result.ciphertext
     # 3. test decryption
     client.decrypt(aad=aad, keyid=keyid, ciphertext=ciphertext)
+
+
+importKeyspec_values = [
+    KeySpec.EH_AES_GCM_128,
+    KeySpec.EH_AES_GCM_192,
+    KeySpec.EH_AES_GCM_256,
+    KeySpec.EH_SM4_CBC,
+    KeySpec.EH_SM4_CTR,
+]
+cryptoKeyspec_values = [
+    KeySpec.EH_RSA_2048,
+    KeySpec.EH_RSA_3072,
+    KeySpec.EH_RSA_4096,
+]
+padding_mode_values = [
+    PaddingMode.EH_RSA_PKCS1,
+    PaddingMode.EH_RSA_PKCS1_OAEP,
+]
+
+
+@pytest.mark.parametrize(
+    "importKeyspec, cryptoKeyspec, padding_mode",
+    [
+        (importKeyspec, cryptoKeyspec, padding_mode)
+        for importKeyspec in importKeyspec_values
+        for cryptoKeyspec in cryptoKeyspec_values
+        for padding_mode in padding_mode_values
+    ],
+)
+def test_BYOK(
+    client: Client,
+    cryptoKeyspec: KeySpec,
+    importKeyspec: KeySpec,
+    padding_mode: PaddingMode,
+):
+    # 1. create data key
+    result = client.create_key(
+        importKeyspec, Origin.EH_EXTERNAL_KEY, KeyUsage.EH_KEYUSAGE_ENCRYPT_DECRYPT
+    )
+    assert_response_success(result.response)
+    keyid = result.keyid
+    # 2. get parameters for import
+    result = client.get_parameters_for_import(keyid=keyid, keyspec=cryptoKeyspec)
+    assert_response_success(result.response)
+    pubkey = result.pubkey
+    importToken = result.importToken
+    # 3. encrypt import key
+    aes_key = generate_random_key_hex(importKeyspec)
+    key_material = rsa_encrypt(aes_key, pubkey, padding_mode)
+    # 4. import key material
+    result = client.import_key_material(
+        keyid=keyid,
+        key_material=key_material.decode("utf-8"),
+        padding_mode=padding_mode,
+        importToken=importToken,
+    )
+    assert_response_success(result.response)
+    assert result.result

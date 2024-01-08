@@ -5,7 +5,7 @@ import tempfile
 from typing import Optional
 
 from ehsm.api import Client
-from ehsm.utils import str_to_base64 
+from ehsm.utils import str_to_base64
 from ehsm.server_tests.utils import assert_response_success, random_str
 
 
@@ -13,8 +13,8 @@ def parse_enclave_file(filename: str):
     """
     Parse an dump file of `sgx_sign -dump`
     """
-    mr_enclave = ''
-    mr_signer = ''
+    mr_enclave = ""
+    mr_signer = ""
     with open(filename, "rb") as enclave_file:
         read_enclave_line_num = 0
         read_signer_line_num = 0
@@ -87,9 +87,11 @@ def test_generate_quote_and_verify_quote(
     assert_response_success(result.response)
     is_valid = result.result
     assert is_valid
-    
+
     # try an invalid one
-    invalid_quote = quote[:-1] + random_str(1) 
-    result = client.verify_quote(quote=str_to_base64(invalid_quote), nonce=nonce, policy_id=policy_id)
+    invalid_quote = quote[:-1] + random_str(1)
+    result = client.verify_quote(
+        quote=str_to_base64(invalid_quote), nonce=nonce, policy_id=policy_id
+    )
     # assert invalid
     assert result.response.code != 200

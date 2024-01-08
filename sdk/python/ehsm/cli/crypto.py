@@ -114,7 +114,9 @@ def verify(
     message: str,
     signature: str,
 ):
-    result = client.verify(keyid, padding_mode, digest_mode, message_type, message, signature)
+    result = client.verify(
+        keyid, padding_mode, digest_mode, message_type, message, signature
+    )
     click.echo(f"Result:\t{result.result}")
 
 
@@ -166,10 +168,17 @@ def generate_data_key_without_plaintext(
     "--ukeyid", help="The unique keyid of the asymmetric CMK which used to export"
 )
 @options.padding_mode()
-def export_data_key(client: Client, aad:str, keyid: str, old_data_key: str, ukeyid: str, padding_mode: PaddingMode):
+def export_data_key(
+    client: Client,
+    aad: str,
+    keyid: str,
+    old_data_key: str,
+    ukeyid: str,
+    padding_mode: PaddingMode,
+):
     result = client.export_data_key(aad, keyid, old_data_key, ukeyid, padding_mode)
-    click.echo('New Data Key')
-    click.echo('=' * 30)
+    click.echo("New Data Key")
+    click.echo("=" * 30)
     click.echo(result.newdatakey)
 
 
@@ -179,6 +188,42 @@ def export_data_key(client: Client, aad:str, keyid: str, old_data_key: str, ukey
 @options.keyid()
 def get_public_key(client: Client, keyid: str):
     result = client.get_public_key(keyid)
-    click.echo('New Data Key')
-    click.echo('=' * 30)
+    click.echo("New Data Key")
+    click.echo("=" * 30)
     click.echo(result.pubkey)
+
+
+@ehsm_cli.command()
+@with_client
+@with_credential_missing_handler
+@options.keyid()
+@options.key_material()
+@options.padding_mode()
+@options.importToken()
+def import_key_material(
+    client: Client,
+    keyid: str,
+    key_material: str,
+    padding_mode: PaddingMode,
+    importToken: str,
+):
+    result = client.import_key_material(keyid, key_material, padding_mode, importToken)
+    click.echo("Import Result")
+    click.echo("=" * 30)
+    click.echo(result)
+
+
+@ehsm_cli.command()
+@with_client
+@with_credential_missing_handler
+@options.keyid()
+@options.keyspec()
+def get_parameters_for_import(client: Client, keyid: str, keyspec: KeySpec):
+    result = client.get_parameters_for_import(keyid, keyspec)
+    click.echo("pubkey")
+    click.echo("=" * 30)
+    click.echo(result.pubkey)
+    click.echo("=" * 30)
+    click.echo("importToken")
+    click.echo("=" * 30)
+    click.echo(result.importToken)

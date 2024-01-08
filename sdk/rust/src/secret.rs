@@ -7,7 +7,6 @@
 // use crate::client::EHSMClient;
 // // use crate::client;
 
-
 // #[async_trait]
 // impl Secret for EHSMClient {
 //     #[warn(unused_variables)]

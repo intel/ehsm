@@ -23,7 +23,7 @@ class Client(
         session: Optional[Session] = None,
         appid: str = "",
         apikey: str = "",
-        allow_insecure: bool = False
+        allow_insecure: bool = False,
     ) -> None:
         """
         Initialize APIClient for EHSM KMS service

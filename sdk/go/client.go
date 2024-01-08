@@ -2,7 +2,10 @@ package ehsm
 
 import (
 	"bytes"
+	"crypto"
 	hmac "crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
 	sha256 "crypto/sha256"
 	tls "crypto/tls"
 	"encoding/base64"
@@ -138,4 +141,37 @@ func paramsSortStr(signParams *orderedmap.OrderedMap) string {
 		str = str[1:] // Remove leading "&"
 	}
 	return str
+}
+
+func generateRandomKey(keyspec string) ([]byte, error) {
+	switch keyspec {
+	case "EH_AES_GCM_128", "EH_SM4_CBC", "EH_SM4_CTR":
+		key := make([]byte, 16)
+		return key, nil
+	case "EH_AES_GCM_192":
+		key := make([]byte, 24)
+		return key, nil
+	case "EH_AES_GCM_256":
+		key := make([]byte, 32)
+		return key, nil
+	default:
+		return nil, fmt.Errorf("Invalid keyspec")
+	}
+}
+
+func rsaEncrypt(pubkey crypto.PublicKey, key []byte, padding_mode string) ([]byte, error) {
+	if padding_mode == "EH_RSA_PKCS1" {
+		key_material, err := rsa.EncryptPKCS1v15(rand.Reader, pubkey.(*rsa.PublicKey), []byte(key))
+		if err != nil {
+			return nil, fmt.Errorf("EncryptPKCS1v15 failed.")
+		}
+		return key_material, nil
+	} else if padding_mode == "EH_RSA_PKCS1_OAEP" {
+		key_material, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pubkey.(*rsa.PublicKey), []byte(key), nil)
+		if err != nil {
+			return nil, fmt.Errorf("EncryptOAEP failed.")
+		}
+		return key_material, nil
+	}
+	return nil, fmt.Errorf("The padding mode is not supported.")
 }

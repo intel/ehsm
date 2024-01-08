@@ -16,8 +16,10 @@ serde_derive = "1.0"
 base64 = "0.13"
 url = "2.2"
 hmac = "0.9"
-sha2 = "0.9"
-rand = "0.3.17"
+sha2 = "0.9.5"
+openssl = "0.10.62"
+sm3 = "0.4.0"
+ring = "0.17.7"
 
 [lib]
 path = "src/lib.rs"

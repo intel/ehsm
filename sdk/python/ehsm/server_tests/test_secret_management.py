@@ -105,7 +105,9 @@ def tset_delete_restore_secret(client: Client):
     result = client.create_secret(secret_name=secret_name, secret_data=secret)
     assert_response_success(result.response)
     # delete the key
-    result = client.delete_secret(secret_name=secret_name, recovery_period=None, force_delete=False)
+    result = client.delete_secret(
+        secret_name=secret_name, recovery_period=None, force_delete=False
+    )
     assert_response_success(result.response)
     result = client.get_secret_value(secret_name=secret_name)
     assert_response_success(result.response)
@@ -115,13 +117,15 @@ def tset_delete_restore_secret(client: Client):
     result = client.get_secret_value(secret_name=secret_name)
     assert_response_success(result.response)
     assert result.secret_data == secret
-    
+
 
 def test_describe_secret(client: Client):
     # create the key
     secret, secret_name = random_secret()
     desc = random_str(100)
-    result = client.create_secret(secret_name=secret_name, secret_data=secret, description=desc)
+    result = client.create_secret(
+        secret_name=secret_name, secret_data=secret, description=desc
+    )
     assert_response_success(result.response)
     result = client.list_secrets(secret_name=secret_name)
     assert_response_success(result.response)
@@ -129,13 +133,15 @@ def test_describe_secret(client: Client):
     assert result.secret_list[0].description == desc
     # update desc
     new_desc = random_str(111)
-    result = client.update_secret_description(secret_name=secret_name, description=new_desc)
+    result = client.update_secret_description(
+        secret_name=secret_name, description=new_desc
+    )
     assert_response_success(result.response)
     result = client.list_secrets(secret_name=secret_name)
     assert_response_success(result.response)
     assert result.total_count == 1
-    assert result.secret_list[0].description == new_desc 
-    
+    assert result.secret_list[0].description == new_desc
+
 
 def test_list_secrets(client: Client):
     # K = random.randint(10, 20)
