@@ -1029,12 +1029,6 @@ sgx_status_t sm2_sign(EVP_PKEY *evpkey,
             goto out;
         }
 
-        if (EVP_DigestSignUpdate(mdctx, id, id_len) != 1)
-        {
-            log_e("ecall sm2_sign EVP_DigestSignUpdate id failed.\n");
-            goto out;
-        }
-
         if (EVP_DigestSignUpdate(mdctx, message, message_len) != 1)
         {
             log_e("ecall sm2_sign EVP_DigestSignUpdate data failed.\n");
@@ -1147,12 +1141,6 @@ sgx_status_t sm2_verify(EVP_PKEY *evpkey,
         if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, digestMode, nullptr, evpkey) != 1)
         {
             log_e("ecall sm2_verify EVP_DigestVerifyInit failed.\n");
-            goto out;
-        }
-
-        if (EVP_DigestVerifyUpdate(mdctx, id, id_len) != 1)
-        {
-            log_e("ecall sm2_verify EVP_DigestVerifyUpdate id failed.\n");
             goto out;
         }
 
