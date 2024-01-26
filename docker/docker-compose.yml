@@ -18,6 +18,7 @@ services:
     container_name: c_ehsm_base
     build: 
       context: .
+      dockerfile: ${DOCKER_FILE}
       args:
        http_proxy: ${http_proxy}
        https_proxy: ${http_proxy}
@@ -30,7 +31,7 @@ services:
     build: 
       context: dkeyserver
       args:
-       IMAGE_NAME_EHSM_BASE: ${IMAGE_NAME_EHSM_BASE}
+       IMAGE_NAME_EHSM_BASE: ${DOCKER_REPO}${DOCKER_REPO:+/}${IMAGE_NAME_EHSM_BASE}
        EHSM_VERSION_STR: ${EHSM_VERSION_STR}
     image: "${DOCKER_REPO}${DOCKER_REPO:+/}ehsm_dkeyserver-dev:${EHSM_VERSION_STR}"
     ports:
@@ -58,7 +59,7 @@ services:
     build: 
       context: dkeycache
       args:
-       IMAGE_NAME_EHSM_BASE: ${IMAGE_NAME_EHSM_BASE}
+       IMAGE_NAME_EHSM_BASE: ${DOCKER_REPO}${DOCKER_REPO:+/}${IMAGE_NAME_EHSM_BASE}
        EHSM_VERSION_STR: ${EHSM_VERSION_STR}
     image: "${DOCKER_REPO}${DOCKER_REPO:+/}ehsm_dkeycache-dev:${EHSM_VERSION_STR}"
     volumes:
@@ -105,7 +106,7 @@ services:
       args:
        http_proxy: ${http_proxy}
        https_proxy: ${http_proxy}
-       IMAGE_NAME_EHSM_BASE: ${IMAGE_NAME_EHSM_BASE}
+       IMAGE_NAME_EHSM_BASE: ${DOCKER_REPO}${DOCKER_REPO:+/}${IMAGE_NAME_EHSM_BASE}
        EHSM_VERSION_STR: ${EHSM_VERSION_STR}
     image: "${DOCKER_REPO}${DOCKER_REPO:+/}ehsm_kms_service-dev:${EHSM_VERSION_STR}"
     ports:

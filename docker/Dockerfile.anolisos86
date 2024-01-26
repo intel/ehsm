@@ -1,0 +1,75 @@
+FROM openanolis/anolisos:8.6
+
+# ARG DEBIAN_FRONTEND=noninteractive
+
+# ARG TAG_VERSION=main
+
+RUN yum groupinstall -y "Development Tools"
+RUN yum install -y epel-release
+RUN yum update -y && yum install -y \
+    vim \
+    autoconf \
+    automake \
+    cmake \
+    curl \
+    git \
+    libcurl-devel \
+    protobuf-devel \
+    openssl-devel \
+    libtool \
+    redhat-lsb \
+    ocaml \
+    ocaml-ocamlbuild \
+    protobuf-compiler \
+    wget \
+    openssl \
+    make \
+    elfutils-libelf-devel \
+    ncurses-devel \
+    flex \
+    bison \
+    libfdt-devel \
+    pkg-config \
+    gtk3-devel \
+    spice-server-devel \
+    libssh-devel \
+    python3 \
+    python3-pip  \
+    unzip \
+    libuuid-devel\
+    dnsutils \
+    jsoncpp \
+    log4cplus \
+    jsoncpp-devel \
+    log4cplus-devel
+
+# Install the SDK
+WORKDIR /opt/intel
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/Anolis86/sgx_linux_x64_sdk_2.22.100.3.bin \
+    && chmod 777 sgx_linux_x64_sdk_2.22.100.3.bin \
+    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.22.100.3.bin'
+
+#Install SDK toolset
+RUN wget https://download.01.org/intel-sgx/sgx-linux/2.22/as.ld.objdump.r4.tar.gz \
+    && tar -zxf as.ld.objdump.r4.tar.gz \
+    && cp external/toolset/anolis8.6/* /usr/local/bin
+    
+# Install DCAP packages
+# DCAP repository setup
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/Anolis86/sgx_rpm_local_repo.tgz \
+    && tar xzf sgx_rpm_local_repo.tgz \
+    && cd sgx_rpm_local_repo \
+    && yum localinstall -y *.rpm
+
+# Modify the package reference path of jsoncpp in anolisos8.6
+WORKDIR /usr/include
+RUN mkdir jsoncpp \
+    && mv -r json jsoncpp
+
+# Build App from source
+WORKDIR /home
+RUN git clone --recursive -b anolisos https://github.com/whh39/ehsm.git \
+    && cd ehsm \
+    && make
+
+CMD ["sh", "sleep 10s"]

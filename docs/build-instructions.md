@@ -78,11 +78,12 @@ Welcome to see the build instructions for the ehsm-kms project.
     vim docker/.env
     # Modify the docker/.env configurations
     # ======== docker/.env BEGIN ========
-    HOST_IP=1.2.3.4               # MUST modify it to your host IP.
-    PCCS_URL=https://1.2.3.4:8081 # MUST modify it to your pccs server url.
-    DKEYSERVER_PORT=8888          # (Optional) the default port of dkeyserver, modify it if you want.
-    KMS_PORT=9000                 # (Optional) the default KMS port, modify it if you want.
-    TAG_VERSION=main              # (Optional) the default code base is using the main latest branch, modify it to specific tag if you want.
+    HOST_IP=1.2.3.4                 # MUST modify it to your host IP.
+    PCCS_URL=https://1.2.3.4:8081   # MUST modify it to your pccs server url.
+    DOCKER_FILE=Dockerfile.ubuntu20 # MUST modify it to your docker file.
+    DKEYSERVER_PORT=8888            # (Optional) the default port of dkeyserver, modify it if you want.
+    KMS_PORT=9000                   # (Optional) the default KMS port, modify it if you want.
+    TAG_VERSION=main                # (Optional) the default code base is using the main latest branch, modify it to specific tag if you want.
     # ======== docker/.env END ========
 
     # (Optional) Modify the docker/.env.pccs configurations if PCCS service is needed
