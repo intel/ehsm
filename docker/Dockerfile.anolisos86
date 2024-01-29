@@ -64,7 +64,7 @@ RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/Anolis86/s
 # Modify the package reference path of jsoncpp in anolisos8.6
 WORKDIR /usr/include
 RUN mkdir jsoncpp \
-    && mv -r json jsoncpp
+    && mv json jsoncpp
 
 # Build App from source
 WORKDIR /home
