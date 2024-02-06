@@ -45,18 +45,18 @@ RUN yum update -y && yum install -y \
 
 # Install the SDK
 WORKDIR /opt/intel
-RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/Anolis86/sgx_linux_x64_sdk_2.22.100.3.bin \
-    && chmod 777 sgx_linux_x64_sdk_2.22.100.3.bin \
-    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.22.100.3.bin'
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.20/linux/distro/Anolis86/sgx_linux_x64_sdk_2.23.100.2.bin \
+    && chmod 777 sgx_linux_x64_sdk_2.23.100.2.bin \
+    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.23.100.2.bin'
 
 #Install SDK toolset
-RUN wget https://download.01.org/intel-sgx/sgx-linux/2.22/as.ld.objdump.r4.tar.gz \
+RUN wget https://download.01.org/intel-sgx/sgx-linux/2.23/as.ld.objdump.r4.tar.gz \
     && tar -zxf as.ld.objdump.r4.tar.gz \
     && cp external/toolset/anolis8.6/* /usr/local/bin
     
 # Install DCAP packages
 # DCAP repository setup
-RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/Anolis86/sgx_rpm_local_repo.tgz \
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.20/linux/distro/Anolis86/sgx_rpm_local_repo.tgz \
     && tar xzf sgx_rpm_local_repo.tgz \
     && cd sgx_rpm_local_repo \
     && yum localinstall -y *.rpm
@@ -68,7 +68,7 @@ RUN mkdir jsoncpp \
 
 # Build App from source
 WORKDIR /home
-RUN git clone --recursive -b anolisos https://github.com/whh39/ehsm.git \
+RUN git clone --recursive -b anolisos https://github.com/intel/ehsm.git \
     && cd ehsm \
     && make
 

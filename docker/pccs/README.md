@@ -37,7 +37,7 @@ Output:
 
 Execute command:
 ```
-curl -v -k -G "https://<your_pccs_ip>:<your_pccs_port>/sgx/certification/v3/rootcacrl"
+curl -v -k -G "https://<your_pccs_ip>:<your_pccs_port>/sgx/certification/v4/rootcacrl"
 ```
 to check if pccs service is available.
 

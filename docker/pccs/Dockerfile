@@ -1,7 +1,7 @@
 FROM ubuntu:20.04 AS builder
 
 # DCAP version (github repo branch, tag or commit hash)
-ARG DCAP_VERSION=DCAP_1.19
+ARG DCAP_VERSION=DCAP_1.20
 ARG http_proxy
 ARG https_proxy
 
@@ -15,6 +15,7 @@ RUN apt-get update -yq && \
     curl \
     git \
     zip  \
+    unzip \
     tzdata \
     debhelper \
     libcurl4-openssl-dev \
@@ -26,9 +27,9 @@ RUN apt-get update -yq && \
 # install sgxsdk
 RUN mkdir /opt/intel && \
     cd /opt/intel && \
-    wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.22.100.3.bin && \
-    chmod a+x ./sgx_linux_x64_sdk_2.22.100.3.bin && \
-    printf "no\n/opt/intel\n"|./sgx_linux_x64_sdk_2.22.100.3.bin && \
+    wget https://download.01.org/intel-sgx/sgx-dcap/1.20/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.23.100.2.bin && \
+    chmod a+x ./sgx_linux_x64_sdk_2.23.100.2.bin && \
+    printf "no\n/opt/intel\n"|./sgx_linux_x64_sdk_2.23.100.2.bin && \
     . /opt/intel/sgxsdk/environment
 
 # install node.js
@@ -54,7 +55,8 @@ RUN mkdir /etc/init && cd /SGXDataCenterAttestationPrimitives/tools/SGXPlatformR
 WORKDIR /SGXDataCenterAttestationPrimitives/tools/PCKCertSelection/
 
 # build libPCKCertSelection library and copy to lib folder
-RUN make && \
+RUN git submodule update --init --recursive && \
+    make && \
     mkdir -p ../../QuoteGeneration/pccs/lib && \
     cp ./out/libPCKCertSelection.so ../../QuoteGeneration/pccs/lib/ && \
     make clean
