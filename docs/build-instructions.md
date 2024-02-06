@@ -17,14 +17,14 @@ Welcome to see the build instructions for the ehsm-kms project.
 * Install SGX SDK
 
     ```shell
-    wget https://download.01.org/intel-sgx/sgx-linux/2.22/as.ld.objdump.r4.tar.gz
+    wget https://download.01.org/intel-sgx/sgx-linux/2.23/as.ld.objdump.r4.tar.gz
     tar -zxf as.ld.objdump.r4.tar.gz
     sudo cp external/toolset/{current_distr}/* /usr/local/bin
 
-    wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.22.100.3.bin
+    wget https://download.01.org/intel-sgx/sgx-dcap/1.20/linux/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.23.100.2.bin
 
     #choose to install the sdk into the /opt/intel
-    chmod a+x ./sgx_linux_x64_sdk_2.22.100.3.bin && sudo ./sgx_linux_x64_sdk_2.22.100.3.bin
+    chmod a+x ./sgx_linux_x64_sdk_2.23.100.2.bin && sudo ./sgx_linux_x64_sdk_2.23.100.2.bin
 
     source /opt/intel/sgxsdk/environment
     ```
@@ -34,7 +34,7 @@ Welcome to see the build instructions for the ehsm-kms project.
     ```shell
     cd /opt/intel
 
-    wget https://download.01.org/intel-sgx/sgx-dcap/1.19/linux/distro/ubuntu20.04-server/sgx_debian_local_repo.tgz
+    wget https://download.01.org/intel-sgx/sgx-dcap/1.20/linux/distro/ubuntu20.04-server/sgx_debian_local_repo.tgz
 
     tar xzf sgx_debian_local_repo.tgz
 
@@ -55,7 +55,7 @@ Welcome to see the build instructions for the ehsm-kms project.
 
     ``` vi
     # PCCS server address
-    PCCS_URL=https://1.2.3.4:8081/sgx/certification/v3/ (your pccs IP)
+    PCCS_URL=https://1.2.3.4:8081/sgx/certification/v4/ (your pccs IP)
 
     # To accept insecure HTTPS certificate, set this option to FALSE
     USE_SECURE_CERT=FALSE
