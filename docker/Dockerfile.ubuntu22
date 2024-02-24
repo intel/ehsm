@@ -1,0 +1,82 @@
+FROM ubuntu:22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ARG TAG_VERSION=main
+
+RUN apt-get update && apt-get install -y \
+    vim \
+    autoconf \
+    automake \
+    build-essential \
+    cmake \
+    curl \
+    debhelper \
+    git \
+    libcurl4-openssl-dev \
+    libprotobuf-dev \
+    libssl-dev \
+    libtool \
+    lsb-release \
+    ocaml \
+    ocamlbuild \
+    protobuf-compiler \
+    wget \
+    libcurl4 \
+    make \
+    g++ \
+    fakeroot \
+    libelf-dev \
+    libncurses-dev \
+    flex \
+    bison \
+    libfdt-dev \
+    libncursesw5-dev \
+    pkg-config \
+    libgtk-3-dev \
+    libspice-server-dev \
+    libssh-dev \
+    python3 \
+    python3-pip  \
+    reprepro \
+    unzip \
+    libjsoncpp-dev \
+    uuid-dev\
+    liblog4cplus-dev\
+    dnsutils
+
+# Install the SDK
+WORKDIR /opt/intel
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.20/linux/distro/ubuntu22.04-server/sgx_linux_x64_sdk_2.23.100.2.bin \
+    && chmod 777 sgx_linux_x64_sdk_2.23.100.2.bin \
+    && sh -c 'echo yes | ./sgx_linux_x64_sdk_2.23.100.2.bin'
+
+# Install DCAP packages
+# DCAP repository setup
+RUN wget https://download.01.org/intel-sgx/sgx-dcap/1.20/linux/distro/ubuntu22.04-server/sgx_debian_local_repo.tgz \
+    && tar xzf sgx_debian_local_repo.tgz \
+    && echo 'deb [trusted=yes arch=amd64] file:///opt/intel/sgx_debian_local_repo jammy main' | tee /etc/apt/sources.list.d/intel-sgx.list \
+    && wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - \
+    && apt-get update
+
+RUN apt-get update &&apt-get install -y \
+    libsgx-enclave-common-dev \
+    libsgx-ae-qe3 \
+    libsgx-ae-qve \
+    libsgx-urts \
+    libsgx-dcap-ql \
+    libsgx-dcap-default-qpl \
+    libsgx-dcap-quote-verify-dev \
+    libsgx-dcap-default-qpl-dev \
+    libsgx-ra-network \
+    libsgx-ra-uefi \
+    libsgx-dcap-ql-dev
+
+# Build App from source
+WORKDIR /home
+RUN git clone --recursive -b $TAG_VERSION https://github.com/intel/ehsm.git \
+    && cd ehsm \
+    && make
+
+
+CMD ["sh", "sleep 10s"]
