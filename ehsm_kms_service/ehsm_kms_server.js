@@ -135,6 +135,7 @@ const createHttpsServer = (key, cert) => {
     https.createServer({ key, cert }, app).listen(kms_config.service.port)
     logger.info(`ehsm_ksm_service application start on ${kms_config.service.run_mode} mode.`)
     logger.info(`ehsm_ksm_service application listening at ${getIPAdress()} with https port: ${kms_config.service.port}`)
+    parse_enclave_file()
 }
 
 const build_openssl_conf_buffer = () => {
@@ -147,6 +148,60 @@ const build_openssl_conf_buffer = () => {
         .replace('${commonName}', kms_config.openssl.create_conf.commonName)
         .replace('${emailAddress}', kms_config.openssl.create_conf.emailAddress)
     return Buffer.from(conf_custom_buffer)
+}
+
+const parse_enclave_file = () => {
+    const { execSync } = require('child_process');
+    const fs = require('fs');
+
+    let mr_enclave = '';
+    let mr_signer = '';
+    const signedEnclaveFileName = 'libenclave-ehsm-core.signed.so';
+    const sgxSignFileName = '/opt/intel/sgxsdk/bin/x64/sgx_sign';
+    const tmpFileName = 'ehsm_enclave_out.log';
+    console.log(`NAPI_GenerateQuote signedEnclaveFileName : ${signedEnclaveFileName}`);
+    console.log(`NAPI_GenerateQuote sgxSignFileName : ${sgxSignFileName}`);
+    const delTmpFileCMD = `rm ${tmpFileName}`;
+    const CMD1 = ' dump -enclave ';
+    const CMD2 = ` -dumpfile ${tmpFileName}`;
+    const splicedCMD = `${sgxSignFileName}${CMD1}${signedEnclaveFileName}${CMD2}`;
+    execSync(splicedCMD);
+    try {
+        const data = fs.readFileSync(tmpFileName, 'utf8');
+        const lines = data.split('\n');
+        let readEnclaveLineNum = 0;
+        let readSignerLineNum = 0;
+        lines.forEach((line) => {
+            if (readEnclaveLineNum > 0) {
+                readEnclaveLineNum -= 1;
+                mr_enclave += line;
+            }
+            if (readSignerLineNum > 0) {
+                readSignerLineNum -= 1;
+                mr_signer += line;
+            }
+            if (line === 'metadata->enclave_css.body.enclave_hash.m:') {
+                if (mr_enclave.length === 0) {
+                    readEnclaveLineNum = 2;
+                }
+            }
+            if (line === 'mrsigner->value:') {
+                if (mr_signer.length === 0) {
+                    readSignerLineNum = 2;
+                }
+            }
+        });
+    } catch (err) {
+        console.error('load mr_signer & mr_enclave failed.');
+        // Handle error
+    }
+
+    mr_enclave = mr_enclave.replace(/0x/g, '').replace(/ /g, '');
+    mr_signer = mr_signer.replace(/0x/g, '').replace(/ /g, '');
+
+    execSync(delTmpFileCMD);
+    console.log("mr_enclave=", mr_enclave)
+    console.log("mr_signer=", mr_signer)
 }
 
 connectDB(server)
