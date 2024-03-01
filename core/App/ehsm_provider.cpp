@@ -992,6 +992,8 @@ ehsm_status_t GenerateQuote(ehsm_data_t *quote)
     return EH_OK;
 }
 
+volatile uint32_t g_policy_loaded = 0;
+
 ehsm_status_t VerifyQuote(ehsm_data_t *quote,
                           const char *mr_signer,
                           const char *mr_enclave,
@@ -1042,15 +1044,19 @@ ehsm_status_t VerifyQuote(ehsm_data_t *quote,
 
     log_d("get target info successfully returned.\n");
 
-    // call DCAP quote verify library to set QvE loading policy
-    dcap_ret = sgx_qv_set_enclave_load_policy(SGX_QL_DEFAULT);
-    if (dcap_ret != SGX_QL_SUCCESS)
+    if (!g_policy_loaded)
     {
-        log_e("Error in sgx_qv_set_enclave_load_policy failed: 0x%04x\n", dcap_ret);
-        return EH_FUNCTION_FAILED;
-    }
+        // call DCAP quote verify library to set QvE loading policy
+        dcap_ret = sgx_qv_set_enclave_load_policy(SGX_QL_DEFAULT);
+        if (dcap_ret != SGX_QL_SUCCESS)
+        {
+            log_e("Error in sgx_qv_set_enclave_load_policy failed: 0x%04x\n", dcap_ret);
+            return EH_FUNCTION_FAILED;
+        }
 
-    log_d("sgx_qv_set_enclave_load_policy successfully returned.\n");
+        log_d("sgx_qv_set_enclave_load_policy successfully returned.\n");
+        g_policy_loaded = 1;
+    }
 
     // call DCAP quote verify library to get supplemental data size
     dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
@@ -1175,7 +1181,7 @@ ehsm_status_t GenerateHmac(ehsm_keyblob_t *cmk, ehsm_data_t *apikey, ehsm_data_t
 
     if (payload == NULL || payload->datalen > EH_PAYLOAD_MAX_SIZE)
         return EH_ARGUMENTS_BAD;
-    
+
     if (hmac == NULL || hmac->datalen != EH_HMAC_SHA256_SIZE)
         return EH_ARGUMENTS_BAD;
 
