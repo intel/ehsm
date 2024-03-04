@@ -4,6 +4,8 @@ import random
 import tempfile
 from typing import Optional
 
+from ehsm.exceptions import InvalidParamException
+
 from ehsm.api import Client
 from ehsm.utils import str_to_base64
 from ehsm.server_tests.utils import assert_response_success, random_str
@@ -41,7 +43,7 @@ def parse_enclave_file(filename: str):
     # "Mr_enclave" and "mr_signer" are created when the KMS service is started.
     "mr_enclave, mr_signer",
     [
-        ("9121c477a91830d6acd7907b93c9f676bb4d3a973560ecb5a842445d62c282fa", "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835")
+        ("70de1979095b7b85c18adefb1e1df55780e09ac3c1cc0e56a0df018a130b2fbd", "c30446b4be9baf0f69728423ea613ef81a63e72acf7439fa0549001fd5482835")
     ]
 )
 
@@ -75,9 +77,12 @@ def test_generate_quote_and_verify_quote(
     assert is_valid
 
     # try an invalid one
-    invalid_quote = quote[:-1] + random_str(1)
-    result = client.verify_quote(
-        quote=str_to_base64(invalid_quote), nonce=nonce, policy_id=policy_id
-    )
-    # assert invalid
-    assert result.response.code != 200
+    try:
+        invalid_quote = quote[:-1] + random_str(1)
+        result = client.verify_quote(
+            quote=str_to_base64(invalid_quote), nonce=nonce, policy_id=policy_id
+        )
+    except InvalidParamException:
+        pass
+    else:
+        raise AssertionError("Expected exception not raised")
