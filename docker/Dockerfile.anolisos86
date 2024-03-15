@@ -68,7 +68,7 @@ RUN mkdir jsoncpp \
 
 # Build App from source
 WORKDIR /home
-RUN git clone --recursive -b anolisos https://github.com/intel/ehsm.git \
+RUN git clone --recursive https://github.com/intel/ehsm.git \
     && cd ehsm \
     && make
 
